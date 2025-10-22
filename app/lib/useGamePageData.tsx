@@ -461,9 +461,8 @@ export function useGamePageData() {
         await readContract(wagmiConfig, {
           address: PIZZA_PARTY_ADDRESS as `0x${string}`,
           abi: PIZZA_PARTY_ABI,
-          functionName: 'enterDailyGame',
-          args: [code],
-          account: wallet.address as `0x${string}`,
+          functionName: 'hasEnteredToday',
+          args: [wallet.address],
         })
         console.log('✅ Simulation passed')
       } catch (simError: unknown) {
