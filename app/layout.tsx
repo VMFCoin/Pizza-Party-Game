@@ -42,7 +42,7 @@ export async function generateMetadata(): Promise<Metadata> {
         version: 'next',
         imageUrl: 'https://pizza-party-game.vmfcoin.com/images/pizza-final.png',
         button: {
-          title: `Launch Pizza Party`,
+          title: `Play Pizza Party`,
           action: {
             type: 'launch_miniapp',
             name: 'Pizza Party',

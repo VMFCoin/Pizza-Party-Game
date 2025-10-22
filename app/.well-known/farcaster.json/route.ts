@@ -13,7 +13,7 @@ const manifest = {
     buttonTitle: "Play Pizza Party",
     subtitle: "8 slices • 8 winners!",
     description: "Join the daily Pizza Party on Base. Spend 1 VMF to enter, collect toppings, and win gooey jackpots with friends.",
-    tagline: "pizza vmf jackpot game base",
+    tagline: "The Cheesiest Way to Win.",
     primaryCategory: "games",
     tags: ["pizza", "vmf", "jackpot", "game", "base"],
     heroImageUrl: "https://pizza-party-game.vmfcoin.com/images/screenshots/daily-card.png",
@@ -22,7 +22,7 @@ const manifest = {
     screenshotUrls: [
       "https://pizza-party-game.vmfcoin.com/images/screenshots/daily-card.png"
     ],
-    ogTitle: "Pizza Party Daily Jackpots",
+    ogTitle: "Pizza Party- Daily Jackpots",
     ogDescription: "Enter the Base Pizza Party with VMF, collect toppings, and win one of eight daily slices.",
     ogImageUrl: "https://u.cubeupload.com/vmfcoin/E49A4767F2074D3C9CE7.png",
     castShareUrl: "https://pizza-party-game.vmfcoin.com/share",
@@ -37,7 +37,7 @@ const manifest = {
     buttonTitle: "Play Pizza Party",
     subtitle: "8 slices • 8 winners!",
     description: "Join the daily Pizza Party on Base. Spend 1 VMF to enter, collect toppings, and win gooey jackpots with friends.",
-    tagline: "pizza vmf jackpot game base",
+    tagline: "The Cheesiest Way to Win.",
     primaryCategory: "games",
     tags: ["pizza", "vmf", "jackpot", "game", "base"],
     splashImageUrl: "https://u.cubeupload.com/vmfcoin/E49A4767F2074D3C9CE7.png",
@@ -45,7 +45,7 @@ const manifest = {
     screenshotUrls: [
       "https://pizza-party-game.vmfcoin.com/images/screenshots/daily-card.png"
     ],
-    ogTitle: "Pizza Party Daily Jackpots",
+    ogTitle: "Pizza Party - Daily Jackpots",
     ogDescription: "Enter the Base Pizza Party with VMF, collect toppings, and win one of eight daily slices.",
     ogImageUrl: "https://u.cubeupload.com/vmfcoin/E49A4767F2074D3C9CE7.png",
     castShareUrl: "https://pizza-party-game.vmfcoin.com/share",
