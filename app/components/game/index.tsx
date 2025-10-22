@@ -22,7 +22,6 @@ function GamePageContent() {
     daily,
     playerInfo,
     referralInfo,
-    priceOracleWorking,
     pacificCountdown,
     openWalletModal,
     handleEnterGame,
@@ -180,7 +179,7 @@ function GamePageContent() {
               🎁 Have a Referral Code?
             </p>
             <p className="text-xs text-purple-600 mb-3 text-center">
-              Optional: Enter a friend's code to get bonus toppings! Or skip to continue.
+              Optional: Enter a friend&apos;s code to get bonus toppings! Or skip to continue.
             </p>
             <input
               type="text"

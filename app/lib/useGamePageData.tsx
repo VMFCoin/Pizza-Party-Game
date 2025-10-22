@@ -42,6 +42,25 @@ interface ReferralInfo {
   isActive: boolean
 }
 
+interface ContractDailyGame {
+  gameId: bigint
+  startTime: bigint
+  endTime: bigint
+  totalEntries: bigint
+  jackpotAmount: bigint
+  winners: string[]
+  isCompleted: boolean
+}
+
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === 'object' && value !== null
+
+const getErrorMessage = (error: unknown): string => {
+  if (error instanceof Error) return error.message
+  if (typeof error === 'string') return error
+  return ''
+}
+
 // ------------------ Helper ------------------
 
 function getNextPacificNoonUTC(from: Date = new Date()): Date {
@@ -374,13 +393,14 @@ export function useGamePageData() {
         void checkStatus()
       }, 2000)
       
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('❌ Approve failed:', err)
-      console.error('Error details:', {
-        message: err?.message,
-        code: err?.code,
-      })
-      alert(`Approval failed: ${err?.message || 'Unknown error'}`)
+      const message = getErrorMessage(err) || 'Unknown error'
+      const code = isRecord(err) && 'code' in err ? err.code : undefined
+      if (code !== undefined) {
+        console.error('Error code:', code)
+      }
+      alert(`Approval failed: ${message}`)
     }
   }, [wallet.isAuthenticated, writeContract, networkId, checkStatus])
 
@@ -418,7 +438,7 @@ export function useGamePageData() {
           address: PIZZA_PARTY_ADDRESS as `0x${string}`,
           abi: PIZZA_PARTY_ABI,
           functionName: 'getCurrentDailyGame',
-        }) as any
+        }) as ContractDailyGame
         console.log('Current Game State:', {
           gameId: currentGame.gameId?.toString(),
           isCompleted: currentGame.isCompleted,
@@ -431,7 +451,7 @@ export function useGamePageData() {
           alert('Current game is completed. Please wait for the next game to start.')
           return
         }
-      } catch (gameErr) {
+      } catch (gameErr: unknown) {
         console.warn('Could not fetch game state:', gameErr)
       }
       
@@ -446,30 +466,31 @@ export function useGamePageData() {
           account: wallet.address as `0x${string}`,
         })
         console.log('✅ Simulation passed')
-      } catch (simError: any) {
+      } catch (simError: unknown) {
         console.error('❌ Simulation failed:', simError)
         
         // Try to extract revert reason
         let revertReason = 'Unknown contract error'
-        if (simError?.message) {
-          if (simError.message.includes('Already entered today')) {
+        const message = getErrorMessage(simError)
+        if (message) {
+          if (message.includes('Already entered today')) {
             revertReason = 'You have already entered today'
-          } else if (simError.message.includes('Game completed')) {
+          } else if (message.includes('Game completed')) {
             revertReason = 'Game has been completed'
-          } else if (simError.message.includes('Game ended')) {
+          } else if (message.includes('Game ended')) {
             revertReason = 'Game has ended, waiting for settlement'
-          } else if (simError.message.includes('Invalid VMF price')) {
+          } else if (message.includes('Invalid VMF price')) {
             revertReason = 'Price oracle error - SushiSwap pair not configured correctly'
-          } else if (simError.message.includes('Reserves call failed')) {
+          } else if (message.includes('Reserves call failed')) {
             revertReason = 'Cannot fetch VMF price from SushiSwap. Contract needs configuration.'
-          } else if (simError.message.includes('Invalid code')) {
+          } else if (message.includes('Invalid code')) {
             revertReason = 'Invalid referral code'
-          } else if (simError.message.includes('Invite limit reached')) {
+          } else if (message.includes('Invite limit reached')) {
             revertReason = 'Referrer has reached their weekly invite limit'
-          } else if (simError.message.includes('Already used referral')) {
+          } else if (message.includes('Already used referral')) {
             revertReason = 'You have already used a referral code'
           } else {
-            revertReason = simError.message
+            revertReason = message
           }
         }
         
@@ -516,32 +537,38 @@ export function useGamePageData() {
         void fetchVmfBalance()
       }, 3000)
       
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('❌ Enter game failed:', err)
-      console.error('Error name:', err?.name)
-      console.error('Error message:', err?.message)
-      console.error('Error code:', err?.code)
-      console.error('Error cause:', err?.cause)
-      console.error('Error data:', err?.data)
+      const errRecord = isRecord(err) ? err : null
+      const message = getErrorMessage(err)
+      if (errRecord) {
+        if ('name' in errRecord) console.error('Error name:', errRecord.name)
+        console.error('Error message:', message)
+        if ('code' in errRecord) console.error('Error code:', errRecord.code)
+        if ('cause' in errRecord) console.error('Error cause:', errRecord.cause)
+        if ('data' in errRecord) console.error('Error data:', errRecord.data)
+      } else {
+        console.error('Error message:', message)
+      }
       
       // Reset hasEnteredToday if transaction failed
       setHasEnteredToday(false)
       
       // Parse common error messages
       let errorMessage = 'Unknown error'
-      if (err?.message) {
-        if (err.message.includes('User rejected')) {
+      if (message) {
+        if (message.includes('User rejected')) {
           errorMessage = 'Transaction rejected by user'
-        } else if (err.message.includes('insufficient funds')) {
+        } else if (message.includes('insufficient funds')) {
           errorMessage = 'Insufficient funds for gas'
-        } else if (err.message.includes('Already entered today')) {
+        } else if (message.includes('Already entered today')) {
           errorMessage = 'You have already entered today'
-        } else if (err.message.includes('Game completed')) {
+        } else if (message.includes('Game completed')) {
           errorMessage = 'This game has ended. Please wait for the next game.'
-        } else if (err.message.includes('Game ended')) {
+        } else if (message.includes('Game ended')) {
           errorMessage = 'Game ended. Please wait for settlement.'
         } else {
-          errorMessage = err.message
+          errorMessage = message
         }
       }
       
