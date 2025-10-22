@@ -166,6 +166,8 @@ export default function HomePage() {
                   filter: "drop-shadow(0 0 3px #DC2626)",
                   whiteSpace: "pre-line",
                   fontSize: isMobile ? undefined : "42px",
+                  textAlign: "center",
+                  transform: isMobile ? "translateX(-8px) rotate(-2deg)" : "-rotate-2",
                 }}
               >
                 <div className="block sm:hidden md:hidden lg:block xl:block">
