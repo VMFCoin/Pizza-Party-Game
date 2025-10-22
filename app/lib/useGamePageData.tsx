@@ -462,7 +462,7 @@ export function useGamePageData() {
           address: PIZZA_PARTY_ADDRESS as `0x${string}`,
           abi: PIZZA_PARTY_ABI,
           functionName: 'hasEnteredToday',
-          args: [wallet.address],
+          args: [wallet.address as `0x${string}`],
         })
         console.log('✅ Simulation passed')
       } catch (simError: unknown) {
