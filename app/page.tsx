@@ -91,7 +91,7 @@ export default function HomePage() {
               {['PIZZA', 'PARTY'].map((word, idx) => (
                 <div
                   key={idx}
-                  className="text-7xl sm:text-8xl md:text-9xl font-black transform -rotate-2 drop-shadow-lg"
+                  className="text-7xl sm:text-8xl md:text-8xl font-black transform -rotate-2 drop-shadow-lg"
                   style={{
                     ...customFontStyle,
                     color: "#DC2626",
@@ -116,21 +116,21 @@ export default function HomePage() {
               <Image
                 src={isMobile ? "/images/pizza-transparent-mobile.png" : "/images/pizza-final.png"}
                 alt="Pizza"
-                width={isMobile ? 144 : 192}
-                height={isMobile ? 144 : 192}
+                width={isMobile ? 144 : 240}
+                height={isMobile ? 144 : 240}
                 priority
                 className="drop-shadow-2xl"
               />
 
               <svg
-                viewBox={isMobile ? "0 0 144 144" : "0 0 192 192"}
+                viewBox={isMobile ? "0 0 144 144" : "0 0 240 240"}
                 className="absolute top-0 left-0 w-full h-full pointer-events-none"
               >
                 {[...Array(8)].map((_, i) => {
                   const angle = i * 45 - 90;
-                  const centerX = isMobile ? 72 : 96;
-                  const centerY = isMobile ? 72 : 96;
-                  const radius = isMobile ? 64 : 85;
+                  const centerX = isMobile ? 72 : 120;
+                  const centerY = isMobile ? 72 : 120;
+                  const radius = isMobile ? 64 : 105;
                   const endX = centerX + radius * Math.cos((angle * Math.PI) / 180);
                   const endY = centerY + radius * Math.sin((angle * Math.PI) / 180);
                   return (
@@ -152,7 +152,7 @@ export default function HomePage() {
             {/* Call-to-Action */}
             <div className="bg-white border-4 border-black p-4 mb-6 transform rotate-1 rounded-2xl">
               <div
-                className="text-4xl sm:text-5xl lg:text-6xl font-black transform -rotate-2 drop-shadow-lg leading-tight"
+                className="text-4xl sm:text-5xl lg:text-5xl font-black transform -rotate-2 drop-shadow-lg leading-tight"
                 style={{
                   ...customFontStyle,
                   color: "#DC2626",
@@ -165,6 +165,7 @@ export default function HomePage() {
                   WebkitTextFillColor: "transparent",
                   filter: "drop-shadow(0 0 3px #DC2626)",
                   whiteSpace: "pre-line",
+                  fontSize: isMobile ? undefined : "42px",
                 }}
               >
                 <div className="block sm:hidden md:hidden lg:block xl:block">

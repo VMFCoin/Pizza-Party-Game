@@ -106,7 +106,7 @@ function GamePageContent() {
       style={{
         backgroundImage: "url('/images/Pepperoni game modal background.JPG')",
         backgroundRepeat: 'no-repeat',
-        backgroundSize: 'cover',
+        backgroundSize: '120% 120%',
         backgroundPosition: 'center center',
       }}
     >
