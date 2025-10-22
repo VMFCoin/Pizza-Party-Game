@@ -18,7 +18,7 @@ export async function generateMetadata(): Promise<Metadata> {
     openGraph: {
       title: "Pizza Party",
       description: "8 Slices, 8 Winners! Play daily to win VMF tokens 🍕",
-      url: "https://pizza-party.vmfcoin.com",
+      url: "https://pizza-party-game.vmfcoin.com",
       siteName: "Pizza Party",
       images: [
         {
@@ -40,14 +40,14 @@ export async function generateMetadata(): Promise<Metadata> {
     other: {
       'fc:miniapp': JSON.stringify({
         version: 'next',
-        imageUrl: 'https://pizza-party.vmfcoin.com/images/pizza-final.png',
+        imageUrl: 'https://pizza-party-game.vmfcoin.com/images/pizza-final.png',
         button: {
           title: `Launch Pizza Party`,
           action: {
             type: 'launch_miniapp',
             name: 'Pizza Party',
-            url: 'https://pizza-party.vmfcoin.com',
-            splashImageUrl: "https://pizza-party.vmfcoin.com/images/pizza-final.png",
+            url: 'https://pizza-party-game.vmfcoin.com',
+            splashImageUrl: "https://pizza-party-game.vmfcoin.com/images/pizza-final.png",
             splashBackgroundColor: "#DC2626",
           },
         },
