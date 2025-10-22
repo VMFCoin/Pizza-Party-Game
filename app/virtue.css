@@ -1,0 +1,323 @@
+@import url('https://fonts.cdnfonts.com/css/mikado');
+@import url('https://fonts.cdnfonts.com/css/segoe-ui-4');
+
+*{
+  font-family: 'Segoe UI 400', sans-serif;
+  font-weight: 700;
+}
+
+html, body {
+  overflow-x: hidden;
+}
+body {
+  position: relative;
+  padding: 0; margin: 0;
+}
+
+.bgClassVirtue{
+  background-color: #fff;
+}
+
+.virtueHeader{
+  display: grid;
+  justify-content: center;
+  width: 100vw;
+}
+
+.address{
+  background-color: rgba(33,33,33,0.6);
+  padding-bottom: 10px;
+  border-radius: 10px;
+  width: 620px;
+  padding: 1px 5px 5px 5px;
+  margin: 0 auto;
+  margin-bottom: 20px;
+}
+
+#contractText{
+  margin-left: -0.5% !important;
+  color: white;
+  padding: 0;
+  margin: 0;
+  background-color: rgb(33,33,33, 0.5);
+  border-top-left-radius: 10px;
+  border-top-right-radius: 10px;
+  width: 100.5%;
+  text-align: left;
+  padding-left: 5px;
+  margin-bottom: 10px;
+}
+
+.walletButtonsVirtue p {
+  font-family: 'Nexa', sans-serif;
+}
+
+.walletButtonsVirtue:hover{
+  border: 3px solid #f0af19;
+}
+
+.virtueLogo{
+  width: 120px;
+  margin: 0 auto;
+  padding: 10px;
+}
+
+.virtueHeader p{
+  font-family: 'Mikado', sans-serif;
+}
+
+.virtueHeader h2{
+  text-align: center;
+  font-family: 'Mikado', sans-serif;
+  color: #333;
+  font-size: 3rem;
+    letter-spacing: 5px;
+}
+
+.virtueHeader h3{
+  color: #333;
+  padding: 0;
+  margin: 0;
+  font-family: 'Mikado', sans-serif;
+  text-align: center;
+}
+
+.virtueHeader input{
+  width: 600px;
+
+}
+
+.txLink a{
+  text-decoration: none;
+  color: #00308F;
+  font-family: 'Mikado', sans-serif;
+  text-align: center;
+  margin: 0 auto;
+}
+
+.errorText{
+    text-decoration: none;
+  color: red !important;
+  font-family: 'Mikado', sans-serif;
+  text-align: center;
+  margin: 0 auto;
+}
+
+.socials a{
+  padding: 10px;
+}
+
+.slider {
+  -webkit-appearance: none;
+  width: 100%;
+  height: 15px;
+  background: #999;
+  outline: none;
+  opacity: 0.5;
+  -webkit-transition: .2s;
+  transition: opacity .2s;
+}
+
+.slider:hover {
+  opacity: 1;
+}
+
+.slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 25px;
+  height: 25px;
+  border-radius: 3px;
+  background: #00308F;
+  cursor: pointer;
+}
+
+.slider::-moz-range-thumb {
+  width: 25px;
+  height: 25px;
+  background: #04AA6D;
+  cursor: pointer;
+}
+
+.virtueHeader img{
+  margin: 0 auto;
+}
+
+.virtueHeader p{
+  text-align: center;
+  font-size: 1.5rem;
+color: rgba(31,31,31, 0.8);
+}
+
+.virtueHeader span{
+  font-size: 1.5rem;
+  color: rgb(255,255,255);
+  cursor: pointer;
+}
+
+.mintButton{
+  width: 200px;
+  background-repeat: no-repeat;
+  background-size: cover;
+  color: white !important;
+  font-size: 2rem !important;
+  margin: 0 auto;
+  margin-top: 10px;
+  padding: 5px;
+  border-radius: 12px;
+  text-align: center;
+  cursor: pointer;
+  border-top: #7c3a49 10px solid;
+  border-right: #7c3a49 10px solid;
+  border-bottom: #6f1f25 10px solid;
+  border-left: #6f1f25 10px solid;
+  transform: translateY(-6px);
+}
+
+.mintButton:hover{
+    border-top: #6f1f25 10px solid;
+  border-right: #7c3a49 10px solid;
+  border-bottom: #7c3a49 10px solid;
+  border-left: #6f1f25 10px solid;
+   transform: translateY(-2px);
+}
+
+
+.pointer{
+  cursor: pointer;
+}
+
+ .virtueHeader ul{
+    width: 50%;
+    margin: 0 auto;
+    padding: 0;
+  }
+
+  .virtueNav{
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto;
+  }
+
+.walletButtonsVirtue{
+  margin: 0px auto;
+  gap: 5px;
+  margin-top: 20px;
+  margin-bottom: 20px;
+  border: 3px solid #333;
+  border-radius: 10px;
+  padding: 5px 20px;
+}
+
+.walletButtonsVirtue p{
+  color: #333;
+  font-family: 'Mikado', sans-serif;
+  font-size: 1.25rem;
+  padding: 0;
+  margin: 0;
+}
+
+  /* width */
+::-webkit-scrollbar {
+  width: 15px;
+}
+
+/* Track */
+::-webkit-scrollbar-track {
+  background: #212121; 
+}
+ 
+/* Handle */
+::-webkit-scrollbar-thumb {
+  background: #f0af19; 
+}
+
+/* Handle on hover */
+::-webkit-scrollbar-thumb:hover {
+  background: #ea940e; 
+}
+
+@media(max-width: 1200px){
+
+  .virtueHeader h2{
+    margin-top: 50px;
+    font-size: 2rem;
+  }
+
+  .virtueHeader h3{
+    font-size: 0.8rem;
+    width: 375px;
+    margin: 0 auto;
+  }
+
+  .virtueHeader p{
+    font-size: 1rem;
+  }
+
+  .mintButton{
+    font-size: 1rem !important;
+    padding: 5px;
+
+  }
+
+  .virtueHeader input{
+    width: 300px;
+    margin-left: 40px;
+  }
+
+  .virtueNav{
+    width: 80%;
+  }
+
+  .address{
+    width: 95%;
+  }
+
+  .address span{
+    font-size: 0.8rem;
+  }
+
+  #contractText{
+    margin-left: -1% !important;
+    width: 101%;
+  }
+
+}
+
+/* Chrome, Safari, Edge, Opera */
+input::-webkit-outer-spin-button,
+input::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+/* Firefox */
+input[type=number] {
+  -moz-appearance: textfield;
+}
+
+
+
+input:checked + .slider {
+  background-color: #2196F3;
+}
+
+input:focus + .slider {
+  box-shadow: 0 0 1px #2196F3;
+}
+
+input:checked + .slider:before {
+  -webkit-transform: translateX(26px);
+  -ms-transform: translateX(26px);
+  transform: translateX(26px);
+}
+
+/* Rounded sliders */
+.slider.round {
+  border-radius: 34px;
+}
+
+.slider.round:before {
+  border-radius: 50%;
+}
