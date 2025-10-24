@@ -184,13 +184,13 @@ function GamePageContent() {
         </div>
 
         {/* Wallet Status */}
-        <div className="w-full flex flex-col gap-2">
+        <div className="w-full flex flex-col gap-3">
           {wallet?.isAuthenticated && wallet?.address ? (
             <div className="bg-green-100 border-2 border-green-300 rounded-xl py-2 text-center text-green-800 font-bold">
               ✅ Connected {wallet.address.slice(0,6)}...{wallet.address.slice(-4)}
             </div>
           ) : (
-            <div className="w-full bg-yellow-100 border-2 border-yellow-300 rounded-xl py-2 text-center text-yellow-800 font-bold">
+            <div className="w-full bg-yellow-100 border-2 border-yellow-300 rounded-xl py-2 px-6 text-center text-yellow-800 font-bold">
               ❌ Wallet not connected
             </div>
           )}
@@ -232,7 +232,7 @@ function GamePageContent() {
         )}
 
         {/* Main Action Buttons */}
-        <div className="flex flex-col gap-2 w-full">
+        <div className="flex flex-col gap-3 w-full mt-3">
           {/* Manage Wallet Button (when connected) */}
           {wallet?.isAuthenticated && wallet?.address && (
             <Button
@@ -246,7 +246,7 @@ function GamePageContent() {
 
           {/* Main Action Button (Approve / Enter) */}
           <Button
-            className={`!bg-green-600 hover:!bg-green-700 text-white font-bold py-3 rounded-xl border-4 border-green-800 shadow-lg w-full ${buttonConfig.disabled ? 'opacity-50 cursor-not-allowed' : ''}`}
+            className={`!bg-green-600 hover:!bg-green-700 text-white font-bold py-2 rounded-xl w-full ${buttonConfig.disabled ? 'opacity-50 cursor-not-allowed' : ''}`}
             style={customFontStyle}
             onClick={buttonConfig.onClick}
             disabled={buttonConfig.disabled}
@@ -303,7 +303,7 @@ function GamePageContent() {
         </div>
 
         {/* Weekly Jackpot & Leaderboard */}
-        <div className="flex flex-col gap-2 mt-2 w-full">
+        <div className="flex flex-col gap-3 mt-3 w-full">
           <Button
             className="!bg-yellow-500 hover:!bg-yellow-600 text-white font-bold py-2 rounded-xl w-full"
             onClick={() => alert('Weekly Jackpot coming soon!')}
