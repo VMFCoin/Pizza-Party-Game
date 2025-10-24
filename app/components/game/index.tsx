@@ -191,7 +191,7 @@ function GamePageContent() {
               ✅ Connected {wallet.address.slice(0,6)}...{wallet.address.slice(-4)}
             </div>
           ) : (
-            <div className="w-full bg-yellow-100 border-2 border-yellow-300 rounded-xl py-2 text-center text-yellow-800 font-bold mx-1">
+            <div className="w-full bg-yellow-100 border-2 border-yellow-300 rounded-xl py-2 text-center text-yellow-800 font-bold">
               ❌ Wallet not connected
             </div>
           )}
