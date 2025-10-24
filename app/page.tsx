@@ -113,18 +113,44 @@ export default function HomePage() {
 
             {/* Pizza Image */}
             <div className="flex justify-center items-center mb-4">
-              <Image
-                src={isMobile ? "/images/pizza-final.png" : "/images/pizza-transparent-mobile.png"}
-                alt="Pizza"
-                width={isMobile ? 180 : 320}
-                height={isMobile ? 180 : 320}
-                priority
-                className="drop-shadow-2xl"
-              />
+              <div className="relative">
+                <Image
+                  src={isMobile ? "/images/pizza-final.png" : "/images/pizza-transparent-mobile.png"}
+                  alt="Pizza"
+                  width={isMobile ? 180 : 320}
+                  height={isMobile ? 180 : 320}
+                  priority
+                  className="drop-shadow-2xl"
+                />
+                <svg
+                  viewBox={isMobile ? "0 0 180 180" : "0 0 320 320"}
+                  className="absolute top-0 left-0 w-full h-full pointer-events-none"
+                >
+                  {[...Array(8)].map((_, i) => {
+                    const angle = i * 45 - 90
+                    const center = isMobile ? 90 : 160
+                    const radius = isMobile ? 80 : 140
+                    const endX = center + radius * Math.cos((angle * Math.PI) / 180)
+                    const endY = center + radius * Math.sin((angle * Math.PI) / 180)
+                    return (
+                      <line
+                        key={i}
+                        x1={center}
+                        y1={center}
+                        x2={endX}
+                        y2={endY}
+                        stroke="#8B4513"
+                        strokeWidth={3}
+                        opacity={0.7}
+                      />
+                    )
+                  })}
+                </svg>
+              </div>
             </div>
 
             {/* Call-to-Action */}
-            <div className="bg-white border-4 border-black p-4 mb-6 transform rotate-1 rounded-2xl">
+            <div className="bg-white border-4 border-black pt-4 px-4 pb-2 mb-6 transform rotate-1 rounded-2xl">
               <div
                 className="text-4xl sm:text-5xl lg:text-5xl font-black transform -rotate-2 drop-shadow-lg leading-tight"
                 style={{
@@ -162,23 +188,6 @@ export default function HomePage() {
                 🍕 START PLAYING 🍕
               </Button>
 
-              <Button
-                className="w-full !bg-red-700 text-white text-lg font-bold py-3 px-6 rounded-xl border-4 border-red-900 shadow-lg opacity-50 cursor-not-allowed flex items-center justify-center gap-2"
-                style={{ ...customFontStyle, fontSize: isMobile ? 18 : 20 }}
-                disabled
-              >
-                <Image src="/images/star-favicon.png" alt="Star" width={24} height={24} className="rounded-full mx-1" />
-                Weekly Jackpot
-                <Image src="/images/star-favicon.png" alt="Star" width={24} height={24} className="rounded-full mx-1" />
-              </Button>
-
-              <Button
-                className="w-full !bg-green-600 text-white text-lg font-bold py-3 px-6 rounded-xl border-4 border-green-800 shadow-lg opacity-50 cursor-not-allowed"
-                style={{ ...customFontStyle, fontSize: isMobile ? 18 : 20 }}
-                disabled
-              >
-                🏆 LEADERBOARD 🏆
-              </Button>
             </div>
 
           </Card>

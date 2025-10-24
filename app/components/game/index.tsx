@@ -113,9 +113,49 @@ function GamePageContent() {
       <div className="w-full max-w-sm flex flex-col items-center gap-4">
 
         {/* Header / Daily Jackpot */}
-        <div className="bg-white/90 backdrop-blur-md rounded-2xl border-2 border-red-800 p-4 text-center w-full">
-          <h1 className="text-red-800 text-2xl mb-2" style={customFontStyle}>
-            8 Slices,<br />8 Winners!<br />Every 24 hours!
+        <div className="bg-white/90 backdrop-blur-md rounded-2xl border-4 border-black p-4 text-center w-full">
+          <h1 className="mb-2" style={{
+            padding: "3px",
+            textAlign: "center",
+            transform: "-rotate-2",
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            justifyContent: "center",
+          }}>
+            <div style={{
+              ...customFontStyle,
+              color: "#DC2626",
+              textShadow: "2px 2px 0px #991B1B, 4px 4px 0px #7F1D1D, 6px 6px 10px rgba(0,0,0,0.3)",
+              letterSpacing: "0px",
+              fontWeight: "900",
+              WebkitTextStroke: "1px #450A0A",
+              background: "linear-gradient(45deg, #DC2626, #EF4444, #F87171)",
+              WebkitBackgroundClip: "text",
+              WebkitTextFillColor: "transparent",
+              filter: "drop-shadow(0 0 3px #DC2626)",
+              fontSize: "32px",
+              whiteSpace: "nowrap",
+            }}>
+              EVERY 24 HOURS!
+            </div>
+            <div style={{
+              ...customFontStyle,
+              color: "#DC2626",
+              textShadow: "2px 2px 0px #991B1B, 4px 4px 0px #7F1D1D, 6px 6px 10px rgba(0,0,0,0.3)",
+              letterSpacing: "-1px",
+              fontWeight: "900",
+              WebkitTextStroke: "1px #450A0A",
+              background: "linear-gradient(45deg, #DC2626, #EF4444, #F87171)",
+              WebkitBackgroundClip: "text",
+              WebkitTextFillColor: "transparent",
+              filter: "drop-shadow(0 0 3px #DC2626)",
+              fontSize: "31px",
+              whiteSpace: "nowrap",
+              textAlign: "center",
+            }}>
+              8 SLICES, 8 WINNERS!
+            </div>
           </h1>
 
           <div className="bg-blue-100/90 backdrop-blur-sm p-3 rounded-xl border-2 border-blue-300 mb-2">
@@ -187,11 +227,11 @@ function GamePageContent() {
         <div className="w-full flex flex-col gap-3">
           {/* Wallet Status */}
           {wallet?.isAuthenticated && wallet?.address ? (
-            <div className="bg-green-100 border-2 border-green-300 rounded-xl py-2 text-center text-green-800 font-bold">
+            <div className="bg-green-100 border-4 border-green-800 rounded-xl py-2 text-center text-green-800 font-bold">
               ✅ Connected {wallet.address.slice(0,6)}...{wallet.address.slice(-4)}
             </div>
           ) : (
-            <div className="w-full bg-yellow-100 border-2 border-yellow-300 rounded-xl py-2 text-center text-yellow-800 font-bold">
+            <div className="w-full bg-yellow-100 border-4 border-yellow-800 rounded-xl py-1 text-center text-yellow-800 font-bold">
               ❌ Wallet not connected
             </div>
           )}
@@ -231,37 +271,35 @@ function GamePageContent() {
             </div>
           )}
 
-          {/* Manage Wallet Button (when connected) */}
-          {wallet?.isAuthenticated && wallet?.address && (
-            <Button
-              className="!bg-yellow-600 hover:!bg-yellow-700 text-white font-bold py-3 rounded-xl border-4 border-yellow-800 shadow-lg w-full"
-              style={customFontStyle}
-              onClick={() => openWalletModal()}
-            >
-              Manage Wallet
-            </Button>
-          )}
 
           {/* Main Action Button (Approve / Enter) */}
           <Button
-            className={`!bg-green-600 hover:!bg-green-700 text-white font-bold py-2 rounded-xl w-full ${buttonConfig.disabled ? 'opacity-50 cursor-not-allowed' : ''}`}
+            className={`!bg-green-600 hover:!bg-green-700 text-white font-bold py-2 rounded-xl border-4 border-green-800 w-full ${buttonConfig.disabled ? 'opacity-50 cursor-not-allowed' : ''}`}
             style={customFontStyle}
             onClick={buttonConfig.onClick}
             disabled={buttonConfig.disabled}
           >
-            {isEntryInProgress ? 'Processing...' : buttonConfig.text}
+            {isEntryInProgress ? 'Processing...' : (
+              buttonConfig.text.includes('🍕') ? (
+                <>
+                  <span className="text-xl">🍕</span> {buttonConfig.text.replace(/🍕/g, '').trim()} <span className="text-xl">🍕</span>
+                </>
+              ) : (
+                buttonConfig.text
+              )
+            )}
           </Button>
 
           {/* Referral Code Management */}
           {wallet?.isAuthenticated && (
-            <div className="bg-white/95 backdrop-blur-md rounded-xl border-2 border-purple-300 p-3 w-full">
+            <div className="bg-white/95 backdrop-blur-md rounded-xl border-2 border-red-300 p-3 w-full">
               <div className="flex items-center justify-between mb-2">
-                <p className="text-purple-800 font-bold text-sm" style={customFontStyle}>
+                <p className="text-red-800 font-bold text-sm" style={customFontStyle}>
                   <Users className="inline mr-1 h-4 w-4" /> Your Referral Code
                 </p>
                 {referralInfo?.referralCode && (
                   <Button
-                    className="!bg-purple-600 hover:!bg-purple-700 text-white text-xs py-1 px-2 rounded"
+                    className="!bg-red-600 hover:!bg-red-700 text-white text-xs py-1 px-2 rounded"
                     onClick={handleCopyReferralCode}
                   >
                     <Copy className="inline h-3 w-3 mr-1" />
@@ -272,23 +310,23 @@ function GamePageContent() {
               
               {referralInfo?.referralCode ? (
                 <div>
-                  <p className="text-purple-900 font-bold text-xl text-center mb-1 tracking-wider">
+                  <p className="text-red-900 font-bold text-xl text-center mb-1 tracking-wider">
                     {referralInfo.referralCode}
                   </p>
-                  <p className="text-xs text-purple-600 text-center">
+                  <p className="text-xs text-red-600 text-center">
                     Referrals: {Number(referralInfo.totalReferrals)}/3 this week • {Number(referralInfo.lifetimeReferrals)} lifetime
                   </p>
-                  <p className="text-xs text-purple-500 text-center mt-1">
+                  <p className="text-xs text-red-500 text-center mt-1">
                     Invite friends to earn 2 toppings each! (Max 3/week)
                   </p>
                 </div>
               ) : (
                 <div>
-                  <p className="text-xs text-purple-600 text-center mb-2">
+                  <p className="text-xs text-red-600 text-center mb-2">
                     Create your code to invite friends and earn bonus toppings!
                   </p>
                   <Button
-                    className="!bg-purple-600 hover:!bg-purple-700 text-white font-bold py-2 rounded-lg w-full text-sm"
+                    className="!bg-red-600 hover:!bg-red-700 text-white font-bold py-2 rounded-lg w-full text-sm"
                     onClick={handleCreateReferralCode}
                     disabled={isEntryInProgress}
                   >
@@ -301,25 +339,46 @@ function GamePageContent() {
 
           {/* Weekly Jackpot Button */}
           <Button
-            className="!bg-yellow-500 hover:!bg-yellow-600 text-white font-bold py-2 rounded-xl w-full"
+            className="!bg-yellow-500 hover:!bg-yellow-600 text-white font-bold py-2 rounded-xl border-4 border-yellow-800 w-full uppercase"
+            style={customFontStyle}
             onClick={() => alert('Weekly Jackpot coming soon!')}
           >
-            <Trophy className="inline mr-2" /> Weekly Jackpot
+            <Image src="/images/pepperoni-art.png" alt="Pepperoni" width={20} height={20} className="inline mr-1" />
+            Weekly Jackpot
+            <Image src="/images/pepperoni-art.png" alt="Pepperoni" width={20} height={20} className="inline ml-1" />
           </Button>
 
           {/* Leaderboard Button */}
           <Button
-            className="!bg-purple-500 hover:!bg-purple-600 text-white font-bold py-2 rounded-xl w-full"
+            className="!bg-red-700 hover:!bg-red-800 text-white font-bold py-2 rounded-xl border-4 border-red-900 w-full uppercase"
+            style={customFontStyle}
             onClick={() => alert('Leaderboard coming soon!')}
           >
-            <Trophy className="inline mr-2" /> Leaderboard
+            <img src="/images/mushroom-icon2.png" alt="Mushroom" width={20} height={20} className="inline mr-1" style={{backgroundColor: 'transparent', border: 'none'}} />
+            Leaderboard
+            <img src="/images/mushroom-icon2.png" alt="Mushroom" width={20} height={20} className="inline ml-1" style={{backgroundColor: 'transparent', border: 'none'}} />
           </Button>
+
+          {/* Manage Wallet Button (when connected) */}
+          {wallet?.isAuthenticated && wallet?.address && (
+            <Button
+              className="!bg-green-600 hover:!bg-green-700 text-white font-bold py-2 rounded-xl border-4 border-green-800 w-full uppercase"
+              style={customFontStyle}
+              onClick={() => openWalletModal()}
+            >
+              <img src="/images/wallet-icon.png" alt="Wallet" width={20} height={20} className="inline mr-1" style={{backgroundColor: 'transparent', border: 'none'}} />
+              Manage Wallet
+              <img src="/images/wallet-icon.png" alt="Wallet" width={20} height={20} className="inline ml-1" style={{backgroundColor: 'transparent', border: 'none'}} />
+            </Button>
+          )}
         </div>
 
         {/* Countdown */}
-        <div className="bg-blue-50 p-4 rounded-xl border-2 border-blue-200 w-full text-center">
-          <Clock className="mx-auto mb-1 h-5 w-5 text-blue-600" />
-          <p className="font-semibold text-blue-800 mb-2" style={customFontStyle}>Next Draw In:</p>
+        <div className="bg-blue-50 p-4 rounded-xl border-4 border-black w-full text-center">
+          <div className="flex items-center justify-center mb-2">
+            <Image src="/images/alarm-clock-icon.png" alt="Alarm Clock" width={20} height={20} className="mr-2" />
+            <p className="font-semibold text-blue-800" style={customFontStyle}>Next Draw In:</p>
+          </div>
           <div className="grid grid-cols-3 gap-2 text-center">
             <div className="bg-white p-2 rounded">
               <div className="text-xl font-bold text-blue-800" style={customFontStyle}>{hours}</div>
@@ -337,7 +396,7 @@ function GamePageContent() {
         </div>
 
         {/* Info Footer */}
-        <div className="bg-white/80 backdrop-blur-sm rounded-xl border-2 border-gray-300 p-3 w-full text-center text-xs text-gray-600">
+        <div className="bg-white/80 backdrop-blur-sm rounded-xl border-4 border-black p-3 w-full text-center text-xs text-gray-600">
           <p className="mb-1">🎮 Entry Fee: ${(Number(vmfAmount) * vmfUsd).toFixed(2)} (~{vmfAmount} VMF)</p>
           <p>🍕 Earn 1 topping per entry • Toppings = Weekly Jackpot tickets!</p>
         </div>
