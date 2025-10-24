@@ -183,8 +183,9 @@ function GamePageContent() {
           </svg>
         </div>
 
-        {/* Wallet Status */}
-        <div className="w-full flex flex-col gap-3">
+        {/* All Main Buttons with Consistent 8px Spacing */}
+        <div className="w-full flex flex-col gap-2">
+          {/* Wallet Status */}
           {wallet?.isAuthenticated && wallet?.address ? (
             <div className="bg-green-100 border-2 border-green-300 rounded-xl py-2 text-center text-green-800 font-bold">
               ✅ Connected {wallet.address.slice(0,6)}...{wallet.address.slice(-4)}
@@ -194,45 +195,42 @@ function GamePageContent() {
               ❌ Wallet not connected
             </div>
           )}
-        </div>
 
-        {/* Referral Code Input (First Entry Only) */}
-        {showReferralInput && isFirstEntry && (
-          <div className="bg-white/95 backdrop-blur-md rounded-xl border-2 border-purple-300 p-4 w-full">
-            <p className="text-purple-800 font-bold mb-2 text-center" style={customFontStyle}>
-              🎁 Have a Referral Code?
-            </p>
-            <p className="text-xs text-purple-600 mb-3 text-center">
-              Optional: Enter a friend&apos;s code to get bonus toppings! Or skip to continue.
-            </p>
-            <input
-              type="text"
-              placeholder="Enter code (optional)"
-              value={referralCodeInput}
-              onChange={(e) => setReferralCodeInput(e.target.value.toUpperCase())}
-              className="w-full p-2 border-2 border-purple-300 rounded-lg mb-2 text-center font-bold"
-              maxLength={10}
-            />
-            <div className="flex gap-2">
-              <Button
-                className="!bg-green-600 hover:!bg-green-700 text-white font-bold py-2 rounded-lg flex-1"
-                onClick={handleEnterWithReferral}
-                disabled={isEntryInProgress}
-              >
-                {referralCodeInput.trim() ? 'Enter with Code' : 'Enter Game'}
-              </Button>
-              <Button
-                className="!bg-gray-400 hover:!bg-gray-500 text-white font-bold py-2 rounded-lg px-4"
-                onClick={() => setShowReferralInput(false)}
-              >
-                Cancel
-              </Button>
+          {/* Referral Code Input (First Entry Only) */}
+          {showReferralInput && isFirstEntry && (
+            <div className="bg-white/95 backdrop-blur-md rounded-xl border-2 border-purple-300 p-4 w-full">
+              <p className="text-purple-800 font-bold mb-2 text-center" style={customFontStyle}>
+                🎁 Have a Referral Code?
+              </p>
+              <p className="text-xs text-purple-600 mb-3 text-center">
+                Optional: Enter a friend&apos;s code to get bonus toppings! Or skip to continue.
+              </p>
+              <input
+                type="text"
+                placeholder="Enter code (optional)"
+                value={referralCodeInput}
+                onChange={(e) => setReferralCodeInput(e.target.value.toUpperCase())}
+                className="w-full p-2 border-2 border-purple-300 rounded-lg mb-2 text-center font-bold"
+                maxLength={10}
+              />
+              <div className="flex gap-2">
+                <Button
+                  className="!bg-green-600 hover:!bg-green-700 text-white font-bold py-2 rounded-lg flex-1"
+                  onClick={handleEnterWithReferral}
+                  disabled={isEntryInProgress}
+                >
+                  {referralCodeInput.trim() ? 'Enter with Code' : 'Enter Game'}
+                </Button>
+                <Button
+                  className="!bg-gray-400 hover:!bg-gray-500 text-white font-bold py-2 rounded-lg px-4"
+                  onClick={() => setShowReferralInput(false)}
+                >
+                  Cancel
+                </Button>
+              </div>
             </div>
-          </div>
-        )}
+          )}
 
-        {/* Main Action Buttons */}
-        <div className="flex flex-col gap-3 w-full mt-3">
           {/* Manage Wallet Button (when connected) */}
           {wallet?.isAuthenticated && wallet?.address && (
             <Button
@@ -300,16 +298,16 @@ function GamePageContent() {
               )}
             </div>
           )}
-        </div>
 
-        {/* Weekly Jackpot & Leaderboard */}
-        <div className="flex flex-col mt-3 w-full">
+          {/* Weekly Jackpot Button */}
           <Button
-            className="!bg-yellow-500 hover:!bg-yellow-600 text-white font-bold py-2 rounded-xl w-full mb-3"
+            className="!bg-yellow-500 hover:!bg-yellow-600 text-white font-bold py-2 rounded-xl w-full"
             onClick={() => alert('Weekly Jackpot coming soon!')}
           >
             <Trophy className="inline mr-2" /> Weekly Jackpot
           </Button>
+
+          {/* Leaderboard Button */}
           <Button
             className="!bg-purple-500 hover:!bg-purple-600 text-white font-bold py-2 rounded-xl w-full"
             onClick={() => alert('Leaderboard coming soon!')}
