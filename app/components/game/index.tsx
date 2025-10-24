@@ -1,6 +1,6 @@
 'use client'
 
-import { Suspense, useState, useMemo } from 'react'
+import { Suspense, useState, useMemo, useEffect } from 'react'
 import Image from 'next/image'
 import { Button } from '../ui/button'
 import { Users, Gift, Copy } from 'lucide-react'
@@ -15,6 +15,19 @@ export default function GamePage() {
 }
 
 function GamePageContent() {
+  const [isMobile, setIsMobile] = useState(false)
+
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 768)
+    }
+    
+    checkMobile()
+    window.addEventListener('resize', checkMobile)
+    
+    return () => window.removeEventListener('resize', checkMobile)
+  }, [])
+
   const {
     wallet,
     vmfUsd,
