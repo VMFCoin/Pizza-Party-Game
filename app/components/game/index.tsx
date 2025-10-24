@@ -150,7 +150,7 @@ function GamePageContent() {
               WebkitBackgroundClip: "text",
               WebkitTextFillColor: "transparent",
               filter: "drop-shadow(0 0 3px #DC2626)",
-              fontSize: "31px",
+              fontSize: isMobile ? "26px" : "31px",
               whiteSpace: "nowrap",
               textAlign: "center",
             }}>
