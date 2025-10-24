@@ -183,8 +183,8 @@ function GamePageContent() {
           </svg>
         </div>
 
-        {/* All Main Buttons with Consistent 8px Spacing */}
-        <div className="w-full flex flex-col gap-2">
+        {/* All Main Buttons with Consistent 12px Spacing */}
+        <div className="w-full flex flex-col gap-3">
           {/* Wallet Status */}
           {wallet?.isAuthenticated && wallet?.address ? (
             <div className="bg-green-100 border-2 border-green-300 rounded-xl py-2 text-center text-green-800 font-bold">
