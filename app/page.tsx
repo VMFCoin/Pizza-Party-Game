@@ -165,7 +165,7 @@ export default function HomePage() {
                   WebkitTextFillColor: "transparent",
                   filter: "drop-shadow(0 0 3px #DC2626)",
                   whiteSpace: "pre-line",
-                  fontSize: isMobile ? undefined : "42px",
+                  fontSize: isMobile ? "35px" : "42px",
                   textAlign: "center",
                   transform: isMobile ? "translateX(-8px) rotate(-2deg)" : "-rotate-2",
                 }}
