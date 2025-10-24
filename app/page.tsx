@@ -63,7 +63,7 @@ export default function HomePage() {
             Back to Home
           </Button>
 
-          <Card className="border-4 border-red-800 rounded-3xl shadow-2xl p-8 bg-white">
+          <Card className="border-4 border-red-800 rounded-3xl shadow-2xl p-0 !px-0 !py-0 !bg-transparent">
             <GamePage />
           </Card>
         </div>
@@ -111,42 +111,16 @@ export default function HomePage() {
               ))}
             </div>
 
-            {/* Pizza Image with slice overlay */}
-            <div className="flex justify-center items-center mb-4 relative">
+            {/* Pizza Image */}
+            <div className="flex justify-center items-center mb-4">
               <Image
-                src={isMobile ? "/images/pizza-transparent-mobile.png" : "/images/pizza-final.png"}
+                src={isMobile ? "/images/pizza-final.png" : "/images/pizza-transparent-mobile.png"}
                 alt="Pizza"
-                width={isMobile ? 144 : 240}
-                height={isMobile ? 144 : 240}
+                width={isMobile ? 180 : 320}
+                height={isMobile ? 180 : 320}
                 priority
                 className="drop-shadow-2xl"
               />
-
-              <svg
-                viewBox={isMobile ? "0 0 144 144" : "0 0 240 240"}
-                className="absolute top-0 left-0 w-full h-full pointer-events-none"
-              >
-                {[...Array(8)].map((_, i) => {
-                  const angle = i * 45 - 90;
-                  const centerX = isMobile ? 72 : 120;
-                  const centerY = isMobile ? 72 : 120;
-                  const radius = isMobile ? 64 : 105;
-                  const endX = centerX + radius * Math.cos((angle * Math.PI) / 180);
-                  const endY = centerY + radius * Math.sin((angle * Math.PI) / 180);
-                  return (
-                    <line
-                      key={i}
-                      x1={centerX}
-                      y1={centerY}
-                      x2={endX}
-                      y2={endY}
-                      stroke="#8B4513"
-                      strokeWidth={isMobile ? 2 : 3}
-                      opacity={0.7}
-                    />
-                  );
-                })}
-              </svg>
             </div>
 
             {/* Call-to-Action */}
@@ -178,17 +152,16 @@ export default function HomePage() {
               </div>
             </div>
 
-            {/* Start Playing Button */}
-            <Button
-              onClick={handleStartPlaying}
-              className="w-full !bg-red-700 hover:!bg-red-800 text-white text-lg font-bold py-3 px-6 rounded-xl border-4 border-red-900 shadow-lg transform hover:scale-105 transition-all touch-manipulation mb-4"
-              style={{ ...customFontStyle, letterSpacing: "1px", fontSize: isMobile ? 18 : 20 }}
-            >
-              🍕 START PLAYING 🍕
-            </Button>
+            {/* Action Buttons */}
+            <div className="flex flex-col mt-[-12px]" style={{ gap: "12px" }}>
+              <Button
+                onClick={handleStartPlaying}
+                className="w-full !bg-red-700 hover:!bg-red-800 text-white text-lg font-bold py-3 px-6 rounded-xl border-4 border-red-900 shadow-lg transform hover:scale-105 transition-all touch-manipulation"
+                style={{ ...customFontStyle, letterSpacing: "1px", fontSize: isMobile ? 18 : 20 }}
+              >
+                🍕 START PLAYING 🍕
+              </Button>
 
-            {/* Disabled Buttons */}
-            <div className="flex flex-col" style={{ gap: "15px" }}>
               <Button
                 className="w-full !bg-red-700 text-white text-lg font-bold py-3 px-6 rounded-xl border-4 border-red-900 shadow-lg opacity-50 cursor-not-allowed flex items-center justify-center gap-2"
                 style={{ ...customFontStyle, fontSize: isMobile ? 18 : 20 }}

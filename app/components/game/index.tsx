@@ -106,7 +106,7 @@ function GamePageContent() {
       style={{
         backgroundImage: "url('/images/Pepperoni game modal background.JPG')",
         backgroundRepeat: 'no-repeat',
-        backgroundSize: '120% 120%',
+        backgroundSize: 'cover',
         backgroundPosition: 'center center',
       }}
     >
@@ -157,16 +157,40 @@ function GamePageContent() {
             className="object-contain drop-shadow-2xl"
             priority
           />
+          <svg
+            viewBox="0 0 240 240"
+            className="absolute top-0 left-0 w-full h-full pointer-events-none"
+          >
+            {[...Array(8)].map((_, i) => {
+              const angle = i * 45 - 90
+              const center = 120
+              const radius = 105
+              const endX = center + radius * Math.cos((angle * Math.PI) / 180)
+              const endY = center + radius * Math.sin((angle * Math.PI) / 180)
+              return (
+                <line
+                  key={i}
+                  x1={center}
+                  y1={center}
+                  x2={endX}
+                  y2={endY}
+                  stroke="#8B4513"
+                  strokeWidth={3}
+                  opacity={0.7}
+                />
+              )
+            })}
+          </svg>
         </div>
 
         {/* Wallet Status */}
-        <div className="w-full">
+        <div className="w-full flex flex-col gap-2">
           {wallet?.isAuthenticated && wallet?.address ? (
-            <div className="bg-green-100 border-2 border-green-300 rounded-xl p-2 text-center text-green-800 font-bold">
+            <div className="bg-green-100 border-2 border-green-300 rounded-xl py-2 text-center text-green-800 font-bold">
               ✅ Connected {wallet.address.slice(0,6)}...{wallet.address.slice(-4)}
             </div>
           ) : (
-            <div className="bg-yellow-100 border-2 border-yellow-300 rounded-xl p-2 text-center text-yellow-800 font-bold">
+            <div className="w-full bg-yellow-100 border-2 border-yellow-300 rounded-xl py-2 text-center text-yellow-800 font-bold">
               ❌ Wallet not connected
             </div>
           )}
