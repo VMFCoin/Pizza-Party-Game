@@ -3,7 +3,7 @@
 import { Suspense, useState, useMemo } from 'react'
 import Image from 'next/image'
 import { Button } from '../ui/button'
-import { Users, Clock, Trophy, Gift, Copy } from 'lucide-react'
+import { Users, Gift, Copy } from 'lucide-react'
 import { useGamePageData } from '../../lib/useGamePageData'
 
 export default function GamePage() {
@@ -354,9 +354,9 @@ function GamePageContent() {
             style={customFontStyle}
             onClick={() => alert('Leaderboard coming soon!')}
           >
-            <img src="/images/mushroom-icon2.png" alt="Mushroom" width={20} height={20} className="inline mr-1" style={{backgroundColor: 'transparent', border: 'none'}} />
+            <Image src="/images/mushroom-icon2.png" alt="Mushroom" width={20} height={20} className="inline mr-1" style={{ backgroundColor: 'transparent', border: 'none' }} />
             Leaderboard
-            <img src="/images/mushroom-icon2.png" alt="Mushroom" width={20} height={20} className="inline ml-1" style={{backgroundColor: 'transparent', border: 'none'}} />
+            <Image src="/images/mushroom-icon2.png" alt="Mushroom" width={20} height={20} className="inline ml-1" style={{ backgroundColor: 'transparent', border: 'none' }} />
           </Button>
 
           {/* Manage Wallet Button (when connected) */}
@@ -366,9 +366,9 @@ function GamePageContent() {
               style={customFontStyle}
               onClick={() => openWalletModal()}
             >
-              <img src="/images/wallet-icon.png" alt="Wallet" width={20} height={20} className="inline mr-1" style={{backgroundColor: 'transparent', border: 'none'}} />
+              <Image src="/images/wallet-icon.png" alt="Wallet" width={20} height={20} className="inline mr-1" style={{ backgroundColor: 'transparent', border: 'none' }} />
               Manage Wallet
-              <img src="/images/wallet-icon.png" alt="Wallet" width={20} height={20} className="inline ml-1" style={{backgroundColor: 'transparent', border: 'none'}} />
+              <Image src="/images/wallet-icon.png" alt="Wallet" width={20} height={20} className="inline ml-1" style={{ backgroundColor: 'transparent', border: 'none' }} />
             </Button>
           )}
         </div>
