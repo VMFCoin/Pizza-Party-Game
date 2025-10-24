@@ -303,9 +303,9 @@ function GamePageContent() {
         </div>
 
         {/* Weekly Jackpot & Leaderboard */}
-        <div className="flex flex-col gap-3 mt-3 w-full">
+        <div className="flex flex-col mt-3 w-full">
           <Button
-            className="!bg-yellow-500 hover:!bg-yellow-600 text-white font-bold py-2 rounded-xl w-full"
+            className="!bg-yellow-500 hover:!bg-yellow-600 text-white font-bold py-2 rounded-xl w-full mb-3"
             onClick={() => alert('Weekly Jackpot coming soon!')}
           >
             <Trophy className="inline mr-2" /> Weekly Jackpot
