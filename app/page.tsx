@@ -7,6 +7,7 @@ import { Button } from "./components/ui/button";
 import { Card } from "./components/ui/card"; // Removed unused CardContent
 import { ArrowLeft } from "lucide-react";
 import GamePage from "./components/game";
+import WeeklyJackpotPage from "./components/WeeklyJackpotPage";
 import { sdk } from "@farcaster/miniapp-sdk";
 
 export default function HomePage() {
@@ -16,7 +17,7 @@ export default function HomePage() {
   };
 
   const [isMobile, setIsMobile] = useState(false);
-  const [currentView, setCurrentView] = useState<'home' | 'game'>('home');
+  const [currentView, setCurrentView] = useState<'home' | 'game' | 'weekly'>('home');
 
   // Device detection
   useEffect(() => {
@@ -38,6 +39,11 @@ export default function HomePage() {
 
   const handleBackToHome = () => {
     setCurrentView('home');
+    if (typeof window !== "undefined") window.scrollTo(0, 0);
+  };
+
+  const handleNavigateToWeekly = () => {
+    setCurrentView('weekly');
     if (typeof window !== "undefined") window.scrollTo(0, 0);
   };
 
@@ -64,10 +70,20 @@ export default function HomePage() {
           </Button>
 
           <Card className="border-4 border-red-800 rounded-3xl shadow-2xl p-0 !px-0 !py-0 !bg-transparent">
-            <GamePage />
+            <GamePage onNavigateToWeekly={handleNavigateToWeekly} />
           </Card>
         </div>
       </div>
+    );
+  }
+
+  if (currentView === 'weekly') {
+    return (
+      <WeeklyJackpotPage
+        onBack={() => setCurrentView('game')}
+        onNavigateToDaily={() => setCurrentView('game')}
+        onNavigateToHome={handleBackToHome}
+      />
     );
   }
 
@@ -186,6 +202,16 @@ export default function HomePage() {
                 style={{ ...customFontStyle, letterSpacing: "1px", fontSize: isMobile ? 18 : 20 }}
               >
                 🍕 START PLAYING 🍕
+              </Button>
+
+              <Button
+                onClick={handleNavigateToWeekly}
+                className="w-full !bg-yellow-500 hover:!bg-yellow-600 text-white font-bold py-3 px-6 rounded-xl border-4 border-yellow-800 shadow-lg transform hover:scale-105 transition-all touch-manipulation uppercase"
+                style={{ ...customFontStyle, letterSpacing: "1px", fontSize: isMobile ? 18 : 20 }}
+              >
+                <Image src="/images/pepperoni-art.png" alt="Pepperoni" width={20} height={20} className="inline mr-1" />
+                WEEKLY JACKPOT
+                <Image src="/images/pepperoni-art.png" alt="Pepperoni" width={20} height={20} className="inline ml-1" />
               </Button>
 
             </div>

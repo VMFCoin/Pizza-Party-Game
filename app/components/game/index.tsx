@@ -6,15 +6,19 @@ import { Button } from '../ui/button'
 import { Users, Gift, Copy } from 'lucide-react'
 import { useGamePageData } from '../../lib/useGamePageData'
 
-export default function GamePage() {
+interface GamePageProps {
+  onNavigateToWeekly?: () => void
+}
+
+export default function GamePage({ onNavigateToWeekly }: GamePageProps) {
   return (
     <Suspense fallback={<div>Loading...</div>}>
-      <GamePageContent />
+      <GamePageContent onNavigateToWeekly={onNavigateToWeekly} />
     </Suspense>
   )
 }
 
-function GamePageContent() {
+function GamePageContent({ onNavigateToWeekly }: GamePageProps) {
   const [isMobile, setIsMobile] = useState(false)
 
   useEffect(() => {
@@ -354,7 +358,13 @@ function GamePageContent() {
           <Button
             className="!bg-yellow-500 hover:!bg-yellow-600 text-white font-bold py-2 rounded-xl border-4 border-yellow-800 w-full uppercase"
             style={customFontStyle}
-            onClick={() => alert('Weekly Jackpot coming soon!')}
+            onClick={() => {
+              if (onNavigateToWeekly) {
+                onNavigateToWeekly()
+                return
+              }
+              alert('Weekly Jackpot coming soon!')
+            }}
           >
             <Image src="/images/pepperoni-art.png" alt="Pepperoni" width={20} height={20} className="inline mr-1" />
             Weekly Jackpot

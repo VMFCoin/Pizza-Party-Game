@@ -107,3 +107,7 @@ public
 # Temporary folders
 tmp/
 temp/
+
+# Foundry artifacts
+foundry/cache
+foundry/out

@@ -7,6 +7,7 @@ import { readContract, watchBlockNumber } from '@wagmi/core'
 import { useAccount, useChainId, useWriteContract } from 'wagmi'
 import { useAppKit } from '@reown/appkit/react'
 import {
+  GAME_CONSTANTS,
   PIZZA_PARTY_ADDRESS,
   PIZZA_PARTY_ABI,
   VMF_TOKEN_ADDRESS,
@@ -16,6 +17,9 @@ import { wagmiConfig } from '../components/config/wagmiConfig'
 
 const PACIFIC_TZ = 'America/Los_Angeles'
 const BASE_CHAIN_ID = 8453
+const ENTRY_FEE_WEI = GAME_CONSTANTS.ENTRY_FEE_WEI
+const WEI_PER_VMF = 10n ** 18n
+const VMF_USD_PRICE = 0.01
 
 // ------------------ Types ------------------
 
@@ -34,6 +38,15 @@ interface PlayerInfo {
   lastEntryTime: bigint
 }
 
+interface PlayerWeeklyInfo {
+  toppingsEarned: bigint
+  toppingsClaimed: bigint
+  dailyPlays: bigint
+  referralsUsed: bigint
+  hasClaimed: boolean
+  projectedHoldingsBonus: bigint
+}
+
 interface ReferralInfo {
   referralCode: string
   referrer: string
@@ -42,14 +55,15 @@ interface ReferralInfo {
   isActive: boolean
 }
 
-interface ContractDailyGame {
-  gameId: bigint
-  startTime: bigint
-  endTime: bigint
-  totalEntries: bigint
-  jackpotAmount: bigint
-  winners: string[]
-  isCompleted: boolean
+interface WeeklyData {
+  claimStart: number
+  claimEnd: number
+  totalToppings: bigint
+  claimerCount: number
+  jackpotWei: bigint
+  settled: boolean
+  loading: boolean
+  error: Error | null
 }
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
@@ -91,59 +105,18 @@ export function useGamePageData() {
     error: null as Error | null,
   }), [address, isConnected])
 
-  // ================= Entry Fee (Dynamic from Contract) =================
-  const [entryFeeWei, setEntryFeeWei] = useState<bigint>(parseEther('111.11'))
-  const [vmfUsdPrice, setVmfUsdPrice] = useState<number>(0.009)
-  const [priceOracleWorking, setPriceOracleWorking] = useState<boolean>(false)
-
-  const fetchEntryFee = useCallback(async () => {
-    try {
-      // Get dynamic entry fee from contract (always $1 worth of VMF)
-      const feeWei = await readContract(wagmiConfig, {
-        address: PIZZA_PARTY_ADDRESS as `0x${string}`,
-        abi: PIZZA_PARTY_ABI,
-        functionName: 'getEntryFee',
-      })
-      const fee = typeof feeWei === 'bigint' ? feeWei : BigInt(String(feeWei ?? '0'))
-      
-      if (fee > 0n) {
-        setEntryFeeWei(fee)
-        setPriceOracleWorking(true)
-        console.debug('✅ Entry fee fetched from contract:', fee.toString())
-      }
-
-      // Also get VMF price for display
-      const priceWei = await readContract(wagmiConfig, {
-        address: PIZZA_PARTY_ADDRESS as `0x${string}`,
-        abi: PIZZA_PARTY_ABI,
-        functionName: 'getCurrentVMFPrice',
-      })
-      const price = typeof priceWei === 'bigint' ? priceWei : BigInt(String(priceWei ?? '0'))
-      
-      // Convert from 18 decimals to USD
-      if (price > 0n) {
-        const priceUsd = Number(price) / 1e18
-        setVmfUsdPrice(priceUsd)
-        console.debug('✅ VMF price fetched from contract:', priceUsd)
-      }
-
-    } catch (err) {
-      console.error('❌ Failed to fetch entry fee from contract:', err)
-      setPriceOracleWorking(false)
-      // Keep existing values as fallback (initialized to ~$1 at $0.009)
-      // This allows the app to work even if the SushiSwap pair isn't properly configured
-      
-      // Show warning to user
-      console.warn('⚠️ Price oracle not working. Contract may not be properly configured.')
-      console.warn('⚠️ The contract owner needs to call: setSushiswapPair("0x9C83A203133B65982F35D1B00E8283C9fb518cb1")')
-    }
-  }, [])
+  // ================= Entry Fee (Fixed from Minimal Contract) =================
+  const entryFeeWei = ENTRY_FEE_WEI
+  const vmfUsdPrice = VMF_USD_PRICE
+  const priceOracleWorking = true
 
   // ================= VMF Amount for Display =================
   const vmfAmount = useMemo(() => {
-    const amt = Number(entryFeeWei) / 1e18
-    if (!Number.isFinite(amt) || amt <= 0) return '100'
-    return amt.toFixed(8).replace(/0+$/, '').replace(/\.$/, '')
+    const whole = entryFeeWei / WEI_PER_VMF
+    const fraction = entryFeeWei % WEI_PER_VMF
+    if (fraction === 0n) return whole.toString()
+    const fractionStr = fraction.toString().padStart(18, '0').replace(/0+$/, '')
+    return `${whole.toString()}.${fractionStr}`
   }, [entryFeeWei])
 
   // ================= VMF Balance =================
@@ -173,33 +146,69 @@ export function useGamePageData() {
 
   // ================= Player Info =================
   const [playerInfo, setPlayerInfo] = useState<PlayerInfo | null>(null)
+  const [playerWeekly, setPlayerWeekly] = useState<PlayerWeeklyInfo | null>(null)
   const [referralInfo, setReferralInfo] = useState<ReferralInfo | null>(null)
+
+  const [weekly, setWeekly] = useState<WeeklyData>({
+    claimStart: 0,
+    claimEnd: 0,
+    totalToppings: 0n,
+    claimerCount: 0,
+    jackpotWei: 0n,
+    settled: false,
+    loading: true,
+    error: null,
+  })
+  const claimableToppings = useMemo(() => {
+    if (!playerWeekly) return 0n
+    const value = playerWeekly.toppingsEarned - playerWeekly.toppingsClaimed
+    return value > 0n ? value : 0n
+  }, [playerWeekly])
 
   const fetchPlayerInfo = useCallback(async () => {
     if (!wallet.address) return
     try {
-      const info = await readContract(wagmiConfig, {
+      const weeklyInfo = await readContract(wagmiConfig, {
         address: PIZZA_PARTY_ADDRESS as `0x${string}`,
         abi: PIZZA_PARTY_ABI,
-        functionName: 'getPlayerInfo',
+        functionName: 'getPlayerWeeklyInfo',
         args: [wallet.address as `0x${string}`],
-      }) as PlayerInfo
+      }) as readonly [bigint, bigint, bigint, bigint, boolean, bigint]
 
-      setPlayerInfo(info)
+      const normalized: PlayerInfo = {
+        totalToppings: weeklyInfo[0],
+        dailyEntries: weeklyInfo[2],
+        lastEntryTime: 0n,
+      }
+      setPlayerInfo(normalized)
+      setPlayerWeekly({
+        toppingsEarned: weeklyInfo[0],
+        toppingsClaimed: weeklyInfo[1],
+        dailyPlays: weeklyInfo[2],
+        referralsUsed: weeklyInfo[3],
+        hasClaimed: weeklyInfo[4],
+        projectedHoldingsBonus: weeklyInfo[5],
+      })
 
-      // Also fetch referral info
-      const refInfo = await readContract(wagmiConfig, {
+      const referralCode = await readContract(wagmiConfig, {
         address: PIZZA_PARTY_ADDRESS as `0x${string}`,
         abi: PIZZA_PARTY_ABI,
-        functionName: 'getReferralInfo',
+        functionName: 'getReferralCode',
         args: [wallet.address as `0x${string}`],
-      }) as ReferralInfo
+      })
 
+      const refInfo: ReferralInfo = {
+        referralCode: typeof referralCode === 'string' ? referralCode : '',
+        referrer: '0x0000000000000000000000000000000000000000',
+        totalReferrals: weeklyInfo[3],
+        lifetimeReferrals: weeklyInfo[3],
+        isActive: typeof referralCode === 'string' && referralCode.length > 0,
+      }
       setReferralInfo(refInfo)
-
     } catch (err) {
       console.error('Failed to fetch player info', err)
       setPlayerInfo(null)
+      setPlayerWeekly(null)
       setReferralInfo(null)
     }
   }, [wallet.address])
@@ -213,35 +222,56 @@ export function useGamePageData() {
     loading: true,
     error: null,
   })
+  const fetchWeekly = useCallback(async () => {
+    try {
+      const result = await readContract(wagmiConfig, {
+        address: PIZZA_PARTY_ADDRESS as `0x${string}`,
+        abi: PIZZA_PARTY_ABI,
+        functionName: 'getCurrentWeeklyGame',
+      }) as readonly [bigint, bigint, bigint, bigint, bigint, boolean]
+
+      setWeekly({
+        claimStart: Number(result[0]),
+        claimEnd: Number(result[1]),
+        totalToppings: result[2],
+        claimerCount: Number(result[3]),
+        jackpotWei: result[4],
+        settled: result[5],
+        loading: false,
+        error: null,
+      })
+    } catch (err) {
+      console.error('Failed to load weekly data', err)
+      setWeekly(prev => ({
+        ...prev,
+        loading: false,
+        error: err instanceof Error ? err : new Error('Failed to load weekly'),
+      }))
+    }
+  }, [])
 
   const refreshDaily = useCallback(async () => {
     try {
-      // Get current daily game info
-      const gameData = await readContract(wagmiConfig, {
+      const result = await readContract(wagmiConfig, {
         address: PIZZA_PARTY_ADDRESS as `0x${string}`,
         abi: PIZZA_PARTY_ABI,
         functionName: 'getCurrentDailyGame',
-      }) as {
-        gameId: bigint
-        startTime: bigint
-        endTime: bigint
-        totalEntries: bigint
-        jackpotAmount: bigint
-        winners: string[]
-        isCompleted: boolean
-      }
+      }) as readonly [bigint, bigint, bigint, bigint, boolean]
 
-      const jackpotWei = await readContract(wagmiConfig, {
+      const dailyId = await readContract(wagmiConfig, {
         address: PIZZA_PARTY_ADDRESS as `0x${string}`,
         abi: PIZZA_PARTY_ABI,
-        functionName: 'currentDailyJackpot',
+        functionName: 'dailyGameId',
       })
 
+      const [ , , playerCount, pot, settled ] = result
+      const jackpot = (pot / WEI_PER_VMF).toString()
+
       setDaily({
-        dailyGameId: Number(gameData.gameId),
-        totalEntries: Number(gameData.totalEntries),
-        jackpot: (Number(jackpotWei) / 1e18).toString(),
-        isCompleted: gameData.isCompleted,
+        dailyGameId: Number(dailyId),
+        totalEntries: Number(playerCount),
+        jackpot,
+        isCompleted: settled,
         loading: false,
         error: null,
       })
@@ -312,7 +342,7 @@ export function useGamePageData() {
       const entered = await readContract(wagmiConfig, {
         address: PIZZA_PARTY_ADDRESS as `0x${string}`,
         abi: PIZZA_PARTY_ABI,
-        functionName: 'hasEnteredToday',
+        functionName: 'hasPlayedDailyGame',
         args: [wallet.address as `0x${string}`],
       })
       const hasEntered = Boolean(entered)
@@ -332,24 +362,24 @@ export function useGamePageData() {
   // ================= Watch blockchain =================
   useEffect(() => {
     let unwatch: (() => void) | null = null
-    void fetchEntryFee()
     void fetchVmfBalance()
     void refreshDaily()
     void checkStatus()
     void fetchPlayerInfo()
+    void fetchWeekly()
 
     unwatch = watchBlockNumber(wagmiConfig, {
       onBlockNumber: () => {
-        void fetchEntryFee()
         void fetchVmfBalance()
         void refreshDaily()
         void checkStatus()
         void fetchPlayerInfo()
+        void fetchWeekly()
       },
       onError: () => {},
     })
     return () => { if (unwatch) unwatch() }
-  }, [fetchEntryFee, fetchVmfBalance, refreshDaily, checkStatus, fetchPlayerInfo])
+  }, [fetchVmfBalance, refreshDaily, checkStatus, fetchPlayerInfo, fetchWeekly])
 
   // ================= Reset-detection (new Pacific day) =================
   const prevMsRef = useRef<number | null>(null)
@@ -404,6 +434,32 @@ export function useGamePageData() {
     }
   }, [wallet.isAuthenticated, writeContract, networkId, checkStatus])
 
+  const handleClaimToppings = useCallback(async () => {
+    if (networkId !== BASE_CHAIN_ID) {
+      alert(`Please switch to Base network (Chain ID: ${BASE_CHAIN_ID})`)
+      return
+    }
+    if (!wallet.isAuthenticated) {
+      alert('Please connect your wallet first')
+      return
+    }
+    try {
+      await writeContract({
+        address: PIZZA_PARTY_ADDRESS as `0x${string}`,
+        abi: PIZZA_PARTY_ABI,
+        functionName: 'claimToppings',
+      })
+      setTimeout(() => {
+        void fetchPlayerInfo()
+        void fetchWeekly()
+      }, 2500)
+    } catch (err) {
+      console.error('❌ Claim toppings failed:', err)
+      const message = getErrorMessage(err) || 'Unknown error'
+      alert(`Failed to claim toppings: ${message}`)
+    }
+  }, [networkId, wallet.isAuthenticated, writeContract, fetchPlayerInfo, fetchWeekly])
+
   const handleEnterGame = useCallback(async (referralCode?: string) => {
     if (networkId !== BASE_CHAIN_ID) {
       console.error('Wrong network. Current:', networkId, 'Expected:', BASE_CHAIN_ID)
@@ -438,16 +494,23 @@ export function useGamePageData() {
           address: PIZZA_PARTY_ADDRESS as `0x${string}`,
           abi: PIZZA_PARTY_ABI,
           functionName: 'getCurrentDailyGame',
-        }) as ContractDailyGame
-        console.log('Current Game State:', {
-          gameId: currentGame.gameId?.toString(),
-          isCompleted: currentGame.isCompleted,
-          endTime: currentGame.endTime?.toString(),
-          currentTime: Math.floor(Date.now() / 1000),
-          hasEnded: currentGame.endTime && Math.floor(Date.now() / 1000) >= Number(currentGame.endTime),
+        }) as readonly [bigint, bigint, bigint, bigint, boolean]
+
+        const currentDailyId = await readContract(wagmiConfig, {
+          address: PIZZA_PARTY_ADDRESS as `0x${string}`,
+          abi: PIZZA_PARTY_ABI,
+          functionName: 'dailyGameId',
         })
-        
-        if (currentGame.isCompleted) {
+
+        console.log('Current Game State:', {
+          gameId: currentDailyId?.toString(),
+          isCompleted: currentGame[4],
+          endTime: currentGame[1]?.toString(),
+          currentTime: Math.floor(Date.now() / 1000),
+          hasEnded: currentGame[1] && Math.floor(Date.now() / 1000) >= Number(currentGame[1]),
+        })
+
+        if (currentGame[4]) {
           alert('Current game is completed. Please wait for the next game to start.')
           return
         }
@@ -461,7 +524,7 @@ export function useGamePageData() {
         await readContract(wagmiConfig, {
           address: PIZZA_PARTY_ADDRESS as `0x${string}`,
           abi: PIZZA_PARTY_ABI,
-          functionName: 'hasEnteredToday',
+          functionName: 'hasPlayedDailyGame',
           args: [wallet.address as `0x${string}`],
         })
         console.log('✅ Simulation passed')
@@ -472,19 +535,17 @@ export function useGamePageData() {
         let revertReason = 'Unknown contract error'
         const message = getErrorMessage(simError)
         if (message) {
-          if (message.includes('Already entered today')) {
+          if (message.includes('Already played')) {
             revertReason = 'You have already entered today'
-          } else if (message.includes('Game completed')) {
+          } else if (message.includes('Game settled')) {
             revertReason = 'Game has been completed'
           } else if (message.includes('Game ended')) {
             revertReason = 'Game has ended, waiting for settlement'
-          } else if (message.includes('Invalid VMF price')) {
-            revertReason = 'Price oracle error - SushiSwap pair not configured correctly'
-          } else if (message.includes('Reserves call failed')) {
-            revertReason = 'Cannot fetch VMF price from SushiSwap. Contract needs configuration.'
+          } else if (message.includes('Weekly limit reached')) {
+            revertReason = 'You have reached the 7 entries per week limit'
           } else if (message.includes('Invalid code')) {
             revertReason = 'Invalid referral code'
-          } else if (message.includes('Invite limit reached')) {
+          } else if (message.includes('Referral limit')) {
             revertReason = 'Referrer has reached their weekly invite limit'
           } else if (message.includes('Already used referral')) {
             revertReason = 'You have already used a referral code'
@@ -534,6 +595,7 @@ export function useGamePageData() {
         void fetchPlayerInfo()
         void refreshDaily()
         void fetchVmfBalance()
+        void fetchWeekly()
       }, 3000)
       
     } catch (err: unknown) {
@@ -560,12 +622,14 @@ export function useGamePageData() {
           errorMessage = 'Transaction rejected by user'
         } else if (message.includes('insufficient funds')) {
           errorMessage = 'Insufficient funds for gas'
-        } else if (message.includes('Already entered today')) {
+        } else if (message.includes('Already played')) {
           errorMessage = 'You have already entered today'
-        } else if (message.includes('Game completed')) {
+        } else if (message.includes('Game settled')) {
           errorMessage = 'This game has ended. Please wait for the next game.'
         } else if (message.includes('Game ended')) {
           errorMessage = 'Game ended. Please wait for settlement.'
+        } else if (message.includes('Weekly limit reached')) {
+          errorMessage = 'You have reached the weekly play limit.'
         } else {
           errorMessage = message
         }
@@ -573,7 +637,7 @@ export function useGamePageData() {
       
       alert(`Failed to enter game: ${errorMessage}`)
     }
-  }, [wallet.isAuthenticated, wallet.address, writeContract, networkId, checkStatus, fetchPlayerInfo, playerInfo, hasEnteredToday, needsApproval, refreshDaily, fetchVmfBalance, vmfBalance, entryFeeWei, hasEnoughVMF])
+  }, [wallet.isAuthenticated, wallet.address, writeContract, networkId, checkStatus, fetchPlayerInfo, playerInfo, hasEnteredToday, needsApproval, refreshDaily, fetchVmfBalance, fetchWeekly, vmfBalance, entryFeeWei, hasEnoughVMF])
 
   const handleCreateReferralCode = useCallback(async () => {
     if (networkId !== BASE_CHAIN_ID || !wallet.isAuthenticated) return
@@ -604,6 +668,8 @@ export function useGamePageData() {
     vmfBalance,
     daily,
     playerInfo,
+    playerWeekly,
+    weekly,
     referralInfo,
     priceOracleWorking,
     pacificCountdown: { msRemaining, hours, minutes, seconds, nextResetPacific },
@@ -611,8 +677,10 @@ export function useGamePageData() {
     isEntryInProgress: isPending,
     handleEnterGame,
     handleApproveVMF,
+    handleClaimToppings,
     handleCreateReferralCode,
     needsApproval,
     hasEnteredToday,
+    claimableToppings,
   }
 }

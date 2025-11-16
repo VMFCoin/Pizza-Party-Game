@@ -1,0 +1,9 @@
+[profile.default]
+src = "foundry/src"
+test = "foundry/test"
+out = "foundry/out"
+libs = ["node_modules", "foundry/lib"]
+cache_path = "foundry/cache"
+solc = "0.8.20"
+fs_permissions = [{ access = "read", path = "./" }]
+remappings = ["@openzeppelin/contracts/=foundry/src/oz/"]
