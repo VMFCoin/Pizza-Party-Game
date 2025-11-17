@@ -58,6 +58,11 @@ type PlayerWeeklyResponse =
       projectedHoldingsBonus: bigint
     }
 
+const isWeeklyTuple = (
+  data: PlayerWeeklyResponse,
+): data is readonly [bigint, bigint, bigint, bigint, boolean, bigint] =>
+  Array.isArray(data)
+
 interface ReferralInfo {
   referralCode: string
   referrer: string
@@ -102,7 +107,7 @@ function getNextPacificNoonUTC(from: Date = new Date()): Date {
 }
 
 const normalizeWeeklyInfo = (data: PlayerWeeklyResponse): PlayerWeeklyInfo => {
-  if (Array.isArray(data)) {
+  if (isWeeklyTuple(data)) {
     return {
       toppingsEarned: data[0],
       toppingsClaimed: data[1],
