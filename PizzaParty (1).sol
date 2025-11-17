@@ -107,7 +107,7 @@ contract PizzaParty is Ownable, ReentrancyGuard {
     
     // ============ Constructor ============
     
-    constructor(address _vmfToken, address _treasury) {
+    constructor(address _vmfToken, address _treasury) Ownable(msg.sender) {
         require(_vmfToken != address(0), "Invalid VMF");
         require(_treasury != address(0), "Invalid treasury");
         
@@ -566,6 +566,7 @@ contract PizzaParty is Ownable, ReentrancyGuard {
     
     function _nextNoonPT(uint256 timestamp) internal pure returns (uint256) {
         uint256 PT_OFFSET = 8 hours; // PST/PDT offset
+        (PT_OFFSET); // keep reference for clarity
         uint256 dayStart = (timestamp / 1 days) * 1 days;
         uint256 noonPT = dayStart + 20 hours; // 12pm PT = 20:00 UTC
         

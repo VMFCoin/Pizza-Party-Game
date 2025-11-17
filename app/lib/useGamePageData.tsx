@@ -47,6 +47,17 @@ interface PlayerWeeklyInfo {
   projectedHoldingsBonus: bigint
 }
 
+type PlayerWeeklyResponse =
+  | readonly [bigint, bigint, bigint, bigint, boolean, bigint]
+  | {
+      toppingsEarned: bigint
+      toppingsClaimed: bigint
+      dailyPlays: bigint
+      referralsUsed: bigint
+      hasClaimed: boolean
+      projectedHoldingsBonus: bigint
+    }
+
 interface ReferralInfo {
   referralCode: string
   referrer: string
@@ -88,6 +99,27 @@ function getNextPacificNoonUTC(from: Date = new Date()): Date {
   if (pacificNow.getTime() >= pacificTarget.getTime())
     pacificTarget.setDate(pacificTarget.getDate() + 1)
   return fromZonedTime(pacificTarget, PACIFIC_TZ)
+}
+
+const normalizeWeeklyInfo = (data: PlayerWeeklyResponse): PlayerWeeklyInfo => {
+  if (Array.isArray(data)) {
+    return {
+      toppingsEarned: data[0],
+      toppingsClaimed: data[1],
+      dailyPlays: data[2],
+      referralsUsed: data[3],
+      hasClaimed: data[4],
+      projectedHoldingsBonus: data[5],
+    }
+  }
+  return {
+    toppingsEarned: data.toppingsEarned,
+    toppingsClaimed: data.toppingsClaimed,
+    dailyPlays: data.dailyPlays,
+    referralsUsed: data.referralsUsed,
+    hasClaimed: data.hasClaimed,
+    projectedHoldingsBonus: data.projectedHoldingsBonus,
+  }
 }
 
 // ------------------ Hook ------------------
@@ -168,27 +200,21 @@ export function useGamePageData() {
   const fetchPlayerInfo = useCallback(async () => {
     if (!wallet.address) return
     try {
-      const weeklyInfo = await readContract(wagmiConfig, {
+      const weeklyInfoRaw = await readContract(wagmiConfig, {
         address: PIZZA_PARTY_ADDRESS as `0x${string}`,
         abi: PIZZA_PARTY_ABI,
         functionName: 'getPlayerWeeklyInfo',
         args: [wallet.address as `0x${string}`],
-      }) as readonly [bigint, bigint, bigint, bigint, boolean, bigint]
+      }) as PlayerWeeklyResponse
+      const weeklyInfo = normalizeWeeklyInfo(weeklyInfoRaw)
 
       const normalized: PlayerInfo = {
-        totalToppings: weeklyInfo[0],
-        dailyEntries: weeklyInfo[2],
+        totalToppings: weeklyInfo.toppingsEarned,
+        dailyEntries: weeklyInfo.dailyPlays,
         lastEntryTime: 0n,
       }
       setPlayerInfo(normalized)
-      setPlayerWeekly({
-        toppingsEarned: weeklyInfo[0],
-        toppingsClaimed: weeklyInfo[1],
-        dailyPlays: weeklyInfo[2],
-        referralsUsed: weeklyInfo[3],
-        hasClaimed: weeklyInfo[4],
-        projectedHoldingsBonus: weeklyInfo[5],
-      })
+      setPlayerWeekly(weeklyInfo)
 
       const referralCode = await readContract(wagmiConfig, {
         address: PIZZA_PARTY_ADDRESS as `0x${string}`,
@@ -200,8 +226,8 @@ export function useGamePageData() {
       const refInfo: ReferralInfo = {
         referralCode: typeof referralCode === 'string' ? referralCode : '',
         referrer: '0x0000000000000000000000000000000000000000',
-        totalReferrals: weeklyInfo[3],
-        lifetimeReferrals: weeklyInfo[3],
+        totalReferrals: weeklyInfo.referralsUsed,
+        lifetimeReferrals: weeklyInfo.referralsUsed,
         isActive: typeof referralCode === 'string' && referralCode.length > 0,
       }
       setReferralInfo(refInfo)
