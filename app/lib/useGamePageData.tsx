@@ -255,19 +255,46 @@ export function useGamePageData() {
   })
   const fetchWeekly = useCallback(async () => {
     try {
-      const result = await readContract(wagmiConfig, {
+      const weeklyData = await readContract(wagmiConfig, {
         address: PIZZA_PARTY_ADDRESS as `0x${string}`,
         abi: PIZZA_PARTY_ABI,
         functionName: 'getCurrentWeeklyGame',
-      }) as readonly [bigint, bigint, bigint, bigint, bigint, boolean]
+      }) as
+        | readonly [bigint, bigint, bigint, bigint, bigint, boolean]
+        | {
+            claimStart: bigint
+            claimEnd: bigint
+            totalToppings: bigint
+            claimerCount: bigint
+            projectedJackpot: bigint
+            settled: boolean
+          }
+
+      let claimStart: bigint
+      let claimEnd: bigint
+      let totalToppings: bigint
+      let claimerCount: bigint
+      let jackpotWei: bigint
+      let settled: boolean
+
+      if (Array.isArray(weeklyData)) {
+        ;[claimStart, claimEnd, totalToppings, claimerCount, jackpotWei, settled] = weeklyData
+      } else {
+        claimStart = weeklyData.claimStart
+        claimEnd = weeklyData.claimEnd
+        totalToppings = weeklyData.totalToppings
+        claimerCount = weeklyData.claimerCount
+        jackpotWei = weeklyData.projectedJackpot
+        settled = weeklyData.settled
+      }
 
       setWeekly({
-        claimStart: Number(result[0]),
-        claimEnd: Number(result[1]),
-        totalToppings: result[2],
-        claimerCount: Number(result[3]),
-        jackpotWei: result[4],
-        settled: result[5],
+        claimStart: Number(claimStart),
+        claimEnd: Number(claimEnd),
+        totalToppings,
+        claimerCount: Number(claimerCount),
+        jackpotWei,
+        settled,
         loading: false,
         error: null,
       })
