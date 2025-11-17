@@ -85,8 +85,8 @@ function useCountdown(targetSeconds: number) {
 }
 
 export default function WeeklyJackpotPage({
-  onBack,
-  onNavigateToHome,
+  onBack: _unusedOnBack,
+  onNavigateToHome: _unusedOnNavigateToHome,
   onNavigateToDaily,
 }: WeeklyJackpotPageProps) {
   const {

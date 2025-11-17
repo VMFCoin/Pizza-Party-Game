@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
 
-import "@openzeppelin/contracts/access/Ownable.sol";
+import "@openzeppelin/contracts@4.9.6/access/Ownable.sol";
 import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
@@ -87,7 +87,7 @@ contract PizzaParty is Ownable, ReentrancyGuard {
     mapping(uint256 => mapping(address => bool)) public hasPlayedDaily;
     mapping(uint256 => mapping(address => PlayerWeekly)) public weeklyPlayers;
     
-    // Referral system
+    // Referral system (lazy registration)
     mapping(address => string) public playerReferralCode;
     mapping(string => address) public codeToPlayer;
     mapping(address => bool) public hasUsedReferral; // Lifetime flag
@@ -106,7 +106,7 @@ contract PizzaParty is Ownable, ReentrancyGuard {
     
     // ============ Constructor ============
     
-    constructor(address _vmfToken, address _treasury) Ownable(msg.sender) {
+    constructor(address _vmfToken, address _treasury) {
         require(_vmfToken != address(0), "Invalid VMF");
         require(_treasury != address(0), "Invalid treasury");
         
@@ -353,35 +353,59 @@ contract PizzaParty is Ownable, ReentrancyGuard {
     // ============ Referral System ============
     
     /**
-     * @dev Create referral code
+     * @dev Get referral code for a player (view function - no transaction needed!)
+     * Code is deterministically generated from player address
      */
-    function createReferralCode() external {
-        require(bytes(playerReferralCode[msg.sender]).length == 0, "Code exists");
-        
-        string memory code = _generateCode(msg.sender);
-        require(codeToPlayer[code] == address(0), "Code collision");
-        
-        playerReferralCode[msg.sender] = code;
-        codeToPlayer[code] = msg.sender;
-        
-        emit ReferralCodeCreated(msg.sender, code);
+    function getReferralCode(address player) external view returns (string memory) {
+        return _generateCode(player);
+    }
+    
+    /**
+     * @dev Get player address from a referral code (if registered)
+     */
+    function getPlayerFromCode(string memory code) external view returns (address) {
+        return codeToPlayer[code];
     }
     
     function _generateCode(address player) internal view returns (string memory) {
-        bytes32 h = keccak256(abi.encodePacked(player, block.timestamp, address(this)));
-        bytes16 alphabet = "0123456789ABCDEF";
+        // Deterministic hash based on player address + contract address
+        // Ensures each player always gets the same unique code
+        bytes32 h = keccak256(abi.encodePacked(player, address(this)));
+        
+        bytes memory alphabet = "0123456789ABCDEFGHJKLMNPQRSTUVWXYZ"; // 34 chars (no I/O for clarity)
         bytes memory out = new bytes(8);
-        for (uint256 i = 0; i < 8; i++) {
-            out[i] = alphabet[uint8(h[i]) >> 4];
+        
+        // Use both nibbles of each byte for better entropy
+        for (uint256 i = 0; i < 4; i++) {
+            uint8 highNibble = uint8(h[i]) >> 4;
+            uint8 lowNibble = uint8(h[i]) & 0x0F;
+            
+            // Ensure we stay within alphabet bounds (0-33)
+            out[i*2] = alphabet[highNibble % 34];
+            out[i*2 + 1] = alphabet[lowNibble % 34];
         }
+        
         return string(abi.encodePacked("PZ", out));
+    }
+    
+    /**
+     * @dev Validate and get referrer address from code
+     */
+    function _getReferrerFromCode(string memory code) internal view returns (address) {
+        require(bytes(code).length == 10, "Invalid code length");
+        require(bytes(code)[0] == 'P' && bytes(code)[1] == 'Z', "Invalid code prefix");
+        
+        // Check if it's registered in the mapping
+        address registered = codeToPlayer[code];
+        require(registered != address(0), "Code not found");
+        
+        return registered;
     }
     
     function _processReferral(address referee, string memory code) internal {
         require(!hasUsedReferral[referee], "Already used referral");
         
-        address referrer = codeToPlayer[code];
-        require(referrer != address(0), "Invalid code");
+        address referrer = _getReferrerFromCode(code);
         require(referrer != referee, "Cannot refer self");
         
         uint256 weekId = weeklyGameId;
@@ -397,6 +421,13 @@ contract PizzaParty is Ownable, ReentrancyGuard {
         
         // Award 2 toppings to referrer
         referrerWeekly.toppingsEarned += 2;
+        
+        // Lazy registration: register code on first use
+        if (bytes(playerReferralCode[referrer]).length == 0) {
+            playerReferralCode[referrer] = code;
+            codeToPlayer[code] = referrer;
+            emit ReferralCodeCreated(referrer, code);
+        }
         
         emit ReferralUsed(referrer, referee);
         emit ToppingsEarned(weekId, referrer, 2, "referral");
@@ -421,8 +452,11 @@ contract PizzaParty is Ownable, ReentrancyGuard {
         )));
         
         uint256 picked = 0;
-        while (picked < count) {
-            randSeed = uint256(keccak256(abi.encodePacked(randSeed, picked)));
+        uint256 attempts = 0;
+        uint256 maxAttempts = count * 10; // Prevent infinite loops
+        
+        while (picked < count && attempts < maxAttempts) {
+            randSeed = uint256(keccak256(abi.encodePacked(randSeed, attempts)));
             uint256 idx = randSeed % n;
             
             if (!selected[idx]) {
@@ -430,6 +464,8 @@ contract PizzaParty is Ownable, ReentrancyGuard {
                 winners[picked] = candidates[idx];
                 picked++;
             }
+            
+            attempts++;
         }
         
         return winners;
@@ -454,6 +490,8 @@ contract PizzaParty is Ownable, ReentrancyGuard {
             prefixSums[i] = totalWeight;
         }
         
+        require(totalWeight > 0, "No weight");
+        
         bytes32 randSeed = keccak256(abi.encodePacked(
             block.prevrandao,
             block.timestamp,
@@ -463,8 +501,9 @@ contract PizzaParty is Ownable, ReentrancyGuard {
         
         uint256 picked = 0;
         uint256 attempts = 0;
+        uint256 maxAttempts = count * 10; // Prevent infinite loops
         
-        while (picked < count && attempts < count * 3) {
+        while (picked < count && attempts < maxAttempts) {
             uint256 draw = uint256(keccak256(abi.encodePacked(randSeed, attempts))) % totalWeight;
             
             // Binary search for winner
@@ -632,12 +671,20 @@ contract PizzaParty is Ownable, ReentrancyGuard {
         return block.timestamp >= week.claimWindowEnd && !week.settled;
     }
     
-    function getReferralCode(address player) external view returns (string memory) {
-        return playerReferralCode[player];
+    function getDailyGamePlayers(uint256 gameId) external view returns (address[] memory) {
+        return dailyGames[gameId].players;
     }
     
-    function getPlayerFromCode(string memory code) external view returns (address) {
-        return codeToPlayer[code];
+    function getDailyGameWinners(uint256 gameId) external view returns (address[] memory) {
+        return dailyGames[gameId].winners;
+    }
+    
+    function getWeeklyGameClaimers(uint256 weekId) external view returns (address[] memory) {
+        return weeklyGames[weekId].claimers;
+    }
+    
+    function getWeeklyGameWinners(uint256 weekId) external view returns (address[] memory) {
+        return weeklyGames[weekId].winners;
     }
     
     // ============ Admin Functions ============
