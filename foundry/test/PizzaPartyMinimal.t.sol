@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
 
-import "../src/PizzaPartyMinimalEntry.sol";
+import "../src/PizzaParty.sol";
 import "../src/mocks/MockVMF.sol";
 
 interface Vm {

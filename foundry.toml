@@ -5,5 +5,15 @@ out = "foundry/out"
 libs = ["node_modules", "foundry/lib"]
 cache_path = "foundry/cache"
 solc = "0.8.20"
+via_ir = true
+optimizer = true
+optimizer_runs = 200
 fs_permissions = [{ access = "read", path = "./" }]
 remappings = ["@openzeppelin/contracts/=foundry/src/oz/"]
+
+# Base mainnet profile - use with --profile mainnet
+# Set BASE_RPC_URL and BASESCAN_API_KEY in .env file
+
+[etherscan.base]
+key = "${BASESCAN_API_KEY}"
+url = "https://api.basescan.org/api"
