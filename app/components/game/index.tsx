@@ -1,6 +1,6 @@
 'use client'
 
-import { Suspense, useState, useMemo, useEffect, ReactNode } from 'react'
+import { Suspense, useState, useMemo, useEffect, useCallback, ReactNode } from 'react'
 import Image from 'next/image'
 import { Button } from '../ui/button'
 import { Users, Share2, X } from 'lucide-react'
@@ -234,21 +234,33 @@ function GamePageContent({ onNavigateToWeekly }: GamePageProps) {
     ? `🍕 Join Pizza Party to win a slice of VMF! Use my referral code: ${referralCode}`
     : '🍕 Join Pizza Party to win a slice of VMF!'
 
+  const tryFarcasterShare = useCallback(async (url: string, text: string) => {
+    const actions = sdk.actions as {
+      share?: (opts: { title?: string; url?: string; text?: string }) => Promise<void>
+    }
+    if (typeof actions.share !== 'function') return false
+    try {
+      await actions.share({
+        title: 'Pizza Party',
+        url,
+        text,
+      })
+      return true
+    } catch (err) {
+      console.warn('Farcaster share failed, falling back', err)
+      return false
+    }
+  }, [])
+
   const handleShareOption = async (platform: SharePlatform) => {
     if (!referralShareUrl) return
     const combinedMessage = `${shareText}\n${referralShareUrl}`
     try {
       if (platform.name === 'Farcaster') {
-        try {
-          await sdk.actions.share({
-            title: 'Pizza Party',
-            url: referralShareUrl,
-            text: shareText,
-          })
+        const handled = await tryFarcasterShare(referralShareUrl, shareText)
+        if (handled) {
           setShowShareModal(false)
           return
-        } catch {
-          // fall through to default behavior
         }
       }
       if (platform.action === 'copy') {
