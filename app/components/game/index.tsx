@@ -248,11 +248,14 @@ function GamePageContent({ onNavigateToWeekly }: GamePageProps) {
 
   const tryFarcasterShare = useCallback(async (url: string, text: string) => {
     const actions = sdk.actions as {
-      composeCast?: (opts?: { text?: string }) => Promise<void>
+      composeCast?: (opts?: { text?: string; embeds?: string[] }) => Promise<void>
     }
     if (typeof actions.composeCast !== 'function') return false
     try {
-      await actions.composeCast({ text: `${text}\n${url}` })
+      await actions.composeCast({
+        text,
+        embeds: [url],
+      })
       return true
     } catch (err) {
       console.warn('Farcaster share failed, falling back', err)
