@@ -189,7 +189,7 @@ export default function WeeklyJackpotPage({
                   background: 'linear-gradient(45deg, #DC2626, #EF4444, #F87171)',
                   WebkitBackgroundClip: 'text',
                   WebkitTextFillColor: 'transparent',
-                  filter: 'drop-shadow(0 0 1px #DC2626)',
+                  filter: 'drop-shadow(0 0 0.125px #DC2626)',
                   fontSize: 'clamp(30px, 10vw, 44px)',
                   whiteSpace: 'nowrap',
                 }}
@@ -208,7 +208,7 @@ export default function WeeklyJackpotPage({
                   background: 'linear-gradient(45deg, #DC2626, #EF4444, #F87171)',
                   WebkitBackgroundClip: 'text',
                   WebkitTextFillColor: 'transparent',
-                  filter: 'drop-shadow(0 0 1px #DC2626)',
+                  filter: 'drop-shadow(0 0 0.125px #DC2626)',
                   fontSize: 'clamp(24px, 8vw, 36px)',
                   whiteSpace: 'nowrap',
                   textAlign: 'center',

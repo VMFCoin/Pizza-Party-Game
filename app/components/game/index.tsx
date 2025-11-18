@@ -323,7 +323,7 @@ function GamePageContent({ onNavigateToWeekly }: GamePageProps) {
               background: "linear-gradient(45deg, #DC2626, #EF4444, #F87171)",
               WebkitBackgroundClip: "text",
               WebkitTextFillColor: "transparent",
-              filter: "drop-shadow(0 0 3px #DC2626)",
+              filter: "drop-shadow(0 0 0.375px #DC2626)",
               fontSize: "32px",
               whiteSpace: "nowrap",
             }}>
@@ -339,7 +339,7 @@ function GamePageContent({ onNavigateToWeekly }: GamePageProps) {
               background: "linear-gradient(45deg, #DC2626, #EF4444, #F87171)",
               WebkitBackgroundClip: "text",
               WebkitTextFillColor: "transparent",
-              filter: "drop-shadow(0 0 3px #DC2626)",
+              filter: "drop-shadow(0 0 0.375px #DC2626)",
               fontSize: isMobile ? "26px" : "31px",
               whiteSpace: "nowrap",
               textAlign: "center",
@@ -372,7 +372,10 @@ function GamePageContent({ onNavigateToWeekly }: GamePageProps) {
           {wallet?.isAuthenticated && playerInfo && (
             <div className="bg-yellow-100/90 backdrop-blur-sm p-2 rounded-xl border-2 border-yellow-300 mt-2">
               <p className="text-yellow-800 text-sm font-bold" style={customFontStyle}>
-                🍕 Your Stats: {Number(playerInfo.totalToppings)} Toppings • {Number(playerInfo.dailyEntries)} Entries
+                🍕 Your Stats: {Number(playerInfo.totalToppings)} Toppings
+              </p>
+              <p className="text-yellow-800 text-sm font-bold text-center" style={customFontStyle}>
+                {Number(playerInfo.dailyEntries)} Entries
               </p>
             </div>
           )}
