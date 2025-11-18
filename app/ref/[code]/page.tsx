@@ -1,16 +1,16 @@
 import type { Metadata } from 'next'
 
 interface PageProps {
-  params: {
+  params: Promise<{
     code: string
-  }
+  }>
 }
 
 const getBaseUrl = () =>
   process.env.NEXT_PUBLIC_BASE_URL || 'https://pizza-party-game.vmfcoin.com'
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
-  const { code } = params
+  const { code } = await params
   const baseUrl = getBaseUrl()
   const frameImage = `${baseUrl}/images/frame-preview.png`
 
@@ -36,8 +36,8 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   }
 }
 
-export default function ReferralPage({ params }: PageProps) {
-  const { code } = params
+export default async function ReferralPage({ params }: PageProps) {
+  const { code } = await params
 
   return (
     <main className="min-h-screen flex items-center justify-center bg-gradient-to-br from-red-600 via-orange-500 to-yellow-400 p-6">
