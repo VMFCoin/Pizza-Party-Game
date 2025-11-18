@@ -5,6 +5,7 @@ import Image from 'next/image'
 import { Button } from '../ui/button'
 import { Users, Share2, X } from 'lucide-react'
 import { useGamePageData } from '../../lib/useGamePageData'
+import { sdk } from '@farcaster/miniapp-sdk'
 
 const SHARE_BASE_URL = 'https://pizza-party-game.vmfcoin.com/ref/'
 
@@ -237,6 +238,19 @@ function GamePageContent({ onNavigateToWeekly }: GamePageProps) {
     if (!referralShareUrl) return
     const combinedMessage = `${shareText}\n${referralShareUrl}`
     try {
+      if (platform.name === 'Farcaster') {
+        try {
+          await sdk.actions.share({
+            title: 'Pizza Party',
+            url: referralShareUrl,
+            text: shareText,
+          })
+          setShowShareModal(false)
+          return
+        } catch {
+          // fall through to default behavior
+        }
+      }
       if (platform.action === 'copy') {
         await navigator.clipboard.writeText(combinedMessage)
         setShareCopied(true)
