@@ -6,6 +6,7 @@ import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
+
 /**
  * @title PizzaParty
  * @dev Daily lottery + Weekly jackpot with topping-based tickets
@@ -564,8 +565,9 @@ contract PizzaParty is Ownable, ReentrancyGuard {
     }
     
     function _nextNoonPT(uint256 timestamp) internal pure returns (uint256) {
+        uint256 PT_OFFSET = 8 hours; // PST/PDT offset (PT = UTC-8)
         uint256 dayStart = (timestamp / 1 days) * 1 days;
-        uint256 noonPT = dayStart + 20 hours; // 12pm PT = 20:00 UTC
+        uint256 noonPT = dayStart + (12 hours + PT_OFFSET); // 12pm PT = 20:00 UTC
         
         if (timestamp >= noonPT) {
             return noonPT + 1 days;
