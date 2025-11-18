@@ -238,10 +238,7 @@ function GamePageContent({ onNavigateToWeekly }: GamePageProps) {
     const actions = sdk.actions as {
       shareText?: (opts: { text: string }) => Promise<void>
     }
-    const helpers = sdk.helpers as {
-      isMiniApp?: boolean
-    }
-    if (!helpers?.isMiniApp || typeof actions.shareText !== 'function') return false
+    if (typeof actions.shareText !== 'function') return false
     try {
       await actions.shareText({ text: `${text}\n${url}` })
       return true
