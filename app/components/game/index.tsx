@@ -236,15 +236,14 @@ function GamePageContent({ onNavigateToWeekly }: GamePageProps) {
 
   const tryFarcasterShare = useCallback(async (url: string, text: string) => {
     const actions = sdk.actions as {
-      share?: (opts: { title?: string; url?: string; text?: string }) => Promise<void>
+      shareText?: (opts: { text: string }) => Promise<void>
     }
-    if (typeof actions.share !== 'function') return false
+    const helpers = sdk.helpers as {
+      isMiniApp?: boolean
+    }
+    if (!helpers?.isMiniApp || typeof actions.shareText !== 'function') return false
     try {
-      await actions.share({
-        title: 'Pizza Party',
-        url,
-        text,
-      })
+      await actions.shareText({ text: `${text}\n${url}` })
       return true
     } catch (err) {
       console.warn('Farcaster share failed, falling back', err)
