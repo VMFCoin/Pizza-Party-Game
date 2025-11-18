@@ -1,55 +1,128 @@
 'use client'
 
-import { Suspense, useState, useMemo, useEffect } from 'react'
+import { Suspense, useState, useMemo, useEffect, ReactNode } from 'react'
 import Image from 'next/image'
 import { Button } from '../ui/button'
 import { Users, Share2, X } from 'lucide-react'
+import { useGamePageData } from '../../lib/useGamePageData'
 
 const SHARE_BASE_URL = 'https://pizza-party-game.vmfcoin.com/ref/'
-const SHARE_PLATFORMS = [
+
+const SOCIAL_ICONS = {
+  warpcast: (
+    <svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true">
+      <circle cx="12" cy="12" r="12" fill="#9333EA" />
+      <path
+        d="M7 7h2.6l2.4 6.2L14.4 7H17l-3.1 10H10z"
+        fill="#fff"
+      />
+    </svg>
+  ),
+  twitter: (
+    <svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true">
+      <rect width="24" height="24" rx="12" fill="#000" />
+      <path
+        d="M7 6h2.3l3.2 4.6L15.5 6H18l-4.2 6L18 18h-2.3l-3.2-4.8L9.3 18H7l4.4-6z"
+        fill="#fff"
+      />
+    </svg>
+  ),
+  telegram: (
+    <svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true">
+      <circle cx="12" cy="12" r="12" fill="#229ED9" />
+      <path
+        d="M16.8 8.2l-9.6 3.7c-.6.2-.6 1 0 1.2l2.3.8 1 3.1c.1.4.6.5.9.2l1.5-1.6 2.5 1.8c.4.3 1 .1 1.1-.4l1.7-8.1c.1-.5-.4-.9-.9-.7z"
+        fill="#fff"
+      />
+    </svg>
+  ),
+  whatsapp: (
+    <svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true">
+      <circle cx="12" cy="12" r="12" fill="#25D366" />
+      <path
+        d="M8.7 6.5a4.8 4.8 0 014.8 4.8c0 2.6-2.1 4.8-4.8 4.8-.7 0-1.4-.1-2-.4l-1.4.5.5-1.4a4.8 4.8 0 01-1-2.9 4.8 4.8 0 014.9-4.4zm0-1.5a6.3 6.3 0 00-5.4 9.4L2.5 21l6-1.7a6.3 6.3 0 102.2-12.3z"
+        fill="#fff"
+      />
+      <path
+        d="M9.4 8.7c-.1-.2-.3-.2-.5-.2h-.4c-.2 0-.5.1-.7.3-.2.2-.9.9-.9 2.2s.9 2.5 1 2.6c.1.2 1.7 2.6 4.2 3.6.6.2 1 .3 1.4.3.6 0 1.1-.3 1.3-.7.1-.4.1-.7.1-.8 0-.2-.1-.3-.3-.3h-.6c-.2 0-.4 0-.6.2l-.3.2c-.2.2-.4.1-.6 0s-1-.4-1.9-1.3c-.7-.6-1.2-1.4-1.3-1.6-.1-.2 0-.3.1-.4l.3-.4c.1-.1.2-.3.3-.4.1-.2 0-.3 0-.4 0-.1-.3-1-.5-1.4z"
+        fill="#25D366"
+      />
+    </svg>
+  ),
+  facebook: (
+    <svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true">
+      <circle cx="12" cy="12" r="12" fill="#1877F2" />
+      <path
+        d="M13 8.5V7.2c0-.4.3-.7.7-.7h1.2V4.3h-1.9C11.3 4.3 10 5.6 10 7.3v1.2H8v2.2h2v5.9h2.5v-5.9h1.7l.3-2.2H12.5z"
+        fill="#fff"
+      />
+    </svg>
+  ),
+  copy: (
+    <svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true">
+      <rect x="7" y="7" width="12" height="12" rx="2" fill="#F3F4F6" stroke="#1F2937" strokeWidth="1.5" />
+      <rect x="5" y="5" width="12" height="12" rx="2" fill="#fff" stroke="#1F2937" strokeWidth="1.5" />
+    </svg>
+  ),
+}
+
+const SHARE_PLATFORMS: SharePlatform[] = [
   {
-    name: 'Warpcast',
-    icon: '🟣',
-    color: '!bg-purple-600 hover:!bg-purple-700',
+    name: 'Farcaster',
+    icon: (
+      <Image
+        src="/images/Farcaster logo icon.png"
+        alt="Farcaster"
+        width={20}
+        height={20}
+        className="rounded-sm bg-white"
+      />
+    ),
+    color: '!bg-[#6C47FF] hover:!bg-[#5D3FE5]',
     shareUrl: (url: string, text: string) =>
       `https://warpcast.com/~/compose?text=${encodeURIComponent(`${text} ${url}`)}`,
   },
   {
     name: 'X (Twitter)',
-    icon: '𝕏',
+    icon: SOCIAL_ICONS.twitter,
     color: '!bg-black hover:!bg-gray-900',
     shareUrl: (url: string, text: string) =>
       `https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}&url=${encodeURIComponent(url)}`,
   },
   {
     name: 'Telegram',
-    icon: '✈️',
+    icon: SOCIAL_ICONS.telegram,
     color: '!bg-sky-500 hover:!bg-sky-600',
     shareUrl: (url: string, text: string) =>
       `https://t.me/share/url?url=${encodeURIComponent(url)}&text=${encodeURIComponent(text)}`,
   },
   {
     name: 'WhatsApp',
-    icon: '💬',
+    icon: SOCIAL_ICONS.whatsapp,
     color: '!bg-green-500 hover:!bg-green-600',
     shareUrl: (url: string, text: string) => `https://wa.me/?text=${encodeURIComponent(`${text} ${url}`)}`,
   },
   {
     name: 'Facebook',
-    icon: '📘',
+    icon: SOCIAL_ICONS.facebook,
     color: '!bg-blue-600 hover:!bg-blue-700',
     shareUrl: (url: string) => `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(url)}`,
   },
   {
     name: 'Copy Link',
-    icon: '📋',
+    icon: SOCIAL_ICONS.copy,
     color: '!bg-gray-600 hover:!bg-gray-700',
     action: 'copy',
   },
 ] as const
 
-type SharePlatform = (typeof SHARE_PLATFORMS)[number]
-import { useGamePageData } from '../../lib/useGamePageData'
+type SharePlatform = {
+  name: string
+  icon: ReactNode
+  color: string
+  shareUrl?: (url: string, text: string) => string
+  action?: 'copy'
+}
 
 interface GamePageProps {
   onNavigateToWeekly?: () => void
@@ -65,6 +138,10 @@ export default function GamePage({ onNavigateToWeekly }: GamePageProps) {
 
 function GamePageContent({ onNavigateToWeekly }: GamePageProps) {
   const [isMobile, setIsMobile] = useState(false)
+  const [referralCodeInput, setReferralCodeInput] = useState('')
+  const [showReferralInput, setShowReferralInput] = useState(false)
+  const [shareCopied, setShareCopied] = useState(false)
+  const [showShareModal, setShowShareModal] = useState(false)
 
   useEffect(() => {
     const checkMobile = () => {
@@ -76,12 +153,6 @@ function GamePageContent({ onNavigateToWeekly }: GamePageProps) {
     
     return () => window.removeEventListener('resize', checkMobile)
   }, [])
-
-  useEffect(() => {
-    if (!shareCopied) return
-    const id = setTimeout(() => setShareCopied(false), 2000)
-    return () => clearTimeout(id)
-  }, [shareCopied])
 
   const {
     wallet,
@@ -100,10 +171,11 @@ function GamePageContent({ onNavigateToWeekly }: GamePageProps) {
     needsApproval,
   } = useGamePageData()
 
-  const [referralCodeInput, setReferralCodeInput] = useState('')
-  const [showReferralInput, setShowReferralInput] = useState(false)
-  const [shareCopied, setShareCopied] = useState(false)
-  const [showShareModal, setShowShareModal] = useState(false)
+  useEffect(() => {
+    if (!shareCopied) return
+    const id = setTimeout(() => setShareCopied(false), 2000)
+    return () => clearTimeout(id)
+  }, [shareCopied])
 
   const customFontStyle = {
     fontFamily: '"Comic Sans MS", "Marker Felt", "Chalkduster", "Kalam", "Caveat"',
@@ -498,11 +570,13 @@ function GamePageContent({ onNavigateToWeekly }: GamePageProps) {
               {SHARE_PLATFORMS.map((platform) => (
                 <Button
                   key={platform.name}
-                  className={`${platform.color} text-white font-bold py-2 rounded-xl border-2 border-red-200`}
+                  className={`${platform.color} text-white font-bold py-2 rounded-xl border-2 border-red-200 flex items-center justify-center gap-2`}
                   onClick={() => handleShareOption(platform)}
                 >
-                  <span className="mr-2">{platform.icon}</span>
-                  {platform.action === 'copy' ? 'Copy referral message' : `Share on ${platform.name}`}
+                  <span className="flex items-center justify-center">{platform.icon}</span>
+                  <span>
+                    {platform.action === 'copy' ? 'Copy referral message' : `Share on ${platform.name}`}
+                  </span>
                 </Button>
               ))}
             </div>
