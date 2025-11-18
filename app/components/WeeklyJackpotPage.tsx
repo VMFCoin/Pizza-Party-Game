@@ -98,26 +98,31 @@ export default function WeeklyJackpotPage({
     isEntryInProgress,
   } = useGamePageData()
 
-  const weeklyPlayersDisplay = Number.isNaN(weekly.claimerCount)
-    ? 0
-    : weekly.claimerCount
+  const weeklyPlayersDisplay =
+    weekly.projectedPlayerCount > 0
+      ? weekly.projectedPlayerCount
+      : Number.isNaN(weekly.claimerCount)
+        ? 0
+        : weekly.claimerCount
 
   // Countdown target follows on-chain weekly schedule from PizzaPartyMinimal.sol.
+  // The draw happens at Monday 12pm PST (claimEnd), so we always countdown to that.
   // We fall back to the next Monday 12pm PST if on-chain data hasn't loaded yet.
   const { claimStart, claimEnd } = weekly
   const countdownTarget = (() => {
     const nowSec = Math.floor(Date.now() / 1000)
 
-    if (!claimStart && !claimEnd) {
-      return getNextMondayNoonPacificTimestamp()
+    // Always countdown to claimEnd (Monday 12pm PST when draw happens)
+    if (claimEnd && nowSec < claimEnd) {
+      return claimEnd
     }
 
-    if (claimStart && nowSec < claimStart) return claimStart
-    if (claimEnd && nowSec < claimEnd) return claimEnd
+    // If we're past claimEnd, calculate next Monday 12pm PST
+    if (claimEnd) {
+      return claimEnd + 7 * 24 * 60 * 60
+    }
 
-    if (claimStart) return claimStart + 7 * 24 * 60 * 60
-    if (claimEnd) return claimEnd + 7 * 24 * 60 * 60
-
+    // Fallback if no on-chain data
     return getNextMondayNoonPacificTimestamp()
   })()
   const countdown = useCountdown(countdownTarget)
@@ -127,9 +132,11 @@ export default function WeeklyJackpotPage({
   const nowSec = Math.floor(Date.now() / 1000)
   const claimWindowOpen =
     claimStart > 0 && nowSec >= claimStart && nowSec < claimEnd
-  const jackpotVmF = Number(weekly.jackpotWei) / 1e18
+  const jackpotWeiToDisplay =
+    weekly.projectedJackpotWei > weekly.jackpotWei ? weekly.projectedJackpotWei : weekly.jackpotWei
+  const jackpotVmF = Number(jackpotWeiToDisplay) / 1e18
   const jackpotDisplay =
-    weekly.jackpotWei > 0n ? jackpotVmF.toFixed(jackpotVmF >= 1 ? 0 : 2) : '0'
+    jackpotWeiToDisplay > 0n ? jackpotVmF.toFixed(jackpotVmF >= 1 ? 0 : 2) : '0'
   const claimButtonDisabled =
     !wallet?.isAuthenticated || !claimWindowOpen || hasClaimed || claimableNumber <= 0 || isEntryInProgress
 
@@ -183,7 +190,7 @@ export default function WeeklyJackpotPage({
                   WebkitBackgroundClip: 'text',
                   WebkitTextFillColor: 'transparent',
                   filter: 'drop-shadow(0 0 1px #DC2626)',
-                  fontSize: '44px',
+                  fontSize: 'clamp(30px, 10vw, 44px)',
                   whiteSpace: 'nowrap',
                 }}
               >
@@ -202,7 +209,7 @@ export default function WeeklyJackpotPage({
                   WebkitBackgroundClip: 'text',
                   WebkitTextFillColor: 'transparent',
                   filter: 'drop-shadow(0 0 1px #DC2626)',
-                  fontSize: '36px',
+                  fontSize: 'clamp(24px, 8vw, 36px)',
                   whiteSpace: 'nowrap',
                   textAlign: 'center',
                 }}

@@ -2,8 +2,8 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { toZonedTime, fromZonedTime } from 'date-fns-tz'
-import { parseEther } from 'viem'
-import { readContract, watchBlockNumber } from '@wagmi/core'
+import { parseAbiItem, parseEther } from 'viem'
+import { readContract, watchBlockNumber, getPublicClient } from '@wagmi/core'
 import { useAccount, useChainId, useWriteContract } from 'wagmi'
 import { useAppKit } from '@reown/appkit/react'
 import {
@@ -20,6 +20,9 @@ const BASE_CHAIN_ID = 8453
 const ENTRY_FEE_WEI = GAME_CONSTANTS.ENTRY_FEE_WEI
 const WEI_PER_VMF = 10n ** 18n
 const VMF_USD_PRICE = 0.01
+const TOPPINGS_EARNED_EVENT = parseAbiItem(
+  'event ToppingsEarned(uint256 indexed weekId, address indexed player, uint256 amount, string reason)',
+)
 
 // ------------------ Types ------------------
 
@@ -108,6 +111,8 @@ interface WeeklyData {
   totalToppings: bigint
   claimerCount: number
   jackpotWei: bigint
+  projectedJackpotWei: bigint
+  projectedPlayerCount: number
   settled: boolean
   loading: boolean
   error: Error | null
@@ -165,6 +170,14 @@ export function useGamePageData() {
   const { open } = useAppKit()
   const { writeContract, isPending } = useWriteContract()
   const networkId = useChainId()
+  const publicClient = useMemo(() => {
+    try {
+      return getPublicClient(wagmiConfig, { chainId: BASE_CHAIN_ID })
+    } catch (err) {
+      console.error('Failed to init public client', err)
+      return null
+    }
+  }, [])
 
   const wallet = useMemo(() => ({
     address: address ?? '',
@@ -223,6 +236,8 @@ export function useGamePageData() {
     totalToppings: 0n,
     claimerCount: 0,
     jackpotWei: 0n,
+    projectedJackpotWei: 0n,
+    projectedPlayerCount: 0,
     settled: false,
     loading: true,
     error: null,
@@ -302,11 +317,18 @@ export function useGamePageData() {
   })
   const fetchWeekly = useCallback(async () => {
     try {
-      const weeklyData = await readContract(wagmiConfig, {
-        address: PIZZA_PARTY_ADDRESS as `0x${string}`,
-        abi: PIZZA_PARTY_ABI,
-        functionName: 'getCurrentWeeklyGame',
-      }) as WeeklyGameResponse
+      const [weeklyData, currentWeekId] = await Promise.all([
+        readContract(wagmiConfig, {
+          address: PIZZA_PARTY_ADDRESS as `0x${string}`,
+          abi: PIZZA_PARTY_ABI,
+          functionName: 'getCurrentWeeklyGame',
+        }) as Promise<WeeklyGameResponse>,
+        readContract(wagmiConfig, {
+          address: PIZZA_PARTY_ADDRESS as `0x${string}`,
+          abi: PIZZA_PARTY_ABI,
+          functionName: 'weeklyGameId',
+        }) as Promise<bigint>,
+      ])
 
       let claimStart: bigint
       let claimEnd: bigint
@@ -339,12 +361,49 @@ export function useGamePageData() {
         isTuple: isWeeklyGameTuple(weeklyData),
       })
 
+      let projectedJackpotWei = jackpotWei
+      let projectedPlayerCount = Number(claimerCount)
+
+      if (publicClient) {
+        try {
+          const logs = await publicClient.getLogs({
+            address: PIZZA_PARTY_ADDRESS as `0x${string}`,
+            event: TOPPINGS_EARNED_EVENT,
+            args: { weekId: currentWeekId },
+            fromBlock: 0n,
+          })
+
+          let totalEarned = 0n
+          const players = new Set<string>()
+
+          for (const log of logs) {
+            const amount = log.args?.amount ?? 0n
+            totalEarned += amount
+            const playerArg = log.args?.player
+            if (playerArg) {
+              players.add(playerArg.toLowerCase())
+            }
+          }
+
+          if (totalEarned > 0n) {
+            projectedJackpotWei = totalEarned * WEI_PER_VMF
+          }
+          if (players.size > 0) {
+            projectedPlayerCount = players.size
+          }
+        } catch (projErr) {
+          console.error('Failed to compute projected weekly totals', projErr)
+        }
+      }
+
       setWeekly({
         claimStart: Number(claimStart),
         claimEnd: Number(claimEnd),
         totalToppings,
         claimerCount: Number(claimerCount),
         jackpotWei,
+        projectedJackpotWei,
+        projectedPlayerCount,
         settled,
         loading: false,
         error: null,
@@ -357,7 +416,7 @@ export function useGamePageData() {
         error: err instanceof Error ? err : new Error('Failed to load weekly'),
       }))
     }
-  }, [])
+  }, [publicClient])
 
   const refreshDaily = useCallback(async () => {
     try {
