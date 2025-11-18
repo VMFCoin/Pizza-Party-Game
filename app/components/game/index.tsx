@@ -189,6 +189,18 @@ function GamePageContent({ onNavigateToWeekly }: GamePageProps) {
   // Check if this is user's first entry ever
   const isFirstEntry = playerInfo?.dailyEntries === 0n
 
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    const params = new URLSearchParams(window.location.search)
+    const refCode = params.get('ref')
+    if (!refCode) return
+    setReferralCodeInput(refCode.toUpperCase())
+    if (isFirstEntry) {
+      setShowReferralInput(true)
+    }
+    window.history.replaceState({}, '', window.location.pathname)
+  }, [isFirstEntry])
+
   // Determine main action button state
   const buttonConfig = useMemo(() => {
     if (!wallet?.isAuthenticated) {
@@ -236,11 +248,11 @@ function GamePageContent({ onNavigateToWeekly }: GamePageProps) {
 
   const tryFarcasterShare = useCallback(async (url: string, text: string) => {
     const actions = sdk.actions as {
-      shareText?: (opts: { text: string }) => Promise<void>
+      composeCast?: (opts?: { text?: string }) => Promise<void>
     }
-    if (typeof actions.shareText !== 'function') return false
+    if (typeof actions.composeCast !== 'function') return false
     try {
-      await actions.shareText({ text: `${text}\n${url}` })
+      await actions.composeCast({ text: `${text}\n${url}` })
       return true
     } catch (err) {
       console.warn('Farcaster share failed, falling back', err)
