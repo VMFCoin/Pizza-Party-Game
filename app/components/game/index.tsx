@@ -3,7 +3,7 @@
 import { Suspense, useState, useMemo, useEffect } from 'react'
 import Image from 'next/image'
 import { Button } from '../ui/button'
-import { Users, Gift, Copy } from 'lucide-react'
+import { Users, Copy } from 'lucide-react'
 import { useGamePageData } from '../../lib/useGamePageData'
 
 interface GamePageProps {
@@ -43,7 +43,6 @@ function GamePageContent({ onNavigateToWeekly }: GamePageProps) {
     openWalletModal,
     handleEnterGame,
     handleApproveVMF,
-    handleCreateReferralCode,
     isEntryInProgress,
     hasEnteredToday,
     hasEnoughVMF,
@@ -325,32 +324,21 @@ function GamePageContent({ onNavigateToWeekly }: GamePageProps) {
                 )}
               </div>
               
-              {referralInfo?.referralCode ? (
-                <div>
-                  <p className="text-red-900 font-bold text-xl text-center mb-1 tracking-wider">
-                    {referralInfo.referralCode}
-                  </p>
-                  <p className="text-xs text-red-600 text-center">
-                    Referrals: {Number(referralInfo.totalReferrals)}/3 this week • {Number(referralInfo.lifetimeReferrals)} lifetime
-                  </p>
-                  <p className="text-xs text-red-500 text-center mt-1">
-                    Invite friends to earn 2 toppings each! (Max 3/week)
-                  </p>
-                </div>
-              ) : (
-                <div>
-                  <p className="text-xs text-red-600 text-center mb-2">
-                    Create your code to invite friends and earn bonus toppings!
-                  </p>
-                  <Button
-                    className="!bg-red-600 hover:!bg-red-700 text-white font-bold py-2 rounded-lg w-full text-sm"
-                    onClick={handleCreateReferralCode}
-                    disabled={isEntryInProgress}
-                  >
-                    <Gift className="inline mr-1 h-4 w-4" /> Create Referral Code
-                  </Button>
-                </div>
-              )}
+    <div>
+      <p className="text-red-900 font-bold text-xl text-center mb-1 tracking-wider">
+        {referralInfo?.referralCode 
+          ? referralInfo.referralCode 
+          : referralInfo === null 
+            ? 'Loading...' 
+            : 'Code not available'}
+      </p>
+      <p className="text-xs text-red-600 text-center">
+        Referrals: {Number(referralInfo?.totalReferrals ?? 0n)}/3 this week • {Number(referralInfo?.lifetimeReferrals ?? 0n)} lifetime
+      </p>
+      <p className="text-xs text-red-500 text-center mt-1">
+        Invite friends to earn 2 toppings each! (Max 3/week)
+      </p>
+    </div>
             </div>
           )}
 

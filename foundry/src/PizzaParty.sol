@@ -6,6 +6,7 @@ import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
+
 /**
  * @title PizzaParty
  * @dev Daily lottery + Weekly jackpot with topping-based tickets
@@ -366,15 +367,27 @@ contract PizzaParty is Ownable, ReentrancyGuard {
     function getPlayerFromCode(string memory code) external view returns (address) {
         return codeToPlayer[code];
     }
+
+    function createReferralCode() external {
+        require(bytes(playerReferralCode[msg.sender]).length == 0, "Code exists");
+        
+        string memory code = _generateCode(msg.sender);
+        
+        // Deterministic generation; collision check for safety
+        require(codeToPlayer[code] == address(0), "Code collision");
+        
+        playerReferralCode[msg.sender] = code;
+        codeToPlayer[code] = msg.sender;
+        
+        emit ReferralCodeCreated(msg.sender, code);
+    }
     
     function _generateCode(address player) internal view returns (string memory) {
-        // Deterministic hash based on player address + contract address
-        // Ensures each player always gets the same unique code
+        // Deterministic hash based on player + contract address
         bytes32 h = keccak256(abi.encodePacked(player, address(this)));
-        
-        bytes memory alphabet = "0123456789ABCDEFGHJKLMNPQRSTUVWXYZ"; // 34 chars (no I/O for clarity)
+        bytes memory alphabet = "0123456789ABCDEFGHJKLMNPQRSTUVWXYZ"; // 34 chars (no I/O)
         bytes memory out = new bytes(8);
-        
+
         // Use both nibbles of each byte for better entropy
         for (uint256 i = 0; i < 4; i++) {
             uint8 highNibble = uint8(h[i]) >> 4;
@@ -384,7 +397,7 @@ contract PizzaParty is Ownable, ReentrancyGuard {
             out[i*2] = alphabet[highNibble % 34];
             out[i*2 + 1] = alphabet[lowNibble % 34];
         }
-        
+
         return string(abi.encodePacked("PZ", out));
     }
     
@@ -564,8 +577,9 @@ contract PizzaParty is Ownable, ReentrancyGuard {
     }
     
     function _nextNoonPT(uint256 timestamp) internal pure returns (uint256) {
+        uint256 PT_OFFSET = 8 hours; // PST/PDT offset (PT = UTC-8)
         uint256 dayStart = (timestamp / 1 days) * 1 days;
-        uint256 noonPT = dayStart + 20 hours; // 12pm PT = 20:00 UTC
+        uint256 noonPT = dayStart + (12 hours + PT_OFFSET); // 12pm PT = 20:00 UTC
         
         if (timestamp >= noonPT) {
             return noonPT + 1 days;
@@ -710,4 +724,3 @@ contract PizzaParty is Ownable, ReentrancyGuard {
         _settleWeeklyGame(weekId);
     }
 }
-

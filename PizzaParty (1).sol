@@ -367,15 +367,27 @@ contract PizzaParty is Ownable, ReentrancyGuard {
     function getPlayerFromCode(string memory code) external view returns (address) {
         return codeToPlayer[code];
     }
+
+    function createReferralCode() external {
+        require(bytes(playerReferralCode[msg.sender]).length == 0, "Code exists");
+        
+        string memory code = _generateCode(msg.sender);
+        
+        // Deterministic generation; collision check for safety
+        require(codeToPlayer[code] == address(0), "Code collision");
+        
+        playerReferralCode[msg.sender] = code;
+        codeToPlayer[code] = msg.sender;
+        
+        emit ReferralCodeCreated(msg.sender, code);
+    }
     
     function _generateCode(address player) internal view returns (string memory) {
-        // Deterministic hash based on player address + contract address
-        // Ensures each player always gets the same unique code
+        // Deterministic hash based on player + contract address
         bytes32 h = keccak256(abi.encodePacked(player, address(this)));
-        
-        bytes memory alphabet = "0123456789ABCDEFGHJKLMNPQRSTUVWXYZ"; // 34 chars (no I/O for clarity)
+        bytes memory alphabet = "0123456789ABCDEFGHJKLMNPQRSTUVWXYZ"; // 34 chars (no I/O)
         bytes memory out = new bytes(8);
-        
+
         // Use both nibbles of each byte for better entropy
         for (uint256 i = 0; i < 4; i++) {
             uint8 highNibble = uint8(h[i]) >> 4;
@@ -385,7 +397,7 @@ contract PizzaParty is Ownable, ReentrancyGuard {
             out[i*2] = alphabet[highNibble % 34];
             out[i*2 + 1] = alphabet[lowNibble % 34];
         }
-        
+
         return string(abi.encodePacked("PZ", out));
     }
     

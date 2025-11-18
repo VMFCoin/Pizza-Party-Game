@@ -63,6 +63,37 @@ const isWeeklyTuple = (
 ): data is readonly [bigint, bigint, bigint, bigint, boolean, bigint] =>
   Array.isArray(data)
 
+type WeeklyGameResponse =
+  | readonly [bigint, bigint, bigint, bigint, bigint, boolean]
+  | {
+      claimStart: bigint
+      claimEnd: bigint
+      totalToppings: bigint
+      claimerCount: bigint
+      projectedJackpot: bigint
+      settled: boolean
+    }
+
+const isWeeklyGameTuple = (
+  data: WeeklyGameResponse,
+): data is readonly [bigint, bigint, bigint, bigint, bigint, boolean] =>
+  Array.isArray(data)
+
+type DailyGameResponse =
+  | readonly [bigint, bigint, bigint, bigint, boolean]
+  | {
+      startTime: bigint
+      endTime: bigint
+      playerCount: bigint
+      pot: bigint
+      settled: boolean
+    }
+
+const isDailyGameTuple = (
+  data: DailyGameResponse,
+): data is readonly [bigint, bigint, bigint, bigint, boolean] =>
+  Array.isArray(data)
+
 interface ReferralInfo {
   referralCode: string
   referrer: string
@@ -221,26 +252,42 @@ export function useGamePageData() {
       setPlayerInfo(normalized)
       setPlayerWeekly(weeklyInfo)
 
-      const referralCode = await readContract(wagmiConfig, {
-        address: PIZZA_PARTY_ADDRESS as `0x${string}`,
-        abi: PIZZA_PARTY_ABI,
-        functionName: 'getReferralCode',
-        args: [wallet.address as `0x${string}`],
-      })
+      let referralCode = ''
+      try {
+        const codeResult = await readContract(wagmiConfig, {
+          address: PIZZA_PARTY_ADDRESS as `0x${string}`,
+          abi: PIZZA_PARTY_ABI,
+          functionName: 'getReferralCode',
+          args: [wallet.address as `0x${string}`],
+        })
+        referralCode = typeof codeResult === 'string' ? codeResult : ''
+        console.debug('Referral code fetched:', referralCode || '(empty)')
+      } catch (codeErr) {
+        console.error('Failed to fetch referral code:', codeErr)
+        // Continue with empty string - code might not exist yet on old contract
+        referralCode = ''
+      }
 
       const refInfo: ReferralInfo = {
-        referralCode: typeof referralCode === 'string' ? referralCode : '',
+        referralCode: referralCode || '', // Keep empty string - UI will handle display
         referrer: '0x0000000000000000000000000000000000000000',
         totalReferrals: weeklyInfo.referralsUsed,
         lifetimeReferrals: weeklyInfo.referralsUsed,
-        isActive: typeof referralCode === 'string' && referralCode.length > 0,
+        isActive: referralCode.length > 0,
       }
       setReferralInfo(refInfo)
     } catch (err) {
       console.error('Failed to fetch player info', err)
       setPlayerInfo(null)
       setPlayerWeekly(null)
-      setReferralInfo(null)
+      // Set referralInfo with empty code instead of null so UI doesn't show "Loading..."
+      setReferralInfo({
+        referralCode: '',
+        referrer: '0x0000000000000000000000000000000000000000',
+        totalReferrals: 0n,
+        lifetimeReferrals: 0n,
+        isActive: false,
+      })
     }
   }, [wallet.address])
 
@@ -259,16 +306,7 @@ export function useGamePageData() {
         address: PIZZA_PARTY_ADDRESS as `0x${string}`,
         abi: PIZZA_PARTY_ABI,
         functionName: 'getCurrentWeeklyGame',
-      }) as
-        | readonly [bigint, bigint, bigint, bigint, bigint, boolean]
-        | {
-            claimStart: bigint
-            claimEnd: bigint
-            totalToppings: bigint
-            claimerCount: bigint
-            projectedJackpot: bigint
-            settled: boolean
-          }
+      }) as WeeklyGameResponse
 
       let claimStart: bigint
       let claimEnd: bigint
@@ -277,9 +315,11 @@ export function useGamePageData() {
       let jackpotWei: bigint
       let settled: boolean
 
-      if (Array.isArray(weeklyData)) {
+      if (isWeeklyGameTuple(weeklyData)) {
+        // Tuple order: [claimStart, claimEnd, totalToppings, claimerCount, projectedJackpot, settled]
         ;[claimStart, claimEnd, totalToppings, claimerCount, jackpotWei, settled] = weeklyData
       } else {
+        // Object with named properties
         claimStart = weeklyData.claimStart
         claimEnd = weeklyData.claimEnd
         totalToppings = weeklyData.totalToppings
@@ -287,6 +327,17 @@ export function useGamePageData() {
         jackpotWei = weeklyData.projectedJackpot
         settled = weeklyData.settled
       }
+      
+      // Debug log to verify we're getting the right values
+      console.debug('Weekly game data:', {
+        claimStart: claimStart.toString(),
+        claimEnd: claimEnd.toString(),
+        totalToppings: totalToppings.toString(),
+        claimerCount: claimerCount.toString(),
+        jackpotWei: jackpotWei.toString(),
+        settled,
+        isTuple: isWeeklyGameTuple(weeklyData),
+      })
 
       setWeekly({
         claimStart: Number(claimStart),
@@ -314,7 +365,7 @@ export function useGamePageData() {
         address: PIZZA_PARTY_ADDRESS as `0x${string}`,
         abi: PIZZA_PARTY_ABI,
         functionName: 'getCurrentDailyGame',
-      }) as readonly [bigint, bigint, bigint, bigint, boolean]
+      }) as DailyGameResponse
 
       const dailyId = await readContract(wagmiConfig, {
         address: PIZZA_PARTY_ADDRESS as `0x${string}`,
@@ -322,7 +373,33 @@ export function useGamePageData() {
         functionName: 'dailyGameId',
       })
 
-      const [ , , playerCount, pot, settled ] = result
+      let playerCount: bigint
+      let pot: bigint
+      let settled: boolean
+
+      // Debug: log the actual structure
+      console.debug('Daily game result:', {
+        isArray: Array.isArray(result),
+        resultType: typeof result,
+        resultKeys: !Array.isArray(result) ? Object.keys(result) : 'array',
+        resultLength: Array.isArray(result) ? result.length : 'N/A',
+      })
+
+      if (isDailyGameTuple(result)) {
+        // Array format: [startTime, endTime, playerCount, pot, settled]
+        const [_startTime, _endTime, pc, p, s] = result
+        playerCount = pc
+        pot = p
+        settled = Boolean(s)
+        console.debug('Parsed as array:', { playerCount: playerCount.toString(), pot: pot.toString(), settled })
+      } else {
+        // Object format: {startTime, endTime, playerCount, pot, settled}
+        playerCount = result.playerCount
+        pot = result.pot
+        settled = Boolean(result.settled)
+        console.debug('Parsed as object:', { playerCount: playerCount.toString(), pot: pot.toString(), settled })
+      }
+
       const jackpot = (pot / WEI_PER_VMF).toString()
 
       setDaily({
@@ -552,7 +629,7 @@ export function useGamePageData() {
           address: PIZZA_PARTY_ADDRESS as `0x${string}`,
           abi: PIZZA_PARTY_ABI,
           functionName: 'getCurrentDailyGame',
-        }) as readonly [bigint, bigint, bigint, bigint, boolean]
+        }) as DailyGameResponse
 
         const currentDailyId = await readContract(wagmiConfig, {
           address: PIZZA_PARTY_ADDRESS as `0x${string}`,
@@ -560,15 +637,18 @@ export function useGamePageData() {
           functionName: 'dailyGameId',
         })
 
+        const isCompleted = isDailyGameTuple(currentGame) ? currentGame[4] : currentGame.settled
+        const endTime = isDailyGameTuple(currentGame) ? currentGame[1] : currentGame.endTime
+
         console.log('Current Game State:', {
           gameId: currentDailyId?.toString(),
-          isCompleted: currentGame[4],
-          endTime: currentGame[1]?.toString(),
+          isCompleted,
+          endTime: endTime?.toString(),
           currentTime: Math.floor(Date.now() / 1000),
-          hasEnded: currentGame[1] && Math.floor(Date.now() / 1000) >= Number(currentGame[1]),
+          hasEnded: endTime && Math.floor(Date.now() / 1000) >= Number(endTime),
         })
 
-        if (currentGame[4]) {
+        if (isCompleted) {
           alert('Current game is completed. Please wait for the next game to start.')
           return
         }
@@ -697,20 +777,6 @@ export function useGamePageData() {
     }
   }, [wallet.isAuthenticated, wallet.address, writeContract, networkId, checkStatus, fetchPlayerInfo, playerInfo, hasEnteredToday, needsApproval, refreshDaily, fetchVmfBalance, fetchWeekly, vmfBalance, entryFeeWei, hasEnoughVMF])
 
-  const handleCreateReferralCode = useCallback(async () => {
-    if (networkId !== BASE_CHAIN_ID || !wallet.isAuthenticated) return
-    try {
-      await writeContract({
-        address: PIZZA_PARTY_ADDRESS as `0x${string}`,
-        abi: PIZZA_PARTY_ABI,
-        functionName: 'createReferralCode',
-      })
-      void fetchPlayerInfo()
-    } catch (err) {
-      console.error('❌ Create referral code failed:', err)
-    }
-  }, [wallet.isAuthenticated, writeContract, networkId, fetchPlayerInfo])
-
   const openWalletModal = useCallback(() => open(), [open])
 
   useEffect(() => {
@@ -736,7 +802,6 @@ export function useGamePageData() {
     handleEnterGame,
     handleApproveVMF,
     handleClaimToppings,
-    handleCreateReferralCode,
     needsApproval,
     hasEnteredToday,
     claimableToppings,

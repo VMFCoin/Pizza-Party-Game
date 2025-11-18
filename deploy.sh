@@ -23,6 +23,13 @@ fi
 # Load environment variables
 source .env
 
+# Strip whitespace and ensure PRIVATE_KEY has 0x prefix
+PRIVATE_KEY=$(echo -n "$PRIVATE_KEY" | tr -d '\r\n' | xargs)
+if [[ ! "$PRIVATE_KEY" =~ ^0x ]]; then
+    PRIVATE_KEY="0x$PRIVATE_KEY"
+fi
+export PRIVATE_KEY
+
 # Check required variables
 if [ -z "$PRIVATE_KEY" ] || [ -z "$TREASURY_WALLET" ] || [ -z "$BASE_RPC_URL" ] || [ -z "$BASESCAN_API_KEY" ]; then
     echo "❌ Error: Missing required environment variables!"

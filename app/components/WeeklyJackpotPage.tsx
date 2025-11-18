@@ -105,7 +105,7 @@ export default function WeeklyJackpotPage({
   // Countdown target follows on-chain weekly schedule from PizzaPartyMinimal.sol.
   // We fall back to the next Monday 12pm PST if on-chain data hasn't loaded yet.
   const { claimStart, claimEnd } = weekly
-  const countdownTarget = useMemo(() => {
+  const countdownTarget = (() => {
     const nowSec = Math.floor(Date.now() / 1000)
 
     if (!claimStart && !claimEnd) {
@@ -119,7 +119,7 @@ export default function WeeklyJackpotPage({
     if (claimEnd) return claimEnd + 7 * 24 * 60 * 60
 
     return getNextMondayNoonPacificTimestamp()
-  }, [claimStart, claimEnd])
+  })()
   const countdown = useCountdown(countdownTarget)
 
   const claimableNumber = Number(claimableToppings)
