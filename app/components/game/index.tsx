@@ -3,7 +3,52 @@
 import { Suspense, useState, useMemo, useEffect } from 'react'
 import Image from 'next/image'
 import { Button } from '../ui/button'
-import { Users, Copy } from 'lucide-react'
+import { Users, Share2, X } from 'lucide-react'
+
+const SHARE_BASE_URL = 'https://pizza-party-game.vmfcoin.com/ref/'
+const SHARE_PLATFORMS = [
+  {
+    name: 'Warpcast',
+    icon: '🟣',
+    color: '!bg-purple-600 hover:!bg-purple-700',
+    shareUrl: (url: string, text: string) =>
+      `https://warpcast.com/~/compose?text=${encodeURIComponent(`${text} ${url}`)}`,
+  },
+  {
+    name: 'X (Twitter)',
+    icon: '𝕏',
+    color: '!bg-black hover:!bg-gray-900',
+    shareUrl: (url: string, text: string) =>
+      `https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}&url=${encodeURIComponent(url)}`,
+  },
+  {
+    name: 'Telegram',
+    icon: '✈️',
+    color: '!bg-sky-500 hover:!bg-sky-600',
+    shareUrl: (url: string, text: string) =>
+      `https://t.me/share/url?url=${encodeURIComponent(url)}&text=${encodeURIComponent(text)}`,
+  },
+  {
+    name: 'WhatsApp',
+    icon: '💬',
+    color: '!bg-green-500 hover:!bg-green-600',
+    shareUrl: (url: string, text: string) => `https://wa.me/?text=${encodeURIComponent(`${text} ${url}`)}`,
+  },
+  {
+    name: 'Facebook',
+    icon: '📘',
+    color: '!bg-blue-600 hover:!bg-blue-700',
+    shareUrl: (url: string) => `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(url)}`,
+  },
+  {
+    name: 'Copy Link',
+    icon: '📋',
+    color: '!bg-gray-600 hover:!bg-gray-700',
+    action: 'copy',
+  },
+] as const
+
+type SharePlatform = (typeof SHARE_PLATFORMS)[number]
 import { useGamePageData } from '../../lib/useGamePageData'
 
 interface GamePageProps {
@@ -32,6 +77,12 @@ function GamePageContent({ onNavigateToWeekly }: GamePageProps) {
     return () => window.removeEventListener('resize', checkMobile)
   }, [])
 
+  useEffect(() => {
+    if (!shareCopied) return
+    const id = setTimeout(() => setShareCopied(false), 2000)
+    return () => clearTimeout(id)
+  }, [shareCopied])
+
   const {
     wallet,
     vmfUsd,
@@ -51,7 +102,8 @@ function GamePageContent({ onNavigateToWeekly }: GamePageProps) {
 
   const [referralCodeInput, setReferralCodeInput] = useState('')
   const [showReferralInput, setShowReferralInput] = useState(false)
-  const [copied, setCopied] = useState(false)
+  const [shareCopied, setShareCopied] = useState(false)
+  const [showShareModal, setShowShareModal] = useState(false)
 
   const customFontStyle = {
     fontFamily: '"Comic Sans MS", "Marker Felt", "Chalkduster", "Kalam", "Caveat"',
@@ -103,16 +155,29 @@ function GamePageContent({ onNavigateToWeekly }: GamePageProps) {
     setReferralCodeInput('')
   }
 
-  // Handle referral code copy
-  const handleCopyReferralCode = async () => {
-    if (referralInfo?.referralCode) {
-      try {
-        await navigator.clipboard.writeText(referralInfo.referralCode)
-        setCopied(true)
-        setTimeout(() => setCopied(false), 2000)
-      } catch (err) {
-        console.error('Failed to copy:', err)
+  const referralCode = referralInfo?.referralCode ?? ''
+  const referralShareUrl = referralCode ? `${SHARE_BASE_URL}${referralCode}` : ''
+  const shareText = referralCode
+    ? `🍕 Join Pizza Party to win a slice of VMF! Use my referral code: ${referralCode}`
+    : '🍕 Join Pizza Party to win a slice of VMF!'
+
+  const handleShareOption = async (platform: SharePlatform) => {
+    if (!referralShareUrl) return
+    const combinedMessage = `${shareText}\n${referralShareUrl}`
+    try {
+      if (platform.action === 'copy') {
+        await navigator.clipboard.writeText(combinedMessage)
+        setShareCopied(true)
+        return
       }
+      if (platform.shareUrl) {
+        const url = platform.shareUrl(referralShareUrl, shareText)
+        window.open(url, '_blank', 'width=600,height=500')
+      }
+    } catch (err) {
+      console.error('Failed to share', err)
+    } finally {
+      setShowShareModal(false)
     }
   }
 
@@ -316,10 +381,10 @@ function GamePageContent({ onNavigateToWeekly }: GamePageProps) {
                 {referralInfo?.referralCode && (
                   <Button
                     className="!bg-red-600 hover:!bg-red-700 text-white text-xs py-1 px-2 rounded"
-                    onClick={handleCopyReferralCode}
+                    onClick={() => setShowShareModal(true)}
                   >
-                    <Copy className="inline h-3 w-3 mr-1" />
-                    {copied ? '✅' : 'Copy'}
+                    <Share2 className="inline h-3 w-3 mr-1" />
+                    Share
                   </Button>
                 )}
               </div>
@@ -413,6 +478,42 @@ function GamePageContent({ onNavigateToWeekly }: GamePageProps) {
         </div>
 
       </div>
+
+      {showShareModal && referralCode && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4">
+          <div className="bg-white rounded-3xl border-4 border-red-600 w-full max-w-sm p-4 relative">
+            <button
+              className="absolute top-2 right-2 text-red-700 hover:text-red-900"
+              onClick={() => setShowShareModal(false)}
+            >
+              <X className="h-5 w-5" />
+            </button>
+            <p className="text-center text-red-800 font-bold mb-2" style={customFontStyle}>
+              Share your referral code
+            </p>
+            <p className="text-center text-xs text-red-500 mb-3">
+              {referralCode} • {referralShareUrl}
+            </p>
+            <div className="flex flex-col gap-2">
+              {SHARE_PLATFORMS.map((platform) => (
+                <Button
+                  key={platform.name}
+                  className={`${platform.color} text-white font-bold py-2 rounded-xl border-2 border-red-200`}
+                  onClick={() => handleShareOption(platform)}
+                >
+                  <span className="mr-2">{platform.icon}</span>
+                  {platform.action === 'copy' ? 'Copy referral message' : `Share on ${platform.name}`}
+                </Button>
+              ))}
+            </div>
+            {shareCopied && (
+              <p className="text-green-700 text-sm text-center mt-3" style={customFontStyle}>
+                Copied! Paste anywhere to invite friends.
+              </p>
+            )}
+          </div>
+        </div>
+      )}
     </main>
   )
 }
