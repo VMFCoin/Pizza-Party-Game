@@ -336,7 +336,7 @@ export default function LeaderboardPage({
                   WebkitBackgroundClip: 'text',
                   WebkitTextFillColor: 'transparent',
                   filter: 'drop-shadow(0 0 0.125px #DC2626)',
-                  fontSize: 'clamp(28px, 10vw, 46px)',
+                  fontSize: 'clamp(22px, 8vw, 46px)',
                   whiteSpace: 'normal',
                   lineHeight: 1.1,
                 }}
@@ -351,10 +351,10 @@ export default function LeaderboardPage({
             {/* Daily Winners Panel */}
             <Card className="border-4 border-blue-400 rounded-2xl bg-blue-50/95 shadow-lg">
               <div className="px-4" style={{ paddingTop: '12px', paddingBottom: '12px' }}>
-                <div className="flex items-center justify-center gap-1 mb-1">
+                <div className="flex items-center justify-center gap-1 mb-1 text-center">
                   <span className="text-2xl">🎯</span>
                   <h2
-                    className="text-blue-700 text-2xl font-bold"
+                    className="text-blue-700 text-2xl font-bold text-center"
                     style={{ ...customFontStyle, fontSize: 'clamp(20px, 8vw, 28px)' }}
                   >
                     DAILY WINNERS
@@ -383,10 +383,10 @@ export default function LeaderboardPage({
             {/* Weekly Winners Panel */}
             <Card className="border-4 border-purple-400 rounded-2xl bg-purple-50/95 shadow-lg">
               <div className="px-4" style={{ paddingTop: '12px', paddingBottom: '12px' }}>
-                <div className="flex items-center justify-center gap-2 mb-2">
+                <div className="flex items-center justify-center gap-2 mb-2 text-center">
                   <span className="text-2xl">🍕</span>
                   <h2
-                    className="text-purple-700 text-2xl font-bold"
+                    className="text-purple-700 text-2xl font-bold text-center"
                     style={{ ...customFontStyle, fontSize: 'clamp(20px, 8vw, 28px)' }}
                   >
                     WEEKLY WINNERS
