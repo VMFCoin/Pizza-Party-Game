@@ -147,7 +147,15 @@ export default function HomePage() {
 
             {/* Pizza Image */}
             <div className="flex justify-center items-center mb-4">
-              <div className="relative">
+              <div
+                className="relative"
+                style={{
+                  width: isMobile ? 180 : 320,
+                  height: isMobile ? 180 : 320,
+                  transform: isMobile ? 'scale(1.25)' : 'scale(1.15)',
+                  transformOrigin: 'center',
+                }}
+              >
                 <Image
                   src={isMobile ? "/images/pizza-final.png" : "/images/pizza-transparent-mobile.png"}
                   alt="Pizza"
