@@ -222,7 +222,7 @@ export default function WeeklyJackpotPage({
                   WebkitBackgroundClip: 'text',
                   WebkitTextFillColor: 'transparent',
                   filter: 'drop-shadow(0 0 0.125px #DC2626)',
-                  fontSize: 'clamp(24px, 8vw, 36px)',
+                  fontSize: 'clamp(23.5px, 8vw, 35.5px)',
                   whiteSpace: 'nowrap',
                   textAlign: 'center',
                 }}
