@@ -67,6 +67,8 @@ const SOCIAL_ICONS = {
   ),
 }
 
+const SHOW_PLAYER_STATS = false
+
 const SHARE_PLATFORMS: SharePlatform[] = [
   {
     name: 'Farcaster',
@@ -370,7 +372,7 @@ function GamePageContent({ onNavigateToWeekly, onNavigateToLeaderboard }: GamePa
           </div>
 
           {/* Player Stats */}
-          {wallet?.isAuthenticated && playerInfo && (
+          {SHOW_PLAYER_STATS && wallet?.isAuthenticated && playerInfo && (
             <div className="bg-yellow-100/90 backdrop-blur-sm p-2 rounded-xl border-2 border-yellow-300 mt-2">
               <p className="text-yellow-800 text-sm font-bold" style={customFontStyle}>
                 🍕 Your Stats: {Number(playerInfo.totalToppings)} Toppings

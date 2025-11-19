@@ -9,8 +9,6 @@ import { readContract } from '@wagmi/core'
 import { useAccount } from 'wagmi'
 import { PIZZA_PARTY_ADDRESS, PIZZA_PARTY_ABI } from '../lib/constants'
 import { wagmiConfig } from './config/wagmiConfig'
-import { fetchUserProfileCached } from '../lib/userProfileLookup'
-import { fetchDailyPayouts, fetchWeeklyPayouts, formatPayout } from '../lib/payoutCalculator'
 
 interface LeaderboardPageProps {
   onBack?: () => void
@@ -21,10 +19,16 @@ interface LeaderboardPageProps {
 
 interface WinnerDisplay {
   address: string
-  username: string
-  pfpUrl: string
+  displayName: string
   amountWon: string
+  lifetimeWins: number
+  lifetimeVmfWon: string
   isPlaceholder?: boolean
+}
+
+interface LifetimeStatsResult {
+  totalWins: number
+  totalVmfWon: string
 }
 
 const customFontStyle = {
@@ -43,9 +47,10 @@ function padWinners(
   while (result.length < target) {
     result.push({
       address: `placeholder-${label}-${result.length}`,
-      username: `Waiting for winner #${result.length + 1}`,
-      pfpUrl: '',
+      displayName: `Waiting for winner #${result.length + 1}`,
       amountWon: '0.0',
+      lifetimeWins: 0,
+      lifetimeVmfWon: '0.0',
       isPlaceholder: true,
     })
   }
@@ -57,12 +62,53 @@ function formatAddress(address: string): string {
   return `${address.slice(0, 6)}...${address.slice(-4)}`
 }
 
+// Placeholder function - divide pot equally
+function calculateWinnerPayout(totalPot: bigint, winnerCount: number): string {
+  if (!winnerCount) return '0.0'
+  const payoutPerWinner = Number(totalPot) / winnerCount / 1e18
+  return payoutPerWinner.toFixed(1)
+}
+
+function formatLifetimeVmf(amount: bigint): string {
+  return (Number(amount) / 1e18).toFixed(1)
+}
+
+async function fetchLifetimeStatsForAddresses(addresses: string[]): Promise<LifetimeStatsResult[]> {
+  return Promise.all(
+    addresses.map(async addr => {
+      try {
+        const stats = ((await readContract(wagmiConfig, {
+          address: PIZZA_PARTY_ADDRESS as `0x${string}`,
+          abi: PIZZA_PARTY_ABI,
+          functionName: 'getPlayerLifetimeStats' as never,
+          args: [addr],
+          chainId: BASE_CHAIN_ID,
+        })) as unknown) as [bigint, bigint, bigint, bigint, bigint]
+
+        const totalWins = Number(stats[0] + stats[1])
+        const totalVmfWon = formatLifetimeVmf(stats[2])
+
+        return {
+          totalWins,
+          totalVmfWon,
+        }
+      } catch (error) {
+        console.error('Failed to fetch lifetime stats:', error)
+        return {
+          totalWins: 0,
+          totalVmfWon: '0.0',
+        }
+      }
+    })
+  )
+}
+
 function getPositionStyle(position: number) {
   if (position === 1) {
     return {
       bg: 'bg-gradient-to-r from-yellow-400 to-yellow-500',
       border: 'border-yellow-600',
-      icon: '👑',
+      icon: '💰',
       textColor: 'text-yellow-900',
     }
   }
@@ -70,7 +116,7 @@ function getPositionStyle(position: number) {
     return {
       bg: 'bg-gradient-to-r from-gray-300 to-gray-400',
       border: 'border-gray-500',
-      icon: '🥈',
+      icon: '💰',
       textColor: 'text-gray-800',
     }
   }
@@ -78,14 +124,14 @@ function getPositionStyle(position: number) {
     return {
       bg: 'bg-gradient-to-r from-orange-400 to-orange-500',
       border: 'border-orange-600',
-      icon: '🥉',
+      icon: '💰',
       textColor: 'text-orange-900',
     }
   }
   return {
     bg: 'bg-white',
     border: 'border-gray-300',
-    icon: '🏆',
+    icon: '💰',
     textColor: 'text-gray-800',
   }
 }
@@ -144,8 +190,8 @@ export default function LeaderboardPage({
         const dailyGameIdToFetch = currentDailyId > 1n ? currentDailyId - 1n : currentDailyId
         const weeklyGameIdToFetch = currentWeeklyId > 1n ? currentWeeklyId - 1n : currentWeeklyId
 
-        // Fetch winners for previous games (latest settled)
-        const [dailyWins, weeklyWins] = await Promise.all([
+        // Fetch winners and pot information for previous games (latest settled)
+        const [dailyWins, weeklyWins, dailyPot, weeklyPot] = await Promise.all([
           readContract(wagmiConfig, {
             address: PIZZA_PARTY_ADDRESS as `0x${string}`,
             abi: PIZZA_PARTY_ABI,
@@ -160,36 +206,57 @@ export default function LeaderboardPage({
             args: [weeklyGameIdToFetch],
             chainId: BASE_CHAIN_ID,
           }).catch(() => [] as string[]),
+          readContract(wagmiConfig, {
+            address: PIZZA_PARTY_ADDRESS as `0x${string}`,
+            abi: PIZZA_PARTY_ABI,
+            functionName: 'getCurrentDailyGame',
+            chainId: BASE_CHAIN_ID,
+          })
+            .then((data: unknown) => {
+              const gameData = data as [unknown, unknown, unknown, bigint, unknown]
+              return gameData[3] || 0n
+            })
+            .catch(() => 0n),
+          readContract(wagmiConfig, {
+            address: PIZZA_PARTY_ADDRESS as `0x${string}`,
+            abi: PIZZA_PARTY_ABI,
+            functionName: 'getCurrentWeeklyGame',
+            chainId: BASE_CHAIN_ID,
+          })
+            .then((data: unknown) => {
+              const gameData = data as [unknown, unknown, unknown, unknown, bigint]
+              return gameData[4] || 0n
+            })
+            .catch(() => 0n),
         ])
 
         const dailyWinnerAddresses = (dailyWins as string[]) || []
         const weeklyWinnerAddresses = (weeklyWins as string[]) || []
+        const dailyPotAmount = dailyWinnerAddresses.length ? (dailyPot as bigint) : 0n
+        const weeklyPotAmount = weeklyWinnerAddresses.length ? (weeklyPot as bigint) : 0n
 
-        const [dailyPayoutMap, weeklyPayoutMap] = await Promise.all([
-          fetchDailyPayouts(dailyGameIdToFetch),
-          fetchWeeklyPayouts(weeklyGameIdToFetch),
-        ])
-
-        // Fetch user profiles for all winners
-        const [dailyProfiles, weeklyProfiles] = await Promise.all([
-          Promise.all(dailyWinnerAddresses.map(addr => fetchUserProfileCached(addr))),
-          Promise.all(weeklyWinnerAddresses.map(addr => fetchUserProfileCached(addr))),
+        // Fetch lifetime stats for all winners
+        const [dailyLifetimeStats, weeklyLifetimeStats] = await Promise.all([
+          fetchLifetimeStatsForAddresses(dailyWinnerAddresses),
+          fetchLifetimeStatsForAddresses(weeklyWinnerAddresses),
         ])
 
         // Build daily winners display data
         const dailyDisplay: WinnerDisplay[] = dailyWinnerAddresses.map((addr, idx) => ({
           address: addr,
-          username: dailyProfiles[idx].username,
-          pfpUrl: dailyProfiles[idx].pfpUrl,
-          amountWon: formatPayout(dailyPayoutMap.get(addr.toLowerCase()) || 0n),
+          displayName: formatAddress(addr),
+          amountWon: calculateWinnerPayout(dailyPotAmount, dailyWinnerAddresses.length),
+          lifetimeWins: dailyLifetimeStats[idx]?.totalWins || 0,
+          lifetimeVmfWon: dailyLifetimeStats[idx]?.totalVmfWon || '0.0',
         }))
 
         // Build weekly winners display data
         const weeklyDisplay: WinnerDisplay[] = weeklyWinnerAddresses.map((addr, idx) => ({
           address: addr,
-          username: weeklyProfiles[idx].username,
-          pfpUrl: weeklyProfiles[idx].pfpUrl,
-          amountWon: formatPayout(weeklyPayoutMap.get(addr.toLowerCase()) || 0n),
+          displayName: formatAddress(addr),
+          amountWon: calculateWinnerPayout(weeklyPotAmount, weeklyWinnerAddresses.length),
+          lifetimeWins: weeklyLifetimeStats[idx]?.totalWins || 0,
+          lifetimeVmfWon: weeklyLifetimeStats[idx]?.totalVmfWon || '0.0',
         }))
 
         setDailyWinners(padWinners(dailyDisplay, 8, 'daily'))
@@ -218,39 +285,28 @@ export default function LeaderboardPage({
       >
         <div className="flex items-center gap-2 flex-1">
           <div className="flex items-center gap-1 min-w-[40px]">
-            <span className="text-2xl">{isPlaceholder ? '⏳' : style.icon}</span>
+            <span className="text-2xl">{style.icon}</span>
             <span className={`text-lg font-bold ${style.textColor}`} style={customFontStyle}>
               {position}.
             </span>
           </div>
           <div className="w-9 h-9 rounded-full bg-gray-200 border-2 border-gray-300 flex items-center justify-center overflow-hidden">
-            {!isPlaceholder && winner.pfpUrl ? (
-              <Image
-                src={winner.pfpUrl}
-                alt="Profile"
-                width={36}
-                height={36}
-                className="object-cover"
-                onError={(e) => {
-                  e.currentTarget.style.display = 'none'
-                }}
-              />
-            ) : (
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" className="text-gray-500">
-                <circle cx="12" cy="7.5" r="3.5" fill="currentColor" />
-                <path d="M4 20c0-3.5 3.2-6.5 8-6.5s8 3 8 6.5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-              </svg>
-            )}
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" className="text-gray-500">
+              <circle cx="12" cy="7.5" r="3.5" fill="currentColor" />
+              <path d="M4 20c0-3.5 3.2-6.5 8-6.5s8 3 8 6.5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+            </svg>
           </div>
           <div className="flex flex-col">
             <span
               className={`font-bold text-base ${isPlaceholder ? 'text-gray-500' : isCurrentUser ? 'text-red-600' : style.textColor}`}
               style={customFontStyle}
             >
-              {winner.username}
+              {winner.displayName}
             </span>
             <span className="text-xs text-gray-600" style={customFontStyle}>
-              {isPlaceholder ? 'Awaiting winner…' : formatAddress(winner.address)}
+              {isPlaceholder
+                ? 'Awaiting winner…'
+                : `Lifetime wins: ${winner.lifetimeWins} | ${winner.lifetimeVmfWon} VMF`}
             </span>
           </div>
         </div>

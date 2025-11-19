@@ -80,6 +80,14 @@ contract PizzaParty is Ownable, ReentrancyGuard {
         uint256 referralsUsed;      // Referrals used this week (max 3)
         bool hasClaimed;            // Claimed this week
     }
+
+    struct PlayerLifetimeStats {
+        uint256 totalDailyWins;
+        uint256 totalWeeklyWins;
+        uint256 totalVmfWon;
+        uint256 lifetimeToppings;
+        uint256 lifetimeReferrals;
+    }
     
     // ============ Mappings ============
     
@@ -87,6 +95,7 @@ contract PizzaParty is Ownable, ReentrancyGuard {
     mapping(uint256 => WeeklyGame) public weeklyGames;
     mapping(uint256 => mapping(address => bool)) public hasPlayedDaily;
     mapping(uint256 => mapping(address => PlayerWeekly)) public weeklyPlayers;
+    mapping(address => PlayerLifetimeStats) public playerStats;
     
     // Referral system (lazy registration)
     mapping(address => string) public playerReferralCode;
@@ -170,6 +179,7 @@ contract PizzaParty is Ownable, ReentrancyGuard {
         // Award 1 topping
         weekly.toppingsEarned += 1;
         weekly.dailyPlays += 1;
+        playerStats[player].lifetimeToppings += 1;
         
         emit DailyGameEntered(gameId, player, isFirst);
         emit ToppingsEarned(weeklyGameId, player, 1, "daily_play");
@@ -217,29 +227,41 @@ contract PizzaParty is Ownable, ReentrancyGuard {
         
         // Calculate payouts
         uint256 baseShare = remainingPot / winnerCount;
-        
+        uint256[] memory winnerPayouts = new uint256[](winnerCount);
+
         // Pay first player bonus
         if (firstPlayerBonus > 0 && game.firstPlayer != address(0)) {
             vmfToken.safeTransfer(game.firstPlayer, firstPlayerBonus);
+            playerStats[game.firstPlayer].totalVmfWon += firstPlayerBonus;
         }
-        
+
         // Pay winners
         for (uint256 i = 0; i < winnerCount; i++) {
+            uint256 payout = baseShare;
             if (baseShare > 0) {
                 vmfToken.safeTransfer(winners[i], baseShare);
             }
+            winnerPayouts[i] = payout;
         }
-        
+
         // Handle remainder (dust)
         uint256 totalPaid = firstPlayerBonus + (baseShare * winnerCount);
         if (pot > totalPaid) {
-            vmfToken.safeTransfer(winners[0], pot - totalPaid);
+            uint256 dust = pot - totalPaid;
+            vmfToken.safeTransfer(winners[0], dust);
+            winnerPayouts[0] += dust;
         }
-        
+
         game.winners = winners;
         game.potAmount = pot;
         game.settled = true;
-        
+
+        for (uint256 i = 0; i < winnerCount; i++) {
+            PlayerLifetimeStats storage stats = playerStats[winners[i]];
+            stats.totalDailyWins += 1;
+            stats.totalVmfWon += winnerPayouts[i];
+        }
+
         emit DailyGameSettled(gameId, winners, pot);
         
         // Reset and create next game
@@ -332,17 +354,25 @@ contract PizzaParty is Ownable, ReentrancyGuard {
         uint256 payoutEach = jackpot / winnerCount;
         uint256 remainder = jackpot - (payoutEach * winnerCount);
         
+        uint256[] memory winnerPayouts = new uint256[](winnerCount);
         for (uint256 i = 0; i < winnerCount; i++) {
             uint256 payout = payoutEach;
             if (i == 0 && remainder > 0) {
                 payout += remainder; // First winner gets dust
             }
             vmfToken.safeTransfer(winners[i], payout);
+            winnerPayouts[i] = payout;
         }
         
         week.winners = winners;
         week.potAmount = jackpot;
         week.settled = true;
+
+        for (uint256 i = 0; i < winnerCount; i++) {
+            PlayerLifetimeStats storage stats = playerStats[winners[i]];
+            stats.totalWeeklyWins += 1;
+            stats.totalVmfWon += winnerPayouts[i];
+        }
         
         emit WeeklyGameSettled(weekId, winners, jackpot);
         
@@ -431,10 +461,11 @@ contract PizzaParty is Ownable, ReentrancyGuard {
         
         // Increment referral count
         referrerWeekly.referralsUsed++;
-        
+
         // Award 2 toppings to referrer
         referrerWeekly.toppingsEarned += 2;
-        
+        playerStats[referrer].lifetimeReferrals += 1;
+
         // Lazy registration: register code on first use
         if (bytes(playerReferralCode[referrer]).length == 0) {
             playerReferralCode[referrer] = code;
@@ -654,7 +685,7 @@ contract PizzaParty is Ownable, ReentrancyGuard {
     ) {
         PlayerWeekly storage p = weeklyPlayers[weeklyGameId][player];
         uint256 bonus = _calculateHoldingsBonus(player);
-        
+
         return (
             p.toppingsEarned,
             p.toppingsClaimed,
@@ -662,6 +693,23 @@ contract PizzaParty is Ownable, ReentrancyGuard {
             p.referralsUsed,
             p.hasClaimed,
             bonus
+        );
+    }
+
+    function getPlayerLifetimeStats(address player) external view returns (
+        uint256 totalDailyWins,
+        uint256 totalWeeklyWins,
+        uint256 totalVmfWon,
+        uint256 lifetimeToppings,
+        uint256 lifetimeReferrals
+    ) {
+        PlayerLifetimeStats storage stats = playerStats[player];
+        return (
+            stats.totalDailyWins,
+            stats.totalWeeklyWins,
+            stats.totalVmfWon,
+            stats.lifetimeToppings,
+            stats.lifetimeReferrals
         );
     }
     
