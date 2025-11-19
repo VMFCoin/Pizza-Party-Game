@@ -127,17 +127,18 @@ type SharePlatform = {
 
 interface GamePageProps {
   onNavigateToWeekly?: () => void
+  onNavigateToLeaderboard?: () => void
 }
 
-export default function GamePage({ onNavigateToWeekly }: GamePageProps) {
+export default function GamePage({ onNavigateToWeekly, onNavigateToLeaderboard }: GamePageProps) {
   return (
     <Suspense fallback={<div>Loading...</div>}>
-      <GamePageContent onNavigateToWeekly={onNavigateToWeekly} />
+      <GamePageContent onNavigateToWeekly={onNavigateToWeekly} onNavigateToLeaderboard={onNavigateToLeaderboard} />
     </Suspense>
   )
 }
 
-function GamePageContent({ onNavigateToWeekly }: GamePageProps) {
+function GamePageContent({ onNavigateToWeekly, onNavigateToLeaderboard }: GamePageProps) {
   const [isMobile, setIsMobile] = useState(false)
   const [referralCodeInput, setReferralCodeInput] = useState('')
   const [showReferralInput, setShowReferralInput] = useState(false)
@@ -257,7 +258,7 @@ function GamePageContent({ onNavigateToWeekly }: GamePageProps) {
         embeds: [url],
       })
       return true
-    } catch (err) {
+      } catch (err) {
       console.warn('Farcaster share failed, falling back', err)
       return false
     }
@@ -468,7 +469,7 @@ function GamePageContent({ onNavigateToWeekly }: GamePageProps) {
           {/* Main Action Button (Approve / Enter) */}
           <Button
             className={`!bg-green-600 hover:!bg-green-700 text-white font-bold py-2 rounded-xl border-4 border-green-800 w-full ${buttonConfig.disabled ? 'opacity-50 cursor-not-allowed' : ''}`}
-            style={customFontStyle}
+            style={{ ...customFontStyle, fontSize: isMobile ? 18 : 20 }}
             onClick={buttonConfig.onClick}
             disabled={buttonConfig.disabled}
           >
@@ -522,7 +523,7 @@ function GamePageContent({ onNavigateToWeekly }: GamePageProps) {
           {/* Weekly Jackpot Button */}
           <Button
             className="!bg-yellow-500 hover:!bg-yellow-600 text-white font-bold py-2 rounded-xl border-4 border-yellow-800 w-full uppercase"
-            style={customFontStyle}
+            style={{ ...customFontStyle, fontSize: isMobile ? 18 : 20 }}
             onClick={() => {
               if (onNavigateToWeekly) {
                 onNavigateToWeekly()
@@ -539,8 +540,14 @@ function GamePageContent({ onNavigateToWeekly }: GamePageProps) {
           {/* Leaderboard Button */}
           <Button
             className="!bg-red-700 hover:!bg-red-800 text-white font-bold py-2 rounded-xl border-4 border-red-900 w-full uppercase"
-            style={customFontStyle}
-            onClick={() => alert('Leaderboard coming soon!')}
+            style={{ ...customFontStyle, fontSize: isMobile ? 18 : 20 }}
+            onClick={() => {
+              if (onNavigateToLeaderboard) {
+                onNavigateToLeaderboard()
+                return
+              }
+              alert('Leaderboard coming soon!')
+            }}
           >
             <Image src="/images/mushroom-icon2.png" alt="Mushroom" width={20} height={20} className="inline mr-1" style={{ backgroundColor: 'transparent', border: 'none' }} />
             Leaderboard
@@ -551,7 +558,7 @@ function GamePageContent({ onNavigateToWeekly }: GamePageProps) {
           {wallet?.isAuthenticated && wallet?.address && (
             <Button
               className="!bg-green-600 hover:!bg-green-700 text-white font-bold py-2 rounded-xl border-4 border-green-800 w-full uppercase"
-              style={customFontStyle}
+              style={{ ...customFontStyle, fontSize: isMobile ? 18 : 20 }}
               onClick={() => openWalletModal()}
             >
               <Image src="/images/wallet-icon.png" alt="Wallet" width={20} height={20} className="inline mr-1" style={{ backgroundColor: 'transparent', border: 'none' }} />

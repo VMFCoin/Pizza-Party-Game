@@ -8,6 +8,7 @@ import { Card } from "./components/ui/card"; // Removed unused CardContent
 import { ArrowLeft } from "lucide-react";
 import GamePage from "./components/game";
 import WeeklyJackpotPage from "./components/WeeklyJackpotPage";
+import LeaderboardPage from "./components/LeaderboardPage";
 import { sdk } from "@farcaster/miniapp-sdk";
 
 export default function HomePage() {
@@ -17,7 +18,7 @@ export default function HomePage() {
   };
 
   const [isMobile, setIsMobile] = useState(false);
-  const [currentView, setCurrentView] = useState<'home' | 'game' | 'weekly'>('home');
+  const [currentView, setCurrentView] = useState<'home' | 'game' | 'weekly' | 'leaderboard'>('home');
 
   // Device detection
   useEffect(() => {
@@ -47,6 +48,11 @@ export default function HomePage() {
     if (typeof window !== "undefined") window.scrollTo(0, 0);
   };
 
+  const handleNavigateToLeaderboard = () => {
+    setCurrentView('leaderboard');
+    if (typeof window !== "undefined") window.scrollTo(0, 0);
+  };
+
   // GAME VIEW
   if (currentView === 'game') {
     return (
@@ -70,7 +76,7 @@ export default function HomePage() {
           </Button>
 
           <Card className="border-4 border-red-800 rounded-3xl shadow-2xl p-0 !px-0 !py-0 !bg-transparent">
-            <GamePage onNavigateToWeekly={handleNavigateToWeekly} />
+            <GamePage onNavigateToWeekly={handleNavigateToWeekly} onNavigateToLeaderboard={handleNavigateToLeaderboard} />
           </Card>
         </div>
       </div>
@@ -82,6 +88,18 @@ export default function HomePage() {
       <WeeklyJackpotPage
         onBack={() => setCurrentView('game')}
         onNavigateToDaily={() => setCurrentView('game')}
+        onNavigateToHome={handleBackToHome}
+        onNavigateToLeaderboard={handleNavigateToLeaderboard}
+      />
+    );
+  }
+
+  if (currentView === 'leaderboard') {
+    return (
+      <LeaderboardPage
+        onBack={() => setCurrentView('game')}
+        onNavigateToDaily={() => setCurrentView('game')}
+        onNavigateToWeekly={handleNavigateToWeekly}
         onNavigateToHome={handleBackToHome}
       />
     );
@@ -198,20 +216,44 @@ export default function HomePage() {
             <div className="flex flex-col mt-[-12px]" style={{ gap: "12px" }}>
               <Button
                 onClick={handleStartPlaying}
-                className="w-full !bg-red-700 hover:!bg-red-800 text-white text-lg font-bold py-3 px-6 rounded-xl border-4 border-red-900 shadow-lg transform hover:scale-105 transition-all touch-manipulation"
-                style={{ ...customFontStyle, letterSpacing: "1px", fontSize: isMobile ? 18 : 20 }}
+                className="w-full !bg-green-600 hover:!bg-green-700 text-white py-3 px-6 rounded-xl border-4 border-green-900 shadow-lg transform hover:scale-105 transition-all touch-manipulation"
+                style={{ ...customFontStyle, letterSpacing: "1px", fontSize: isMobile ? 18 : 20, fontWeight: '900' }}
               >
                 🍕 START PLAYING 🍕
               </Button>
 
               <Button
                 onClick={handleNavigateToWeekly}
-                className="w-full !bg-yellow-500 hover:!bg-yellow-600 text-white font-bold py-3 px-6 rounded-xl border-4 border-yellow-800 shadow-lg transform hover:scale-105 transition-all touch-manipulation uppercase"
-                style={{ ...customFontStyle, letterSpacing: "1px", fontSize: isMobile ? 18 : 20 }}
+                className="w-full !bg-yellow-500 hover:!bg-yellow-600 text-white py-3 px-6 rounded-xl border-4 border-yellow-800 shadow-lg transform hover:scale-105 transition-all touch-manipulation"
+                style={{ ...customFontStyle, letterSpacing: "1px", fontSize: isMobile ? 18 : 20, fontWeight: '900' }}
               >
                 <Image src="/images/pepperoni-art.png" alt="Pepperoni" width={20} height={20} className="inline mr-1" />
                 WEEKLY JACKPOT
                 <Image src="/images/pepperoni-art.png" alt="Pepperoni" width={20} height={20} className="inline ml-1" />
+              </Button>
+
+              <Button
+                onClick={handleNavigateToLeaderboard}
+                className="w-full !bg-red-700 hover:!bg-red-800 text-white font-bold py-3 px-6 rounded-xl border-4 border-red-900 shadow-lg transform hover:scale-105 transition-all touch-manipulation uppercase"
+                style={{ ...customFontStyle, letterSpacing: "1px", fontSize: isMobile ? 18 : 20 }}
+              >
+                <Image
+                  src="/images/mushroom-icon2.png"
+                  alt="Mushroom"
+                  width={20}
+                  height={20}
+                  className="inline mr-1"
+                  style={{ backgroundColor: 'transparent', border: 'none' }}
+                />
+                LEADERBOARD
+                <Image
+                  src="/images/mushroom-icon2.png"
+                  alt="Mushroom"
+                  width={20}
+                  height={20}
+                  className="inline ml-1"
+                  style={{ backgroundColor: 'transparent', border: 'none' }}
+                />
               </Button>
 
             </div>

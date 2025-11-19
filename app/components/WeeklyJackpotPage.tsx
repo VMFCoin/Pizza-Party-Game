@@ -5,12 +5,14 @@ import { toZonedTime, fromZonedTime } from 'date-fns-tz'
 import Image from 'next/image'
 import { Button } from './ui/button'
 import { Card } from './ui/card'
+import { ArrowLeft } from 'lucide-react'
 import { useGamePageData } from '../lib/useGamePageData'
 
 interface WeeklyJackpotPageProps {
   onBack?: () => void
   onNavigateToHome?: () => void
   onNavigateToDaily?: () => void
+  onNavigateToLeaderboard?: () => void
 }
 
 const customFontStyle = {
@@ -86,8 +88,9 @@ function useCountdown(targetSeconds: number) {
 
 export default function WeeklyJackpotPage({
   onBack: _unusedOnBack,
-  onNavigateToHome: _unusedOnNavigateToHome,
+  onNavigateToHome,
   onNavigateToDaily,
+  onNavigateToLeaderboard,
 }: WeeklyJackpotPageProps) {
   const {
     wallet,
@@ -146,15 +149,25 @@ export default function WeeklyJackpotPage({
 
   return (
     <div
-      className="min-h-screen p-3 flex flex-col items-center"
+      className="min-h-screen p-4"
       style={{
         backgroundImage: "url('/images/rotated-90-pizza-wallpaper.png')",
         backgroundRepeat: 'no-repeat',
         backgroundSize: 'cover',
-        backgroundPosition: 'center',
+        backgroundPosition: 'center center',
       }}
     >
-      <div className="w-full max-w-md flex flex-col gap-3">
+      <div className="max-w-md mx-auto">
+        {onNavigateToHome && (
+          <Button
+            onClick={onNavigateToHome}
+            className="mb-4 !bg-red-700 hover:!bg-red-800 text-white font-bold py-2 px-4 rounded-xl border-2 border-red-900 shadow-lg flex items-center gap-2"
+            style={customFontStyle}
+          >
+            <ArrowLeft size={20} />
+            Back to Home
+          </Button>
+        )}
         <Card
           className="border-4 border-red-700 rounded-3xl shadow-2xl p-3 !bg-transparent"
           style={{
@@ -273,7 +286,7 @@ export default function WeeklyJackpotPage({
 
           <Button
             className="w-full !bg-green-600 hover:!bg-green-700 text-white font-bold py-2.5 rounded-xl border-4 border-green-800"
-            style={customFontStyle}
+            style={{ ...customFontStyle, fontSize: 20 }}
             onClick={onNavigateToDaily}
           >
             🍕 START PLAYING 🍕
@@ -281,8 +294,14 @@ export default function WeeklyJackpotPage({
 
           <Button
             className="w-full !bg-red-700 hover:!bg-red-800 text-white font-bold py-2.5 rounded-xl border-4 border-red-900 uppercase"
-            style={customFontStyle}
-            onClick={() => alert('Leaderboard coming soon!')}
+            style={{ ...customFontStyle, fontSize: 20 }}
+            onClick={() => {
+              if (onNavigateToLeaderboard) {
+                onNavigateToLeaderboard()
+                return
+              }
+              alert('Leaderboard coming soon!')
+            }}
           >
             <Image src="/images/mushroom-icon2.png" alt="Mushroom" width={20} height={20} className="inline mr-1" style={{ backgroundColor: 'transparent', border: 'none' }} />
             LEADERBOARD
