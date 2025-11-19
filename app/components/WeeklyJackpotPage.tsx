@@ -232,7 +232,7 @@ export default function WeeklyJackpotPage({
             </h1>
           </div>
 
-          <div className="bg-gradient-to-r from-yellow-400 to-orange-500 rounded-2xl p-3 text-center border-4 border-yellow-600">
+          <div className="bg-gradient-to-r from-yellow-400 to-orange-500 rounded-2xl p-3 text-center border-4 border-yellow-600" style={{ borderColor: '#000000' }}>
             <p className="text-white text-xl font-bold" style={customFontStyle}>
               Weekly Jackpot
             </p>
@@ -244,7 +244,7 @@ export default function WeeklyJackpotPage({
             </p>
           </div>
 
-          <div className="bg-blue-50 border-4 border-blue-200 rounded-2xl p-3 text-center">
+          <div className="bg-blue-50 border-4 border-blue-200 rounded-2xl p-3 text-center" style={{ borderColor: '#000000' }}>
             <div className="flex justify-center items-center gap-2 mb-2">
               <Image src="/images/alarm-clock-icon.png" alt="Clock" width={20} height={20} />
               <span className="text-blue-700 font-bold text-lg" style={customFontStyle}>
@@ -258,7 +258,7 @@ export default function WeeklyJackpotPage({
                 { label: 'MIN', value: countdown.minutes },
                 { label: 'SEC', value: countdown.seconds },
               ].map(item => (
-                <div key={item.label} className="bg-white rounded-xl border-2 border-blue-200 py-2">
+                <div key={item.label} className="bg-white rounded-xl border-2 border-blue-200 py-2" style={{ borderColor: '#000000' }}>
                   <p className="text-blue-800 text-xl font-bold" style={customFontStyle}>
                     {item.value}
                   </p>

@@ -488,7 +488,7 @@ function GamePageContent({ onNavigateToWeekly, onNavigateToLeaderboard }: GamePa
 
           {/* Referral Code Management */}
           {wallet?.isAuthenticated && (
-            <div className="bg-white/95 backdrop-blur-md rounded-xl border-2 border-red-300 p-3 w-full">
+            <div className="bg-white/95 backdrop-blur-md rounded-xl border-2 border-red-300 p-3 w-full" style={{ borderColor: '#000000' }}>
               <div className="flex items-center justify-between mb-2">
                 <p className="text-red-800 font-bold text-sm" style={customFontStyle}>
                   <Users className="inline mr-1 h-4 w-4" /> Your Referral Code
@@ -577,15 +577,15 @@ function GamePageContent({ onNavigateToWeekly, onNavigateToLeaderboard }: GamePa
             <p className="font-semibold text-blue-800" style={customFontStyle}>Next Draw In:</p>
           </div>
           <div className="grid grid-cols-3 gap-2 text-center">
-            <div className="bg-white p-2 rounded">
+            <div className="bg-white p-2 rounded border-2 border-black">
               <div className="text-xl font-bold text-blue-800" style={customFontStyle}>{hours}</div>
               <div className="text-xs text-blue-600" style={customFontStyle}>HRS</div>
             </div>
-            <div className="bg-white p-2 rounded">
+            <div className="bg-white p-2 rounded border-2 border-black">
               <div className="text-xl font-bold text-blue-800" style={customFontStyle}>{minutes}</div>
               <div className="text-xs text-blue-600" style={customFontStyle}>MIN</div>
             </div>
-            <div className="bg-white p-2 rounded">
+            <div className="bg-white p-2 rounded border-2 border-black">
               <div className="text-xl font-bold text-blue-800" style={customFontStyle}>{seconds}</div>
               <div className="text-xs text-blue-600" style={customFontStyle}>SEC</div>
             </div>
