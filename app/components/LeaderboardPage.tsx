@@ -9,6 +9,8 @@ import { readContract } from '@wagmi/core'
 import { useAccount } from 'wagmi'
 import { PIZZA_PARTY_ADDRESS, PIZZA_PARTY_ABI } from '../lib/constants'
 import { wagmiConfig } from './config/wagmiConfig'
+import { fetchUserProfileCached } from '../lib/userProfileLookup'
+import { fetchDailyPayouts, fetchWeeklyPayouts, formatPayout } from '../lib/payoutCalculator'
 
 interface LeaderboardPageProps {
   onBack?: () => void
@@ -53,24 +55,6 @@ function padWinners(
 function formatAddress(address: string): string {
   if (!address) return ''
   return `${address.slice(0, 6)}...${address.slice(-4)}`
-}
-
-// Placeholder function - will be replaced with actual Farcaster/Basename lookup
-async function fetchUserProfile(address: string): Promise<{ username: string; pfpUrl: string }> {
-  // TODO: Implement actual Farcaster/Basename API lookup
-  // For now, return formatted address as username
-  return {
-    username: formatAddress(address),
-    pfpUrl: '', // Empty string = show default avatar
-  }
-}
-
-// Placeholder function - will be replaced with actual pot calculation
-function calculateWinnerPayout(totalPot: bigint, winnerCount: number, _position: number): string {
-  // TODO: Implement actual payout calculation from contract data
-  // For now, divide pot equally
-  const payoutPerWinner = Number(totalPot) / winnerCount / 1e18
-  return payoutPerWinner.toFixed(1)
 }
 
 function getPositionStyle(position: number) {
@@ -157,51 +141,39 @@ export default function LeaderboardPage({
         const currentDailyId = dailyId as bigint
         const currentWeeklyId = weeklyId as bigint
 
+        const dailyGameIdToFetch = currentDailyId > 1n ? currentDailyId - 1n : currentDailyId
+        const weeklyGameIdToFetch = currentWeeklyId > 1n ? currentWeeklyId - 1n : currentWeeklyId
+
         // Fetch winners for previous games (latest settled)
-        const [dailyWins, weeklyWins, dailyPot, weeklyPot] = await Promise.all([
-          // Try current game first, fallback to previous
+        const [dailyWins, weeklyWins] = await Promise.all([
           readContract(wagmiConfig, {
             address: PIZZA_PARTY_ADDRESS as `0x${string}`,
             abi: PIZZA_PARTY_ABI,
             functionName: 'getDailyGameWinners',
-            args: [currentDailyId > 1n ? currentDailyId - 1n : currentDailyId],
+            args: [dailyGameIdToFetch],
             chainId: BASE_CHAIN_ID,
           }).catch(() => [] as string[]),
           readContract(wagmiConfig, {
             address: PIZZA_PARTY_ADDRESS as `0x${string}`,
             abi: PIZZA_PARTY_ABI,
             functionName: 'getWeeklyGameWinners',
-            args: [currentWeeklyId > 1n ? currentWeeklyId - 1n : currentWeeklyId],
+            args: [weeklyGameIdToFetch],
             chainId: BASE_CHAIN_ID,
           }).catch(() => [] as string[]),
-          // Fetch pot amounts for payout calculation
-          readContract(wagmiConfig, {
-            address: PIZZA_PARTY_ADDRESS as `0x${string}`,
-            abi: PIZZA_PARTY_ABI,
-            functionName: 'getCurrentDailyGame',
-            chainId: BASE_CHAIN_ID,
-          }).then((data: unknown) => {
-            const gameData = data as [unknown, unknown, unknown, bigint, unknown]
-            return gameData[3] || 0n
-          }).catch(() => 0n),
-          readContract(wagmiConfig, {
-            address: PIZZA_PARTY_ADDRESS as `0x${string}`,
-            abi: PIZZA_PARTY_ABI,
-            functionName: 'getCurrentWeeklyGame',
-            chainId: BASE_CHAIN_ID,
-          }).then((data: unknown) => {
-            const gameData = data as [unknown, unknown, unknown, unknown, bigint]
-            return gameData[4] || 0n
-          }).catch(() => 0n),
         ])
 
         const dailyWinnerAddresses = (dailyWins as string[]) || []
         const weeklyWinnerAddresses = (weeklyWins as string[]) || []
 
+        const [dailyPayoutMap, weeklyPayoutMap] = await Promise.all([
+          fetchDailyPayouts(dailyGameIdToFetch),
+          fetchWeeklyPayouts(weeklyGameIdToFetch),
+        ])
+
         // Fetch user profiles for all winners
         const [dailyProfiles, weeklyProfiles] = await Promise.all([
-          Promise.all(dailyWinnerAddresses.map(addr => fetchUserProfile(addr))),
-          Promise.all(weeklyWinnerAddresses.map(addr => fetchUserProfile(addr))),
+          Promise.all(dailyWinnerAddresses.map(addr => fetchUserProfileCached(addr))),
+          Promise.all(weeklyWinnerAddresses.map(addr => fetchUserProfileCached(addr))),
         ])
 
         // Build daily winners display data
@@ -209,7 +181,7 @@ export default function LeaderboardPage({
           address: addr,
           username: dailyProfiles[idx].username,
           pfpUrl: dailyProfiles[idx].pfpUrl,
-          amountWon: calculateWinnerPayout(dailyPot as bigint, dailyWinnerAddresses.length, idx + 1),
+          amountWon: formatPayout(dailyPayoutMap.get(addr.toLowerCase()) || 0n),
         }))
 
         // Build weekly winners display data
@@ -217,7 +189,7 @@ export default function LeaderboardPage({
           address: addr,
           username: weeklyProfiles[idx].username,
           pfpUrl: weeklyProfiles[idx].pfpUrl,
-          amountWon: calculateWinnerPayout(weeklyPot as bigint, weeklyWinnerAddresses.length, idx + 1),
+          amountWon: formatPayout(weeklyPayoutMap.get(addr.toLowerCase()) || 0n),
         }))
 
         setDailyWinners(padWinners(dailyDisplay, 8, 'daily'))
@@ -349,7 +321,7 @@ export default function LeaderboardPage({
             </div>
 
             {/* Daily Winners Panel */}
-            <Card className="border-4 border-blue-400 rounded-2xl bg-blue-50/95 shadow-lg">
+            <Card className="border-4 border-black rounded-2xl bg-blue-50/95 shadow-lg">
               <div className="px-4" style={{ paddingTop: '12px', paddingBottom: '12px' }}>
                 <div className="flex items-center justify-center gap-1 mb-1 text-center">
                   <span className="text-2xl">🎯</span>
@@ -381,7 +353,7 @@ export default function LeaderboardPage({
             </Card>
 
             {/* Weekly Winners Panel */}
-            <Card className="border-4 border-purple-400 rounded-2xl bg-purple-50/95 shadow-lg">
+            <Card className="border-4 border-black rounded-2xl bg-purple-50/95 shadow-lg">
               <div className="px-4" style={{ paddingTop: '12px', paddingBottom: '12px' }}>
                 <div className="flex items-center justify-center gap-2 mb-2 text-center">
                   <span className="text-2xl">🍕</span>
