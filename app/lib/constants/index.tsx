@@ -4,7 +4,7 @@ import type { Abi } from 'viem'
 // ==============================
 // Contract addresses (Base mainnet)
 // ==============================
-export const PIZZA_PARTY_ADDRESS = "0x4D133a45e718c313282C6E459817be9bad0a84fC" // PizzaParty contract (redeployed with view functions)
+export const PIZZA_PARTY_ADDRESS = "0x5432260CfcAc5C45773449089EA603a6e5Dc7DA7" // PizzaParty contract (latest deployment)
 export const VMF_TOKEN_ADDRESS = "0xA3E82adF6bd3207a1d2470ED7Ad742596Ee81776" // Fixed checksum
 
 // SushiSwap pair kept for legacy tooling (not used in minimal contract)
@@ -121,8 +121,25 @@ export const PIZZA_PARTY_ABI = [
   { type: 'function', name: 'isWeeklyGameReady', stateMutability: 'view', inputs: [], outputs: [{ type: 'bool' }] },
   { type: 'function', name: 'getReferralCode', stateMutability: 'view', inputs: [{ type: 'address', name: 'player' }], outputs: [{ type: 'string' }] },
   { type: 'function', name: 'getPlayerFromCode', stateMutability: 'view', inputs: [{ type: 'string', name: 'code' }], outputs: [{ type: 'address' }] },
+  {
+    type: 'function',
+    name: 'getPlayerLifetimeStats',
+    stateMutability: 'view',
+    inputs: [{ type: 'address', name: 'player' }],
+    outputs: [{
+      type: 'tuple',
+      components: [
+        { type: 'uint256', name: 'totalDailyWins' },
+        { type: 'uint256', name: 'totalWeeklyWins' },
+        { type: 'uint256', name: 'totalVmfWon' },
+        { type: 'uint256', name: 'lifetimeToppings' },
+        { type: 'uint256', name: 'lifetimeReferrals' }
+      ]
+    }]
+  },
   { type: 'function', name: 'getDailyGameWinners', stateMutability: 'view', inputs: [{ type: 'uint256', name: 'gameId' }], outputs: [{ type: 'address[]' }] },
   { type: 'function', name: 'getWeeklyGameWinners', stateMutability: 'view', inputs: [{ type: 'uint256', name: 'weekId' }], outputs: [{ type: 'address[]' }] },
+  { type: 'function', name: 'hasUsedReferral', stateMutability: 'view', inputs: [{ type: 'address', name: 'player' }], outputs: [{ type: 'bool' }] },
 
   // --- Events ---
   {
