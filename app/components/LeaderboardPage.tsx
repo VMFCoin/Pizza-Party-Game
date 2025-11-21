@@ -9,6 +9,7 @@ import { readContract } from '@wagmi/core'
 import { useAccount } from 'wagmi'
 import { PIZZA_PARTY_ADDRESS, PIZZA_PARTY_ABI } from '../lib/constants'
 import { wagmiConfig } from './config/wagmiConfig'
+import { enrichLeaderboardWithProfiles, FarcasterProfile, fetchProfilesByAddresses } from '../lib/farcasterProfiles'
 
 interface LeaderboardPageProps {
   onBack?: () => void
@@ -23,6 +24,7 @@ interface WinnerDisplay {
   amountWon: string
   lifetimeWins: number
   lifetimeVmfWon: string
+  farcasterProfile?: FarcasterProfile
   isPlaceholder?: boolean
 }
 
@@ -51,6 +53,7 @@ function padWinners(
       amountWon: '0.0',
       lifetimeWins: 0,
       lifetimeVmfWon: '0.0',
+      farcasterProfile: undefined,
       isPlaceholder: true,
     })
   }
@@ -147,6 +150,8 @@ export default function LeaderboardPage({
   const [weeklyWinners, setWeeklyWinners] = useState<WinnerDisplay[]>([])
   const [loading, setLoading] = useState(true)
 
+  console.log('Neynar API Key:', process.env.NEXT_PUBLIC_NEYNAR_API_KEY ? 'Loaded ✅' : 'Missing ❌')
+
   const navigateToDaily = useCallback(() => {
     if (onNavigateToDaily) {
       onNavigateToDaily()
@@ -242,7 +247,7 @@ export default function LeaderboardPage({
         ])
 
         // Build daily winners display data
-        const dailyDisplay: WinnerDisplay[] = dailyWinnerAddresses.map((addr, idx) => ({
+        const dailyBase: WinnerDisplay[] = dailyWinnerAddresses.map((addr, idx) => ({
           address: addr,
           displayName: formatAddress(addr),
           amountWon: calculateWinnerPayout(dailyPotAmount, dailyWinnerAddresses.length),
@@ -251,7 +256,7 @@ export default function LeaderboardPage({
         }))
 
         // Build weekly winners display data
-        const weeklyDisplay: WinnerDisplay[] = weeklyWinnerAddresses.map((addr, idx) => ({
+        const weeklyBase: WinnerDisplay[] = weeklyWinnerAddresses.map((addr, idx) => ({
           address: addr,
           displayName: formatAddress(addr),
           amountWon: calculateWinnerPayout(weeklyPotAmount, weeklyWinnerAddresses.length),
@@ -259,8 +264,13 @@ export default function LeaderboardPage({
           lifetimeVmfWon: weeklyLifetimeStats[idx]?.totalVmfWon || '0.0',
         }))
 
-        setDailyWinners(padWinners(dailyDisplay, 8, 'daily'))
-        setWeeklyWinners(padWinners(weeklyDisplay, 10, 'weekly'))
+        const [enrichedDaily, enrichedWeekly] = await Promise.all([
+          enrichLeaderboardWithProfiles(dailyBase, address),
+          enrichLeaderboardWithProfiles(weeklyBase, address),
+        ])
+
+        setDailyWinners(padWinners(enrichedDaily, 8, 'daily'))
+        setWeeklyWinners(padWinners(enrichedWeekly, 10, 'weekly'))
       } catch (error) {
         console.error('Failed to fetch leaderboard data:', error)
         setDailyWinners(padWinners([], 8, 'daily'))
@@ -271,6 +281,20 @@ export default function LeaderboardPage({
     }
 
     fetchLeaderboardData()
+  }, [])
+
+  useEffect(() => {
+    async function testProfileFetch() {
+      const testAddress = '0x1234567890123456789012345678901234567890'
+      try {
+        const profiles = await fetchProfilesByAddresses([testAddress])
+        console.log('Profile fetch test:', profiles)
+      } catch (error) {
+        console.error('Profile fetch failed:', error)
+      }
+    }
+
+    void testProfileFetch()
   }, [])
 
   const renderWinnerRow = (winner: WinnerDisplay, position: number) => {
@@ -291,18 +315,41 @@ export default function LeaderboardPage({
             </span>
           </div>
           <div className="w-9 h-9 rounded-full bg-gray-200 border-2 border-gray-300 flex items-center justify-center overflow-hidden">
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" className="text-gray-500">
-              <circle cx="12" cy="7.5" r="3.5" fill="currentColor" />
-              <path d="M4 20c0-3.5 3.2-6.5 8-6.5s8 3 8 6.5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-            </svg>
+            {!isPlaceholder && winner.farcasterProfile?.pfpUrl ? (
+              <Image
+                src={winner.farcasterProfile.pfpUrl}
+                alt={winner.farcasterProfile.username || 'Profile'}
+                width={36}
+                height={36}
+                className="object-cover"
+                onError={e => {
+                  e.currentTarget.style.display = 'none'
+                }}
+              />
+            ) : (
+              <div className="w-full h-full flex items-center justify-center text-gray-600 text-xs font-bold">
+                {isPlaceholder
+                  ? '⏳'
+                  : winner.address.slice(2, 4).toUpperCase()}
+              </div>
+            )}
           </div>
           <div className="flex flex-col">
             <span
               className={`font-bold text-base ${isPlaceholder ? 'text-gray-500' : isCurrentUser ? 'text-red-600' : style.textColor}`}
               style={customFontStyle}
             >
-              {winner.displayName}
+              {isPlaceholder
+                ? winner.displayName
+                : winner.farcasterProfile?.username
+                ? `@${winner.farcasterProfile.username}`
+                : formatAddress(winner.address)}
             </span>
+            {winner.farcasterProfile?.displayName && !isPlaceholder && (
+              <span className="text-xs text-gray-500" style={customFontStyle}>
+                {winner.farcasterProfile.displayName}
+              </span>
+            )}
             <span className="text-xs text-gray-600" style={customFontStyle}>
               {isPlaceholder
                 ? 'Awaiting winner…'

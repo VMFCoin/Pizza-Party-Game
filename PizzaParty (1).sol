@@ -180,6 +180,14 @@ contract PizzaParty is Ownable, ReentrancyGuard {
         weekly.toppingsEarned += 1;
         weekly.dailyPlays += 1;
         playerStats[player].lifetimeToppings += 1;
+
+        // Auto-register referral code on first entry
+        if (bytes(playerReferralCode[player]).length == 0) {
+            string memory myCode = _generateCode(player);
+            playerReferralCode[player] = myCode;
+            codeToPlayer[myCode] = player;
+            emit ReferralCodeCreated(player, myCode);
+        }
         
         emit DailyGameEntered(gameId, player, isFirst);
         emit ToppingsEarned(weeklyGameId, player, 1, "daily_play");
@@ -441,7 +449,10 @@ contract PizzaParty is Ownable, ReentrancyGuard {
         // Check if it's registered in the mapping
         address registered = codeToPlayer[code];
         require(registered != address(0), "Code not found");
-        
+
+        // Ensure referrer has played at least once
+        require(playerStats[registered].lifetimeToppings > 0, "Referrer must play first");
+
         return registered;
     }
     
@@ -466,13 +477,6 @@ contract PizzaParty is Ownable, ReentrancyGuard {
         referrerWeekly.toppingsEarned += 2;
         playerStats[referrer].lifetimeReferrals += 1;
 
-        // Lazy registration: register code on first use
-        if (bytes(playerReferralCode[referrer]).length == 0) {
-            playerReferralCode[referrer] = code;
-            codeToPlayer[code] = referrer;
-            emit ReferralCodeCreated(referrer, code);
-        }
-        
         emit ReferralUsed(referrer, referee);
         emit ToppingsEarned(weekId, referrer, 2, "referral");
     }

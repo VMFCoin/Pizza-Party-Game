@@ -746,6 +746,12 @@ export function useGamePageData() {
             revertReason = 'Referrer has reached their weekly invite limit'
           } else if (message.includes('Already used referral')) {
             revertReason = 'You have already used a referral code'
+          } else if (message.includes('Code not found')) {
+            revertReason = "This referral code hasn't been registered yet"
+          } else if (message.includes('Referrer must play first')) {
+            revertReason = 'Referrer must play at least once before sharing their code'
+          } else if (message.includes('Cannot refer self')) {
+            revertReason = "You can't use your own referral code"
           } else {
             revertReason = message
           }
@@ -827,6 +833,16 @@ export function useGamePageData() {
           errorMessage = 'Game ended. Please wait for settlement.'
         } else if (message.includes('Weekly limit reached')) {
           errorMessage = 'You have reached the weekly play limit.'
+        } else if (message.includes('Code not found')) {
+          errorMessage = "❌ This referral code hasn't been registered yet"
+        } else if (message.includes('Referrer must play first')) {
+          errorMessage = '❌ Your friend needs to play at least once before you can use their code'
+        } else if (message.includes('Already used referral')) {
+          errorMessage = '❌ You already used a referral code!'
+        } else if (message.includes('Cannot refer self')) {
+          errorMessage = "❌ You can't use your own referral code"
+        } else if (message.includes('Referral limit')) {
+          errorMessage = '❌ Your friend has reached their weekly referral limit (3/week)'
         } else {
           errorMessage = message
         }

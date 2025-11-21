@@ -10,6 +10,9 @@ import GamePage from "./components/game";
 import WeeklyJackpotPage from "./components/WeeklyJackpotPage";
 import LeaderboardPage from "./components/LeaderboardPage";
 import { sdk } from "@farcaster/miniapp-sdk";
+import { useRouter, useSearchParams } from "next/navigation";
+
+type ViewType = 'home' | 'game' | 'weekly' | 'leaderboard'
 
 export default function HomePage() {
   const customFontStyle = {
@@ -17,8 +20,40 @@ export default function HomePage() {
     fontWeight: "bold" as const,
   };
 
+  const router = useRouter();
+  const searchParams = useSearchParams();
   const [isMobile, setIsMobile] = useState(false);
-  const [currentView, setCurrentView] = useState<'home' | 'game' | 'weekly' | 'leaderboard'>('home');
+  const [currentView, setCurrentView] = useState<ViewType>('home');
+
+  const updateViewParam = React.useCallback((view: ViewType) => {
+    const params = new URLSearchParams(searchParams?.toString() || '')
+    if (view === 'home') {
+      params.delete('view')
+    } else {
+      params.set('view', view)
+    }
+    const query = params.toString()
+    const nextUrl = query ? `/?${query}` : '/'
+    router.push(nextUrl, { scroll: true })
+  }, [router, searchParams])
+
+  const goToView = React.useCallback((view: ViewType) => {
+    setCurrentView(view)
+    updateViewParam(view)
+    if (typeof window !== 'undefined') {
+      window.scrollTo(0, 0)
+    }
+  }, [updateViewParam])
+
+  useEffect(() => {
+    const viewParam = searchParams?.get('view') as 'home' | 'game' | 'weekly' | 'leaderboard' | null
+    if (viewParam && viewParam !== currentView && ['home', 'game', 'weekly', 'leaderboard'].includes(viewParam)) {
+      setCurrentView(viewParam)
+    }
+    if (!viewParam && currentView !== 'home') {
+      setCurrentView('home')
+    }
+  }, [searchParams, currentView])
 
   // Device detection
   useEffect(() => {
@@ -33,25 +68,13 @@ export default function HomePage() {
     sdk.actions.ready();
   }, []);
 
-  const handleStartPlaying = () => {
-    setCurrentView('game');
-    if (typeof window !== "undefined") window.scrollTo(0, 0);
-  };
+  const handleStartPlaying = () => goToView('game')
 
-  const handleBackToHome = () => {
-    setCurrentView('home');
-    if (typeof window !== "undefined") window.scrollTo(0, 0);
-  };
+  const handleBackToHome = () => goToView('home')
 
-  const handleNavigateToWeekly = () => {
-    setCurrentView('weekly');
-    if (typeof window !== "undefined") window.scrollTo(0, 0);
-  };
+  const handleNavigateToWeekly = () => goToView('weekly')
 
-  const handleNavigateToLeaderboard = () => {
-    setCurrentView('leaderboard');
-    if (typeof window !== "undefined") window.scrollTo(0, 0);
-  };
+  const handleNavigateToLeaderboard = () => goToView('leaderboard')
 
   // GAME VIEW
   if (currentView === 'game') {
@@ -86,8 +109,8 @@ export default function HomePage() {
   if (currentView === 'weekly') {
     return (
       <WeeklyJackpotPage
-        onBack={() => setCurrentView('game')}
-        onNavigateToDaily={() => setCurrentView('game')}
+        onBack={() => goToView('game')}
+        onNavigateToDaily={() => goToView('game')}
         onNavigateToHome={handleBackToHome}
         onNavigateToLeaderboard={handleNavigateToLeaderboard}
       />
@@ -97,8 +120,8 @@ export default function HomePage() {
   if (currentView === 'leaderboard') {
     return (
       <LeaderboardPage
-        onBack={() => setCurrentView('game')}
-        onNavigateToDaily={() => setCurrentView('game')}
+        onBack={() => goToView('game')}
+        onNavigateToDaily={() => goToView('game')}
         onNavigateToWeekly={handleNavigateToWeekly}
         onNavigateToHome={handleBackToHome}
       />
