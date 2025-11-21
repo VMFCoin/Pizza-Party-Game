@@ -7,9 +7,12 @@ import './globals.css';
 const inter = Inter({ subsets: ['latin'] });
 
 export async function generateMetadata(): Promise<Metadata> {
+  const ogRelativePath = "/images/pizza-party-og.png"
+  const ogAbsolutePath = `https://pizza-party-game.vmfcoin.com${ogRelativePath}`
+
   return {
     title: 'Pizza Party',
-    description: '8 Slices, 8 Winners! Play to win VMF tokens every 24 hours',
+    description: 'Win daily jackpots with Pizza Party! 🍕',
     icons: {
       icon: [{ url: "/favicon.ico" }],
       shortcut: [{ url: "/images/star-favicon.png" }],
@@ -17,15 +20,15 @@ export async function generateMetadata(): Promise<Metadata> {
     },
     openGraph: {
       title: "Pizza Party",
-      description: "8 Slices, 8 Winners! Play daily to win VMF tokens 🍕",
+      description: "Win daily jackpots with Pizza Party! 🍕",
       url: "https://pizza-party-game.vmfcoin.com",
       siteName: "Pizza Party",
       images: [
         {
-          url: "/images/pizza-final.png",
+          url: ogRelativePath,
           width: 1200,
-          height: 627,
-          alt: "Pizza Party",
+          height: 630,
+          alt: "Pizza Party - Win Daily Jackpots",
         },
       ],
       locale: "en_US",
@@ -34,20 +37,20 @@ export async function generateMetadata(): Promise<Metadata> {
     twitter: {
       card: "summary_large_image",
       title: "Pizza Party",
-      description: "8 Slices, 8 Winners! Play daily to win VMF tokens 🍕",
-      images: ["/images/pizza-final.png"],
+      description: "Win daily jackpots with Pizza Party! 🍕",
+      images: [ogRelativePath],
     },
     other: {
       'fc:miniapp': JSON.stringify({
         version: 'next',
-        imageUrl: 'https://pizza-party-game.vmfcoin.com/images/pizza-final.png',
+        imageUrl: ogAbsolutePath,
         button: {
           title: `Play Pizza Party`,
           action: {
             type: 'launch_miniapp',
             name: 'Pizza Party',
             url: 'https://pizza-party-game.vmfcoin.com',
-            splashImageUrl: "https://pizza-party-game.vmfcoin.com/images/pizza-final.png",
+            splashImageUrl: ogAbsolutePath,
             splashBackgroundColor: "#DC2626",
           },
         },
