@@ -145,7 +145,7 @@ export default function HomePage() {
           >
             {/* Title */}
             <div className="mb-4 border-4 border-black rounded-2xl relative overflow-hidden" style={{ width: '100%' }}>
-              <div className="relative w-full" style={{ paddingBottom: '35%', minHeight: '140px' }}>
+              <div className="relative w-full" style={{ paddingBottom: isMobile ? '29.75%' : '35%', minHeight: isMobile ? '109px' : '140px' }}>
                 <Image
                   src="/images/PizzaPartyCard.png"
                   alt="PIZZA PARTY"

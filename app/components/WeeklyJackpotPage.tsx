@@ -100,6 +100,14 @@ export default function WeeklyJackpotPage({
     handleClaimToppings,
     isEntryInProgress,
   } = useGamePageData()
+  const [isMobile, setIsMobile] = useState(false)
+
+  useEffect(() => {
+    const handleResize = () => setIsMobile(window.innerWidth < 960)
+    handleResize()
+    window.addEventListener('resize', handleResize)
+    return () => window.removeEventListener('resize', handleResize)
+  }, [])
 
   const weeklyPlayersDisplay =
     weekly.projectedPlayerCount > 0
@@ -178,7 +186,7 @@ export default function WeeklyJackpotPage({
         >
           <div className="flex flex-col gap-3">
           <div className="rounded-2xl border-4 border-black relative overflow-hidden bg-white">
-            <div className="relative w-full" style={{ paddingBottom: '30%', minHeight: '140px' }}>
+            <div className="relative w-full" style={{ paddingBottom: isMobile ? '21%' : '30%', minHeight: isMobile ? '98px' : '140px' }}>
               <Image
                 src="/images/WeeklyCard.png"
                 alt="Weekly Jackpot - Collect toppings to win!"
