@@ -4,7 +4,7 @@ async function testDeployedContract() {
   // Connect to Base mainnet
   const provider = new ethers.JsonRpcProvider('https://mainnet.base.org');
   
-  const contractAddress = '0xaF196185715B85445aB2bd83a81fDe0aE7dF05fb';
+  const contractAddress = '0x5432260CfcAc5C45773449089EA603a6e5Dc7DA7';
   
   // Minimal ABI to test the key functions
   const abi = [
