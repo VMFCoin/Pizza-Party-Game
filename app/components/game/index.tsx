@@ -305,84 +305,53 @@ function GamePageContent({ onNavigateToWeekly, onNavigateToLeaderboard }: GamePa
     >
       <div className="w-full max-w-sm flex flex-col items-center gap-4">
 
-        {/* Header / Daily Jackpot */}
-        <div className="bg-white/90 backdrop-blur-md rounded-2xl border-4 border-black p-4 text-center w-full">
-          <h1 className="mb-2" style={{
-            padding: "3px",
-            textAlign: "center",
-            transform: "-rotate-2",
-            display: "flex",
-            flexDirection: "column",
-            alignItems: "center",
-            justifyContent: "center",
-          }}>
-            <div style={{
-              ...customFontStyle,
-              color: "#DC2626",
-              textShadow: "2px 2px 0px #991B1B, 4px 4px 0px #7F1D1D, 6px 6px 10px rgba(0,0,0,0.3)",
-              letterSpacing: "0px",
-              fontWeight: "900",
-              WebkitTextStroke: "1px #450A0A",
-              background: "linear-gradient(45deg, #DC2626, #EF4444, #F87171)",
-              WebkitBackgroundClip: "text",
-              WebkitTextFillColor: "transparent",
-              filter: "drop-shadow(0 0 0.375px #DC2626)",
-              fontSize: "32px",
-              whiteSpace: "nowrap",
-            }}>
-              EVERY 24 HOURS!
-            </div>
-            <div style={{
-              ...customFontStyle,
-              color: "#DC2626",
-              textShadow: "2px 2px 0px #991B1B, 4px 4px 0px #7F1D1D, 6px 6px 10px rgba(0,0,0,0.3)",
-              letterSpacing: "-1px",
-              fontWeight: "900",
-              WebkitTextStroke: "1px #450A0A",
-              background: "linear-gradient(45deg, #DC2626, #EF4444, #F87171)",
-              WebkitBackgroundClip: "text",
-              WebkitTextFillColor: "transparent",
-              filter: "drop-shadow(0 0 0.375px #DC2626)",
-              fontSize: isMobile ? "26px" : "31px",
-              whiteSpace: "nowrap",
-              textAlign: "center",
-            }}>
-              8 SLICES, 8 WINNERS!
-            </div>
-          </h1>
-
-          <div className="bg-blue-100/90 backdrop-blur-sm p-3 rounded-xl border-2 border-blue-300 mb-2">
-            <p className="text-blue-600 text-xl font-bold" style={customFontStyle}>Daily Jackpot</p>
-            <p className="text-blue-800 text-3xl font-bold" style={customFontStyle}>
-              {daily.loading ? '⏳' : `$${(Number(daily.jackpot) * vmfUsd).toFixed(2)}`}
-            </p>
-
-            <p className="text-blue-600 text-sm mt-1">
-              {daily.loading
-                ? 'Loading entries...'
-                : `Total entries: ${daily.totalEntries} • Game #${daily.dailyGameId}`}
-            </p>
-
-            {daily.isCompleted && !daily.loading && (
-              <p className="text-xs text-blue-700 mt-1">This game has been finalized.</p>
-            )}
-            {daily.error && (
-              <p className="text-xs text-red-600 mt-1">Error loading daily data</p>
-            )}
+        {/* Header */}
+        <div className="bg-white/90 backdrop-blur-md rounded-2xl border-4 border-black relative overflow-hidden w-full mb-4">
+          <div className="relative w-full" style={{ paddingBottom: '35%', minHeight: '140px' }}>
+            <Image
+              src="/images/DailyCard.png"
+              alt="EVERY 24 HOURS! 8 SLICES, 8 WINNERS!"
+              fill
+              className="object-cover"
+              priority
+              sizes="100vw"
+              style={{ objectPosition: 'center 42%' }}
+            />
           </div>
+        </div>
 
-          {/* Player Stats */}
-          {SHOW_PLAYER_STATS && wallet?.isAuthenticated && playerInfo && (
-            <div className="bg-yellow-100/90 backdrop-blur-sm p-2 rounded-xl border-2 border-yellow-300 mt-2">
-              <p className="text-yellow-800 text-sm font-bold" style={customFontStyle}>
-                🍕 Your Stats: {Number(playerInfo.totalToppings)} Toppings
-              </p>
-              <p className="text-yellow-800 text-sm font-bold text-center" style={customFontStyle}>
-                {Number(playerInfo.dailyEntries)} Entries
-              </p>
-            </div>
+        {/* Daily Jackpot */}
+        <div className="bg-blue-100/90 backdrop-blur-sm p-3 rounded-xl border-4 border-black w-full text-center">
+          <p className="text-blue-600 text-xl font-bold" style={customFontStyle}>Daily Jackpot</p>
+          <p className="text-blue-800 text-3xl font-bold" style={customFontStyle}>
+            {daily.loading ? '⏳' : `$${(Number(daily.jackpot) * vmfUsd).toFixed(2)}`}
+          </p>
+
+          <p className="text-blue-600 text-sm mt-1">
+            {daily.loading
+              ? 'Loading entries...'
+              : `Total entries: ${daily.totalEntries} • Game #${daily.dailyGameId}`}
+          </p>
+
+          {daily.isCompleted && !daily.loading && (
+            <p className="text-xs text-blue-700 mt-1">This game has been finalized.</p>
+          )}
+          {daily.error && (
+            <p className="text-xs text-red-600 mt-1">Error loading daily data</p>
           )}
         </div>
+
+        {/* Player Stats */}
+        {SHOW_PLAYER_STATS && wallet?.isAuthenticated && playerInfo && (
+          <div className="bg-yellow-100/90 backdrop-blur-sm p-2 rounded-xl border-2 border-yellow-300 mt-2 w-full">
+            <p className="text-yellow-800 text-sm font-bold" style={customFontStyle}>
+              🍕 Your Stats: {Number(playerInfo.totalToppings)} Toppings
+            </p>
+            <p className="text-yellow-800 text-sm font-bold text-center" style={customFontStyle}>
+              {Number(playerInfo.dailyEntries)} Entries
+            </p>
+          </div>
+        )}
 
         {/* Pizza Image */}
         <div className="w-72 h-72 relative">

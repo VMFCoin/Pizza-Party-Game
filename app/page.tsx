@@ -144,28 +144,18 @@ export default function HomePage() {
             }}
           >
             {/* Title */}
-            <div className="mb-4 bg-white border-4 border-black p-5 rounded-2xl">
-              {['PIZZA', 'PARTY'].map((word, idx) => (
-                <div
-                  key={idx}
-                  className="text-7xl sm:text-8xl md:text-8xl font-black transform -rotate-2 drop-shadow-lg"
-                  style={{
-                    ...customFontStyle,
-                    color: "#DC2626",
-                    textShadow:
-                      "2px 2px 0px #991B1B, 4px 4px 0px #7F1D1D, 6px 6px 10px rgba(0,0,0,0.3)",
-                    letterSpacing: "2px",
-                    fontWeight: "900",
-                    WebkitTextStroke: "1px #450A0A",
-                    background: "linear-gradient(45deg, #DC2626, #EF4444, #F87171)",
-                    WebkitBackgroundClip: "text",
-                    WebkitTextFillColor: "transparent",
-                    filter: "drop-shadow(0 0 3px #DC2626)",
-                  }}
-                >
-                  {word}
-                </div>
-              ))}
+            <div className="mb-4 border-4 border-black rounded-2xl relative overflow-hidden" style={{ width: '100%' }}>
+              <div className="relative w-full" style={{ paddingBottom: '35%', minHeight: '140px' }}>
+                <Image
+                  src="/images/PizzaPartyCard.png"
+                  alt="PIZZA PARTY"
+                  fill
+                  className="object-cover"
+                  priority
+                  sizes="100vw"
+                  style={{ objectPosition: 'center 42%' }}
+                />
+              </div>
             </div>
 
             {/* Pizza Image */}
@@ -215,31 +205,17 @@ export default function HomePage() {
             </div>
 
             {/* Call-to-Action */}
-            <div className="bg-white border-4 border-black pt-4 px-4 pb-2 mb-6 transform rotate-1 rounded-2xl">
-              <div
-                className="text-4xl sm:text-5xl lg:text-5xl font-black transform -rotate-2 drop-shadow-lg leading-tight"
-                style={{
-                  ...customFontStyle,
-                  color: "#DC2626",
-                  textShadow: "2px 2px 0px #991B1B, 4px 4px 0px #7F1D1D, 6px 6px 10px rgba(0,0,0,0.3)",
-                  letterSpacing: "2px",
-                  fontWeight: "900",
-                  WebkitTextStroke: "1px #450A0A",
-                  background: "linear-gradient(45deg, #DC2626, #EF4444, #F87171)",
-                  WebkitBackgroundClip: "text",
-                  WebkitTextFillColor: "transparent",
-                  filter: "drop-shadow(0 0 3px #DC2626)",
-                  whiteSpace: "pre-line",
-                  fontSize: isMobile ? "35px" : "42px",
-                  textAlign: "center",
-                  transform: isMobile ? "translateX(-8px) rotate(-2deg)" : "-rotate-2",
-                }}
-              >
-                <div className="block sm:hidden md:hidden lg:block xl:block">
-                  <div style={{ whiteSpace: "nowrap" }}>PLAY TO WIN</div>
-                  <div style={{ whiteSpace: "nowrap" }}>A SLICE!</div>
-                </div>
-                <span className="hidden sm:block md:block lg:hidden xl:hidden">PLAY TO WIN A SLICE!</span>
+            <div className="mb-6 border-4 border-black rounded-2xl relative overflow-hidden" style={{ width: '100%' }}>
+              <div className="relative w-full" style={{ paddingBottom: '25%', minHeight: '90px' }}>
+                <Image
+                  src="/images/PlayToWin.png"
+                  alt="PLAY TO WIN A SLICE!"
+                  fill
+                  className="object-cover"
+                  priority
+                  sizes="100vw"
+                  style={{ objectPosition: 'center 48%' }}
+                />
               </div>
             </div>
 

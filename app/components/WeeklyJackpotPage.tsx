@@ -177,59 +177,18 @@ export default function WeeklyJackpotPage({
           }}
         >
           <div className="flex flex-col gap-3">
-          <div className="rounded-2xl border-4 border-red-500 p-3 text-center bg-white">
-            <h1
-              className="mb-2"
-              style={{
-                padding: '3px',
-                textAlign: 'center',
-                transform: '-rotate-2',
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                justifyContent: 'center',
-              }}
-            >
-              <div
-                style={{
-                  ...customFontStyle,
-                  color: '#DC2626',
-                  textShadow:
-                    '2px 2px 0px #991B1B, 3px 3px 0px #7F1D1D, 4px 4px 2px rgba(0,0,0,0.25)',
-                  letterSpacing: '0px',
-                  fontWeight: '900',
-                  WebkitTextStroke: '1px #450A0A',
-                  background: 'linear-gradient(45deg, #DC2626, #EF4444, #F87171)',
-                  WebkitBackgroundClip: 'text',
-                  WebkitTextFillColor: 'transparent',
-                  filter: 'drop-shadow(0 0 0.125px #DC2626)',
-                  fontSize: 'clamp(30px, 10vw, 44px)',
-                  whiteSpace: 'nowrap',
-                }}
-              >
-                Weekly Jackpot
-              </div>
-              <div
-                style={{
-                  ...customFontStyle,
-                  color: '#DC2626',
-                  textShadow:
-                    '2px 2px 0px #991B1B, 3px 3px 0px #7F1D1D, 4px 4px 2px rgba(0,0,0,0.25)',
-                  letterSpacing: '-1px',
-                  fontWeight: '900',
-                  WebkitTextStroke: '1px #450A0A',
-                  background: 'linear-gradient(45deg, #DC2626, #EF4444, #F87171)',
-                  WebkitBackgroundClip: 'text',
-                  WebkitTextFillColor: 'transparent',
-                  filter: 'drop-shadow(0 0 0.125px #DC2626)',
-                  fontSize: 'clamp(21px, 6.5vw, 32px)',
-                  whiteSpace: 'nowrap',
-                  textAlign: 'center',
-                }}
-              >
-                Collect toppings to win!
-              </div>
-            </h1>
+          <div className="rounded-2xl border-4 border-red-500 relative overflow-hidden bg-white">
+            <div className="relative w-full" style={{ paddingBottom: '30%', minHeight: '140px' }}>
+              <Image
+                src="/images/WeeklyCard.png"
+                alt="Weekly Jackpot - Collect toppings to win!"
+                fill
+                className="object-cover"
+                priority
+                sizes="100vw"
+                style={{ objectPosition: 'center 48%' }}
+              />
+            </div>
           </div>
 
           <div className="bg-gradient-to-r from-yellow-400 to-orange-500 rounded-2xl p-3 text-center border-4 border-yellow-600" style={{ borderColor: '#000000' }}>

@@ -397,30 +397,18 @@ export default function LeaderboardPage({
         >
           <div className="flex flex-col gap-3">
             {/* Header */}
-            <div className="rounded-2xl border-4 border-red-500 text-center bg-white" style={{ padding: '12px 16px' }}>
-              <h1
-                style={{
-                  ...customFontStyle,
-                  color: '#DC2626',
-                  textShadow:
-                    '2px 2px 0px #991B1B, 3px 3px 0px #7F1D1D, 4px 4px 2px rgba(0,0,0,0.25)',
-                  letterSpacing: '1.5px',
-                  fontWeight: '900',
-                  WebkitTextStroke: '1px #450A0A',
-                  background: 'linear-gradient(45deg, #DC2626, #EF4444, #F87171)',
-                  WebkitBackgroundClip: 'text',
-                  WebkitTextFillColor: 'transparent',
-                  filter: 'drop-shadow(0 0 0.125px #DC2626)',
-                  fontSize: 'clamp(22px, 8vw, 46px)',
-                  whiteSpace: 'normal',
-                  lineHeight: 1.1,
-                }}
-              >
-                LEADERBOARD
-              </h1>
-              <p className="text-black text-sm font-semibold mt-1" style={customFontStyle}>
-                See who&apos;s winning the most VMF tokens!
-              </p>
+            <div className="rounded-2xl border-4 border-red-500 relative overflow-hidden bg-white">
+              <div className="relative w-full" style={{ height: '100px' }}>
+                <Image
+                  src="/images/LeaderboardCard.png"
+                  alt="LEADERBOARD - See who's winning the most VMF tokens!"
+                  fill
+                  className="object-cover"
+                  priority
+                  sizes="100vw"
+                  style={{ objectPosition: 'center 47.5%' }}
+                />
+              </div>
             </div>
 
             {/* Daily Winners Panel */}
