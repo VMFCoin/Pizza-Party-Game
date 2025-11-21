@@ -177,7 +177,7 @@ export default function WeeklyJackpotPage({
           }}
         >
           <div className="flex flex-col gap-3">
-          <div className="rounded-2xl border-4 border-red-500 relative overflow-hidden bg-white">
+          <div className="rounded-2xl border-4 border-black relative overflow-hidden bg-white">
             <div className="relative w-full" style={{ paddingBottom: '30%', minHeight: '140px' }}>
               <Image
                 src="/images/WeeklyCard.png"

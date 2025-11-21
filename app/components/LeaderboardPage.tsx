@@ -149,6 +149,14 @@ export default function LeaderboardPage({
   const [dailyWinners, setDailyWinners] = useState<WinnerDisplay[]>([])
   const [weeklyWinners, setWeeklyWinners] = useState<WinnerDisplay[]>([])
   const [loading, setLoading] = useState(true)
+  const [isMobile, setIsMobile] = useState(false)
+
+  useEffect(() => {
+    const handleResize = () => setIsMobile(window.innerWidth < 960)
+    handleResize()
+    window.addEventListener('resize', handleResize)
+    return () => window.removeEventListener('resize', handleResize)
+  }, [])
 
   console.log('Neynar API Key:', process.env.NEXT_PUBLIC_NEYNAR_API_KEY ? 'Loaded ✅' : 'Missing ❌')
 
@@ -397,8 +405,8 @@ export default function LeaderboardPage({
         >
           <div className="flex flex-col gap-3">
             {/* Header */}
-            <div className="rounded-2xl border-4 border-red-500 relative overflow-hidden bg-white">
-              <div className="relative w-full" style={{ height: '100px' }}>
+            <div className="rounded-2xl border-4 border-black relative overflow-hidden bg-white">
+              <div className="relative w-full" style={{ height: isMobile ? '88px' : '100px' }}>
                 <Image
                   src="/images/LeaderboardCard.png"
                   alt="LEADERBOARD - See who's winning the most VMF tokens!"
