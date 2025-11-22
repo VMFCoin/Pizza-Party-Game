@@ -1,18 +1,21 @@
+const sharedImage =
+  "https://u.cubeupload.com/vmfcoin/142097AF71F541259315.png"
+
 const manifest = {
   frame: {
     name: "Pizza Party",
     version: "1",
-    iconUrl: "https://u.cubeupload.com/vmfcoin/E49A4767F2074D3C9CE7.png",
+    iconUrl: sharedImage,
     homeUrl: "https://pizza-party-game.vmfcoin.com/",
-    imageUrl: "https://u.cubeupload.com/vmfcoin/E49A4767F2074D3C9CE7.png",
+    imageUrl: sharedImage,
     buttonTitle: "Play Pizza Party",
-    splashImageUrl: "https://u.cubeupload.com/vmfcoin/E49A4767F2074D3C9CE7.png",
+    splashImageUrl: sharedImage,
     splashBackgroundColor: "#dc2626",
-    webhookUrl: "https://u.cubeupload.com/vmfcoin/142097AF71F541259315.png",
+    webhookUrl: sharedImage,
     subtitle: "8 slices • 8 winners!",
     description: "Join the daily Pizza Party on Base. Spend 1 VMF to enter, collect toppings, and win gooey jackpots with friends.",
     screenshotUrls: [
-      "https://u.cubeupload.com/vmfcoin/E49A4767F2074D3C9CE7.png"
+      sharedImage
     ],
     primaryCategory: "games",
     tags: [
@@ -22,11 +25,11 @@ const manifest = {
       "game",
       "base"
     ],
-    heroImageUrl: "https://u.cubeupload.com/vmfcoin/142097AF71F541259315.png",
+    heroImageUrl: sharedImage,
     tagline: "The Cheesiest Way to Win.",
     ogTitle: "Pizza Party - Daily Jackpots",
     ogDescription: "Enter the Base Pizza Party with VMF, collect toppings, and win one of eight daily slices.",
-    ogImageUrl: "https://u.cubeupload.com/vmfcoin/142097AF71F541259315.png",
+    ogImageUrl: sharedImage,
     castShareUrl: "https://pizza-party-game.vmfcoin.com/share"
   },
   accountAssociation: {
