@@ -306,7 +306,7 @@ function GamePageContent({ onNavigateToWeekly, onNavigateToLeaderboard }: GamePa
       <div className="w-full max-w-sm flex flex-col items-center gap-4">
 
         {/* Header */}
-        <div className="bg-white/90 backdrop-blur-md rounded-2xl border-4 border-black relative overflow-hidden w-full mb-4">
+        <div className="bg-white/90 backdrop-blur-md rounded-2xl border-4 border-black relative overflow-hidden w-full" style={{ marginBottom: '8px' }}>
           <div className="relative w-full" style={{ paddingBottom: '35%', minHeight: '140px' }}>
             <Image
               src="/images/DailyCard.png"
