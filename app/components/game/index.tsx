@@ -7,7 +7,7 @@ import { Users, Share2, X } from 'lucide-react'
 import { useGamePageData } from '../../lib/useGamePageData'
 import { sdk } from '@farcaster/miniapp-sdk'
 
-const SHARE_BASE_URL = 'https://pizza-party-game.vmfcoin.com/ref/'
+const SHARE_BASE_URL = 'https://farcaster.xyz/miniapps/wgY6OPqYoIkz/pizza-party'
 
 const SOCIAL_ICONS = {
   warpcast: (
