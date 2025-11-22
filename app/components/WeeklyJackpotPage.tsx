@@ -27,18 +27,22 @@ const HOW_TO_WIN = [
   'More toppings = more tickets in the weekly draw',
 ]
 
-const TERMS = [
-  'Daily Game Rules: One entry per wallet per day. The 24-hour window resets at 12pm PST.',
-  'Daily Chances: Every entry has the same odds to win regardless of holdings.',
-  'Prerequisite to qualify: Wallet must hold VMF tokens to participate.',
-  'All winners split the jackpot equally each day.',
-  'Daily Jackpot: 8 winners selected randomly from that day’s players at 12pm PST; prizes auto-paid.',
-  'Weekly Jackpot: 10 winners selected with weighted odds based on toppings at Monday 12pm PST.',
-  'Toppings expire & refresh weekly—use them or lose them before the next claim window.',
-  'Topping Claim Window: Sunday 12pm PST through Monday 12pm PST.',
-  'Weekly Jackpot: Claim toppings before the window closes to be entered.',
-  'Weekly jackpot equals total toppings claimed (1 topping = 1 VMF).',
-]
+const TERMS = {
+  title: '🍕 Pizza Party Terms 🍕',
+  dailyGame: [
+    'Must hold VMF tokens to play',
+    'One entry per wallet per day (resets 12pm PST)',
+    'Equal odds for all players regardless of holdings',
+    '8 winners randomly selected daily at 12pm PST',
+    'Daily jackpot split equally among winners; prizes auto-paid',
+  ],
+  weeklyJackpot: [
+    'Claim toppings during Sunday 12pm–Monday 12pm PST to enter',
+    '10 winners selected Monday 12pm PST with odds weighted by toppings claimed',
+    'Total jackpot = total toppings claimed (1 topping = 1 VMF)',
+    'Unclaimed toppings expire weekly—claim or lose them',
+  ],
+}
 
 const PACIFIC_TZ = 'America/Los_Angeles'
 
@@ -293,17 +297,37 @@ export default function WeeklyJackpotPage({
 
           <Card className="border-4 border-yellow-600 rounded-2xl bg-white/95">
             <div className="p-3">
-              <p className="text-yellow-600 text-xl font-bold text-center mb-2" style={customFontStyle}>
-                📋 Terms
+              <p className="text-yellow-600 text-xl font-bold text-center mb-3" style={customFontStyle}>
+                {TERMS.title}
               </p>
-              <ul className="space-y-1.5 text-yellow-800 text-sm font-semibold">
-                {TERMS.map(item => (
-                  <li key={item} className="flex items-start gap-2">
-                    <span>🍅</span>
-                    <span>{item}</span>
-                  </li>
-                ))}
-              </ul>
+              
+              <div className="mb-4">
+                <p className="text-yellow-700 text-base font-bold mb-2" style={customFontStyle}>
+                  Daily Game
+                </p>
+                <ul className="space-y-1.5 text-yellow-800 text-sm font-semibold">
+                  {TERMS.dailyGame.map((item, idx) => (
+                    <li key={idx} className="flex items-start gap-2">
+                      <span>🍅</span>
+                      <span>{item}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+
+              <div>
+                <p className="text-yellow-700 text-base font-bold mb-2" style={customFontStyle}>
+                  Weekly Jackpot
+                </p>
+                <ul className="space-y-1.5 text-yellow-800 text-sm font-semibold">
+                  {TERMS.weeklyJackpot.map((item, idx) => (
+                    <li key={idx} className="flex items-start gap-2">
+                      <span>🍅</span>
+                      <span>{item}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
             </div>
           </Card>
           </div>
