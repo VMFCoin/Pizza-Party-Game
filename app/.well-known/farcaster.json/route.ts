@@ -1,17 +1,17 @@
-const sharedImage =
-  "https://u.cubeupload.com/vmfcoin/142097AF71F541259315.png"
 const heroImage =
   "https://u.cubeupload.com/vmfcoin/E49A4767F2074D3C9CE7.png"
+const sharedImage =
+  "https://u.cubeupload.com/vmfcoin/142097AF71F541259315.png"
 
 const manifest = {
   frame: {
     name: "Pizza Party",
     version: "1",
-    iconUrl: sharedImage,
+    iconUrl: heroImage,
     homeUrl: "https://pizza-party-game.vmfcoin.com/",
     imageUrl: sharedImage,
     buttonTitle: "Play Pizza Party",
-    splashImageUrl: sharedImage,
+    splashImageUrl: heroImage,
     splashBackgroundColor: "#dc2626",
     webhookUrl: sharedImage,
     subtitle: "8 slices • 8 winners!",
