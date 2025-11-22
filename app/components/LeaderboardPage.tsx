@@ -9,7 +9,7 @@ import { readContract } from '@wagmi/core'
 import { useAccount } from 'wagmi'
 import { PIZZA_PARTY_ADDRESS, PIZZA_PARTY_ABI } from '../lib/constants'
 import { wagmiConfig } from './config/wagmiConfig'
-import { enrichLeaderboardWithProfiles, FarcasterProfile, fetchProfilesByAddresses } from '../lib/farcasterProfiles'
+import { enrichLeaderboardWithProfiles, FarcasterProfile } from '../lib/farcasterProfiles'
 
 interface LeaderboardPageProps {
   onBack?: () => void
@@ -289,7 +289,7 @@ export default function LeaderboardPage({
     }
 
     fetchLeaderboardData()
-  }, [])
+  }, [address])
 
   // Removed testProfileFetch() to prevent unnecessary API calls
   // useEffect(() => {
