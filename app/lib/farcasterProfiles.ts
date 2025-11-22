@@ -83,7 +83,16 @@ export async function fetchProfilesByAddresses(addresses: string[]): Promise<Map
       )
 
       if (!response.ok) {
-        console.error('Neynar API error:', response.status)
+        if (response.status === 429) {
+          console.warn('Neynar rate limit hit, using cached data')
+          // Don't continue, break to prevent more requests
+          break
+        }
+        if (response.status === 404) {
+          console.warn('Neynar endpoint not found, check API version')
+          break
+        }
+        console.error('Neynar API error:', response.status, await response.text())
         continue
       }
 

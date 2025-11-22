@@ -291,19 +291,20 @@ export default function LeaderboardPage({
     fetchLeaderboardData()
   }, [])
 
-  useEffect(() => {
-    async function testProfileFetch() {
-      const testAddress = '0x1234567890123456789012345678901234567890'
-      try {
-        const profiles = await fetchProfilesByAddresses([testAddress])
-        console.log('Profile fetch test:', profiles)
-      } catch (error) {
-        console.error('Profile fetch failed:', error)
-      }
-    }
-
-    void testProfileFetch()
-  }, [])
+  // Removed testProfileFetch() to prevent unnecessary API calls
+  // useEffect(() => {
+  //   async function testProfileFetch() {
+  //     const testAddress = '0x1234567890123456789012345678901234567890'
+  //     try {
+  //       const profiles = await fetchProfilesByAddresses([testAddress])
+  //       console.log('Profile fetch test:', profiles)
+  //     } catch (error) {
+  //       console.error('Profile fetch failed:', error)
+  //     }
+  //   }
+  //
+  //   void testProfileFetch()
+  // }, [])
 
   const renderWinnerRow = (winner: WinnerDisplay, position: number) => {
     const style = getPositionStyle(position)
