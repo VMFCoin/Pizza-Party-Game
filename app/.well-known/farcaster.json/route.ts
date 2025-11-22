@@ -1,5 +1,7 @@
 const sharedImage =
   "https://u.cubeupload.com/vmfcoin/142097AF71F541259315.png"
+const heroImage =
+  "https://u.cubeupload.com/vmfcoin/E49A4767F2074D3C9CE7.png"
 
 const manifest = {
   frame: {
@@ -25,7 +27,7 @@ const manifest = {
       "game",
       "base"
     ],
-    heroImageUrl: sharedImage,
+    heroImageUrl: heroImage,
     tagline: "The Cheesiest Way to Win.",
     ogTitle: "Pizza Party - Daily Jackpots",
     ogDescription: "Enter the Base Pizza Party with VMF, collect toppings, and win one of eight daily slices.",
