@@ -107,8 +107,6 @@ export const PIZZA_PARTY_ABI = [
       { type: 'uint256', name: 'startTime' },
       { type: 'uint256', name: 'endTime' },
       { type: 'address', name: 'firstPlayer' },
-      { type: 'address[]', name: 'players' },
-      { type: 'address[]', name: 'winners' },
       { type: 'uint256', name: 'potAmount' },
       { type: 'bool', name: 'settled' }
     ]
@@ -139,8 +137,6 @@ export const PIZZA_PARTY_ABI = [
       { type: 'uint256', name: 'claimWindowStart' },
       { type: 'uint256', name: 'claimWindowEnd' },
       { type: 'uint256', name: 'totalClaimedToppings' },
-      { type: 'address[]', name: 'claimers' },
-      { type: 'address[]', name: 'winners' },
       { type: 'uint256', name: 'potAmount' },
       { type: 'bool', name: 'settled' }
     ]

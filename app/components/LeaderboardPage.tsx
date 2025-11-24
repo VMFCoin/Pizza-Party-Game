@@ -167,8 +167,6 @@ export default function LeaderboardPage({
     return () => window.removeEventListener('resize', handleResize)
   }, [])
 
-  console.log('Neynar API Key:', process.env.NEXT_PUBLIC_NEYNAR_API_KEY ? 'Loaded ✅' : 'Missing ❌')
-
   const navigateToDaily = useCallback(() => {
     if (onNavigateToDaily) {
       onNavigateToDaily()
@@ -236,7 +234,10 @@ export default function LeaderboardPage({
             functionName: 'dailyGames',
             args: [dailyGameIdToFetch],
             chainId: BASE_CHAIN_ID,
-          }).catch(() => null),
+          }).catch(err => {
+            console.error('dailyGames fetch failed', err)
+            return null
+          }),
           // Fetch historical weekly game data
           readContract(wagmiConfig, {
             address: PIZZA_PARTY_ADDRESS as `0x${string}`,
@@ -244,23 +245,27 @@ export default function LeaderboardPage({
             functionName: 'weeklyGames',
             args: [weeklyGameIdToFetch],
             chainId: BASE_CHAIN_ID,
-          }).catch(() => null),
+          }).catch(err => {
+            console.error('weeklyGames fetch failed', err)
+            return null
+          }),
         ])
 
         const dailyWinnerAddresses = (dailyWins as string[]) || []
         const weeklyWinnerAddresses = (weeklyWins as string[]) || []
         
         // Extract potAmount - wagmi returns objects with named properties
-        interface GameData {
-          potAmount: bigint
-          // Add other properties as needed
-        }
-        
-        const dailyGameData = dailyGameDataRaw as GameData | null
-        const weeklyGameData = weeklyGameDataRaw as GameData | null
-        
-        const dailyPotAmount = dailyGameData?.potAmount || 0n
-        const weeklyPotAmount = weeklyGameData?.potAmount || 0n
+        const dailyPotAmount = (() => {
+          if (!dailyGameDataRaw) return 0n
+          if (Array.isArray(dailyGameDataRaw)) return (dailyGameDataRaw[3] as bigint) || 0n
+          return (dailyGameDataRaw as { potAmount?: bigint }).potAmount || 0n
+        })()
+
+        const weeklyPotAmount = (() => {
+          if (!weeklyGameDataRaw) return 0n
+          if (Array.isArray(weeklyGameDataRaw)) return (weeklyGameDataRaw[3] as bigint) || 0n
+          return (weeklyGameDataRaw as { potAmount?: bigint }).potAmount || 0n
+        })()
 
         // Fetch lifetime stats for all winners
         const [dailyLifetimeStats, weeklyLifetimeStats] = await Promise.all([
@@ -428,7 +433,7 @@ export default function LeaderboardPage({
                   fill
                   className="object-cover"
                   priority
-                  sizes="100vw"
+                  sizes="(max-width: 768px) 100vw, 640px"
                   style={{ objectPosition: 'center 47.5%' }}
                 />
               </div>
