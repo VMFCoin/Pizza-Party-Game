@@ -100,6 +100,19 @@ export const PIZZA_PARTY_ABI = [
   },
   {
     type: 'function',
+    name: 'dailyGames',
+    stateMutability: 'view',
+    inputs: [{ type: 'uint256', name: 'gameId' }],
+    outputs: [
+      { type: 'uint256', name: 'startTime' },
+      { type: 'uint256', name: 'endTime' },
+      { type: 'address', name: 'firstPlayer' },
+      { type: 'uint256', name: 'potAmount' },
+      { type: 'bool', name: 'settled' }
+    ]
+  },
+  {
+    type: 'function',
     name: 'getPlayerWeeklyInfo',
     stateMutability: 'view',
     inputs: [{ type: 'address', name: 'player' }],
@@ -114,6 +127,19 @@ export const PIZZA_PARTY_ABI = [
         { type: 'uint256', name: 'projectedHoldingsBonus' }
       ]
     }]
+  },
+  {
+    type: 'function',
+    name: 'weeklyGames',
+    stateMutability: 'view',
+    inputs: [{ type: 'uint256', name: 'weekId' }],
+    outputs: [
+      { type: 'uint256', name: 'claimWindowStart' },
+      { type: 'uint256', name: 'claimWindowEnd' },
+      { type: 'uint256', name: 'totalClaimedToppings' },
+      { type: 'uint256', name: 'potAmount' },
+      { type: 'bool', name: 'settled' }
+    ]
   },
   { type: 'function', name: 'hasPlayedDailyGame', stateMutability: 'view', inputs: [{ type: 'address', name: 'player' }], outputs: [{ type: 'bool' }] },
   { type: 'function', name: 'isDailyGameReady', stateMutability: 'view', inputs: [], outputs: [{ type: 'bool' }] },
