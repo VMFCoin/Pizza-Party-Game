@@ -84,16 +84,21 @@ async function fetchLifetimeStatsForAddresses(addresses: string[]): Promise<Life
           address: PIZZA_PARTY_ADDRESS as `0x${string}`,
           abi: PIZZA_PARTY_ABI,
           functionName: 'getPlayerLifetimeStats',
-          args: [addr],
+          args: [addr as `0x${string}`],  // <-- Changed this line
           chainId: BASE_CHAIN_ID,
         })
 
-        // Contract returns: (totalDailyWins, totalWeeklyWins, totalVmfWon, lifetimeToppings, lifetimeReferrals)
-        // Type it as a tuple
-        const statsArray = stats as [bigint, bigint, bigint, bigint, bigint]
-
-        const totalWins = Number(statsArray[0]) + Number(statsArray[1]) // dailyWins + weeklyWins
-        const totalVmfWon = formatLifetimeVmf(statsArray[2]) // totalVmfWon at index 2
+        // Wagmi returns an object, not an array
+        const statsData = stats as {
+          totalDailyWins: bigint
+          totalWeeklyWins: bigint
+          totalVmfWon: bigint
+          lifetimeToppings: bigint
+          lifetimeReferrals: bigint
+        }
+        
+        const totalWins = Number(statsData.totalDailyWins) + Number(statsData.totalWeeklyWins)
+        const totalVmfWon = formatLifetimeVmf(statsData.totalVmfWon)
 
         return {
           totalWins,
@@ -209,7 +214,7 @@ export default function LeaderboardPage({
         const weeklyGameIdToFetch = currentWeeklyId > 1n ? currentWeeklyId - 1n : currentWeeklyId
 
         // Fetch winners and historical game data
-        const [dailyWins, weeklyWins, dailyGameData, weeklyGameData] = await Promise.all([
+        const [dailyWins, weeklyWins, dailyGameDataRaw, weeklyGameDataRaw] = await Promise.all([
           readContract(wagmiConfig, {
             address: PIZZA_PARTY_ADDRESS as `0x${string}`,
             abi: PIZZA_PARTY_ABI,
@@ -231,7 +236,7 @@ export default function LeaderboardPage({
             functionName: 'dailyGames',
             args: [dailyGameIdToFetch],
             chainId: BASE_CHAIN_ID,
-          }).catch(() => [0n, 0n, '0x0000000000000000000000000000000000000000', 0n, false]),
+          }).catch(() => null),
           // Fetch historical weekly game data
           readContract(wagmiConfig, {
             address: PIZZA_PARTY_ADDRESS as `0x${string}`,
@@ -239,20 +244,18 @@ export default function LeaderboardPage({
             functionName: 'weeklyGames',
             args: [weeklyGameIdToFetch],
             chainId: BASE_CHAIN_ID,
-          }).catch(() => [0n, 0n, 0n, 0n, false]),
+          }).catch(() => null),
         ])
 
         const dailyWinnerAddresses = (dailyWins as string[]) || []
         const weeklyWinnerAddresses = (weeklyWins as string[]) || []
         
-        // Extract potAmount from historical game data
-        // dailyGames returns: [startTime, endTime, firstPlayer, potAmount, settled]
-        // weeklyGames returns: [claimWindowStart, claimWindowEnd, totalClaimedToppings, potAmount, settled]
-        const dailyGameTuple = dailyGameData as [bigint, bigint, string, bigint, boolean]
-        const weeklyGameTuple = weeklyGameData as [bigint, bigint, bigint, bigint, boolean]
+        // Extract potAmount - wagmi returns objects with named properties
+        const dailyGameData = dailyGameDataRaw as any
+        const weeklyGameData = weeklyGameDataRaw as any
         
-        const dailyPotAmount = dailyGameTuple[3] // potAmount is at index 3
-        const weeklyPotAmount = weeklyGameTuple[3] // potAmount is at index 3
+        const dailyPotAmount = (dailyGameData?.potAmount as bigint) || 0n
+        const weeklyPotAmount = (weeklyGameData?.potAmount as bigint) || 0n
 
         // Fetch lifetime stats for all winners
         const [dailyLifetimeStats, weeklyLifetimeStats] = await Promise.all([
