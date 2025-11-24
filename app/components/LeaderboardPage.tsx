@@ -251,11 +251,16 @@ export default function LeaderboardPage({
         const weeklyWinnerAddresses = (weeklyWins as string[]) || []
         
         // Extract potAmount - wagmi returns objects with named properties
-        const dailyGameData = dailyGameDataRaw as any
-        const weeklyGameData = weeklyGameDataRaw as any
+        interface GameData {
+          potAmount: bigint
+          // Add other properties as needed
+        }
         
-        const dailyPotAmount = (dailyGameData?.potAmount as bigint) || 0n
-        const weeklyPotAmount = (weeklyGameData?.potAmount as bigint) || 0n
+        const dailyGameData = dailyGameDataRaw as GameData | null
+        const weeklyGameData = weeklyGameDataRaw as GameData | null
+        
+        const dailyPotAmount = dailyGameData?.potAmount || 0n
+        const weeklyPotAmount = weeklyGameData?.potAmount || 0n
 
         // Fetch lifetime stats for all winners
         const [dailyLifetimeStats, weeklyLifetimeStats] = await Promise.all([
