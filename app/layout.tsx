@@ -7,8 +7,9 @@ import './globals.css';
 const inter = Inter({ subsets: ['latin'] });
 
 export async function generateMetadata(): Promise<Metadata> {
-  const ogRelativePath = "/images/pizza-party-og.png"
-  const ogAbsolutePath = `https://pizza-party-game.vmfcoin.com${ogRelativePath}`
+  // Use the same image that Farcaster uses for consistency across all platforms
+  const ogAbsolutePath = "https://u.cubeupload.com/vmfcoin/142097AF71F541259315.png"
+  const ogRelativePath = ogAbsolutePath // Use absolute URL for all platforms
 
   return {
     title: 'Pizza Party',
@@ -25,7 +26,7 @@ export async function generateMetadata(): Promise<Metadata> {
       siteName: "Pizza Party",
       images: [
         {
-          url: ogRelativePath,
+          url: ogAbsolutePath,
           width: 1200,
           height: 630,
           alt: "Pizza Party - Win Daily Jackpots",
@@ -38,7 +39,7 @@ export async function generateMetadata(): Promise<Metadata> {
       card: "summary_large_image",
       title: "Pizza Party",
       description: "Win daily jackpots with Pizza Party! 🍕",
-      images: [ogRelativePath],
+      images: [ogAbsolutePath],
     },
     other: {
       'fc:miniapp': JSON.stringify({
