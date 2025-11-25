@@ -336,19 +336,24 @@ export default function LeaderboardPage({
     isPlaceholder: boolean 
   }) => {
     const [imageError, setImageError] = useState(false)
+    const [currentPfpUrl, setCurrentPfpUrl] = useState<string | undefined>(pfpUrl)
     
-    // Reset error state when pfpUrl changes
+    // Update currentPfpUrl and reset error when pfpUrl changes
     useEffect(() => {
-      setImageError(false)
-    }, [pfpUrl])
+      if (pfpUrl !== currentPfpUrl) {
+        setCurrentPfpUrl(pfpUrl)
+        setImageError(false)
+      }
+    }, [pfpUrl, currentPfpUrl])
     
-    const shouldShowImage = !isPlaceholder && pfpUrl && !imageError
+    const shouldShowImage = !isPlaceholder && currentPfpUrl && !imageError
 
     return (
       <div className="w-9 h-9 rounded-full bg-gray-200 border-2 border-gray-300 flex items-center justify-center overflow-hidden">
         {shouldShowImage ? (
           <Image
-            src={pfpUrl}
+            key={currentPfpUrl} // Force re-render when URL changes
+            src={currentPfpUrl}
             alt="Profile"
             width={36}
             height={36}
@@ -374,7 +379,6 @@ export default function LeaderboardPage({
 
     return (
       <div
-        key={winner.address}
         className={`flex items-center justify-between p-2 rounded-xl border-2 ${style.bg} ${style.border} shadow-md`}
       >
         <div className="flex items-center gap-2 flex-1">
@@ -502,7 +506,11 @@ export default function LeaderboardPage({
                   </p>
                 ) : (
                   <div className="space-y-3">
-                    {dailyWinners.map((winner, index) => renderWinnerRow(winner, index + 1))}
+                    {dailyWinners.map((winner, index) => (
+                      <div key={`daily-${winner.address}-${index}`}>
+                        {renderWinnerRow(winner, index + 1)}
+                      </div>
+                    ))}
                   </div>
                 )}
               </div>
@@ -534,7 +542,11 @@ export default function LeaderboardPage({
                   </p>
                 ) : (
                   <div className="space-y-3">
-                    {weeklyWinners.map((winner, index) => renderWinnerRow(winner, index + 1))}
+                    {weeklyWinners.map((winner, index) => (
+                      <div key={`weekly-${winner.address}-${index}`}>
+                        {renderWinnerRow(winner, index + 1)}
+                      </div>
+                    ))}
                   </div>
                 )}
               </div>

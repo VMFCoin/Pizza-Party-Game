@@ -42,8 +42,9 @@ function ContextProvider({
     <OnchainKitProvider
       apiKey={process.env.NEXT_PUBLIC_ONCHAINKIT_API_KEY}
       chain={base}
-      config={{ appearance: { mode: 'auto' }, wallet: { display: 'classic' } }}
-      miniKit={{ enabled: true, autoConnect: true, notificationProxyUrl: undefined }}
+      config={{ 
+        appearance: { mode: 'auto' }, 
+      }}
     >
       <WagmiProvider config={wagmiAdapter.wagmiConfig as Config} initialState={initialState}>
         <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
