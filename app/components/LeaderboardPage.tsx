@@ -412,10 +412,10 @@ export default function LeaderboardPage({
               </span>
             ) : (
               <>
-                <span className="text-xs text-gray-600" style={customFontStyle}>
+                <span className="text-xs text-gray-600" style={{ ...customFontStyle, whiteSpace: 'nowrap' }}>
                   Lifetime wins: {winner.lifetimeWins}
                 </span>
-                <span className="text-xs text-gray-600" style={customFontStyle}>
+                <span className="text-xs text-gray-600" style={{ ...customFontStyle, whiteSpace: 'nowrap' }}>
                   {winner.lifetimeVmfWon} VMF
                 </span>
               </>
