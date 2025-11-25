@@ -482,14 +482,14 @@ export default function LeaderboardPage({
                 <div className="flex items-center justify-center gap-1 mb-1 text-center">
                   <span className="text-2xl">🎯</span>
                   <h2
-                    className="text-blue-700 text-2xl font-bold text-center"
-                    style={{ ...customFontStyle, fontSize: 'clamp(20px, 8vw, 28px)' }}
+                    className="text-2xl font-bold text-center"
+                    style={{ ...customFontStyle, fontSize: 'clamp(20px, 8vw, 28px)', color: '#16a34a' }}
                   >
                     DAILY WINNERS
                   </h2>
                   <span className="text-2xl">🎯</span>
                 </div>
-                <p className="text-blue-600 text-base font-semibold mb-2 text-center" style={customFontStyle}>
+                <p className="text-base font-semibold mb-2 text-center" style={{ ...customFontStyle, color: '#16a34a' }}>
                   Today&apos;s 8 lucky winners
                 </p>
                 {loading ? (
@@ -514,14 +514,14 @@ export default function LeaderboardPage({
                 <div className="flex items-center justify-center gap-2 mb-2 text-center">
                   <span className="text-2xl">🍕</span>
                   <h2
-                    className="text-purple-700 text-2xl font-bold text-center"
-                    style={{ ...customFontStyle, fontSize: 'clamp(20px, 8vw, 28px)' }}
+                    className="text-2xl font-bold text-center"
+                    style={{ ...customFontStyle, fontSize: 'clamp(20px, 8vw, 28px)', color: '#16a34a' }}
                   >
                     WEEKLY WINNERS
                   </h2>
                   <span className="text-2xl">🍕</span>
                 </div>
-                <p className="text-purple-600 text-base font-semibold mb-4 text-center" style={customFontStyle}>
+                <p className="text-base font-semibold mb-4 text-center" style={{ ...customFontStyle, color: '#16a34a' }}>
                   This week&apos;s top 10 champions
                 </p>
                 {loading ? (
