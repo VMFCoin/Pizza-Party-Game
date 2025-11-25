@@ -325,6 +325,48 @@ export default function LeaderboardPage({
   //   void testProfileFetch()
   // }, [])
 
+  // Profile picture component with error handling - always shows fallback if image fails
+  const ProfilePicture = ({ 
+    pfpUrl, 
+    address, 
+    isPlaceholder 
+  }: { 
+    pfpUrl?: string
+    address: string
+    isPlaceholder: boolean 
+  }) => {
+    const [imageError, setImageError] = useState(false)
+    
+    // Reset error state when pfpUrl changes
+    useEffect(() => {
+      setImageError(false)
+    }, [pfpUrl])
+    
+    const shouldShowImage = !isPlaceholder && pfpUrl && !imageError
+
+    return (
+      <div className="w-9 h-9 rounded-full bg-gray-200 border-2 border-gray-300 flex items-center justify-center overflow-hidden">
+        {shouldShowImage ? (
+          <Image
+            src={pfpUrl}
+            alt="Profile"
+            width={36}
+            height={36}
+            className="object-cover"
+            unoptimized
+            onError={() => setImageError(true)}
+          />
+        ) : (
+          <div className="w-full h-full flex items-center justify-center text-gray-600 text-xs font-bold">
+            {isPlaceholder
+              ? '⏳'
+              : address.slice(2, 4).toUpperCase()}
+          </div>
+        )}
+      </div>
+    )
+  }
+
   const renderWinnerRow = (winner: WinnerDisplay, position: number) => {
     const style = getPositionStyle(position)
     const isPlaceholder = !!winner.isPlaceholder
@@ -342,26 +384,12 @@ export default function LeaderboardPage({
               {position}.
             </span>
           </div>
-          <div className="w-9 h-9 rounded-full bg-gray-200 border-2 border-gray-300 flex items-center justify-center overflow-hidden">
-            {!isPlaceholder && winner.farcasterProfile?.pfpUrl ? (
-              <Image
-                src={winner.farcasterProfile.pfpUrl}
-                alt={winner.farcasterProfile.username || 'Profile'}
-                width={36}
-                height={36}
-                className="object-cover"
-                onError={e => {
-                  e.currentTarget.style.display = 'none'
-                }}
-              />
-            ) : (
-              <div className="w-full h-full flex items-center justify-center text-gray-600 text-xs font-bold">
-                {isPlaceholder
-                  ? '⏳'
-                  : winner.address.slice(2, 4).toUpperCase()}
-              </div>
-            )}
-          </div>
+          <ProfilePicture
+            key={`${winner.address}-${winner.farcasterProfile?.pfpUrl || 'no-pfp'}`}
+            pfpUrl={winner.farcasterProfile?.pfpUrl}
+            address={winner.address}
+            isPlaceholder={isPlaceholder}
+          />
           <div className="flex flex-col">
             <span
               className={`font-bold text-base ${isPlaceholder ? 'text-gray-500' : isCurrentUser ? 'text-red-600' : style.textColor}`}
@@ -378,11 +406,20 @@ export default function LeaderboardPage({
                 {winner.farcasterProfile.displayName}
               </span>
             )}
-            <span className="text-xs text-gray-600" style={customFontStyle}>
-              {isPlaceholder
-                ? 'Awaiting winner…'
-                : `Lifetime wins: ${winner.lifetimeWins} | ${winner.lifetimeVmfWon} VMF`}
-            </span>
+            {isPlaceholder ? (
+              <span className="text-xs text-gray-600" style={customFontStyle}>
+                Awaiting winner…
+              </span>
+            ) : (
+              <>
+                <span className="text-xs text-gray-600" style={customFontStyle}>
+                  Lifetime wins: {winner.lifetimeWins}
+                </span>
+                <span className="text-xs text-gray-600" style={customFontStyle}>
+                  {winner.lifetimeVmfWon} VMF
+                </span>
+              </>
+            )}
           </div>
         </div>
         <div className="text-right">
