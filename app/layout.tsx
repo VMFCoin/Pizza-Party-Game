@@ -9,7 +9,6 @@ const inter = Inter({ subsets: ['latin'] });
 export async function generateMetadata(): Promise<Metadata> {
   // Use the same image that Farcaster uses for consistency across all platforms
   const ogAbsolutePath = "https://u.cubeupload.com/vmfcoin/142097AF71F541259315.png"
-  const ogRelativePath = ogAbsolutePath // Use absolute URL for all platforms
 
   return {
     title: 'Pizza Party',
