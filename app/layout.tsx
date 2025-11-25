@@ -41,6 +41,7 @@ export async function generateMetadata(): Promise<Metadata> {
       images: [ogAbsolutePath],
     },
     other: {
+      // Farcaster manifest
       'fc:miniapp': JSON.stringify({
         version: 'next',
         imageUrl: ogAbsolutePath,
@@ -54,6 +55,14 @@ export async function generateMetadata(): Promise<Metadata> {
             splashBackgroundColor: "#DC2626",
           },
         },
+      }),
+      // Base manifest (ADD THIS)
+      'miniapp:manifest': JSON.stringify({
+        name: 'Pizza Party',
+        iconUrl: ogAbsolutePath,
+        splashImageUrl: ogAbsolutePath,
+        splashBackgroundColor: '#DC2626',
+        homeUrl: 'https://pizza-party-game.vmfcoin.com',
       }),
     },
   };
