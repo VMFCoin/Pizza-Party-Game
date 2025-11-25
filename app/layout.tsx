@@ -63,6 +63,9 @@ export async function generateMetadata(): Promise<Metadata> {
         splashImageUrl: ogAbsolutePath,
         splashBackgroundColor: '#DC2626',
         homeUrl: 'https://pizza-party-game.vmfcoin.com',
+        baseBuilder: {
+          ownerAddress: '0x12e31f706010AE0996A2D8247c432d9102e3c871',
+        },
       }),
     },
   };
