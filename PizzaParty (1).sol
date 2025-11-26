@@ -144,6 +144,12 @@ contract PizzaParty is Ownable, ReentrancyGuard {
     }
     
     function _enterDaily(address player, string memory referralCode) internal {
+        // Auto-settle weekly game if the claim window has ended
+        WeeklyGame storage week = weeklyGames[weeklyGameId];
+        if (block.timestamp >= week.claimWindowEnd && !week.settled) {
+            _settleWeeklyGame(weeklyGameId);
+        }
+        
         uint256 gameId = dailyGameId;
         DailyGame storage game = dailyGames[gameId];
         
