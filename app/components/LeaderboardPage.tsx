@@ -583,20 +583,20 @@ export default function LeaderboardPage({
             {/* How to Get on the Leaderboard */}
             <Card className="border-4 border-red-500 rounded-2xl bg-white/95">
               <div className="p-3">
-                <p className="text-red-600 text-xl font-bold text-center mb-2" style={customFontStyle}>
-                  🍕 How to Get on the Leaderboard 🍕
+                <p
+                  className="text-red-600 text-xl font-bold mb-2"
+                  style={{ ...customFontStyle, textAlign: 'center' }}
+                >
+                  How to Get on the Leaderboard
                 </p>
                 <ul className="space-y-1.5 text-red-700 text-sm font-semibold">
                   <li className="flex items-start gap-2">
-                    <span>🍅</span>
                     <span>Daily Winners: 8 players randomly selected every day at 12pm PST</span>
                   </li>
                   <li className="flex items-start gap-2">
-                    <span>🍅</span>
                     <span>Weekly Winners: 10 random players selected with weighted probability based on claimed toppings</span>
                   </li>
                   <li className="flex items-start gap-2">
-                    <span>🍅</span>
                     <span>Earn More Toppings: Play daily, refer friends, and hold VMF tokens!</span>
                   </li>
                 </ul>
