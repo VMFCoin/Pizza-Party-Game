@@ -76,6 +76,16 @@ function formatLifetimeVmf(amount: bigint): string {
   return (Number(amount) / 1e18).toFixed(1)
 }
 
+function sortByLifetimeStats(list: WinnerDisplay[]): WinnerDisplay[] {
+  return [...list].sort((a, b) => {
+    if (b.lifetimeWins !== a.lifetimeWins) return b.lifetimeWins - a.lifetimeWins
+    const aVmf = parseFloat(a.lifetimeVmfWon || '0')
+    const bVmf = parseFloat(b.lifetimeVmfWon || '0')
+    if (bVmf !== aVmf) return bVmf - aVmf
+    return 0
+  })
+}
+
 async function fetchLifetimeStatsForAddresses(addresses: string[]): Promise<LifetimeStatsResult[]> {
   return Promise.all(
     addresses.map(async addr => {
@@ -120,7 +130,6 @@ function getPositionStyle(position: number) {
     return {
       bg: 'bg-gradient-to-r from-yellow-400 to-yellow-500',
       border: 'border-yellow-600',
-      icon: '💰',
       textColor: 'text-yellow-900',
     }
   }
@@ -128,7 +137,6 @@ function getPositionStyle(position: number) {
     return {
       bg: 'bg-gradient-to-r from-gray-300 to-gray-400',
       border: 'border-gray-500',
-      icon: '💰',
       textColor: 'text-gray-800',
     }
   }
@@ -136,14 +144,12 @@ function getPositionStyle(position: number) {
     return {
       bg: 'bg-gradient-to-r from-orange-400 to-orange-500',
       border: 'border-orange-600',
-      icon: '💰',
       textColor: 'text-orange-900',
     }
   }
   return {
     bg: 'bg-white',
     border: 'border-gray-300',
-    icon: '💰',
     textColor: 'text-gray-800',
   }
 }
@@ -229,22 +235,22 @@ export default function LeaderboardPage({
           }).catch(() => [] as string[]),
           // Fetch historical daily game data
           readContract(wagmiConfig, {
-            address: PIZZA_PARTY_ADDRESS as `0x${string}`,
-            abi: PIZZA_PARTY_ABI,
+                  address: PIZZA_PARTY_ADDRESS as `0x${string}`,
+                  abi: PIZZA_PARTY_ABI,
             functionName: 'dailyGames',
             args: [dailyGameIdToFetch],
-            chainId: BASE_CHAIN_ID,
+                  chainId: BASE_CHAIN_ID,
           }).catch(err => {
             console.error('dailyGames fetch failed', err)
             return null
           }),
           // Fetch historical weekly game data
           readContract(wagmiConfig, {
-            address: PIZZA_PARTY_ADDRESS as `0x${string}`,
-            abi: PIZZA_PARTY_ABI,
+                  address: PIZZA_PARTY_ADDRESS as `0x${string}`,
+                  abi: PIZZA_PARTY_ABI,
             functionName: 'weeklyGames',
             args: [weeklyGameIdToFetch],
-            chainId: BASE_CHAIN_ID,
+                  chainId: BASE_CHAIN_ID,
           }).catch(err => {
             console.error('weeklyGames fetch failed', err)
             return null
@@ -281,6 +287,7 @@ export default function LeaderboardPage({
           lifetimeWins: dailyLifetimeStats[idx]?.totalWins || 0,
           lifetimeVmfWon: dailyLifetimeStats[idx]?.totalVmfWon || '0.0',
         }))
+        const dailySorted = sortByLifetimeStats(dailyBase)
 
         // Build weekly winners display data
         const weeklyBase: WinnerDisplay[] = weeklyWinnerAddresses.map((addr, idx) => ({
@@ -290,10 +297,11 @@ export default function LeaderboardPage({
           lifetimeWins: weeklyLifetimeStats[idx]?.totalWins || 0,
           lifetimeVmfWon: weeklyLifetimeStats[idx]?.totalVmfWon || '0.0',
         }))
+        const weeklySorted = sortByLifetimeStats(weeklyBase)
 
         const [enrichedDaily, enrichedWeekly] = await Promise.all([
-          enrichLeaderboardWithProfiles(dailyBase, address),
-          enrichLeaderboardWithProfiles(weeklyBase, address),
+          enrichLeaderboardWithProfiles(dailySorted, address),
+          enrichLeaderboardWithProfiles(weeklySorted, address),
         ])
 
         setDailyWinners(padWinners(enrichedDaily, 8, 'daily'))
@@ -383,7 +391,6 @@ export default function LeaderboardPage({
       >
         <div className="flex items-center gap-2 flex-1">
           <div className="flex items-center gap-1 min-w-[40px]">
-            <span className="text-2xl">{style.icon}</span>
             <span className={`text-lg font-bold ${style.textColor}`} style={customFontStyle}>
               {position}.
             </span>
@@ -488,9 +495,9 @@ export default function LeaderboardPage({
                   <h2
                     className="text-2xl font-bold text-center"
                     style={{ ...customFontStyle, fontSize: 'clamp(20px, 8vw, 28px)', color: '#16a34a' }}
-                  >
-                    DAILY WINNERS
-                  </h2>
+                >
+                  DAILY WINNERS
+                </h2>
                   <span className="text-2xl">🎯</span>
                 </div>
                 <p className="text-base font-semibold mb-2 text-center" style={{ ...customFontStyle, color: '#16a34a' }}>
@@ -524,9 +531,9 @@ export default function LeaderboardPage({
                   <h2
                     className="text-2xl font-bold text-center"
                     style={{ ...customFontStyle, fontSize: 'clamp(20px, 8vw, 28px)', color: '#16a34a' }}
-                  >
-                    WEEKLY WINNERS
-                  </h2>
+                >
+                  WEEKLY WINNERS
+                </h2>
                   <span className="text-2xl">🍕</span>
                 </div>
                 <p className="text-base font-semibold mb-4 text-center" style={{ ...customFontStyle, color: '#16a34a' }}>
