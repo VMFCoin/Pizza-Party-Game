@@ -39,6 +39,11 @@ contract PizzaParty is Ownable, ReentrancyGuard {
     uint256 public constant DAILY_WINNERS = 8;
     uint256 public constant WEEKLY_WINNERS = 10;
     uint256 public constant FIRST_PLAYER_BONUS_BPS = 100; // 1% = 100 basis points
+    uint256 public constant CHARITY_TOTAL_BPS = 300; // 3% = 300 basis points
+    uint256 public constant MARKETING_BPS = 200; // 2% = 200 basis points
+    uint256 public constant PLAYERS_POOL_BPS = 9400; // 94% = 9400 basis points
+    uint256 public constant BPS_DENOMINATOR = 10000;
+    uint256 public constant MAX_CHARITIES = 20;
     uint256 public constant MAX_REFERRALS_PER_WEEK = 3;
     uint256 public constant HOLDINGS_UNIT = 10000e18; // 10k VMF
     uint256 public constant HOLDINGS_TOPPINGS = 3; // per unit
@@ -48,6 +53,8 @@ contract PizzaParty is Ownable, ReentrancyGuard {
     
     IERC20 public immutable vmfToken;
     address public treasuryWallet;
+    address public marketingWallet;
+    address[] public charityWallets;
     
     uint256 public dailyGameId = 1;
     uint256 public weeklyGameId = 1;
@@ -113,15 +120,36 @@ contract PizzaParty is Ownable, ReentrancyGuard {
     event WeeklyGameSettled(uint256 indexed weekId, address[] winners, uint256 pot);
     event ReferralCodeCreated(address indexed player, string code);
     event ReferralUsed(address indexed referrer, address indexed referee);
+    event CharityPayout(uint256 indexed gameId, address indexed charity, uint256 amount);
+    event MarketingPayout(uint256 indexed gameId, address indexed recipient, uint256 amount);
+    event CharityWalletsUpdated(address[] oldCharities, address[] newCharities);
+    event MarketingWalletUpdated(address indexed oldWallet, address indexed newWallet);
     
     // ============ Constructor ============
     
-    constructor(address _vmfToken, address _treasury) Ownable(msg.sender) {
+    constructor(
+        address _vmfToken,
+        address _treasury,
+        address _marketing,
+        address[] memory _charities
+    ) Ownable(msg.sender) {
         require(_vmfToken != address(0), "Invalid VMF");
         require(_treasury != address(0), "Invalid treasury");
-        
+        require(_marketing != address(0), "Invalid marketing");
+        require(_charities.length <= MAX_CHARITIES, "Too many charities");
+
+        // Validate charity addresses and ensure uniqueness
+        for (uint256 i = 0; i < _charities.length; i++) {
+            require(_charities[i] != address(0), "Invalid charity");
+            for (uint256 j = i + 1; j < _charities.length; j++) {
+                require(_charities[i] != _charities[j], "Duplicate charity");
+            }
+        }
+
         vmfToken = IERC20(_vmfToken);
         treasuryWallet = _treasury;
+        marketingWallet = _marketing;
+        charityWallets = _charities;
         
         _initializeDailyGame(dailyGameId);
         _initializeWeeklyGame(weeklyGameId);
@@ -232,38 +260,62 @@ contract PizzaParty is Ownable, ReentrancyGuard {
         uint256 pot = currentDailyPot;
         uint256 winnerCount = game.players.length < DAILY_WINNERS ? game.players.length : DAILY_WINNERS;
         
-        // Calculate first player bonus (1% of pot)
-        uint256 firstPlayerBonus = (pot * FIRST_PLAYER_BONUS_BPS) / 10000;
-        uint256 remainingPot = pot - firstPlayerBonus;
-        
+        // Calculate allocations
+        uint256 firstPlayerBonus = (pot * FIRST_PLAYER_BONUS_BPS) / BPS_DENOMINATOR;
+        uint256 charityTotal = (pot * CHARITY_TOTAL_BPS) / BPS_DENOMINATOR;
+        uint256 marketingFee = (pot * MARKETING_BPS) / BPS_DENOMINATOR;
+        uint256 playersPool = (pot * PLAYERS_POOL_BPS) / BPS_DENOMINATOR;
+
+        uint256 totalAllocated = firstPlayerBonus + charityTotal + marketingFee + playersPool;
+        uint256 dust = pot > totalAllocated ? pot - totalAllocated : 0;
+
         // Select winners randomly
         address[] memory winners = _selectRandomWinners(game.players, winnerCount, gameId);
-        
-        // Calculate payouts
-        uint256 baseShare = remainingPot / winnerCount;
-        uint256[] memory winnerPayouts = new uint256[](winnerCount);
 
-        // Pay first player bonus
+        // 1. Pay first player bonus
         if (firstPlayerBonus > 0 && game.firstPlayer != address(0)) {
             vmfToken.safeTransfer(game.firstPlayer, firstPlayerBonus);
             playerStats[game.firstPlayer].totalVmfWon += firstPlayerBonus;
         }
 
-        // Pay winners
-        for (uint256 i = 0; i < winnerCount; i++) {
-            uint256 payout = baseShare;
-            if (baseShare > 0) {
-                vmfToken.safeTransfer(winners[i], baseShare);
+        // 2. Pay charities equally (first charity gets remainder)
+        if (charityTotal > 0 && charityWallets.length > 0) {
+            uint256 charityShare = charityTotal / charityWallets.length;
+            uint256 charityRemainder = charityTotal - (charityShare * charityWallets.length);
+            for (uint256 i = 0; i < charityWallets.length; i++) {
+                uint256 payment = charityShare;
+                if (i == 0) payment += charityRemainder;
+                if (payment > 0) {
+                    vmfToken.safeTransfer(charityWallets[i], payment);
+                    emit CharityPayout(gameId, charityWallets[i], payment);
+                }
             }
-            winnerPayouts[i] = payout;
         }
 
-        // Handle remainder (dust)
-        uint256 totalPaid = firstPlayerBonus + (baseShare * winnerCount);
-        if (pot > totalPaid) {
-            uint256 dust = pot - totalPaid;
-            vmfToken.safeTransfer(winners[0], dust);
-            winnerPayouts[0] += dust;
+        // 3. Pay marketing wallet
+        if (marketingFee > 0 && marketingWallet != address(0)) {
+            vmfToken.safeTransfer(marketingWallet, marketingFee);
+            emit MarketingPayout(gameId, marketingWallet, marketingFee);
+        }
+
+        // 4. Pay winners from players pool (first winner gets remainder)
+        uint256 winnerShare = playersPool / winnerCount;
+        uint256 playersRemainder = playersPool - (winnerShare * winnerCount);
+        uint256[] memory winnerPayouts = new uint256[](winnerCount);
+
+        for (uint256 i = 0; i < winnerCount; i++) {
+            uint256 payout = winnerShare;
+            if (i == 0) payout += playersRemainder;
+            if (payout > 0) {
+                vmfToken.safeTransfer(winners[i], payout);
+                winnerPayouts[i] = payout;
+            }
+        }
+
+        // 5. Send any remaining dust to marketing wallet
+        if (dust > 0 && marketingWallet != address(0)) {
+            vmfToken.safeTransfer(marketingWallet, dust);
+            emit MarketingPayout(gameId, marketingWallet, dust);
         }
 
         game.winners = winners;
@@ -763,6 +815,62 @@ contract PizzaParty is Ownable, ReentrancyGuard {
     function setTreasuryWallet(address _treasury) external onlyOwner {
         require(_treasury != address(0), "Invalid treasury");
         treasuryWallet = _treasury;
+    }
+
+    function setMarketingWallet(address _marketing) external onlyOwner {
+        require(_marketing != address(0), "Invalid marketing");
+        address oldWallet = marketingWallet;
+        marketingWallet = _marketing;
+        emit MarketingWalletUpdated(oldWallet, _marketing);
+    }
+
+    function setCharityWallets(address[] memory _charities) external onlyOwner {
+        require(_charities.length <= MAX_CHARITIES, "Too many charities");
+
+        for (uint256 i = 0; i < _charities.length; i++) {
+            require(_charities[i] != address(0), "Invalid charity address");
+            for (uint256 j = i + 1; j < _charities.length; j++) {
+                require(_charities[i] != _charities[j], "Duplicate charity");
+            }
+        }
+
+        address[] memory oldCharities = new address[](charityWallets.length);
+        for (uint256 i = 0; i < charityWallets.length; i++) {
+            oldCharities[i] = charityWallets[i];
+        }
+
+        charityWallets = _charities;
+        emit CharityWalletsUpdated(oldCharities, _charities);
+    }
+
+    function addCharityWallet(address _charity) external onlyOwner {
+        require(_charity != address(0), "Invalid charity");
+        require(charityWallets.length < MAX_CHARITIES, "Max charities reached");
+
+        for (uint256 i = 0; i < charityWallets.length; i++) {
+            require(charityWallets[i] != _charity, "Charity already exists");
+        }
+
+        address[] memory oldCharities = new address[](charityWallets.length);
+        for (uint256 i = 0; i < charityWallets.length; i++) {
+            oldCharities[i] = charityWallets[i];
+        }
+
+        charityWallets.push(_charity);
+        emit CharityWalletsUpdated(oldCharities, charityWallets);
+    }
+
+    function removeCharityWallet(uint256 index) external onlyOwner {
+        require(index < charityWallets.length, "Invalid index");
+
+        address[] memory oldCharities = new address[](charityWallets.length);
+        for (uint256 i = 0; i < charityWallets.length; i++) {
+            oldCharities[i] = charityWallets[i];
+        }
+
+        charityWallets[index] = charityWallets[charityWallets.length - 1];
+        charityWallets.pop();
+        emit CharityWalletsUpdated(oldCharities, charityWallets);
     }
     
     function emergencyWithdraw() external onlyOwner {
