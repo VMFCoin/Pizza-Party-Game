@@ -46,12 +46,12 @@ export async function sendNotifications({
           }),
         });
 
-        let parsed: unknown = null;
+        const raw = await response.text();
+        let parsed: unknown = raw;
         try {
-          parsed = await response.json();
+          parsed = JSON.parse(raw);
         } catch {
-          const text = await response.text();
-          parsed = { raw: text };
+          parsed = { raw };
         }
 
         results.push({
