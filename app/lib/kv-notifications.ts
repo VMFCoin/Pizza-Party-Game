@@ -34,9 +34,14 @@ export async function storeNotificationToken(
 export async function getNotificationToken(
   fid: number
 ): Promise<NotificationToken | null> {
-  const data = await redis.get<string>(`notification:${fid}`);
+  const data = await redis.get(`notification:${fid}`);
   if (!data) return null;
-  return JSON.parse(data);
+  
+  // Handle if data is already an object or needs parsing
+  if (typeof data === 'string') {
+    return JSON.parse(data);
+  }
+  return data as NotificationToken;
 }
 
 // Disable notifications for a user
@@ -60,22 +65,43 @@ export async function removeNotificationToken(fid: number): Promise<void> {
 
 // Get all enabled notification tokens
 export async function getAllEnabledTokens(): Promise<Array<{ token: string; url: string }>> {
-  const keys = await redis.keys('notification:*');
-  const tokens: Array<{ token: string; url: string }> = [];
-  
-  for (const key of keys) {
-    const data = await redis.get<string>(key);
-    if (data) {
-      const parsed: NotificationToken = JSON.parse(data);
-      if (parsed.enabled) {
-        tokens.push({
-          token: parsed.token,
-          url: parsed.url,
-        });
+  try {
+    const keys = await redis.keys('notification:*');
+    console.log(`Found ${keys.length} notification keys in Redis`);
+    
+    const tokens: Array<{ token: string; url: string }> = [];
+    
+    for (const key of keys) {
+      try {
+        const data = await redis.get(key);
+        console.log(`Raw data for ${key}:`, typeof data, data);
+        
+        let parsed: NotificationToken;
+        
+        if (typeof data === 'string') {
+          parsed = JSON.parse(data);
+        } else if (data && typeof data === 'object') {
+          parsed = data as NotificationToken;
+        } else {
+          console.warn(`Skipping invalid data for key ${key}`);
+          continue;
+        }
+        
+        if (parsed.enabled && parsed.token && parsed.url) {
+          tokens.push({
+            token: parsed.token,
+            url: parsed.url,
+          });
+        }
+      } catch (error) {
+        console.error(`Error processing key ${key}:`, error);
       }
     }
+    
+    console.log(`Returning ${tokens.length} enabled tokens`);
+    return tokens;
+  } catch (error) {
+    console.error('Error in getAllEnabledTokens:', error);
+    return [];
   }
-  
-  return tokens;
 }
-
