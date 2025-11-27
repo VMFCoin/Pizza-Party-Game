@@ -591,13 +591,16 @@ export default function LeaderboardPage({
                 </p>
                 <ul className="space-y-1.5 text-red-700 text-sm font-semibold">
                   <li className="flex items-start gap-2">
+                    <span>🍅</span>
                     <span>Daily Winners: 8 players randomly selected every day at 12pm PST</span>
                   </li>
                   <li className="flex items-start gap-2">
+                    <span>🍅</span>
                     <span>Weekly Winners: 10 random players selected with weighted probability based on claimed toppings</span>
                   </li>
                   <li className="flex items-start gap-2">
-                    <span>Earn More Toppings: Play daily, refer friends, and hold VMF tokens!</span>
+                    <span>🍅</span>
+                    <span>Earn More Toppings: Play daily, refer friends, and hold VMF coins!</span>
                   </li>
                 </ul>
               </div>

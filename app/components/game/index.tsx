@@ -146,6 +146,8 @@ function GamePageContent({ onNavigateToWeekly, onNavigateToLeaderboard }: GamePa
   const [showReferralInput, setShowReferralInput] = useState(false)
   const [shareCopied, setShareCopied] = useState(false)
   const [showShareModal, setShowShareModal] = useState(false)
+  const [isFarcasterMiniApp, setIsFarcasterMiniApp] = useState(false)
+  const [isBaseInApp, setIsBaseInApp] = useState(false)
 
   useEffect(() => {
     const checkMobile = () => {
@@ -156,6 +158,32 @@ function GamePageContent({ onNavigateToWeekly, onNavigateToLeaderboard }: GamePa
     window.addEventListener('resize', checkMobile)
     
     return () => window.removeEventListener('resize', checkMobile)
+  }, [])
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    let mounted = true
+    const ua = navigator.userAgent || ''
+    const isMobileUA = /Android|iPhone|iPad|iPod/i.test(ua)
+    const baseRegex = /(BaseWallet|Base Wallet|BaseApp|Base App|CoinbaseWallet)/i
+
+    const detectFarcaster = async () => {
+      try {
+        const inMiniApp = typeof sdk.isInMiniApp === 'function' ? await sdk.isInMiniApp() : false
+        if (mounted && inMiniApp) setIsFarcasterMiniApp(true)
+      } catch (err) {
+        console.debug('Miniapp detection failed', err)
+      }
+    }
+
+    if (isMobileUA && baseRegex.test(ua)) {
+      setIsBaseInApp(true)
+    }
+
+    detectFarcaster()
+    return () => {
+      mounted = false
+    }
   }, [])
 
   const {
@@ -292,6 +320,8 @@ function GamePageContent({ onNavigateToWeekly, onNavigateToLeaderboard }: GamePa
       setShowShareModal(false)
     }
   }
+
+  const shouldShowManageWallet = wallet?.isAuthenticated && wallet?.address && !(isFarcasterMiniApp || isBaseInApp)
 
   return (
     <main
@@ -526,7 +556,7 @@ function GamePageContent({ onNavigateToWeekly, onNavigateToLeaderboard }: GamePa
           </Button>
 
           {/* Manage Wallet Button (when connected) */}
-          {wallet?.isAuthenticated && wallet?.address && (
+          {shouldShowManageWallet && (
             <Button
               className="!bg-green-600 hover:!bg-green-700 text-white font-bold py-2 rounded-xl border-4 border-green-800 w-full uppercase"
               style={{ ...customFontStyle, fontSize: isMobile ? 18 : 20 }}
