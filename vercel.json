@@ -1,0 +1,13 @@
+{
+  "crons": [
+    {
+      "path": "/api/cron/daily-reminder",
+      "schedule": "0 0 * * *"
+    },
+    {
+      "path": "/api/cron/toppings-reminder",
+      "schedule": "0 20 * * 0"
+    }
+  ]
+}
+

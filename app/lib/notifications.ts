@@ -1,0 +1,66 @@
+export async function sendNotifications({
+  tokens,
+  title,
+  body,
+  targetUrl,
+  notificationId,
+}: {
+  tokens: Array<{ token: string; url: string }>;
+  title: string;
+  body: string;
+  targetUrl: string;
+  notificationId: string;
+}) {
+  // Group tokens by URL
+  const tokensByUrl = tokens.reduce((acc, t) => {
+    if (!acc[t.url]) acc[t.url] = [];
+    acc[t.url].push(t.token);
+    return acc;
+  }, {} as Record<string, string[]>);
+
+  const results = [];
+
+  // Send to each URL in batches of 100
+  for (const [url, tokenList] of Object.entries(tokensByUrl)) {
+    for (let i = 0; i < tokenList.length; i += 100) {
+      const batch = tokenList.slice(i, i + 100);
+
+      try {
+        const response = await fetch(url, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            notificationId: notificationId.slice(0, 128),
+            title: title.slice(0, 32),
+            body: body.slice(0, 128),
+            targetUrl,
+            tokens: batch,
+          }),
+        });
+
+        const result = await response.json();
+        
+        results.push({
+          success: response.ok,
+          status: response.status,
+          batchSize: batch.length,
+          result,
+        });
+
+        console.log(`Sent to ${batch.length} tokens:`, result);
+      } catch (error) {
+        console.error('Notification send error:', error);
+        results.push({ 
+          success: false, 
+          error: error instanceof Error ? error.message : 'Unknown error',
+          batchSize: batch.length 
+        });
+      }
+    }
+  }
+
+  return results;
+}
+

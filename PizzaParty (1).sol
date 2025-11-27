@@ -21,14 +21,14 @@ import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
  * - Claim window: Sunday 12pm PST → Monday 12pm PST (24 hours)
  * - VMF balance snapshot taken at claim time (not at window opening)
  * - Players claim toppings once per week during window
- * - 1 topping = 1 VMF in jackpot
+ * - 1 topping = 10 VMF in jackpot
  * - 10 winners, weighted by claimed toppings
  * - Paid from treasury wallet
  * 
  * Toppings earned:
  * - Daily play: 1 topping (max 7/week)
  * - Referrals: 2 toppings per successful referral (max 3/week)
- * - Holdings: 3 toppings per 10k VMF held (snapshot at claim time)
+ * - Holdings: 3 toppings per 1k VMF held (snapshot at claim time)
  */
 contract PizzaParty is Ownable, ReentrancyGuard {
     using SafeERC20 for IERC20;
@@ -38,22 +38,30 @@ contract PizzaParty is Ownable, ReentrancyGuard {
     uint256 public constant ENTRY_FEE = 100e18; // 100 VMF = $1
     uint256 public constant DAILY_WINNERS = 8;
     uint256 public constant WEEKLY_WINNERS = 10;
+    // Daily pot split (100% total):
+    // - 1%  → FIRST_PLAYER_BONUS_BPS (first player bonus)
+    // - 5%  → CHARITY_TOTAL_BPS (charity distribution)
+    // - 94% → PLAYERS_POOL_BPS (distributed equally among winners)
+    // NOTE: All percentages are expressed in basis points (BPS), where 10000 = 100%.
+    // Daily pot split (100% total):
+    // - 1%  → FIRST_PLAYER_BONUS_BPS (first player bonus)
+    // - 5%  → CHARITY_TOTAL_BPS (charity distribution)
+    // - 94% → PLAYERS_POOL_BPS (distributed equally among winners)
+    // NOTE: All percentages are expressed in basis points (BPS), where 10000 = 100%.
     uint256 public constant FIRST_PLAYER_BONUS_BPS = 100; // 1% = 100 basis points
-    uint256 public constant CHARITY_TOTAL_BPS = 300; // 3% = 300 basis points
-    uint256 public constant MARKETING_BPS = 200; // 2% = 200 basis points
+    uint256 public constant CHARITY_TOTAL_BPS = 500; // 5% = 500 basis points
     uint256 public constant PLAYERS_POOL_BPS = 9400; // 94% = 9400 basis points
     uint256 public constant BPS_DENOMINATOR = 10000;
     uint256 public constant MAX_CHARITIES = 20;
     uint256 public constant MAX_REFERRALS_PER_WEEK = 3;
-    uint256 public constant HOLDINGS_UNIT = 10000e18; // 10k VMF
+    uint256 public constant HOLDINGS_UNIT = 1000e18; // 1k VMF
     uint256 public constant HOLDINGS_TOPPINGS = 3; // per unit
-    uint256 public constant TOPPING_TO_VMF = 1e18; // 1 topping = 1 VMF
+    uint256 public constant TOPPING_TO_VMF = 10e18; // 1 topping = 10 VMF
     
     // ============ State Variables ============
     
     IERC20 public immutable vmfToken;
     address public treasuryWallet;
-    address public marketingWallet;
     address[] public charityWallets;
     
     uint256 public dailyGameId = 1;
@@ -121,21 +129,17 @@ contract PizzaParty is Ownable, ReentrancyGuard {
     event ReferralCodeCreated(address indexed player, string code);
     event ReferralUsed(address indexed referrer, address indexed referee);
     event CharityPayout(uint256 indexed gameId, address indexed charity, uint256 amount);
-    event MarketingPayout(uint256 indexed gameId, address indexed recipient, uint256 amount);
     event CharityWalletsUpdated(address[] oldCharities, address[] newCharities);
-    event MarketingWalletUpdated(address indexed oldWallet, address indexed newWallet);
     
     // ============ Constructor ============
     
     constructor(
         address _vmfToken,
         address _treasury,
-        address _marketing,
         address[] memory _charities
     ) Ownable(msg.sender) {
         require(_vmfToken != address(0), "Invalid VMF");
         require(_treasury != address(0), "Invalid treasury");
-        require(_marketing != address(0), "Invalid marketing");
         require(_charities.length <= MAX_CHARITIES, "Too many charities");
 
         // Validate charity addresses and ensure uniqueness
@@ -148,7 +152,6 @@ contract PizzaParty is Ownable, ReentrancyGuard {
 
         vmfToken = IERC20(_vmfToken);
         treasuryWallet = _treasury;
-        marketingWallet = _marketing;
         charityWallets = _charities;
         
         _initializeDailyGame(dailyGameId);
@@ -263,10 +266,9 @@ contract PizzaParty is Ownable, ReentrancyGuard {
         // Calculate allocations
         uint256 firstPlayerBonus = (pot * FIRST_PLAYER_BONUS_BPS) / BPS_DENOMINATOR;
         uint256 charityTotal = (pot * CHARITY_TOTAL_BPS) / BPS_DENOMINATOR;
-        uint256 marketingFee = (pot * MARKETING_BPS) / BPS_DENOMINATOR;
         uint256 playersPool = (pot * PLAYERS_POOL_BPS) / BPS_DENOMINATOR;
 
-        uint256 totalAllocated = firstPlayerBonus + charityTotal + marketingFee + playersPool;
+        uint256 totalAllocated = firstPlayerBonus + charityTotal + playersPool;
         uint256 dust = pot > totalAllocated ? pot - totalAllocated : 0;
 
         // Select winners randomly
@@ -292,13 +294,7 @@ contract PizzaParty is Ownable, ReentrancyGuard {
             }
         }
 
-        // 3. Pay marketing wallet
-        if (marketingFee > 0 && marketingWallet != address(0)) {
-            vmfToken.safeTransfer(marketingWallet, marketingFee);
-            emit MarketingPayout(gameId, marketingWallet, marketingFee);
-        }
-
-        // 4. Pay winners from players pool (first winner gets remainder)
+        // 3. Pay winners from players pool (first winner gets remainder)
         uint256 winnerShare = playersPool / winnerCount;
         uint256 playersRemainder = playersPool - (winnerShare * winnerCount);
         uint256[] memory winnerPayouts = new uint256[](winnerCount);
@@ -312,10 +308,10 @@ contract PizzaParty is Ownable, ReentrancyGuard {
             }
         }
 
-        // 5. Send any remaining dust to marketing wallet
-        if (dust > 0 && marketingWallet != address(0)) {
-            vmfToken.safeTransfer(marketingWallet, dust);
-            emit MarketingPayout(gameId, marketingWallet, dust);
+        // 5. Send any remaining dust to players (winner #1)
+        if (dust > 0 && winnerCount > 0) {
+            vmfToken.safeTransfer(winners[0], dust);
+            winnerPayouts[0] += dust;
         }
 
         game.winners = winners;
@@ -371,7 +367,7 @@ contract PizzaParty is Ownable, ReentrancyGuard {
     }
     
     /**
-     * @dev Calculate holdings bonus: 3 toppings per 10k VMF
+     * @dev Calculate holdings bonus: 3 toppings per 1k VMF
      */
     function _calculateHoldingsBonus(address player) internal view returns (uint256) {
         uint256 balance = vmfToken.balanceOf(player);
@@ -406,7 +402,7 @@ contract PizzaParty is Ownable, ReentrancyGuard {
             return;
         }
         
-        // Jackpot = total claimed toppings × 1 VMF
+        // Jackpot = total claimed toppings × 10 VMF
         uint256 jackpot = week.totalClaimedToppings * TOPPING_TO_VMF;
         
         // Pull from treasury
@@ -815,13 +811,6 @@ contract PizzaParty is Ownable, ReentrancyGuard {
     function setTreasuryWallet(address _treasury) external onlyOwner {
         require(_treasury != address(0), "Invalid treasury");
         treasuryWallet = _treasury;
-    }
-
-    function setMarketingWallet(address _marketing) external onlyOwner {
-        require(_marketing != address(0), "Invalid marketing");
-        address oldWallet = marketingWallet;
-        marketingWallet = _marketing;
-        emit MarketingWalletUpdated(oldWallet, _marketing);
     }
 
     function setCharityWallets(address[] memory _charities) external onlyOwner {

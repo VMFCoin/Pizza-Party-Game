@@ -111,3 +111,5 @@ temp/
 # Foundry artifacts
 foundry/cache
 foundry/out
+
+/app/generated/prisma

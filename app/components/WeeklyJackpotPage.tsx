@@ -28,7 +28,7 @@ const HOW_TO_WIN = [
 ]
 
 const TERMS = {
-  title: '🍕 Pizza Party Terms 🍕',
+  title: 'Pizza Party Terms',
   dailyGame: [
     'Must hold VMF tokens to play',
     'One entry per wallet per day (resets 12pm PST)',
@@ -282,7 +282,7 @@ export default function WeeklyJackpotPage({
           <Card className="border-4 border-red-500 rounded-2xl bg-white/95">
             <div className="p-3">
               <p className="text-red-600 text-xl font-bold text-center mb-2" style={customFontStyle}>
-                🍕 How to Win Toppings 🍕
+                How to Win Toppings
               </p>
               <ul className="space-y-1.5 text-red-700 text-sm font-semibold">
                 {HOW_TO_WIN.map(item => (
