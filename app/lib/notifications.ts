@@ -11,6 +11,11 @@ export async function sendNotifications({
   targetUrl: string;
   notificationId: string;
 }) {
+  const appToken = process.env.FARCASTER_APP_TOKEN;
+  if (!appToken) {
+    throw new Error('Missing FARCASTER_APP_TOKEN env var for notification auth');
+  }
+
   // Group tokens by URL
   const tokensByUrl = tokens.reduce((acc, t) => {
     if (!acc[t.url]) acc[t.url] = [];
@@ -30,6 +35,7 @@ export async function sendNotifications({
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
+            Authorization: `Bearer ${appToken}`,
           },
           body: JSON.stringify({
             notificationId: notificationId.slice(0, 128),
@@ -40,16 +46,22 @@ export async function sendNotifications({
           }),
         });
 
-        const result = await response.json();
-        
+        let parsed: unknown = null;
+        try {
+          parsed = await response.json();
+        } catch {
+          const text = await response.text();
+          parsed = { raw: text };
+        }
+
         results.push({
           success: response.ok,
           status: response.status,
           batchSize: batch.length,
-          result,
+          result: parsed,
         });
 
-        console.log(`Sent to ${batch.length} tokens:`, result);
+        console.log(`Sent to ${batch.length} tokens:`, parsed);
       } catch (error) {
         console.error('Notification send error:', error);
         results.push({ 
@@ -63,4 +75,3 @@ export async function sendNotifications({
 
   return results;
 }
-
