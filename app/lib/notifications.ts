@@ -47,12 +47,7 @@ export async function sendNotifications({
         });
 
         const raw = await response.text();
-        let parsed: unknown = raw;
-        try {
-          parsed = JSON.parse(raw);
-        } catch {
-          parsed = { raw };
-        }
+        const parsed: unknown = raw && raw.length ? raw : null;
 
         results.push({
           success: response.ok,
