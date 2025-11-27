@@ -3,6 +3,7 @@ import { Inter } from "next/font/google";
 import { headers } from 'next/headers';
 import ContextProvider from './context';
 import './globals.css';
+import AutoEnableNotifications from './components/AutoEnableNotifications';
 
 const inter = Inter({ subsets: ['latin'] });
 
@@ -83,6 +84,7 @@ export default async function RootLayout({
     <ContextProvider cookies={cookies}>
       <html lang="en">
         <body className={inter.className}>
+          <AutoEnableNotifications />
           {children}
         </body>
       </html>
