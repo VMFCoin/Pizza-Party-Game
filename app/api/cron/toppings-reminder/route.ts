@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getAllEnabledTokens } from '@/lib/kv-notifications';
-import { sendNotifications } from '@/lib/notifications';
+import { getAllEnabledTokens } from '../../../lib/kv-notifications';
+import { sendNotifications } from '../../../lib/notifications';
 
 export async function GET(request: NextRequest) {
   // Verify this is from Vercel Cron
@@ -50,4 +50,3 @@ export async function GET(request: NextRequest) {
     }, { status: 500 });
   }
 }
-

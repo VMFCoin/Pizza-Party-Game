@@ -3,7 +3,7 @@ import {
   storeNotificationToken,
   disableNotifications,
   removeNotificationToken,
-} from '@/lib/kv-notifications';
+} from '../../../lib/kv-notifications';
 
 export async function POST(request: NextRequest) {
   try {
@@ -40,4 +40,3 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Internal error' }, { status: 500 });
   }
 }
-
