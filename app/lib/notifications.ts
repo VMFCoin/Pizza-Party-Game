@@ -46,17 +46,27 @@ export async function sendNotifications({
           }),
         });
 
-        const raw = await response.text();
-        const parsed: unknown = raw && raw.length ? raw : null;
+        // Try to parse as JSON, but handle non-JSON responses gracefully
+        const contentType = response.headers.get('content-type') || '';
+        let result: unknown;
+        if (contentType.includes('application/json')) {
+          try {
+            result = await response.json();
+          } catch {
+            result = await response.text();
+          }
+        } else {
+          result = await response.text();
+        }
 
         results.push({
           success: response.ok,
           status: response.status,
           batchSize: batch.length,
-          result: parsed,
+          result,
         });
 
-        console.log(`Sent to ${batch.length} tokens:`, parsed);
+        console.log(`Sent to ${batch.length} tokens (status ${response.status}):`, result);
       } catch (error) {
         console.error('Notification send error:', error);
         results.push({ 
