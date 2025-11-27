@@ -4,8 +4,14 @@ import { sendNotifications } from '@/lib/notifications';
 
 export async function GET(request: NextRequest) {
   // Verify this is from Vercel Cron
+  const cronHeader = request.headers.get('x-vercel-cron');
   const authHeader = request.headers.get('authorization');
-  if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
+  
+  // Allow either Vercel's cron header or manual Authorization header
+  const isVercelCron = cronHeader === '1';
+  const isAuthorized = authHeader === `Bearer ${process.env.CRON_SECRET}`;
+  
+  if (!isVercelCron && !isAuthorized) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
