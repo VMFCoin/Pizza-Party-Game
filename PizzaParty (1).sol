@@ -43,11 +43,6 @@ contract PizzaParty is Ownable, ReentrancyGuard {
     // - 5%  → CHARITY_TOTAL_BPS (charity distribution)
     // - 94% → PLAYERS_POOL_BPS (distributed equally among winners)
     // NOTE: All percentages are expressed in basis points (BPS), where 10000 = 100%.
-    // Daily pot split (100% total):
-    // - 1%  → FIRST_PLAYER_BONUS_BPS (first player bonus)
-    // - 5%  → CHARITY_TOTAL_BPS (charity distribution)
-    // - 94% → PLAYERS_POOL_BPS (distributed equally among winners)
-    // NOTE: All percentages are expressed in basis points (BPS), where 10000 = 100%.
     uint256 public constant FIRST_PLAYER_BONUS_BPS = 100; // 1% = 100 basis points
     uint256 public constant CHARITY_TOTAL_BPS = 500; // 5% = 500 basis points
     uint256 public constant PLAYERS_POOL_BPS = 9400; // 94% = 9400 basis points
