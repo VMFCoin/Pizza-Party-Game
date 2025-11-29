@@ -1,7 +1,7 @@
 const heroImage =
-  "https://u.cubeupload.com/vmfcoin/E49A4767F2074D3C9CE7.png"
+  "https://i.postimg.cc/Y2bLKkdC/E49A4767-F207-4D3C-9CE7-226129385659.png"
 const sharedImage =
-  "https://u.cubeupload.com/vmfcoin/142097AF71F541259315.png"
+  "https://i.postimg.cc/DyrDyj4j/OGimage.png"
 
 const manifest = {
   frame: {
