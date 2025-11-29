@@ -15,7 +15,7 @@ const manifest = {
     splashBackgroundColor: "#dc2626",
     webhookUrl: "https://pizza-party-game.vmfcoin.com/api/farcaster/webhook",
     subtitle: "8 slices • 8 winners!",
-    description: "Join the daily Pizza Party on Base. Spend $1 VMF to enter, collect toppings, and win gooey jackpots with friends.",
+    description: "Join the daily Pizza Party on Base. Spend VMF to enter, collect toppings, and win gooey jackpots with friends.",
     screenshotUrls: [
       sharedImage
     ],
