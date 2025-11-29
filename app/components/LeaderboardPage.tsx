@@ -561,14 +561,14 @@ export default function LeaderboardPage({
 
             {/* Action Buttons */}
             <Button
-              className="w-full !bg-green-600 hover:!bg-green-700 text-white font-bold py-2.5 rounded-xl border-4 border-green-800 uppercase"
-              style={{ ...customFontStyle, fontSize: 20 }}
-              onClick={navigateToDaily}
-            >
-              <span style={{ fontSize: '24px', marginRight: '4px' }}>🍕</span>
-              START PLAYING
-              <span style={{ fontSize: '24px', marginLeft: '4px' }}>🍕</span>
-            </Button>
+            className="w-full !bg-green-600 hover:!bg-green-700 text-white font-bold py-2.5 rounded-xl border-4 border-green-800 uppercase"
+            style={{ ...customFontStyle, fontSize: 20 }}
+            onClick={navigateToDaily}
+          >
+            <span style={{ fontSize: '24px', marginRight: '4px' }}>🍕</span>
+            GRAB A SLICE
+            <span style={{ fontSize: '24px', marginLeft: '4px' }}>🍕</span>
+          </Button>
 
             <Button
               className="w-full !bg-yellow-500 hover:!bg-yellow-600 text-white font-bold py-2.5 rounded-xl border-4 border-yellow-800 uppercase"

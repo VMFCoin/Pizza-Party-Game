@@ -260,7 +260,7 @@ export default function WeeklyJackpotPage({
             style={{ ...customFontStyle, fontSize: 20 }}
             onClick={onNavigateToDaily}
           >
-            🍕 START PLAYING 🍕
+            🍕 GRAB A SLICE 🍕
           </Button>
 
           <Button
