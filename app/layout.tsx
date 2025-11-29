@@ -28,16 +28,16 @@ export async function generateMetadata(): Promise<Metadata> {
       siteName: "Pizza Party",
       images: [
         {
-          url: fallbackOgImage,
+          url: remoteOgImage,
           width: 1200,
           height: 630,
           alt: "Pizza Party - Win Daily Jackpots",
         },
         {
-          url: remoteOgImage,
+          url: fallbackOgImage,
           width: 1200,
           height: 630,
-          alt: "Pizza Party - Win Daily Jackpots (Alt)",
+          alt: "Pizza Party - Win Daily Jackpots",
         },
       ],
       locale: "en_US",
@@ -47,20 +47,20 @@ export async function generateMetadata(): Promise<Metadata> {
       card: "summary_large_image",
       title: "Pizza Party",
       description: "Win daily jackpots with Pizza Party! 🍕",
-      images: [fallbackOgImage, remoteOgImage],
+      images: [remoteOgImage, fallbackOgImage],
     },
     other: {
       // Farcaster manifest
       'fc:miniapp': JSON.stringify({
         version: 'next',
-        imageUrl: fallbackOgImage,
+        imageUrl: remoteOgImage,
         button: {
           title: `Play Pizza Party`,
           action: {
             type: 'launch_miniapp',
             name: 'Pizza Party',
             url: siteBaseUrl,
-            splashImageUrl: fallbackOgImage,
+            splashImageUrl: remoteOgImage,
             splashBackgroundColor: "#DC2626",
           },
         },
@@ -68,8 +68,8 @@ export async function generateMetadata(): Promise<Metadata> {
       // Base manifest (ADD THIS)
       'miniapp:manifest': JSON.stringify({
         name: 'Pizza Party',
-        iconUrl: fallbackOgImage,
-        splashImageUrl: fallbackOgImage,
+        iconUrl: remoteOgImage,
+        splashImageUrl: remoteOgImage,
         splashBackgroundColor: '#DC2626',
         homeUrl: siteBaseUrl,
         baseBuilder: {

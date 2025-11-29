@@ -226,7 +226,7 @@ export default function HomePage() {
                 className="w-full !bg-green-600 hover:!bg-green-700 text-white py-3 px-6 rounded-xl border-4 border-green-900 shadow-lg transform hover:scale-105 transition-all touch-manipulation"
                 style={{ ...customFontStyle, letterSpacing: "1px", fontSize: isMobile ? 18 : 20, fontWeight: '900' }}
               >
-                🍕 START PLAYING 🍕
+                🍕 GRAB A SLICE 🍕
               </Button>
 
               <Button
