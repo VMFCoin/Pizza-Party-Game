@@ -8,8 +8,10 @@ import AutoEnableNotifications from './components/AutoEnableNotifications';
 const inter = Inter({ subsets: ['latin'] });
 
 export async function generateMetadata(): Promise<Metadata> {
-  // Use the same image that Farcaster uses for consistency across all platforms
-  const ogAbsolutePath = "https://u.cubeupload.com/vmfcoin/142097AF71F541259315.png"
+  // Serve OG imagery from our own host to avoid third-party outages.
+  const siteBaseUrl = "https://pizza-party-game.vmfcoin.com"
+  const fallbackOgImage = `${siteBaseUrl}/images/OGimage.png`
+  const remoteOgImage = "https://u.cubeupload.com/vmfcoin/142097AF71F541259315.png"
 
   return {
     title: 'Pizza Party',
@@ -22,14 +24,20 @@ export async function generateMetadata(): Promise<Metadata> {
     openGraph: {
       title: "Pizza Party",
       description: "Win daily jackpots with Pizza Party! 🍕",
-      url: "https://pizza-party-game.vmfcoin.com",
+      url: siteBaseUrl,
       siteName: "Pizza Party",
       images: [
         {
-          url: ogAbsolutePath,
+          url: fallbackOgImage,
           width: 1200,
           height: 630,
           alt: "Pizza Party - Win Daily Jackpots",
+        },
+        {
+          url: remoteOgImage,
+          width: 1200,
+          height: 630,
+          alt: "Pizza Party - Win Daily Jackpots (Alt)",
         },
       ],
       locale: "en_US",
@@ -39,20 +47,20 @@ export async function generateMetadata(): Promise<Metadata> {
       card: "summary_large_image",
       title: "Pizza Party",
       description: "Win daily jackpots with Pizza Party! 🍕",
-      images: [ogAbsolutePath],
+      images: [fallbackOgImage, remoteOgImage],
     },
     other: {
       // Farcaster manifest
       'fc:miniapp': JSON.stringify({
         version: 'next',
-        imageUrl: ogAbsolutePath,
+        imageUrl: fallbackOgImage,
         button: {
           title: `Play Pizza Party`,
           action: {
             type: 'launch_miniapp',
             name: 'Pizza Party',
-            url: 'https://pizza-party-game.vmfcoin.com',
-            splashImageUrl: ogAbsolutePath,
+            url: siteBaseUrl,
+            splashImageUrl: fallbackOgImage,
             splashBackgroundColor: "#DC2626",
           },
         },
@@ -60,10 +68,10 @@ export async function generateMetadata(): Promise<Metadata> {
       // Base manifest (ADD THIS)
       'miniapp:manifest': JSON.stringify({
         name: 'Pizza Party',
-        iconUrl: ogAbsolutePath,
-        splashImageUrl: ogAbsolutePath,
+        iconUrl: fallbackOgImage,
+        splashImageUrl: fallbackOgImage,
         splashBackgroundColor: '#DC2626',
-        homeUrl: 'https://pizza-party-game.vmfcoin.com',
+        homeUrl: siteBaseUrl,
         baseBuilder: {
           ownerAddress: '0x12e31f706010AE0996A2D8247c432d9102e3c871',
         },
