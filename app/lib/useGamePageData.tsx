@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { toZonedTime, fromZonedTime } from 'date-fns-tz'
-import { parseAbiItem, parseEther } from 'viem'
+import { parseAbiItem, maxUint256 } from 'viem'
 import { readContract, watchBlockNumber, getPublicClient } from '@wagmi/core'
 import { useAccount, useChainId, useWriteContract } from 'wagmi'
 import { useAppKit } from '@reown/appkit/react'
@@ -607,7 +607,7 @@ export function useGamePageData() {
         address: VMF_TOKEN_ADDRESS as `0x${string}`,
         abi: VMF_TOKEN_ABI,
         functionName: 'approve',
-        args: [PIZZA_PARTY_ADDRESS as `0x${string}`, parseEther('100000000')],
+        args: [PIZZA_PARTY_ADDRESS as `0x${string}`, maxUint256],
       })
       
       console.log('✅ Approval transaction submitted')
