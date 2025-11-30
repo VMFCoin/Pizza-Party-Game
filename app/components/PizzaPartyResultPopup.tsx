@@ -60,7 +60,11 @@ export function PizzaPartyResultPopup() {
           abi: PIZZA_PARTY_ABI,
           functionName: 'dailyGames',
           args: [lastSettledGameId],
-        }) as any
+        }) as {
+          settled: boolean
+          potAmount: bigint
+          firstPlayer?: `0x${string}`
+        }
 
         if (!gameData.settled) {
           setHasChecked(true)

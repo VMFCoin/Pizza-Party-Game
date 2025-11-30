@@ -968,7 +968,7 @@ export function useGamePageData() {
       
       alert(`Failed to enter game: ${errorMessage}`)
     }
-  }, [wallet.isAuthenticated, wallet.address, writeContract, networkId, checkStatus, fetchPlayerInfo, playerInfo, hasEnteredToday, needsApproval, refreshDaily, fetchVmfBalance, fetchWeekly, vmfBalance, entryFeeWei, hasEnoughVMF])
+  }, [wallet.isAuthenticated, wallet.address, writeContract, networkId, checkStatus, fetchPlayerInfo, playerInfo, hasEnteredToday, needsApproval, refreshDaily, fetchVmfBalance, fetchWeekly, vmfBalance, entryFeeWei, hasEnoughVMF, fetchPlayerLifetimeStats])
 
   const openWalletModal = useCallback(() => open(), [open])
 
