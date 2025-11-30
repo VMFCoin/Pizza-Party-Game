@@ -17,14 +17,6 @@ export function PizzaPartyResultPopup() {
   const [vmfWon, setVmfWon] = useState('0.00')
   const [hasChecked, setHasChecked] = useState(false)
 
-  type DailyGameStruct = {
-    startTime: bigint
-    endTime: bigint
-    firstPlayer: `0x${string}`
-    potAmount: bigint
-    settled: boolean
-  }
-
   useEffect(() => {
     if (!isConnected || !address || hasChecked) return
 
@@ -68,7 +60,7 @@ export function PizzaPartyResultPopup() {
           abi: PIZZA_PARTY_ABI,
           functionName: 'dailyGames',
           args: [lastSettledGameId],
-        }) as DailyGameStruct
+        }) as any
 
         if (!gameData.settled) {
           setHasChecked(true)
@@ -87,19 +79,88 @@ export function PizzaPartyResultPopup() {
         )
 
         if (userIsWinner) {
-          const pot = gameData.potAmount as bigint
-          const playersPool = (pot * 9400n) / 10000n
-          const numberOfWinners = BigInt(winners.length || 1)
-          const winnerShare = playersPool / numberOfWinners
-          const remainder = playersPool - (winnerShare * numberOfWinners)
-          const isFirstWinner = winners[0]?.toLowerCase() === address.toLowerCase()
+          // ============================================================
+          // Use before/after snapshot for EXACT amount won
+          // ============================================================
+          
+          const beforeKey = `pizza_party_vmf_before_game_${lastSettledGameId}`
+          const beforeVmfStr = typeof window !== 'undefined' ? localStorage.getItem(beforeKey) : null
 
-          let userPayout = winnerShare
-          if (isFirstWinner) {
-            userPayout += remainder
+          let actualWonAmount = 0n
+
+          if (beforeVmfStr) {
+            // We have a before snapshot - get after snapshot
+            try {
+              const playerStats = await readContract(config, {
+                address: PIZZA_PARTY_ADDRESS as `0x${string}`,
+                abi: PIZZA_PARTY_ABI,
+                functionName: 'getPlayerLifetimeStats',
+                args: [address as `0x${string}`],
+              }) as readonly [bigint, bigint, bigint, bigint, bigint] | {
+                totalDailyWins: bigint
+                totalWeeklyWins: bigint
+                totalVmfWon: bigint
+                lifetimeToppings: bigint
+                lifetimeReferrals: bigint
+              }
+
+              const afterTotalVmf = Array.isArray(playerStats)
+                ? playerStats[2]
+                : (playerStats as { totalVmfWon: bigint }).totalVmfWon
+
+              const beforeTotalVmf = BigInt(beforeVmfStr)
+              actualWonAmount = afterTotalVmf - beforeTotalVmf
+
+              console.log('✅ EXACT win amount from contract stats:', {
+                before: (Number(beforeTotalVmf) / 1e18).toFixed(2),
+                after: (Number(afterTotalVmf) / 1e18).toFixed(2),
+                wonThisGame: (Number(actualWonAmount) / 1e18).toFixed(2),
+              })
+            } catch (statsErr) {
+              console.error('Failed to get after stats:', statsErr)
+              // Will fall through to calculation fallback
+            }
+          }
+          
+          if (!beforeVmfStr || actualWonAmount === 0n) {
+            // Fallback: calculate from game data
+            console.warn('⚠️ No before snapshot or failed to get stats - using calculation fallback')
+            
+            const pot = gameData.potAmount as bigint
+            const playersPool = (pot * 9400n) / 10000n
+            const numberOfWinners = BigInt(winners.length || 1)
+            const baseWinnerShare = playersPool / numberOfWinners
+            const playersRemainder = playersPool - (baseWinnerShare * numberOfWinners)
+
+            const userIndex = winners.findIndex((w: string) => w.toLowerCase() === address.toLowerCase())
+
+            actualWonAmount = baseWinnerShare
+            if (userIndex === 0) {
+              actualWonAmount += playersRemainder
+            }
+
+            // First player bonus (1%)
+            if (gameData.firstPlayer?.toLowerCase() === address.toLowerCase()) {
+              const firstPlayerBonus = (pot * 100n) / 10000n
+              actualWonAmount += firstPlayerBonus
+            }
+
+            // Dust
+            const totalAllocated = (pot * 100n / 10000n) + (pot * 500n / 10000n) + playersPool
+            const dust = pot > totalAllocated ? pot - totalAllocated : 0n
+            if (userIndex === 0 && dust > 0n) {
+              actualWonAmount += dust
+            }
+
+            console.log('📊 Calculated payout:', {
+              pot: (Number(pot) / 1e18).toFixed(2),
+              playersPool: (Number(playersPool) / 1e18).toFixed(2),
+              baseShare: (Number(baseWinnerShare) / 1e18).toFixed(2),
+              total: (Number(actualWonAmount) / 1e18).toFixed(2),
+            })
           }
 
-          const vmfAmount = Number(userPayout) / 1e18
+          const vmfAmount = Number(actualWonAmount) / 1e18
           setVmfWon(vmfAmount.toFixed(2))
           setIsWinner(true)
         } else {
@@ -176,7 +237,7 @@ export function PizzaPartyResultPopup() {
         className="relative w-full max-w-2xl"
         onClick={(e) => e.stopPropagation()}
       >
-        {/* X Button - SAME FOR BOTH CARDS */}
+        {/* X Button */}
         <button
           onClick={handleClose}
           className="absolute -top-2 -right-2 z-50 w-16 h-16 bg-[#2D2D2D] rounded-full flex items-center justify-center hover:bg-[#1D1D1D] transition-colors shadow-xl"
@@ -186,21 +247,19 @@ export function PizzaPartyResultPopup() {
         </button>
 
         {isWinner ? (
-          /* ========================================
-             WINNER CARD - Fully Responsive
-             ======================================== */
-          <div 
+          /* WINNER CARD - FULLY RESPONSIVE & MOBILE-FIXED */
+          <div
             className="relative w-full bg-gradient-to-br from-red-600 to-red-700 rounded-3xl border-4 border-black shadow-2xl overflow-hidden"
             style={{ aspectRatio: '400/230' }}
           >
             <div className="absolute inset-4 border-4 border-black rounded-2xl" />
 
             {/* WINNER Text - Fully Responsive */}
-            <div 
-              className="absolute top-6 left-1/2 -translate-x-1/2 text-center"
+            <div
+              className="absolute top-3 left-1/2 -translate-x-1/2 text-center w-full px-4"
               style={customFontStyle}
             >
-              <h1 
+              <h1
                 className="font-black"
                 style={{
                   color: '#FFA500',
@@ -209,73 +268,79 @@ export function PizzaPartyResultPopup() {
                   fontWeight: 900,
                   letterSpacing: '0.05em',
                   transform: 'scaleY(1.1)',
-                  fontSize: 'clamp(3rem, 8vw, 6rem)',
+                  fontSize: 'clamp(2.5rem, 10vw, 6rem)',
                 }}
               >
                 WINNER
               </h1>
             </div>
 
-            {/* Won Big? Share The Dough! - Responsive */}
-            <div 
-              className="absolute left-1/2 -translate-x-1/2 text-center"
-              style={{ top: '35%' }}
+            {/* Won Big? Share The Dough! - Responsive - PERCENTAGE POSITIONING */}
+            <div
+              className="absolute left-1/2 -translate-x-1/2 text-center w-full px-4"
+              style={{ top: '38%' }}
             >
-              <p 
-                className="font-bold text-black" 
-                style={{ 
-                  ...customFontStyle, 
-                  fontSize: 'clamp(1rem, 2.5vw, 1.5rem)' 
+              <p
+                className="font-bold text-black"
+                style={{
+                  ...customFontStyle,
+                  fontSize: 'clamp(0.875rem, 3vw, 1.5rem)',
+                  lineHeight: '1.2',
                 }}
               >
                 Won Big? Share The Dough!
               </p>
             </div>
 
-            {/* You Won - Responsive, 8px below previous */}
-            <div 
-              className="absolute left-1/2 -translate-x-1/2 text-center"
-              style={{ top: 'calc(35% + 32px + 8px)' }}
+            {/* You Won - Responsive - PERCENTAGE POSITIONING */}
+            <div
+              className="absolute left-1/2 -translate-x-1/2 text-center w-full px-4"
+              style={{ top: '50%' }}
             >
-              <p 
-                className="font-bold text-white" 
-                style={{ 
-                  ...customFontStyle, 
-                  fontSize: 'clamp(1.25rem, 3vw, 1.875rem)' 
+              <p
+                className="font-bold text-white"
+                style={{
+                  ...customFontStyle,
+                  fontSize: 'clamp(1rem, 3.5vw, 1.875rem)',
+                  lineHeight: '1.2',
                 }}
               >
                 You Won
               </p>
             </div>
 
-            {/* VMF Amount - Responsive, 8px below previous, DYNAMIC VALUE */}
-            <div 
-              className="absolute left-1/2 -translate-x-1/2 text-center whitespace-nowrap"
-              style={{ top: 'calc(35% + 32px + 8px + 36px + 8px)' }}
+            {/* VMF Amount - Responsive - PERCENTAGE POSITIONING - ACTUAL VALUE FROM CONTRACT */}
+            <div
+              className="absolute left-1/2 -translate-x-1/2 text-center w-full px-4"
+              style={{ top: '62%' }}
             >
-              <p 
-                className="font-bold text-white"
+              <p
+                className="font-bold text-white whitespace-nowrap"
                 style={{
                   ...customFontStyle,
                   textShadow: '4px 4px 0px #000, -2px -2px 0px #000, 2px -2px 0px #000, -2px 2px 0px #000',
-                  fontSize: 'clamp(2.5rem, 6vw, 4rem)',
+                  fontSize: 'clamp(2rem, 8vw, 4rem)',
+                  lineHeight: '1',
                 }}
               >
                 {vmfWon} VMF
               </p>
             </div>
 
-            {/* Share Button - Responsive, FUNCTIONAL */}
+            {/* Share Button - Responsive */}
             <button
               onClick={handleShare}
-              className="absolute bottom-6 left-1/2 -translate-x-1/2 bg-gradient-to-b from-yellow-400 to-yellow-500 hover:from-yellow-300 hover:to-yellow-400 active:scale-95 transition-all px-14 py-3 rounded-full border-4 border-black shadow-xl"
+              className="absolute bottom-3 left-1/2 -translate-x-1/2 bg-gradient-to-b from-yellow-400 to-yellow-500 hover:from-yellow-300 hover:to-yellow-400 active:scale-95 transition-all rounded-full border-4 border-black shadow-xl"
+              style={{
+                padding: 'clamp(0.5rem, 2vw, 0.75rem) clamp(2rem, 6vw, 3.5rem)',
+              }}
             >
-              <p 
-                className="font-bold text-white"
+              <p
+                className="font-bold text-white whitespace-nowrap"
                 style={{
                   ...customFontStyle,
                   textShadow: '2px 2px 0px #000, -1px -1px 0px #000',
-                  fontSize: 'clamp(1.25rem, 2.5vw, 1.875rem)',
+                  fontSize: 'clamp(1rem, 3.5vw, 1.875rem)',
                 }}
               >
                 SHARE
@@ -283,21 +348,19 @@ export function PizzaPartyResultPopup() {
             </button>
           </div>
         ) : (
-          /* ========================================
-             LOSER CARD - Fully Responsive
-             ======================================== */
-          <div 
+          /* LOSER CARD - FULLY RESPONSIVE */
+          <div
             className="relative w-full bg-gradient-to-br from-red-600 to-red-700 rounded-3xl border-4 border-black shadow-2xl overflow-hidden"
             style={{ aspectRatio: '400/230' }}
           >
             <div className="absolute inset-4 border-4 border-black rounded-2xl" />
 
             {/* NOT A WINNER Text - Fully Responsive */}
-            <div 
-              className="absolute top-6 left-1/2 -translate-x-1/2 text-center"
+            <div
+              className="absolute top-3 left-1/2 -translate-x-1/2 text-center w-full px-4"
               style={customFontStyle}
             >
-              <h1 
+              <h1
                 className="font-black"
                 style={{
                   color: '#FFA500',
@@ -306,12 +369,13 @@ export function PizzaPartyResultPopup() {
                   fontWeight: 900,
                   letterSpacing: '0.05em',
                   transform: 'scaleY(1.1)',
-                  fontSize: 'clamp(2.5rem, 7vw, 5rem)',
+                  fontSize: 'clamp(2rem, 8vw, 5rem)',
+                  lineHeight: '1.1',
                 }}
               >
                 NOT A
               </h1>
-              <h1 
+              <h1
                 className="font-black"
                 style={{
                   color: '#FFA500',
@@ -320,44 +384,48 @@ export function PizzaPartyResultPopup() {
                   fontWeight: 900,
                   letterSpacing: '0.05em',
                   transform: 'scaleY(1.1)',
-                  marginTop: '8px',
-                  fontSize: 'clamp(2.5rem, 7vw, 5rem)',
+                  marginTop: '0.25rem',
+                  fontSize: 'clamp(2rem, 8vw, 5rem)',
+                  lineHeight: '1.1',
                 }}
               >
                 WINNER
               </h1>
             </div>
 
-            {/* Message Text - Fully Responsive, 8px spacing between all lines */}
-            <div 
-              className="absolute left-1/2 -translate-x-1/2 text-center"
-              style={{ bottom: '12%' }}
+            {/* Message Text - Fully Responsive */}
+            <div
+              className="absolute left-1/2 -translate-x-1/2 text-center w-full px-4"
+              style={{ bottom: '10%' }}
             >
-              <p 
-                className="font-bold text-black whitespace-nowrap" 
-                style={{ 
-                  ...customFontStyle, 
-                  marginBottom: '8px',
-                  fontSize: 'clamp(1.25rem, 3.5vw, 2.25rem)',
+              <p
+                className="font-bold text-black whitespace-nowrap"
+                style={{
+                  ...customFontStyle,
+                  marginBottom: 'clamp(4px, 1vw, 8px)',
+                  fontSize: 'clamp(1rem, 4vw, 2.25rem)',
+                  lineHeight: '1.2',
                 }}
               >
                 Keep Playing To Claim
               </p>
-              <p 
-                className="font-bold text-black whitespace-nowrap" 
-                style={{ 
-                  ...customFontStyle, 
-                  marginBottom: '8px',
-                  fontSize: 'clamp(1.25rem, 3.5vw, 2.25rem)',
+              <p
+                className="font-bold text-black whitespace-nowrap"
+                style={{
+                  ...customFontStyle,
+                  marginBottom: 'clamp(4px, 1vw, 8px)',
+                  fontSize: 'clamp(1rem, 4vw, 2.25rem)',
+                  lineHeight: '1.2',
                 }}
               >
                 More Toppings.
               </p>
-              <p 
-                className="font-bold text-black whitespace-nowrap" 
-                style={{ 
+              <p
+                className="font-bold text-black whitespace-nowrap"
+                style={{
                   ...customFontStyle,
-                  fontSize: 'clamp(1.25rem, 3.5vw, 2.25rem)',
+                  fontSize: 'clamp(1rem, 4vw, 2.25rem)',
+                  lineHeight: '1.2',
                 }}
               >
                 Grow The Weekly Jackpot

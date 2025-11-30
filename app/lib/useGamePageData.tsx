@@ -105,6 +105,14 @@ interface ReferralInfo {
   isActive: boolean
 }
 
+interface PlayerLifetimeStats {
+  totalDailyWins: bigint
+  totalWeeklyWins: bigint
+  totalVmfWon: bigint
+  lifetimeToppings: bigint
+  lifetimeReferrals: bigint
+}
+
 interface WeeklyData {
   claimStart: number
   claimEnd: number
@@ -228,6 +236,7 @@ export function useGamePageData() {
   // ================= Player Info =================
   const [playerInfo, setPlayerInfo] = useState<PlayerInfo | null>(null)
   const [playerWeekly, setPlayerWeekly] = useState<PlayerWeeklyInfo | null>(null)
+  const [playerLifetimeStats, setPlayerLifetimeStats] = useState<PlayerLifetimeStats | null>(null)
   const [referralInfo, setReferralInfo] = useState<ReferralInfo | null>(null)
 
   const [weekly, setWeekly] = useState<WeeklyData>({
@@ -303,6 +312,69 @@ export function useGamePageData() {
         lifetimeReferrals: 0n,
         isActive: false,
       })
+    }
+  }, [wallet.address])
+
+  // ================= Player Lifetime Stats =================
+  const fetchPlayerLifetimeStats = useCallback(async () => {
+    if (!wallet.address) {
+      setPlayerLifetimeStats(null)
+      return
+    }
+
+    try {
+      const stats = await readContract(wagmiConfig, {
+        address: PIZZA_PARTY_ADDRESS as `0x${string}`,
+        abi: PIZZA_PARTY_ABI,
+        functionName: 'getPlayerLifetimeStats',
+        args: [wallet.address as `0x${string}`],
+      }) as readonly [bigint, bigint, bigint, bigint, bigint] | {
+        totalDailyWins: bigint
+        totalWeeklyWins: bigint
+        totalVmfWon: bigint
+        lifetimeToppings: bigint
+        lifetimeReferrals: bigint
+      }
+
+      // Handle both tuple and object formats
+      if (Array.isArray(stats)) {
+        const [totalDailyWins, totalWeeklyWins, totalVmfWon, lifetimeToppings, lifetimeReferrals] = stats
+        setPlayerLifetimeStats({
+          totalDailyWins,
+          totalWeeklyWins,
+          totalVmfWon,
+          lifetimeToppings,
+          lifetimeReferrals,
+        })
+        
+        console.debug('✅ Player lifetime stats fetched:', {
+          totalVmfWon: `${(Number(totalVmfWon) / 1e18).toFixed(2)} VMF`,
+          totalWins: (Number(totalDailyWins) + Number(totalWeeklyWins)).toString(),
+        })
+      } else {
+        const statsObj = stats as {
+          totalDailyWins: bigint
+          totalWeeklyWins: bigint
+          totalVmfWon: bigint
+          lifetimeToppings: bigint
+          lifetimeReferrals: bigint
+        }
+        setPlayerLifetimeStats({
+          totalDailyWins: statsObj.totalDailyWins,
+          totalWeeklyWins: statsObj.totalWeeklyWins,
+          totalVmfWon: statsObj.totalVmfWon,
+          lifetimeToppings: statsObj.lifetimeToppings,
+          lifetimeReferrals: statsObj.lifetimeReferrals,
+        })
+        
+        console.debug('✅ Player lifetime stats fetched:', {
+          totalVmfWon: `${(Number(statsObj.totalVmfWon) / 1e18).toFixed(2)} VMF`,
+          totalWins: (Number(statsObj.totalDailyWins) + Number(statsObj.totalWeeklyWins)).toString(),
+        })
+      }
+    } catch (err) {
+      console.error('Failed to fetch player lifetime stats:', err)
+      setPlayerLifetimeStats(null)
     }
   }, [wallet.address])
 
@@ -561,6 +633,7 @@ export function useGamePageData() {
     void checkStatus()
     void fetchPlayerInfo()
     void fetchWeekly()
+    void fetchPlayerLifetimeStats()
 
     unwatch = watchBlockNumber(wagmiConfig, {
       onBlockNumber: () => {
@@ -569,11 +642,12 @@ export function useGamePageData() {
         void checkStatus()
         void fetchPlayerInfo()
         void fetchWeekly()
+        void fetchPlayerLifetimeStats()
       },
       onError: () => {},
     })
     return () => { if (unwatch) unwatch() }
-  }, [fetchVmfBalance, refreshDaily, checkStatus, fetchPlayerInfo, fetchWeekly])
+  }, [fetchVmfBalance, refreshDaily, checkStatus, fetchPlayerInfo, fetchWeekly, fetchPlayerLifetimeStats])
 
   // ================= Reset-detection (new Pacific day) =================
   const prevMsRef = useRef<number | null>(null)
@@ -778,6 +852,49 @@ export function useGamePageData() {
         return
       }
       
+      // ============================================================
+      // CRITICAL: Save "before" snapshot for accurate win tracking
+      // ============================================================
+      try {
+        const beforeStats = await readContract(wagmiConfig, {
+          address: PIZZA_PARTY_ADDRESS as `0x${string}`,
+          abi: PIZZA_PARTY_ABI,
+          functionName: 'getPlayerLifetimeStats',
+          args: [wallet.address as `0x${string}`],
+        }) as readonly [bigint, bigint, bigint, bigint, bigint] | {
+          totalDailyWins: bigint
+          totalWeeklyWins: bigint
+          totalVmfWon: bigint
+          lifetimeToppings: bigint
+          lifetimeReferrals: bigint
+        }
+        
+        const currentGameId = await readContract(wagmiConfig, {
+          address: PIZZA_PARTY_ADDRESS as `0x${string}`,
+          abi: PIZZA_PARTY_ABI,
+          functionName: 'dailyGameId',
+        }) as bigint
+        
+        // Handle both tuple and object formats
+        const beforeVmfWon = Array.isArray(beforeStats)
+          ? beforeStats[2]
+          : (beforeStats as { totalVmfWon: bigint }).totalVmfWon
+        
+        const beforeKey = `pizza_party_vmf_before_game_${currentGameId}`
+        if (typeof window !== 'undefined') {
+          localStorage.setItem(beforeKey, beforeVmfWon.toString())
+        }
+        
+        console.debug('💾 Saved before snapshot:', {
+          gameId: currentGameId.toString(),
+          vmfBefore: (Number(beforeVmfWon) / 1e18).toFixed(2),
+        })
+      } catch (snapshotErr) {
+        console.warn('Failed to save before snapshot:', snapshotErr)
+        // Continue anyway - fallback to calculation
+      }
+      // ============================================================
+      
       console.log('Calling enterDailyGame...')
       console.log('Contract:', PIZZA_PARTY_ADDRESS)
       console.log('Args:', [code])
@@ -799,6 +916,7 @@ export function useGamePageData() {
         void refreshDaily()
         void fetchVmfBalance()
         void fetchWeekly()
+        void fetchPlayerLifetimeStats()
       }, 3000)
       
     } catch (err: unknown) {
@@ -868,6 +986,7 @@ export function useGamePageData() {
     daily,
     playerInfo,
     playerWeekly,
+    playerLifetimeStats,
     weekly,
     referralInfo,
     priceOracleWorking,
