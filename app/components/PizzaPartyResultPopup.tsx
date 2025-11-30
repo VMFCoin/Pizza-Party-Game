@@ -17,6 +17,14 @@ export function PizzaPartyResultPopup() {
   const [vmfWon, setVmfWon] = useState('0.00')
   const [hasChecked, setHasChecked] = useState(false)
 
+  type DailyGameStruct = {
+    startTime: bigint
+    endTime: bigint
+    firstPlayer: `0x${string}`
+    potAmount: bigint
+    settled: boolean
+  }
+
   useEffect(() => {
     if (!isConnected || !address || hasChecked) return
 
@@ -60,7 +68,7 @@ export function PizzaPartyResultPopup() {
           abi: PIZZA_PARTY_ABI,
           functionName: 'dailyGames',
           args: [lastSettledGameId],
-        }) as any
+        }) as DailyGameStruct
 
         if (!gameData.settled) {
           setHasChecked(true)
