@@ -241,7 +241,7 @@ export default function LeaderboardPage({
             args: [dailyGameIdToFetch],
                   chainId: BASE_CHAIN_ID,
           }).catch(err => {
-            console.error('dailyGames fetch failed', err)
+            console.error('Failed to fetch daily game data:', err)
             return null
           }),
           // Fetch historical weekly game data
@@ -252,25 +252,46 @@ export default function LeaderboardPage({
             args: [weeklyGameIdToFetch],
                   chainId: BASE_CHAIN_ID,
           }).catch(err => {
-            console.error('weeklyGames fetch failed', err)
+            console.error('Failed to fetch weekly game data:', err)
             return null
           }),
         ])
 
         const dailyWinnerAddresses = (dailyWins as string[]) || []
         const weeklyWinnerAddresses = (weeklyWins as string[]) || []
-        
-        // Extract potAmount - wagmi returns objects with named properties
+
+        // Extract potAmount from the game data
+        // Contract returns: { startTime, endTime, firstPlayer, potAmount, settled }
         const dailyPotAmount = (() => {
           if (!dailyGameDataRaw) return 0n
-          if (Array.isArray(dailyGameDataRaw)) return (dailyGameDataRaw[3] as bigint) || 0n
-          return (dailyGameDataRaw as { potAmount?: bigint }).potAmount || 0n
+
+          const gameData = dailyGameDataRaw as {
+            startTime: bigint
+            endTime: bigint
+            firstPlayer: string
+            potAmount: bigint
+            settled: boolean
+          }
+
+          // Only return pot if game is settled
+          if (!gameData.settled) return 0n
+          return gameData.potAmount || 0n
         })()
 
         const weeklyPotAmount = (() => {
           if (!weeklyGameDataRaw) return 0n
-          if (Array.isArray(weeklyGameDataRaw)) return (weeklyGameDataRaw[3] as bigint) || 0n
-          return (weeklyGameDataRaw as { potAmount?: bigint }).potAmount || 0n
+
+          const gameData = weeklyGameDataRaw as {
+            claimWindowStart: bigint
+            claimWindowEnd: bigint
+            totalClaimedToppings: bigint
+            potAmount: bigint
+            settled: boolean
+          }
+
+          // Only return pot if game is settled
+          if (!gameData.settled) return 0n
+          return gameData.potAmount || 0n
         })()
 
         // Fetch lifetime stats for all winners

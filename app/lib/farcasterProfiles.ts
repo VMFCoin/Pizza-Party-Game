@@ -46,6 +46,7 @@ export async function fetchProfilesByAddresses(addresses: string[]): Promise<Map
   const now = Date.now()
   const addressesToFetch: string[] = []
 
+  // First, populate with cached data
   for (const address of addresses) {
     const cached = cacheWithTimestamp.get(address.toLowerCase())
     if (cached && now - cached.timestamp < CACHE_DURATION) {
@@ -67,11 +68,18 @@ export async function fetchProfilesByAddresses(addresses: string[]): Promise<Map
       return profiles
     }
 
-    const batchSize = 100
+    // Use smaller batches to avoid rate limits (Neynar free tier: 10 req/min)
+    const batchSize = 50
+    const delayBetweenBatches = 500 // 500ms delay between batches
 
     for (let i = 0; i < addressesToFetch.length; i += batchSize) {
       const batch = addressesToFetch.slice(i, i + batchSize)
       const addressParam = batch.join(',')
+
+      // Add delay between batches to avoid rate limit
+      if (i > 0) {
+        await new Promise(resolve => setTimeout(resolve, delayBetweenBatches))
+      }
 
       const response = await fetch(
         `https://api.neynar.com/v2/farcaster/user/bulk-by-address?addresses=${addressParam}`,
@@ -84,15 +92,17 @@ export async function fetchProfilesByAddresses(addresses: string[]): Promise<Map
 
       if (!response.ok) {
         if (response.status === 429) {
-          console.warn('Neynar rate limit hit, using cached data')
-          // Don't continue, break to prevent more requests
+          console.warn('Neynar rate limit hit at batch', i / batchSize + 1)
+          // Return what we have so far instead of breaking
+          // Remaining addresses will show wallet addresses
           break
         }
         if (response.status === 404) {
           console.warn('Neynar endpoint not found, check API version')
           break
         }
-        console.error('Neynar API error:', response.status, await response.text())
+        const errorText = await response.text()
+        console.error('Neynar API error:', response.status, errorText)
         continue
       }
 
@@ -119,6 +129,7 @@ export async function fetchProfilesByAddresses(addresses: string[]): Promise<Map
             timestamp: now,
           })
         } else {
+          // No Farcaster profile found for this address
           const emptyProfile: FarcasterProfile = {
             address: addressLower,
           }

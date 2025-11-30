@@ -19,10 +19,13 @@ export default function AutoEnableNotifications() {
         // Wait briefly to let the app render before prompting
         await new Promise(resolve => setTimeout(resolve, 2000))
 
-        await sdk.actions.addMiniApp()
+        const result = await sdk.actions.addMiniApp()
 
-        localStorage.setItem('pizza-notif-prompted', 'true')
-        setHasPrompted(true)
+        // Only mark as prompted if the action was successful
+        if (result) {
+          localStorage.setItem('pizza-notif-prompted', 'true')
+          setHasPrompted(true)
+        }
       } catch (error) {
         console.error('Auto-prompt failed:', error)
       }

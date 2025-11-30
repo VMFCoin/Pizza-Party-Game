@@ -11,6 +11,7 @@ import WeeklyJackpotPage from "./components/WeeklyJackpotPage";
 import LeaderboardPage from "./components/LeaderboardPage";
 import { sdk } from "@farcaster/miniapp-sdk";
 import { useRouter, useSearchParams } from "next/navigation";
+import { PizzaPartyResultPopup } from "./components/PizzaPartyResultPopup";
 
 type ViewType = 'home' | 'game' | 'weekly' | 'leaderboard'
 
@@ -79,58 +80,65 @@ export default function HomePage() {
   // GAME VIEW
   if (currentView === 'game') {
     return (
-      <div
-        className="min-h-screen p-4"
-        style={{
-          backgroundImage: "url('/images/rotated-90-pizza-wallpaper.png')",
-          backgroundRepeat: 'no-repeat',
-          backgroundSize: 'cover',
-          backgroundPosition: 'center center',
-        }}
-      >
-        <div className="max-w-md mx-auto">
-          <Button
-            onClick={handleBackToHome}
-            className="mb-4 !bg-red-700 hover:!bg-red-800 text-white font-bold py-2 px-4 rounded-xl border-2 border-red-900 shadow-lg flex items-center gap-2"
-            style={customFontStyle}
-          >
-            <ArrowLeft size={20} />
-            Back to Home
-          </Button>
+      <>
+        <div
+          className="min-h-screen p-4"
+          style={{
+            backgroundImage: "url('/images/rotated-90-pizza-wallpaper.png')",
+            backgroundRepeat: 'no-repeat',
+            backgroundSize: 'cover',
+            backgroundPosition: 'center center',
+          }}
+        >
+          <div className="max-w-md mx-auto">
+            <Button
+              onClick={handleBackToHome}
+              className="mb-4 !bg-red-700 hover:!bg-red-800 text-white font-bold py-2 px-4 rounded-xl border-2 border-red-900 shadow-lg flex items-center gap-2"
+              style={customFontStyle}
+            >
+              <ArrowLeft size={20} />
+              Back to Home
+            </Button>
 
-          <Card className="border-4 border-red-800 rounded-3xl shadow-2xl p-0 !px-0 !py-0 !bg-transparent">
-            <GamePage onNavigateToWeekly={handleNavigateToWeekly} onNavigateToLeaderboard={handleNavigateToLeaderboard} />
-          </Card>
+            <Card className="border-4 border-red-800 rounded-3xl shadow-2xl p-0 !px-0 !py-0 !bg-transparent">
+              <GamePage onNavigateToWeekly={handleNavigateToWeekly} onNavigateToLeaderboard={handleNavigateToLeaderboard} />
+            </Card>
+          </div>
         </div>
-      </div>
+      </>
     );
   }
 
   if (currentView === 'weekly') {
     return (
-      <WeeklyJackpotPage
-        onBack={() => goToView('game')}
-        onNavigateToDaily={() => goToView('game')}
-        onNavigateToHome={handleBackToHome}
-        onNavigateToLeaderboard={handleNavigateToLeaderboard}
-      />
+      <>
+        <WeeklyJackpotPage
+          onBack={() => goToView('game')}
+          onNavigateToDaily={() => goToView('game')}
+          onNavigateToHome={handleBackToHome}
+          onNavigateToLeaderboard={handleNavigateToLeaderboard}
+        />
+      </>
     );
   }
 
   if (currentView === 'leaderboard') {
     return (
-      <LeaderboardPage
-        onBack={() => goToView('game')}
-        onNavigateToDaily={() => goToView('game')}
-        onNavigateToWeekly={handleNavigateToWeekly}
-        onNavigateToHome={handleBackToHome}
-      />
+      <>
+        <LeaderboardPage
+          onBack={() => goToView('game')}
+          onNavigateToDaily={() => goToView('game')}
+          onNavigateToWeekly={handleNavigateToWeekly}
+          onNavigateToHome={handleBackToHome}
+        />
+      </>
     );
   }
 
   // HOME VIEW
   return (
     <main>
+      <PizzaPartyResultPopup />
       <header
         className="min-h-screen p-5 bg-cover"
         style={{ backgroundImage: "url('/images/rotated-90-pizza-wallpaper.png')" }}
