@@ -83,39 +83,32 @@ export function PizzaPartyResultPopup() {
         )
 
         if (userIsWinner) {
-          // Calculate payout exactly as contract does
           const pot = gameData.potAmount as bigint
           const playersPool = (pot * 9400n) / 10000n
           const numberOfWinners = BigInt(winners.length || 1)
           const winnerShare = playersPool / numberOfWinners
           const playersRemainder = playersPool - (winnerShare * numberOfWinners)
           
-          // Find user's position in winners array
           const userIndex = winners.findIndex((w: string) => w.toLowerCase() === address.toLowerCase())
           
-          // Calculate base payout
           let userPayout = winnerShare
           if (userIndex === 0) {
-            userPayout += playersRemainder  // First winner gets remainder
+            userPayout += playersRemainder
           }
           
-          // Check if user was also first player (gets 1% bonus)
           let firstPlayerBonus = 0n
           if (gameData.firstPlayer?.toLowerCase() === address.toLowerCase()) {
-            firstPlayerBonus = (pot * 100n) / 10000n  // 1% bonus
+            firstPlayerBonus = (pot * 100n) / 10000n
           }
           
-          // Calculate dust (any remaining after all allocations)
           const totalAllocated = (pot * 100n / 10000n) + (pot * 500n / 10000n) + playersPool
           const dust = pot > totalAllocated ? pot - totalAllocated : 0n
           
-          // First winner gets dust
           let dustShare = 0n
           if (userIndex === 0 && dust > 0n) {
             dustShare = dust
           }
           
-          // Total = winner share + first player bonus (if applicable) + dust (if applicable)
           const totalPayout = userPayout + firstPlayerBonus + dustShare
           
           const vmfAmount = Number(totalPayout) / 1e18
@@ -204,14 +197,9 @@ export function PizzaPartyResultPopup() {
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4"
       onClick={handleClose}
     >
-      {/* CARD SCALES DOWN ON MOBILE - Layout stays identical */}
+      {/* FIXED: Proper width constraints and centering */}
       <div
-        className="relative w-full"
-        style={{
-          maxWidth: 'min(800px, 100vw - 32px)',
-          transform: 'scale(min(1, (100vw - 32px) / 800))',
-          transformOrigin: 'center center',
-        }}
+        className="relative w-full max-w-[800px]"
         onClick={(e) => e.stopPropagation()}
       >
         {/* X Button */}
@@ -224,23 +212,20 @@ export function PizzaPartyResultPopup() {
         </button>
 
         {isWinner ? (
-          /* WINNER CARD - EXACT LAYOUT FROM HTML PREVIEW */
+          /* WINNER CARD - FULLY RESPONSIVE */
           <div 
             className="relative w-full bg-gradient-to-br from-red-600 to-red-700 rounded-3xl border-4 border-black shadow-2xl overflow-hidden"
-            style={{ 
-              aspectRatio: '400/230',
-              width: '800px',
-            }}
+            style={{ aspectRatio: '400/230' }}
           >
             <div className="absolute inset-4 border-4 border-black rounded-2xl" />
 
             {/* WINNER Text */}
             <div 
-              className="absolute top-6 left-1/2 -translate-x-1/2 text-center"
+              className="absolute top-6 left-1/2 -translate-x-1/2 text-center w-full px-4"
               style={customFontStyle}
             >
               <h1 
-                className="text-7xl md:text-8xl font-black"
+                className="font-black"
                 style={{
                   color: '#FFA500',
                   textShadow: '5px 5px 0px #000, -3px -3px 0px #000, 3px -3px 0px #000, -3px 3px 0px #000',
@@ -248,6 +233,7 @@ export function PizzaPartyResultPopup() {
                   fontWeight: 900,
                   letterSpacing: '0.05em',
                   transform: 'scaleY(1.1)',
+                  fontSize: 'clamp(2.5rem, 10vw, 6rem)',
                 }}
               >
                 WINNER
@@ -256,50 +242,67 @@ export function PizzaPartyResultPopup() {
 
             {/* Won Big? Share The Dough! */}
             <div 
-              className="absolute left-1/2 -translate-x-1/2 text-center"
+              className="absolute left-1/2 -translate-x-1/2 text-center w-full px-4"
               style={{ top: '35%' }}
             >
-              <p className="text-xl md:text-2xl font-bold text-black" style={customFontStyle}>
+              <p 
+                className="font-bold text-black"
+                style={{ 
+                  ...customFontStyle,
+                  fontSize: 'clamp(0.875rem, 3vw, 1.5rem)',
+                }}
+              >
                 Won Big? Share The Dough!
               </p>
             </div>
 
             {/* You Won */}
             <div 
-              className="absolute left-1/2 -translate-x-1/2 text-center"
+              className="absolute left-1/2 -translate-x-1/2 text-center w-full px-4"
               style={{ top: 'calc(35% + 32px + 8px)' }}
             >
-              <p className="text-2xl md:text-3xl font-bold text-white" style={customFontStyle}>
+              <p 
+                className="font-bold text-white"
+                style={{ 
+                  ...customFontStyle,
+                  fontSize: 'clamp(1rem, 3.5vw, 1.875rem)',
+                }}
+              >
                 You Won
               </p>
             </div>
 
-            {/* VMF Amount - DYNAMIC VALUE */}
+            {/* VMF Amount */}
             <div 
-              className="absolute left-1/2 -translate-x-1/2 text-center whitespace-nowrap"
+              className="absolute left-1/2 -translate-x-1/2 text-center w-full px-4"
               style={{ top: 'calc(35% + 32px + 8px + 36px + 8px)' }}
             >
               <p 
-                className="text-5xl md:text-6xl font-bold text-white"
+                className="font-bold text-white whitespace-nowrap"
                 style={{
                   ...customFontStyle,
                   textShadow: '4px 4px 0px #000, -2px -2px 0px #000, 2px -2px 0px #000, -2px 2px 0px #000',
+                  fontSize: 'clamp(2rem, 7vw, 4rem)',
                 }}
               >
                 {vmfWon} VMF
               </p>
             </div>
 
-            {/* Share Button - FUNCTIONAL */}
+            {/* Share Button */}
             <button
               onClick={handleShare}
-              className="absolute bottom-6 left-1/2 -translate-x-1/2 bg-gradient-to-b from-yellow-400 to-yellow-500 hover:from-yellow-300 hover:to-yellow-400 active:scale-95 transition-all px-14 py-3 rounded-full border-4 border-black shadow-xl"
+              className="absolute bottom-6 left-1/2 -translate-x-1/2 bg-gradient-to-b from-yellow-400 to-yellow-500 hover:from-yellow-300 hover:to-yellow-400 active:scale-95 transition-all rounded-full border-4 border-black shadow-xl"
+              style={{
+                padding: 'clamp(0.5rem, 2vw, 0.75rem) clamp(2rem, 6vw, 3.5rem)',
+              }}
             >
               <p 
-                className="text-xl md:text-2xl font-bold text-white"
+                className="font-bold text-white whitespace-nowrap"
                 style={{
                   ...customFontStyle,
                   textShadow: '2px 2px 0px #000, -1px -1px 0px #000',
+                  fontSize: 'clamp(1rem, 3vw, 1.875rem)',
                 }}
               >
                 SHARE
@@ -307,23 +310,20 @@ export function PizzaPartyResultPopup() {
             </button>
           </div>
         ) : (
-          /* LOSER CARD */
+          /* LOSER CARD - FULLY RESPONSIVE */
           <div 
             className="relative w-full bg-gradient-to-br from-red-600 to-red-700 rounded-3xl border-4 border-black shadow-2xl overflow-hidden"
-            style={{ 
-              aspectRatio: '400/230',
-              width: '800px',
-            }}
+            style={{ aspectRatio: '400/230' }}
           >
             <div className="absolute inset-4 border-4 border-black rounded-2xl" />
 
             {/* NOT A WINNER Text */}
             <div 
-              className="absolute top-3 left-1/2 -translate-x-1/2 text-center"
+              className="absolute top-3 left-1/2 -translate-x-1/2 text-center w-full px-4"
               style={customFontStyle}
             >
               <h1 
-                className="text-6xl md:text-7xl font-black"
+                className="font-black"
                 style={{
                   color: '#FFA500',
                   textShadow: '5px 5px 0px #000, -3px -3px 0px #000, 3px -3px 0px #000, -3px 3px 0px #000',
@@ -331,12 +331,13 @@ export function PizzaPartyResultPopup() {
                   fontWeight: 900,
                   letterSpacing: '0.05em',
                   transform: 'scaleY(1.1)',
+                  fontSize: 'clamp(2rem, 8vw, 5rem)',
                 }}
               >
                 NOT A
               </h1>
               <h1 
-                className="text-6xl md:text-7xl font-black"
+                className="font-black"
                 style={{
                   color: '#FFA500',
                   textShadow: '5px 5px 0px #000, -3px -3px 0px #000, 3px -3px 0px #000, -3px 3px 0px #000',
@@ -345,6 +346,7 @@ export function PizzaPartyResultPopup() {
                   letterSpacing: '0.05em',
                   transform: 'scaleY(1.1)',
                   marginTop: '8px',
+                  fontSize: 'clamp(2rem, 8vw, 5rem)',
                 }}
               >
                 WINNER
@@ -353,30 +355,35 @@ export function PizzaPartyResultPopup() {
 
             {/* Message Text */}
             <div 
-              className="absolute left-1/2 -translate-x-1/2 text-center"
+              className="absolute left-1/2 -translate-x-1/2 text-center w-full px-4"
               style={{ bottom: '10%' }}
             >
               <p 
-                className="text-3xl md:text-4xl font-bold text-black whitespace-nowrap" 
+                className="font-bold text-black whitespace-nowrap" 
                 style={{ 
                   ...customFontStyle, 
                   marginBottom: '8px',
+                  fontSize: 'clamp(1rem, 4vw, 2.25rem)',
                 }}
               >
                 Keep Playing To Claim
               </p>
               <p 
-                className="text-3xl md:text-4xl font-bold text-black whitespace-nowrap" 
+                className="font-bold text-black whitespace-nowrap" 
                 style={{ 
                   ...customFontStyle, 
                   marginBottom: '8px',
+                  fontSize: 'clamp(1rem, 4vw, 2.25rem)',
                 }}
               >
                 More Toppings.
               </p>
               <p 
-                className="text-3xl md:text-4xl font-bold text-black whitespace-nowrap" 
-                style={customFontStyle}
+                className="font-bold text-black whitespace-nowrap" 
+                style={{ 
+                  ...customFontStyle,
+                  fontSize: 'clamp(1rem, 4vw, 2.25rem)',
+                }}
               >
                 Grow The Weekly Jackpot
               </p>
