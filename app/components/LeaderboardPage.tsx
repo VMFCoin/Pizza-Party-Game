@@ -211,7 +211,7 @@ function calculateFallbackPayout(
   const firstPlayerBonus = (pot * 100n) / 10000n  // 1%
   const playersPool = pot - firstPlayerBonus       // 99%
   const baseShare = playersPool / BigInt(winnerCount)
-  const remainder = playersPool - (baseShare * BigInt(winnerCount))
+  const _remainder = playersPool - (baseShare * BigInt(winnerCount))
 
   let payout = baseShare
 
