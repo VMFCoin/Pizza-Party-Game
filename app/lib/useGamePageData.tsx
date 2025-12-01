@@ -260,6 +260,7 @@ export function useGamePageData() {
   const fetchPlayerInfo = useCallback(async () => {
     if (!wallet.address) return
     try {
+      // Fetch weekly info
       const weeklyInfoRaw = await readContract(wagmiConfig, {
         address: PIZZA_PARTY_ADDRESS as `0x${string}`,
         abi: PIZZA_PARTY_ABI,
@@ -268,9 +269,44 @@ export function useGamePageData() {
       }) as PlayerWeeklyResponse
       const weeklyInfo = normalizeWeeklyInfo(weeklyInfoRaw)
 
+      // ✅ FIX: Fetch lifetime stats to determine true first entry status
+      const lifetimeStatsRaw = await readContract(wagmiConfig, {
+        address: PIZZA_PARTY_ADDRESS as `0x${string}`,
+        abi: PIZZA_PARTY_ABI,
+        functionName: 'getPlayerLifetimeStats',
+        args: [wallet.address as `0x${string}`],
+      }) as readonly [bigint, bigint, bigint, bigint, bigint] | {
+        totalDailyWins: bigint
+        totalWeeklyWins: bigint
+        totalVmfWon: bigint
+        lifetimeToppings: bigint
+        lifetimeReferrals: bigint
+      }
+
+      // Handle both tuple and object formats
+      let lifetimeToppings: bigint
+      let lifetimeReferrals: bigint
+      
+      if (Array.isArray(lifetimeStatsRaw)) {
+        lifetimeToppings = lifetimeStatsRaw[3]
+        lifetimeReferrals = lifetimeStatsRaw[4]
+      } else {
+        const statsObj = lifetimeStatsRaw as {
+          totalDailyWins: bigint
+          totalWeeklyWins: bigint
+          totalVmfWon: bigint
+          lifetimeToppings: bigint
+          lifetimeReferrals: bigint
+        }
+        lifetimeToppings = statsObj.lifetimeToppings
+        lifetimeReferrals = statsObj.lifetimeReferrals
+      }
+
+      // ✅ Use lifetime toppings instead of weekly plays
+      // This ensures isFirstEntry only triggers for truly new players
       const normalized: PlayerInfo = {
         totalToppings: weeklyInfo.toppingsEarned,
-        dailyEntries: weeklyInfo.dailyPlays,
+        dailyEntries: lifetimeToppings, // ✅ FIXED: Use lifetime toppings (1 per entry)
         lastEntryTime: 0n,
       }
       setPlayerInfo(normalized)
@@ -296,7 +332,7 @@ export function useGamePageData() {
         referralCode: referralCode || '', // Keep empty string - UI will handle display
         referrer: '0x0000000000000000000000000000000000000000',
         totalReferrals: weeklyInfo.referralsUsed,
-        lifetimeReferrals: weeklyInfo.referralsUsed,
+        lifetimeReferrals: lifetimeReferrals, // ✅ Use actual lifetime referrals
         isActive: referralCode.length > 0,
       }
       setReferralInfo(refInfo)
