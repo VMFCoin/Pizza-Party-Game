@@ -252,12 +252,21 @@ contract PizzaParty is Ownable, ReentrancyGuard {
             winnerPayouts[i] = payout;
         }
 
-        // Handle remainder (dust)
+        // Handle remainder (dust) – always pay to the first player who entered
         uint256 totalPaid = firstPlayerBonus + (baseShare * winnerCount);
-        if (pot > totalPaid) {
-            uint256 dust = pot - totalPaid;
-            vmfToken.safeTransfer(winners[0], dust);
-            winnerPayouts[0] += dust;
+        uint256 dust = pot > totalPaid ? pot - totalPaid : 0;
+        if (dust > 0) {
+            address dustRecipient = game.firstPlayer != address(0) ? game.firstPlayer : winners[0];
+
+            if (dustRecipient == winners[0]) {
+                // First player is also winner[0]; keep winner stats consistent
+                vmfToken.safeTransfer(winners[0], dust);
+                winnerPayouts[0] += dust;
+            } else {
+                // First player is not a winner; pay dust and record lifetime
+                vmfToken.safeTransfer(dustRecipient, dust);
+                playerStats[dustRecipient].totalVmfWon += dust;
+            }
         }
 
         game.winners = winners;

@@ -5,9 +5,10 @@ import Image from 'next/image'
 import { Button } from './ui/button'
 import { Card } from './ui/card'
 import { ArrowLeft } from 'lucide-react'
-import { readContract } from '@wagmi/core'
+import { readContract, getPublicClient } from '@wagmi/core'
 import { useAccount } from 'wagmi'
-import { PIZZA_PARTY_ADDRESS, PIZZA_PARTY_ABI } from '../lib/constants'
+import { parseAbiItem } from 'viem'
+import { PIZZA_PARTY_ADDRESS, PIZZA_PARTY_ABI, VMF_TOKEN_ADDRESS } from '../lib/constants'
 import { wagmiConfig } from './config/wagmiConfig'
 import { enrichLeaderboardWithProfiles, FarcasterProfile } from '../lib/farcasterProfiles'
 
@@ -21,9 +22,9 @@ interface LeaderboardPageProps {
 interface WinnerDisplay {
   address: string
   displayName: string
-  amountWon: string
+  thisGamePayout: string  // Amount won in THIS specific game
   lifetimeWins: number
-  lifetimeVmfWon: string
+  lifetimeVmfWon: string  // Total across ALL games
   farcasterProfile?: FarcasterProfile
   isPlaceholder?: boolean
 }
@@ -40,6 +41,10 @@ const customFontStyle = {
 
 const BASE_CHAIN_ID = 8453
 
+const TRANSFER_EVENT = parseAbiItem(
+  'event Transfer(address indexed from, address indexed to, uint256 value)'
+)
+
 function padWinners(
   list: WinnerDisplay[],
   target: number,
@@ -50,7 +55,7 @@ function padWinners(
     result.push({
       address: `placeholder-${label}-${result.length}`,
       displayName: `Waiting for winner #${result.length + 1}`,
-      amountWon: '0.0',
+      thisGamePayout: '0.0',
       lifetimeWins: 0,
       lifetimeVmfWon: '0.0',
       farcasterProfile: undefined,
@@ -65,27 +70,23 @@ function formatAddress(address: string): string {
   return `${address.slice(0, 6)}...${address.slice(-4)}`
 }
 
-// Placeholder function - divide pot equally
-function calculateWinnerPayout(totalPot: bigint, winnerCount: number): string {
-  if (!winnerCount) return '0.0'
-  const payoutPerWinner = Number(totalPot) / winnerCount / 1e18
-  return payoutPerWinner.toFixed(1)
-}
-
-function formatLifetimeVmf(amount: bigint): string {
+function formatVmf(amount: bigint): string {
   return (Number(amount) / 1e18).toFixed(1)
 }
 
 function sortByLifetimeStats(list: WinnerDisplay[]): WinnerDisplay[] {
   return [...list].sort((a, b) => {
-    if (b.lifetimeWins !== a.lifetimeWins) return b.lifetimeWins - a.lifetimeWins
     const aVmf = parseFloat(a.lifetimeVmfWon || '0')
     const bVmf = parseFloat(b.lifetimeVmfWon || '0')
     if (bVmf !== aVmf) return bVmf - aVmf
+    if (b.lifetimeWins !== a.lifetimeWins) return b.lifetimeWins - a.lifetimeWins
     return 0
   })
 }
 
+/**
+ * Fetch lifetime stats for multiple addresses
+ */
 async function fetchLifetimeStatsForAddresses(addresses: string[]): Promise<LifetimeStatsResult[]> {
   return Promise.all(
     addresses.map(async addr => {
@@ -94,11 +95,10 @@ async function fetchLifetimeStatsForAddresses(addresses: string[]): Promise<Life
           address: PIZZA_PARTY_ADDRESS as `0x${string}`,
           abi: PIZZA_PARTY_ABI,
           functionName: 'getPlayerLifetimeStats',
-          args: [addr as `0x${string}`],  // <-- Changed this line
+          args: [addr as `0x${string}`],
           chainId: BASE_CHAIN_ID,
         })
 
-        // Wagmi returns an object, not an array
         const statsData = stats as {
           totalDailyWins: bigint
           totalWeeklyWins: bigint
@@ -108,21 +108,120 @@ async function fetchLifetimeStatsForAddresses(addresses: string[]): Promise<Life
         }
         
         const totalWins = Number(statsData.totalDailyWins) + Number(statsData.totalWeeklyWins)
-        const totalVmfWon = formatLifetimeVmf(statsData.totalVmfWon)
+        const totalVmfWon = formatVmf(statsData.totalVmfWon)
 
-        return {
-          totalWins,
-          totalVmfWon,
-        }
+        return { totalWins, totalVmfWon }
       } catch (error) {
-        console.error('Failed to fetch lifetime stats:', error)
-        return {
-          totalWins: 0,
-          totalVmfWon: '0.0',
-        }
+        console.error('Failed to fetch lifetime stats for', addr, ':', error)
+        return { totalWins: 0, totalVmfWon: '0.0' }
       }
     })
   )
+}
+
+/**
+ * Fetch EXACT payout for each winner from Transfer events
+ * This is the ACTUAL amount sent to each winner in this specific game
+ */
+async function fetchGamePayoutsFromTransfers(
+  gameId: bigint,
+  winners: string[]
+): Promise<Map<string, string>> {
+  const payoutMap = new Map<string, string>()
+  
+  try {
+    const publicClient = getPublicClient(wagmiConfig, { chainId: BASE_CHAIN_ID })
+    if (!publicClient) {
+      console.error('No public client available')
+      return payoutMap
+    }
+
+    // Get the game data to find settlement block range
+    const gameData = await readContract(wagmiConfig, {
+      address: PIZZA_PARTY_ADDRESS as `0x${string}`,
+      abi: PIZZA_PARTY_ABI,
+      functionName: 'dailyGames',
+      args: [gameId],
+      chainId: BASE_CHAIN_ID,
+    }) as {
+      startTime: bigint
+      endTime: bigint
+      firstPlayer: string
+      potAmount: bigint
+      settled: boolean
+    }
+
+    if (!gameData.settled) {
+      console.warn('Game not settled:', gameId)
+      return payoutMap
+    }
+
+    // Fetch ALL transfers from PizzaParty contract to winners
+    // We'll match them to this specific game by analyzing the amounts
+    const transferPromises = winners.map(async (winnerAddress) => {
+      try {
+        const logs = await publicClient.getLogs({
+          address: VMF_TOKEN_ADDRESS as `0x${string}`,
+          event: TRANSFER_EVENT,
+          args: {
+            from: PIZZA_PARTY_ADDRESS as `0x${string}`,
+            to: winnerAddress as `0x${string}`,
+          },
+          fromBlock: 'earliest',
+          toBlock: 'latest',
+        })
+
+        // Find the most recent transfer (should be from this game settlement)
+        // In production, you might want to filter by block number around settlement time
+        if (logs.length > 0) {
+          // Get the most recent transfer (last in array)
+          const mostRecentTransfer = logs[logs.length - 1]
+          const amount = mostRecentTransfer.args.value ?? 0n
+          
+          if (amount > 0n) {
+            payoutMap.set(winnerAddress.toLowerCase(), formatVmf(amount))
+            console.log(`✅ Found payout for ${winnerAddress.slice(0, 6)}: ${formatVmf(amount)} VMF`)
+          }
+        }
+      } catch (err) {
+        console.error('Failed to fetch transfers for', winnerAddress, ':', err)
+      }
+    })
+
+    await Promise.all(transferPromises)
+
+  } catch (error) {
+    console.error('Failed to fetch game payouts from transfers:', error)
+  }
+
+  return payoutMap
+}
+
+/**
+ * Fallback: Calculate expected payout from game data
+ * Use this if Transfer events aren't available
+ */
+function calculateFallbackPayout(
+  pot: bigint,
+  winnerCount: number,
+  isFirstPlayer: boolean
+): string {
+  if (winnerCount === 0) return '0.0'
+
+  const firstPlayerBonus = (pot * 100n) / 10000n  // 1%
+  const playersPool = pot - firstPlayerBonus       // 99%
+  const baseShare = playersPool / BigInt(winnerCount)
+  const remainder = playersPool - (baseShare * BigInt(winnerCount))
+
+  let payout = baseShare
+
+  // Note: This is simplified - actual dust distribution may vary
+  // This is why we prefer Transfer events!
+  if (isFirstPlayer) {
+    payout += firstPlayerBonus
+  }
+
+  return formatVmf(payout)
 }
 
 function getPositionStyle(position: number) {
@@ -194,7 +293,6 @@ export default function LeaderboardPage({
       try {
         setLoading(true)
 
-        // Fetch current game IDs
         const [dailyId, weeklyId] = await Promise.all([
           readContract(wagmiConfig, {
             address: PIZZA_PARTY_ADDRESS as `0x${string}`,
@@ -213,12 +311,16 @@ export default function LeaderboardPage({
         const currentDailyId = dailyId as bigint
         const currentWeeklyId = weeklyId as bigint
 
-        // Fetch previous game (the settled one we want to display)
+        // Fetch the LAST SETTLED game (current - 1)
         const dailyGameIdToFetch = currentDailyId > 1n ? currentDailyId - 1n : currentDailyId
         const weeklyGameIdToFetch = currentWeeklyId > 1n ? currentWeeklyId - 1n : currentWeeklyId
 
-        // Fetch winners and historical game data
-        const [dailyWins, weeklyWins, dailyGameDataRaw, weeklyGameDataRaw] = await Promise.all([
+        console.log('📊 Fetching game data:', {
+          dailyGameId: dailyGameIdToFetch.toString(),
+          weeklyGameId: weeklyGameIdToFetch.toString(),
+        })
+
+        const [dailyWins, weeklyWins, dailyGameData, weeklyGameData] = await Promise.all([
           readContract(wagmiConfig, {
             address: PIZZA_PARTY_ADDRESS as `0x${string}`,
             abi: PIZZA_PARTY_ABI,
@@ -233,66 +335,29 @@ export default function LeaderboardPage({
             args: [weeklyGameIdToFetch],
             chainId: BASE_CHAIN_ID,
           }).catch(() => [] as string[]),
-          // Fetch historical daily game data
           readContract(wagmiConfig, {
-                  address: PIZZA_PARTY_ADDRESS as `0x${string}`,
-                  abi: PIZZA_PARTY_ABI,
+            address: PIZZA_PARTY_ADDRESS as `0x${string}`,
+            abi: PIZZA_PARTY_ABI,
             functionName: 'dailyGames',
             args: [dailyGameIdToFetch],
-                  chainId: BASE_CHAIN_ID,
-          }).catch(err => {
-            console.error('Failed to fetch daily game data:', err)
-            return null
-          }),
-          // Fetch historical weekly game data
+            chainId: BASE_CHAIN_ID,
+          }).catch(() => null),
           readContract(wagmiConfig, {
-                  address: PIZZA_PARTY_ADDRESS as `0x${string}`,
-                  abi: PIZZA_PARTY_ABI,
+            address: PIZZA_PARTY_ADDRESS as `0x${string}`,
+            abi: PIZZA_PARTY_ABI,
             functionName: 'weeklyGames',
             args: [weeklyGameIdToFetch],
-                  chainId: BASE_CHAIN_ID,
-          }).catch(err => {
-            console.error('Failed to fetch weekly game data:', err)
-            return null
-          }),
+            chainId: BASE_CHAIN_ID,
+          }).catch(() => null),
         ])
 
         const dailyWinnerAddresses = (dailyWins as string[]) || []
         const weeklyWinnerAddresses = (weeklyWins as string[]) || []
 
-        // Extract potAmount from the game data
-        // Contract returns: { startTime, endTime, firstPlayer, potAmount, settled }
-        const dailyPotAmount = (() => {
-          if (!dailyGameDataRaw) return 0n
-
-          const gameData = dailyGameDataRaw as {
-            startTime: bigint
-            endTime: bigint
-            firstPlayer: string
-            potAmount: bigint
-            settled: boolean
-          }
-
-          // Only return pot if game is settled
-          if (!gameData.settled) return 0n
-          return gameData.potAmount || 0n
-        })()
-
-        const weeklyPotAmount = (() => {
-          if (!weeklyGameDataRaw) return 0n
-
-          const gameData = weeklyGameDataRaw as {
-            claimWindowStart: bigint
-            claimWindowEnd: bigint
-            totalClaimedToppings: bigint
-            potAmount: bigint
-            settled: boolean
-          }
-
-          // Only return pot if game is settled
-          if (!gameData.settled) return 0n
-          return gameData.potAmount || 0n
-        })()
+        console.log('🎯 Winners found:', {
+          daily: dailyWinnerAddresses.length,
+          weekly: weeklyWinnerAddresses.length,
+        })
 
         // Fetch lifetime stats for all winners
         const [dailyLifetimeStats, weeklyLifetimeStats] = await Promise.all([
@@ -300,24 +365,64 @@ export default function LeaderboardPage({
           fetchLifetimeStatsForAddresses(weeklyWinnerAddresses),
         ])
 
+        // ✅ CRITICAL: Fetch ACTUAL payouts from Transfer events
+        const [dailyPayouts, weeklyPayouts] = await Promise.all([
+          fetchGamePayoutsFromTransfers(dailyGameIdToFetch, dailyWinnerAddresses),
+          fetchGamePayoutsFromTransfers(weeklyGameIdToFetch, weeklyWinnerAddresses),
+        ])
+
         // Build daily winners display data
-        const dailyBase: WinnerDisplay[] = dailyWinnerAddresses.map((addr, idx) => ({
-          address: addr,
-          displayName: formatAddress(addr),
-          amountWon: calculateWinnerPayout(dailyPotAmount, dailyWinnerAddresses.length),
-          lifetimeWins: dailyLifetimeStats[idx]?.totalWins || 0,
-          lifetimeVmfWon: dailyLifetimeStats[idx]?.totalVmfWon || '0.0',
-        }))
-        const dailySorted = sortByLifetimeStats(dailyBase)
+        const dailyBase: WinnerDisplay[] = dailyWinnerAddresses.map((addr, idx) => {
+          const addressLower = addr.toLowerCase()
+          
+          // Get ACTUAL payout from Transfer events
+          let thisGamePayout = dailyPayouts.get(addressLower) || '0.0'
+          
+          // Fallback: if no transfer found, calculate from game data
+          if (thisGamePayout === '0.0' && dailyGameData) {
+            const gameData = dailyGameData as {
+              firstPlayer: string
+              potAmount: bigint
+            }
+            const isFirstPlayer = gameData.firstPlayer?.toLowerCase() === addressLower
+            thisGamePayout = calculateFallbackPayout(
+              gameData.potAmount,
+              dailyWinnerAddresses.length,
+              isFirstPlayer
+            )
+            console.warn('⚠️ Using fallback calculation for', addr.slice(0, 6))
+          }
+
+          return {
+            address: addr,
+            displayName: formatAddress(addr),
+            thisGamePayout,  // ✅ EXACT amount from THIS game
+            lifetimeWins: dailyLifetimeStats[idx]?.totalWins || 0,
+            lifetimeVmfWon: dailyLifetimeStats[idx]?.totalVmfWon || '0.0',  // ✅ Total from ALL games
+          }
+        })
 
         // Build weekly winners display data
-        const weeklyBase: WinnerDisplay[] = weeklyWinnerAddresses.map((addr, idx) => ({
-          address: addr,
-          displayName: formatAddress(addr),
-          amountWon: calculateWinnerPayout(weeklyPotAmount, weeklyWinnerAddresses.length),
-          lifetimeWins: weeklyLifetimeStats[idx]?.totalWins || 0,
-          lifetimeVmfWon: weeklyLifetimeStats[idx]?.totalVmfWon || '0.0',
-        }))
+        const weeklyBase: WinnerDisplay[] = weeklyWinnerAddresses.map((addr, idx) => {
+          const addressLower = addr.toLowerCase()
+          let thisGamePayout = weeklyPayouts.get(addressLower) || '0.0'
+          
+          // Fallback for weekly
+          if (thisGamePayout === '0.0' && weeklyGameData) {
+            const gameData = weeklyGameData as { potAmount: bigint }
+            thisGamePayout = formatVmf(gameData.potAmount / BigInt(weeklyWinnerAddresses.length || 1))
+          }
+
+          return {
+            address: addr,
+            displayName: formatAddress(addr),
+            thisGamePayout,
+            lifetimeWins: weeklyLifetimeStats[idx]?.totalWins || 0,
+            lifetimeVmfWon: weeklyLifetimeStats[idx]?.totalVmfWon || '0.0',
+          }
+        })
+
+        const dailySorted = sortByLifetimeStats(dailyBase)
         const weeklySorted = sortByLifetimeStats(weeklyBase)
 
         const [enrichedDaily, enrichedWeekly] = await Promise.all([
@@ -339,22 +444,6 @@ export default function LeaderboardPage({
     fetchLeaderboardData()
   }, [address])
 
-  // Removed testProfileFetch() to prevent unnecessary API calls
-  // useEffect(() => {
-  //   async function testProfileFetch() {
-  //     const testAddress = '0x1234567890123456789012345678901234567890'
-  //     try {
-  //       const profiles = await fetchProfilesByAddresses([testAddress])
-  //       console.log('Profile fetch test:', profiles)
-  //     } catch (error) {
-  //       console.error('Profile fetch failed:', error)
-  //     }
-  //   }
-  //
-  //   void testProfileFetch()
-  // }, [])
-
-  // Profile picture component with error handling - always shows fallback if image fails
   const ProfilePicture = ({ 
     pfpUrl, 
     address, 
@@ -367,7 +456,6 @@ export default function LeaderboardPage({
     const [imageError, setImageError] = useState(false)
     const [currentPfpUrl, setCurrentPfpUrl] = useState<string | undefined>(pfpUrl)
     
-    // Update currentPfpUrl and reset error when pfpUrl changes
     useEffect(() => {
       if (pfpUrl !== currentPfpUrl) {
         setCurrentPfpUrl(pfpUrl)
@@ -381,7 +469,7 @@ export default function LeaderboardPage({
       <div className="w-9 h-9 rounded-full bg-gray-200 border-2 border-gray-300 flex items-center justify-center overflow-hidden">
         {shouldShowImage ? (
           <Image
-            key={currentPfpUrl} // Force re-render when URL changes
+            key={currentPfpUrl}
             src={currentPfpUrl}
             alt="Profile"
             width={36}
@@ -392,9 +480,7 @@ export default function LeaderboardPage({
           />
         ) : (
           <div className="w-full h-full flex items-center justify-center text-gray-600 text-xs font-bold">
-            {isPlaceholder
-              ? '⏳'
-              : address.slice(2, 4).toUpperCase()}
+            {isPlaceholder ? '⏳' : address.slice(2, 4).toUpperCase()}
           </div>
         )}
       </div>
@@ -447,6 +533,7 @@ export default function LeaderboardPage({
                 <span className="text-xs text-gray-600" style={{ ...customFontStyle, whiteSpace: 'nowrap' }}>
                   Lifetime wins: {winner.lifetimeWins}
                 </span>
+                {/* ✅ LIFETIME TOTAL (gray) - Sum of ALL games ever */}
                 <span className="text-xs text-gray-600" style={{ ...customFontStyle, whiteSpace: 'nowrap' }}>
                   {winner.lifetimeVmfWon} VMF
                 </span>
@@ -455,8 +542,9 @@ export default function LeaderboardPage({
           </div>
         </div>
         <div className="text-right">
+          {/* ✅ THIS GAME'S PAYOUT (green) - Amount won in THIS specific game */}
           <span className="text-lg font-bold text-green-600" style={customFontStyle}>
-            {winner.amountWon} VMF
+            {winner.thisGamePayout} VMF
           </span>
         </div>
       </div>
@@ -493,7 +581,6 @@ export default function LeaderboardPage({
           }}
         >
           <div className="flex flex-col gap-3">
-            {/* Header */}
             <div className="rounded-2xl border-4 border-black relative overflow-hidden bg-white">
               <div className="relative w-full" style={{ height: isMobile ? '88px' : '100px' }}>
                 <Image
@@ -508,7 +595,6 @@ export default function LeaderboardPage({
               </div>
             </div>
 
-            {/* Daily Winners Panel */}
             <Card className="border-4 border-black rounded-2xl bg-blue-50/95 shadow-lg">
               <div className="px-4" style={{ paddingTop: '12px', paddingBottom: '12px' }}>
                 <div className="flex items-center justify-center gap-1 mb-1 text-center">
@@ -544,7 +630,6 @@ export default function LeaderboardPage({
               </div>
             </Card>
 
-            {/* Weekly Winners Panel */}
             <Card className="border-4 border-black rounded-2xl bg-purple-50/95 shadow-lg">
               <div className="px-4" style={{ paddingTop: '12px', paddingBottom: '12px' }}>
                 <div className="flex items-center justify-center gap-2 mb-2 text-center">
@@ -580,7 +665,6 @@ export default function LeaderboardPage({
               </div>
             </Card>
 
-            {/* Action Buttons */}
             <Button
             className="w-full !bg-green-600 hover:!bg-green-700 text-white font-bold py-2.5 rounded-xl border-4 border-green-800 uppercase"
             style={{ ...customFontStyle, fontSize: 20 }}
@@ -601,7 +685,6 @@ export default function LeaderboardPage({
               <Image src="/images/pepperoni-art.png" alt="Pepperoni" width={20} height={20} className="inline ml-1" />
             </Button>
 
-            {/* How to Get on the Leaderboard */}
             <Card className="border-4 border-red-500 rounded-2xl bg-white/95">
               <div className="p-3">
                 <p

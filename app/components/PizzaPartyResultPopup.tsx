@@ -238,7 +238,12 @@ export function PizzaPartyResultPopup() {
       onClick={handleClose}
     >
       <div
-        className="relative w-full max-w-2xl"
+        className="relative w-full"
+        style={{
+          maxWidth: '800px',
+          transform: 'scale(max(1, (100vw - 32px) / 800))',
+          transformOrigin: 'center center',
+        }}
         onClick={(e) => e.stopPropagation()}
       >
         {/* X Button */}
@@ -251,10 +256,13 @@ export function PizzaPartyResultPopup() {
         </button>
 
         {isWinner ? (
-          /* WINNER CARD - FULLY RESPONSIVE & MOBILE-FIXED */
+          /* WINNER CARD - FIXED 800px, SCALES UP ON MOBILE */
           <div
-            className="relative w-full bg-gradient-to-br from-red-600 to-red-700 rounded-3xl border-4 border-black shadow-2xl overflow-hidden"
-            style={{ aspectRatio: '400/230' }}
+            className="relative bg-gradient-to-br from-red-600 to-red-700 rounded-3xl border-4 border-black shadow-2xl overflow-hidden"
+            style={{
+              width: '800px',
+              aspectRatio: '400/230',
+            }}
           >
             <div className="absolute inset-4 border-4 border-black rounded-2xl" />
 
@@ -352,10 +360,13 @@ export function PizzaPartyResultPopup() {
             </button>
           </div>
         ) : (
-          /* LOSER CARD - FULLY RESPONSIVE */
+          /* LOSER CARD - FIXED 800px, SCALES UP ON MOBILE */
           <div
-            className="relative w-full bg-gradient-to-br from-red-600 to-red-700 rounded-3xl border-4 border-black shadow-2xl overflow-hidden"
-            style={{ aspectRatio: '400/230' }}
+            className="relative bg-gradient-to-br from-red-600 to-red-700 rounded-3xl border-4 border-black shadow-2xl overflow-hidden"
+            style={{
+              width: '800px',
+              aspectRatio: '400/230',
+            }}
           >
             <div className="absolute inset-4 border-4 border-black rounded-2xl" />
 
