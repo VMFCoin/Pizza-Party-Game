@@ -122,12 +122,26 @@ async function fetchLifetimeStatsForAddresses(addresses: string[]): Promise<Life
 /**
  * Fetch EXACT payout for each winner from Transfer events
  * This is the ACTUAL amount sent to each winner in this specific game
+ * 
+ * CRITICAL: This handles cases where daily and weekly games settle at the same time
+ * (both at 12pm PST on Mondays), so we need to match transfers intelligently.
+ * 
+ * @param gameId - The game ID
+ * @param winners - Array of winner addresses
+ * @param gameType - 'daily' or 'weekly' to know which game's transfers to fetch
+ * @param potAmount - The total pot for this game (helps validate amounts)
  */
 async function fetchGamePayoutsFromTransfers(
   gameId: bigint,
-  winners: string[]
+  winners: string[],
+  gameType: 'daily' | 'weekly',
+  potAmount: bigint
 ): Promise<Map<string, string>> {
   const payoutMap = new Map<string, string>()
+  
+  if (winners.length === 0) {
+    return payoutMap
+  }
   
   try {
     const publicClient = getPublicClient(wagmiConfig, { chainId: BASE_CHAIN_ID })
@@ -136,28 +150,48 @@ async function fetchGamePayoutsFromTransfers(
       return payoutMap
     }
 
+    console.log(`🔍 Fetching ${gameType} game #${gameId} payouts (pot: ${formatVmf(potAmount)} VMF)`)
+
+    // Calculate expected payout ranges for this game type
+    const expectedMin = gameType === 'daily' 
+      ? (potAmount * 90n) / 100n / BigInt(winners.length)  // ~90% (accounting for bonuses)
+      : potAmount / BigInt(winners.length) - (potAmount / BigInt(winners.length) * 10n / 100n) // Weekly ±10%
+    
+    const expectedMax = gameType === 'daily'
+      ? (potAmount * 100n) / 100n / BigInt(winners.length)  // Up to 100% share (if first player + dust)
+      : potAmount / BigInt(winners.length) + (potAmount / BigInt(winners.length) * 10n / 100n)
+
+    console.log(`📊 Expected ${gameType} payout range: ${formatVmf(expectedMin)} - ${formatVmf(expectedMax)} VMF`)
+
     // Get the game data to find settlement block range
+    const functionName = gameType === 'daily' ? 'dailyGames' : 'weeklyGames'
     const gameData = await readContract(wagmiConfig, {
       address: PIZZA_PARTY_ADDRESS as `0x${string}`,
       abi: PIZZA_PARTY_ABI,
-      functionName: 'dailyGames',
+      functionName,
       args: [gameId],
       chainId: BASE_CHAIN_ID,
     }) as {
-      startTime: bigint
-      endTime: bigint
-      firstPlayer: string
+      startTime?: bigint
+      endTime?: bigint
+      claimWindowStart?: bigint
+      claimWindowEnd?: bigint
+      firstPlayer?: string
       potAmount: bigint
       settled: boolean
     }
 
     if (!gameData.settled) {
-      console.warn('Game not settled:', gameId)
+      console.warn(`${gameType} game not settled:`, gameId)
       return payoutMap
     }
 
-    // Fetch ALL transfers from PizzaParty contract to winners
-    // We'll match them to this specific game by analyzing the amounts
+    // Get settlement timestamp
+    const settlementTime = gameType === 'daily' 
+      ? gameData.endTime 
+      : gameData.claimWindowEnd
+
+    // Fetch transfers for EACH winner
     const transferPromises = winners.map(async (winnerAddress) => {
       try {
         const logs = await publicClient.getLogs({
@@ -171,27 +205,74 @@ async function fetchGamePayoutsFromTransfers(
           toBlock: 'latest',
         })
 
-        // Find the most recent transfer (should be from this game settlement)
-        // In production, you might want to filter by block number around settlement time
-        if (logs.length > 0) {
-          // Get the most recent transfer (last in array)
-          const mostRecentTransfer = logs[logs.length - 1]
-          const amount = mostRecentTransfer.args.value ?? 0n
-          
-          if (amount > 0n) {
-            payoutMap.set(winnerAddress.toLowerCase(), formatVmf(amount))
-            console.log(`✅ Found payout for ${winnerAddress.slice(0, 6)}: ${formatVmf(amount)} VMF`)
+        if (logs.length === 0) {
+          console.warn(`⚠️ No transfers found for ${winnerAddress.slice(0, 6)}`)
+          return
+        }
+
+        // Sort by block number (most recent last)
+        const sortedLogs = logs.sort((a, b) => Number(a.blockNumber) - Number(b.blockNumber))
+
+        // Strategy: Find transfers that match the expected amount range
+        // and are closest to the settlement time
+        let bestMatch: typeof sortedLogs[0] | null = null
+        let bestMatchScore = -1
+
+        for (let i = sortedLogs.length - 1; i >= Math.max(0, sortedLogs.length - 10); i--) {
+          const log = sortedLogs[i]
+          const amount = log.args.value ?? 0n
+
+          // Check if amount is in expected range for this game type
+          const inRange = amount >= expectedMin && amount <= expectedMax
+
+          if (!inRange) {
+            continue // Skip transfers that don't match this game's payout range
+          }
+
+          try {
+            const block = await publicClient.getBlock({ blockNumber: log.blockNumber })
+            const blockTime = block.timestamp
+
+            // Calculate score: prefer transfers closest to settlement time
+            const timeDiff = settlementTime ? Number(blockTime > settlementTime ? blockTime - settlementTime : settlementTime - blockTime) : 0
+            const score = inRange ? (10000 - timeDiff) : 0 // Higher score = better match
+
+            if (score > bestMatchScore) {
+              bestMatchScore = score
+              bestMatch = log
+            }
+
+            // If we found a transfer within 5 minutes of settlement, that's definitely it
+            if (timeDiff < 300 && inRange) {
+              console.log(`✅ Found ${gameType} transfer for ${winnerAddress.slice(0, 6)} at block ${log.blockNumber} (${timeDiff}s from settlement)`)
+              break
+            }
+          } catch (err) {
+            console.warn('Failed to get block timestamp:', err)
           }
         }
+
+        if (bestMatch) {
+          const amount = bestMatch.args.value ?? 0n
+          if (amount > 0n) {
+            const vmfAmount = formatVmf(amount)
+            payoutMap.set(winnerAddress.toLowerCase(), vmfAmount)
+            console.log(`✅ ${gameType.toUpperCase()} payout for ${winnerAddress.slice(0, 6)}: ${vmfAmount} VMF`)
+          }
+        } else {
+          console.warn(`⚠️ No matching ${gameType} transfer found for ${winnerAddress.slice(0, 6)} (will use fallback)`)
+        }
       } catch (err) {
-        console.error('Failed to fetch transfers for', winnerAddress, ':', err)
+        console.error(`Failed to fetch ${gameType} transfers for`, winnerAddress, ':', err)
       }
     })
 
     await Promise.all(transferPromises)
 
+    console.log(`✅ Fetched ${payoutMap.size}/${winners.length} ${gameType} payouts from transfers`)
+
   } catch (error) {
-    console.error('Failed to fetch game payouts from transfers:', error)
+    console.error(`Failed to fetch ${gameType} game payouts from transfers:`, error)
   }
 
   return payoutMap
@@ -204,10 +285,18 @@ async function fetchGamePayoutsFromTransfers(
 function calculateFallbackPayout(
   pot: bigint,
   winnerCount: number,
-  isFirstPlayer: boolean
+  isFirstPlayer: boolean,
+  gameType: 'daily' | 'weekly'
 ): string {
   if (winnerCount === 0) return '0.0'
 
+  if (gameType === 'weekly') {
+    // Weekly: Simple equal split
+    const perWinner = pot / BigInt(winnerCount)
+    return formatVmf(perWinner)
+  }
+
+  // Daily game calculation (current contract - no charity)
   const firstPlayerBonus = (pot * 100n) / 10000n  // 1%
   const playersPool = pot - firstPlayerBonus       // 99%
   const baseShare = playersPool / BigInt(winnerCount)
@@ -215,12 +304,14 @@ function calculateFallbackPayout(
 
   let payout = baseShare
 
-  // Note: This is simplified - actual dust distribution may vary
-  // This is why we prefer Transfer events!
+  // First player gets their bonus
   if (isFirstPlayer) {
     payout += firstPlayerBonus
   }
 
+  // Approximate: winner[0] would get remainder
+  // This is simplified - actual dust distribution may vary
+  // This is why we prefer Transfer events!
   return formatVmf(payout)
 }
 
@@ -365,10 +456,14 @@ export default function LeaderboardPage({
           fetchLifetimeStatsForAddresses(weeklyWinnerAddresses),
         ])
 
+        const dailyPotAmount = dailyGameData ? (dailyGameData as { potAmount: bigint }).potAmount : 0n
+        const weeklyPotAmount = weeklyGameData ? (weeklyGameData as { potAmount: bigint }).potAmount : 0n
+
         // ✅ CRITICAL: Fetch ACTUAL payouts from Transfer events
+        // IMPORTANT: Pass pot amount to help match correct transfers by amount range
         const [dailyPayouts, weeklyPayouts] = await Promise.all([
-          fetchGamePayoutsFromTransfers(dailyGameIdToFetch, dailyWinnerAddresses),
-          fetchGamePayoutsFromTransfers(weeklyGameIdToFetch, weeklyWinnerAddresses),
+          fetchGamePayoutsFromTransfers(dailyGameIdToFetch, dailyWinnerAddresses, 'daily', dailyPotAmount),
+          fetchGamePayoutsFromTransfers(weeklyGameIdToFetch, weeklyWinnerAddresses, 'weekly', weeklyPotAmount),
         ])
 
         // Build daily winners display data
@@ -388,15 +483,16 @@ export default function LeaderboardPage({
             thisGamePayout = calculateFallbackPayout(
               gameData.potAmount,
               dailyWinnerAddresses.length,
-              isFirstPlayer
+              isFirstPlayer,
+              'daily'  // ✅ Specify this is a daily game
             )
-            console.warn('⚠️ Using fallback calculation for', addr.slice(0, 6))
+            console.warn('⚠️ Using daily fallback calculation for', addr.slice(0, 6), ':', thisGamePayout)
           }
 
           return {
             address: addr,
             displayName: formatAddress(addr),
-            thisGamePayout,  // ✅ EXACT amount from THIS game
+            thisGamePayout,  // ✅ EXACT amount from THIS daily game
             lifetimeWins: dailyLifetimeStats[idx]?.totalWins || 0,
             lifetimeVmfWon: dailyLifetimeStats[idx]?.totalVmfWon || '0.0',  // ✅ Total from ALL games
           }
@@ -410,13 +506,19 @@ export default function LeaderboardPage({
           // Fallback for weekly
           if (thisGamePayout === '0.0' && weeklyGameData) {
             const gameData = weeklyGameData as { potAmount: bigint }
-            thisGamePayout = formatVmf(gameData.potAmount / BigInt(weeklyWinnerAddresses.length || 1))
+            thisGamePayout = calculateFallbackPayout(
+              gameData.potAmount,
+              weeklyWinnerAddresses.length,
+              false,  // No first player bonus in weekly
+              'weekly'  // ✅ Specify this is a weekly game
+            )
+            console.warn('⚠️ Using weekly fallback calculation for', addr.slice(0, 6), ':', thisGamePayout)
           }
 
           return {
             address: addr,
             displayName: formatAddress(addr),
-            thisGamePayout,
+            thisGamePayout,  // ✅ EXACT amount from THIS weekly game
             lifetimeWins: weeklyLifetimeStats[idx]?.totalWins || 0,
             lifetimeVmfWon: weeklyLifetimeStats[idx]?.totalVmfWon || '0.0',
           }
