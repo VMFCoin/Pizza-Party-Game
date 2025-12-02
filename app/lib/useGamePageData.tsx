@@ -22,9 +22,6 @@ const DEFAULT_VMF_USD_PRICE = 0.01
 const TOPPINGS_EARNED_EVENT = parseAbiItem(
   'event ToppingsEarned(uint256 indexed weekId, address indexed player, uint256 amount, string reason)',
 )
-const DAILY_GAME_ENTERED_EVENT = parseAbiItem(
-  'event DailyGameEntered(uint256 indexed gameId, address indexed player, bool isFirst, uint256 amount)',
-)
 
 // ------------------ Types ------------------
 
@@ -529,10 +526,9 @@ export function useGamePageData() {
       if (publicClient) {
         try {
           // Count from ToppingsEarned events for the current week
-          // Use a recent fromBlock to avoid querying too far back (last 7 days = ~50k blocks on Base)
-          const recentBlock = await publicClient.getBlockNumber()
-          const fromBlock = recentBlock > 50000n ? recentBlock - 50000n : 0n
-          
+          // Query from genesis to ensure no events are missed (weekId filter ensures only current week)
+          const fromBlock = 0n
+
           const toppingsLogs = await publicClient.getLogs({
             address: PIZZA_PARTY_ADDRESS as `0x${string}`,
             event: TOPPINGS_EARNED_EVENT,
@@ -541,60 +537,39 @@ export function useGamePageData() {
           })
 
           let totalEarned = 0n
-          const players = new Set<string>()
+          const uniquePlayersThisWeek = new Set<string>()
 
           for (const log of toppingsLogs) {
             const amount = log.args?.amount ?? 0n
-            totalEarned += amount
             const playerArg = log.args?.player
+
+            totalEarned += amount
+
+            // Track unique players who earned any toppings this week
             if (playerArg) {
-              players.add(playerArg.toLowerCase())
+              uniquePlayersThisWeek.add(playerArg.toLowerCase())
             }
           }
 
-          // Also count from DailyGameEntered events as a cross-check
-          // Each daily entry = 1 topping earned
-          const dailyEnteredLogs = await publicClient.getLogs({
-            address: PIZZA_PARTY_ADDRESS as `0x${string}`,
-            event: DAILY_GAME_ENTERED_EVENT,
-            fromBlock,
+          console.debug('Weekly projection (from events):', {
+            toppingsEarnedEvents: toppingsLogs.length,
+            uniquePlayersFromEvents: uniquePlayersThisWeek.size,
+            currentWeekId: currentWeekId.toString(),
+            totalEarnedToppings: totalEarned.toString(),
+            claimerCount: claimerCount.toString(),
+            projectedPlayerCountBefore: projectedPlayerCount,
           })
 
-          const dailyPlayers = new Set<string>()
-          let dailyToppingsCount = 0n
-
-          for (const log of dailyEnteredLogs) {
-            const playerArg = log.args?.player
-            if (playerArg) {
-              dailyPlayers.add(playerArg.toLowerCase())
-              dailyToppingsCount += 1n // Each entry = 1 topping
-            }
-          }
-
-          // Use daily toppings count as source of truth for player count
-          // since each DailyGameEntered event = 1 topping = 1 entry for the week
-          const finalPlayerCount = Number(dailyToppingsCount)
-
-          // For jackpot, prefer ToppingsEarned total (includes all sources: daily, referrals, holdings)
-          // But use daily entries as fallback if ToppingsEarned is 0
+          // Use ToppingsEarned as source of truth
           if (totalEarned > 0n) {
+            // Jackpot = total toppings earned this week from all sources (daily plays, referrals, holdings bonus)
             projectedJackpotWei = totalEarned * WEI_PER_VMF
-          } else if (dailyToppingsCount > 0n) {
-            projectedJackpotWei = dailyToppingsCount * WEI_PER_VMF
+            // Weekly Players = unique players who earned toppings this week
+            projectedPlayerCount = Math.max(uniquePlayersThisWeek.size, Number(claimerCount))
           }
 
-          if (finalPlayerCount > 0) {
-            projectedPlayerCount = finalPlayerCount
-          }
-
-          console.debug('Weekly projection:', {
-            toppingsEarnedEvents: toppingsLogs.length,
-            dailyEnteredEvents: dailyEnteredLogs.length,
-            uniquePlayersFromToppings: players.size,
-            uniquePlayersFromDaily: dailyPlayers.size,
-            projectedPlayerCount: finalPlayerCount,
-            totalEarnedToppings: totalEarned.toString(),
-            dailyToppingsCount: dailyToppingsCount.toString(),
+          console.debug('Weekly projection (after processing):', {
+            projectedPlayerCount: projectedPlayerCount,
             projectedJackpotWei: projectedJackpotWei.toString(),
           })
         } catch (projErr) {
