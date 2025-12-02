@@ -915,25 +915,6 @@ export function useGamePageData() {
         console.warn('Could not fetch game state:', gameErr)
       }
       
-      // Optional simulation (non-blocking) to help with debugging.
-      // We intentionally DO NOT block the actual transaction if simulation fails,
-      // so that the wallet confirmation still shows up.
-      console.log('Simulating contract call (non-blocking)...')
-      try {
-        await simulateContract(wagmiConfig, {
-          address: PIZZA_PARTY_ADDRESS as `0x${string}`,
-          abi: PIZZA_PARTY_ABI,
-          functionName: 'enterDailyGame',
-          args: [code, entryFeeWei],
-          account: wallet.address as `0x${string}`,
-        })
-        console.log('✅ Simulation passed')
-      } catch (simError: unknown) {
-        console.warn('⚠️ Simulation failed but continuing to send transaction:', simError)
-      }
-      
-      console.log('========================')
-      
       if (!hasEnoughVMF) {
         alert(`Insufficient VMF balance. You need ${Number(entryFeeWei) / 1e18} VMF`)
         return
@@ -948,6 +929,60 @@ export function useGamePageData() {
         alert('You have already entered today')
         return
       }
+      
+      // Simulate and prepare the transaction first
+      // This helps the wallet properly format the transaction
+      console.log('Preparing transaction...')
+      let preparedRequest
+      try {
+        const simulationResult = await simulateContract(wagmiConfig, {
+          address: PIZZA_PARTY_ADDRESS as `0x${string}`,
+          abi: PIZZA_PARTY_ABI,
+          functionName: 'enterDailyGame',
+          args: [code, entryFeeWei],
+          account: wallet.address as `0x${string}`,
+        })
+        preparedRequest = simulationResult.request
+        console.log('✅ Transaction prepared successfully')
+      } catch (simError: unknown) {
+        console.error('❌ Transaction preparation failed:', simError)
+        const simMessage = getErrorMessage(simError)
+        
+        // Extract and show the actual error reason
+        let errorReason = 'Transaction would fail'
+        if (simMessage) {
+          if (simMessage.includes('insufficient allowance') || simMessage.includes('ERC20')) {
+            errorReason = 'Insufficient token allowance. Please approve VMF spending first.'
+          } else if (simMessage.includes('insufficient funds') || simMessage.includes('balance')) {
+            errorReason = `Insufficient VMF balance. You need ${(Number(entryFeeWei) / 1e18).toFixed(4)} VMF`
+          } else if (simMessage.includes('Already played') || simMessage.includes('hasPlayedDaily')) {
+            errorReason = 'You have already entered today'
+          } else if (simMessage.includes('Game ended') || simMessage.includes('block.timestamp')) {
+            errorReason = 'Game has ended. Please wait for settlement.'
+          } else if (simMessage.includes('Weekly limit reached')) {
+            errorReason = 'You have reached the weekly play limit (7 entries/week)'
+          } else if (simMessage.includes('Amount too low')) {
+            errorReason = `Entry amount too low. Minimum: ${Number(GAME_CONSTANTS.MIN_ENTRY_FEE_WEI) / 1e18} VMF`
+          } else if (simMessage.includes('Amount too high')) {
+            errorReason = `Entry amount too high. Maximum: ${Number(GAME_CONSTANTS.MAX_ENTRY_FEE_WEI) / 1e18} VMF`
+          } else {
+            // Try to extract revert reason
+            const errorStr = JSON.stringify(simError)
+            const revertMatch = errorStr.match(/revert[^"]*"([^"]+)"/i) || 
+                               errorStr.match(/reason[^"]*"([^"]+)"/i) ||
+                               simMessage.match(/"([^"]+)"/)
+            if (revertMatch && revertMatch[1]) {
+              errorReason = revertMatch[1]
+            } else {
+              errorReason = simMessage || 'Transaction would revert. Please check your balance, allowance, and game status.'
+            }
+          }
+        }
+        alert(`Transaction failed: ${errorReason}`)
+        return
+      }
+      
+      console.log('========================')
       
       // ============================================================
       // CRITICAL: Save "before" snapshot for accurate win tracking
@@ -999,11 +1034,12 @@ export function useGamePageData() {
       console.log('Referral Code:', code || '(none)')
       console.log('Calling enterDailyGame with amount:', entryFeeWei.toString())
       
+      // Send the transaction - simulation already validated it will work
       const result = await writeContract({
         address: PIZZA_PARTY_ADDRESS as `0x${string}`,
         abi: PIZZA_PARTY_ABI,
         functionName: 'enterDailyGame',
-        args: [code, entryFeeWei], // ✅ Pass the dynamic amount
+        args: [code, entryFeeWei],
       })
       
       console.log('✅ Transaction submitted:', result)
