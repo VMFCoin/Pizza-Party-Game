@@ -306,7 +306,7 @@ export const GAME_CONSTANTS = {
   HOLDINGS_UNIT: 10000n * ONE_ETHER,
   HOLDINGS_TICKETS: 3,
   MAX_INVITES_PER_WEEK: 3,
-  TOPPING_TO_VMF_RATE: 1n * ONE_ETHER,
+  TOPPING_TO_VMF_RATE: 10n * ONE_ETHER,  // 1 topping = 10 VMF in weekly jackpot
   WEEKLY_WINNERS_COUNT: 10,
   DEFAULT_DAILY_WINNERS_COUNT: 8,
   // Legacy constant for backward compatibility (deprecated - use dynamic calculation)

@@ -565,8 +565,12 @@ export function useGamePageData() {
 
           // Use ToppingsEarned as source of truth
           if (totalEarned > 0n) {
-            // Jackpot = total toppings earned this week from all sources (daily plays, referrals, holdings bonus)
-            projectedJackpotWei = totalEarned * WEI_PER_VMF
+            // Jackpot = total toppings earned this week × 10 VMF per topping
+            // IMPORTANT: Toppings are added to weekly jackpot IMMEDIATELY when earned (daily plays, referrals)
+            // The only exception is holdings bonus (3 toppings per 1,000 VMF) which is calculated
+            // at claim time based on VMF balance snapshot at that moment
+            // This projection shows what the jackpot will be if all earned toppings are claimed
+            projectedJackpotWei = totalEarned * GAME_CONSTANTS.TOPPING_TO_VMF_RATE
             // Weekly Players = unique players from events, or use daily entries if events are low
             const eventPlayerCount = Math.max(uniquePlayersThisWeek.size, toppingsLogs.length)
             projectedPlayerCount = Math.max(eventPlayerCount, Number(claimerCount))
