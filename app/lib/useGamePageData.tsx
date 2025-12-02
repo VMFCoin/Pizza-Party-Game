@@ -17,7 +17,6 @@ import { wagmiConfig } from '../components/config/wagmiConfig'
 
 const PACIFIC_TZ = 'America/Los_Angeles'
 const BASE_CHAIN_ID = 8453
-const ENTRY_FEE_WEI = GAME_CONSTANTS.ENTRY_FEE_WEI
 const WEI_PER_VMF = 10n ** 18n
 const DEFAULT_VMF_USD_PRICE = 0.01
 const TOPPINGS_EARNED_EVENT = parseAbiItem(
