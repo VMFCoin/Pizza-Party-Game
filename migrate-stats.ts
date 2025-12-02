@@ -98,10 +98,24 @@ async function migrateStats() {
       "   3. Maintaining an off-chain database of active players\n"
     );
 
-    // Example: Hardcode known players (replace with your actual player list)
+    // Player addresses extracted from old contract transactions
     const playerAddresses: string[] = [
-      // Add player addresses here
-      // e.g., "0x1234567890123456789012345678901234567890",
+      "0x9157Feb12812b253e84447C6B52C38651fd67FcA",
+      "0xdf13d712d58EF7F7Abd4D29B398d503262ba4AC0",
+      "0xffde42d40175b3b9349Dfb384439dCB811691E09",
+      "0xD68C5493e41F03faC90776ad0366376E245255E8",
+      "0xC77dA8cB158BA77BaC765625745a766Af3111A69",
+      "0x65e3419E633833Df1D602e7905Cb9C7e541f0849",
+      "0x598986FaC0D3ff7EaC3D55fFAB5e67c2a27C2765",
+      "0x257Cbe89968495C3aE8C81BccB8BE7f257CD5f66",
+      "0xBc4340Af8B93b0260ec8052CFA50982dD0865ba7",
+      "0x1B49689db12080f5FcC5DC36f990599739487566",
+      "0x8B06bd80840F0c6Ed78Aa8c3cc1d8eC155118d12",
+      "0xF0F950DfF685f166F2531fbCf97CebEa000ef3B8",
+      "0xd1CB812192C535d2762Bf4AD1f1C1D4deE3e383e",
+      "0x14E8FddFa4a7c709C19a8C7DA5205c3ae366355c",
+      "0xc64c699514E74451a627ccE93D45dc2E8f3a7793",
+      "0xf091E8c19D1F5F3D44D0D3311001Af1437B4F5B8",
     ];
 
     if (playerAddresses.length === 0) {
