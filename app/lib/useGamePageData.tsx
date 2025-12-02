@@ -567,6 +567,11 @@ export function useGamePageData() {
             // Weekly Players = unique players from events, or use daily entries if events are low
             const eventPlayerCount = Math.max(uniquePlayersThisWeek.size, toppingsLogs.length)
             projectedPlayerCount = Math.max(eventPlayerCount, Number(claimerCount))
+
+            // HOTFIX: Week ID 2 hardcoded to show 8 players (accounts for players who entered before weekly settlement)
+            if (currentWeekId === 2n) {
+              projectedPlayerCount = 8
+            }
           }
 
           console.debug('Weekly projection (after processing):', {
