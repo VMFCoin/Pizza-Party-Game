@@ -557,7 +557,6 @@ export function useGamePageData() {
             currentWeekId: currentWeekId.toString(),
             totalEarnedToppings: totalEarned.toString(),
             claimerCount: claimerCount.toString(),
-            dailyTotalEntries: daily.totalEntries,
           })
 
           // Use ToppingsEarned as source of truth
@@ -660,7 +659,6 @@ export function useGamePageData() {
         error: err instanceof Error ? err : new Error('Failed to load daily')
       }))
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   // ================= Countdown =================
@@ -975,10 +973,10 @@ export function useGamePageData() {
       setHasEnteredToday(false)
       
       // Parse the error for a better message
-      const error = err as any
+      const error = err as Record<string, unknown>
       let message = 'Transaction failed'
-      
-      if (error?.message) {
+
+      if (error?.message && typeof error.message === 'string') {
         const msg = error.message.toLowerCase()
         
         if (msg.includes('insufficient funds') || msg.includes('insufficient balance')) {
@@ -996,7 +994,7 @@ export function useGamePageData() {
         } else {
           message = error.message
         }
-      } else if (error?.shortMessage) {
+      } else if (error?.shortMessage && typeof error.shortMessage === 'string') {
         const msg = error.shortMessage.toLowerCase()
         if (msg.includes('insufficient funds') || msg.includes('insufficient balance')) {
           message = 'Insufficient ETH for gas fees. Please add some ETH to your Base wallet.'
