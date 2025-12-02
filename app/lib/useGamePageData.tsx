@@ -565,10 +565,11 @@ export function useGamePageData() {
           if (totalEarned > 0n) {
             // Jackpot = total toppings earned this week from all sources (daily plays, referrals, holdings bonus)
             projectedJackpotWei = totalEarned * WEI_PER_VMF
-            // Weekly Players = max of unique players from events or current daily entries
-            // This ensures we count players who entered before weekly settlement
-            projectedPlayerCount = Math.max(uniquePlayersThisWeek.size, daily.totalEntries)
           }
+
+          // Weekly Players = max of unique players from events or current daily entries
+          // This ensures we count players who entered before weekly settlement
+          projectedPlayerCount = Math.max(Math.max(uniquePlayersThisWeek.size, Number(claimerCount)), daily.totalEntries)
 
           console.debug('Weekly projection (after processing):', {
             projectedPlayerCount: projectedPlayerCount,
