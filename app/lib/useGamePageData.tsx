@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { toZonedTime, fromZonedTime } from 'date-fns-tz'
 import { parseAbiItem, maxUint256 } from 'viem'
-import { readContract, watchBlockNumber, getPublicClient, simulateContract } from '@wagmi/core'
+import { readContract, watchBlockNumber, getPublicClient } from '@wagmi/core'
 import { useAccount, useChainId, useWriteContract } from 'wagmi'
 import { useAppKit } from '@reown/appkit/react'
 import {
@@ -660,6 +660,7 @@ export function useGamePageData() {
         error: err instanceof Error ? err : new Error('Failed to load daily')
       }))
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   // ================= Countdown =================
@@ -855,6 +856,8 @@ export function useGamePageData() {
   }, [networkId, wallet.isAuthenticated, writeContract, fetchPlayerInfo, fetchWeekly])
 
   const handleEnterGame = useCallback(async (referralCode?: string) => {
+    console.log('=== ENTER GAME CLICKED ===')
+    
     if (networkId !== BASE_CHAIN_ID) {
       console.error('Wrong network. Current:', networkId, 'Expected:', BASE_CHAIN_ID)
       alert(`Please switch to Base network (Chain ID: ${BASE_CHAIN_ID})`)
@@ -867,174 +870,84 @@ export function useGamePageData() {
       return
     }
     
+    // Safely handle referral code - default to empty string
+    const code = typeof referralCode === 'string' ? referralCode.trim() : ''
+    
+    // Pre-flight checks
+    console.log('Wallet address:', wallet.address)
+    console.log('VMF Balance:', vmfBalance.toString())
+    console.log('Entry Fee:', (Number(entryFeeWei) / 1e18).toFixed(4), 'VMF')
+    console.log('Has Enough VMF:', hasEnoughVMF)
+    console.log('Needs Approval:', needsApproval)
+    console.log('Has Entered Today:', hasEnteredToday)
+    console.log('Referral Code:', code || '(empty)')
+    
+    if (!hasEnoughVMF) {
+      alert(`You need at least ${(Number(entryFeeWei) / 1e18).toFixed(4)} VMF to play. You have ${(Number(vmfBalance) / 1e18).toFixed(4)} VMF.`)
+      return
+    }
+    
+    if (needsApproval) {
+      alert('Please approve VMF spending first.')
+      return
+    }
+    
+    if (hasEnteredToday) {
+      alert('You have already entered the game today.')
+      return
+    }
+    
+    // ============================================================
+    // CRITICAL: Save "before" snapshot for accurate win tracking
+    // ============================================================
     try {
-      // Safely handle referral code - default to empty string
-      const code = typeof referralCode === 'string' ? referralCode.trim() : ''
-      
-      // Pre-flight checks
-      console.log('=== PRE-FLIGHT CHECKS ===')
-      console.log('Wallet address:', wallet.address)
-      console.log('VMF Balance:', vmfBalance.toString())
-      console.log('Entry Fee Required:', entryFeeWei.toString())
-      console.log('Has Enough VMF:', hasEnoughVMF)
-      console.log('Needs Approval:', needsApproval)
-      console.log('Has Entered Today:', hasEnteredToday)
-      console.log('Referral Code:', code || '(empty)')
-      console.log('Is First Entry:', playerInfo?.dailyEntries === 0n)
-      
-      // Check game state
-      try {
-        const currentGame = await readContract(wagmiConfig, {
-          address: PIZZA_PARTY_ADDRESS as `0x${string}`,
-          abi: PIZZA_PARTY_ABI,
-          functionName: 'getCurrentDailyGame',
-        }) as DailyGameResponse
-
-        const currentDailyId = await readContract(wagmiConfig, {
-          address: PIZZA_PARTY_ADDRESS as `0x${string}`,
-          abi: PIZZA_PARTY_ABI,
-          functionName: 'dailyGameId',
-        })
-
-        const isCompleted = isDailyGameTuple(currentGame) ? currentGame[4] : currentGame.settled
-        const endTime = isDailyGameTuple(currentGame) ? currentGame[1] : currentGame.endTime
-
-        console.log('Current Game State:', {
-          gameId: currentDailyId?.toString(),
-          isCompleted,
-          endTime: endTime?.toString(),
-          currentTime: Math.floor(Date.now() / 1000),
-          hasEnded: endTime && Math.floor(Date.now() / 1000) >= Number(endTime),
-        })
-
-        if (isCompleted) {
-          alert('Current game is completed. Please wait for the next game to start.')
-          return
-        }
-      } catch (gameErr: unknown) {
-        console.warn('Could not fetch game state:', gameErr)
+      const beforeStats = await readContract(wagmiConfig, {
+        address: PIZZA_PARTY_ADDRESS as `0x${string}`,
+        abi: PIZZA_PARTY_ABI,
+        functionName: 'getPlayerLifetimeStats',
+        args: [wallet.address as `0x${string}`],
+      }) as readonly [bigint, bigint, bigint, bigint, bigint] | {
+        totalDailyWins: bigint
+        totalWeeklyWins: bigint
+        totalVmfWon: bigint
+        lifetimeToppings: bigint
+        lifetimeReferrals: bigint
       }
       
-      if (!hasEnoughVMF) {
-        alert(`Insufficient VMF balance. You need ${Number(entryFeeWei) / 1e18} VMF`)
-        return
+      const currentGameId = await readContract(wagmiConfig, {
+        address: PIZZA_PARTY_ADDRESS as `0x${string}`,
+        abi: PIZZA_PARTY_ABI,
+        functionName: 'dailyGameId',
+      }) as bigint
+      
+      // Handle both tuple and object formats
+      const beforeVmfWon = Array.isArray(beforeStats)
+        ? beforeStats[2]
+        : (beforeStats as { totalVmfWon: bigint }).totalVmfWon
+      
+      const beforeKey = `pizza_party_vmf_before_game_${currentGameId}`
+      if (typeof window !== 'undefined') {
+        localStorage.setItem(beforeKey, beforeVmfWon.toString())
       }
       
-      if (needsApproval) {
-        alert('Please approve VMF spending first')
-        return
-      }
-      
-      if (hasEnteredToday) {
-        alert('You have already entered today')
-        return
-      }
-      
-      // Simulate and prepare the transaction first
-      // This helps the wallet properly format the transaction
-      console.log('Preparing transaction...')
-      let preparedRequest
-      try {
-        const simulationResult = await simulateContract(wagmiConfig, {
-          address: PIZZA_PARTY_ADDRESS as `0x${string}`,
-          abi: PIZZA_PARTY_ABI,
-          functionName: 'enterDailyGame',
-          args: [code, entryFeeWei],
-          account: wallet.address as `0x${string}`,
-        })
-        preparedRequest = simulationResult.request
-        console.log('✅ Transaction prepared successfully')
-      } catch (simError: unknown) {
-        console.error('❌ Transaction preparation failed:', simError)
-        const simMessage = getErrorMessage(simError)
-        
-        // Extract and show the actual error reason
-        let errorReason = 'Transaction would fail'
-        if (simMessage) {
-          if (simMessage.includes('insufficient allowance') || simMessage.includes('ERC20')) {
-            errorReason = 'Insufficient token allowance. Please approve VMF spending first.'
-          } else if (simMessage.includes('insufficient funds') || simMessage.includes('balance')) {
-            errorReason = `Insufficient VMF balance. You need ${(Number(entryFeeWei) / 1e18).toFixed(4)} VMF`
-          } else if (simMessage.includes('Already played') || simMessage.includes('hasPlayedDaily')) {
-            errorReason = 'You have already entered today'
-          } else if (simMessage.includes('Game ended') || simMessage.includes('block.timestamp')) {
-            errorReason = 'Game has ended. Please wait for settlement.'
-          } else if (simMessage.includes('Weekly limit reached')) {
-            errorReason = 'You have reached the weekly play limit (7 entries/week)'
-          } else if (simMessage.includes('Amount too low')) {
-            errorReason = `Entry amount too low. Minimum: ${Number(GAME_CONSTANTS.MIN_ENTRY_FEE_WEI) / 1e18} VMF`
-          } else if (simMessage.includes('Amount too high')) {
-            errorReason = `Entry amount too high. Maximum: ${Number(GAME_CONSTANTS.MAX_ENTRY_FEE_WEI) / 1e18} VMF`
-          } else {
-            // Try to extract revert reason
-            const errorStr = JSON.stringify(simError)
-            const revertMatch = errorStr.match(/revert[^"]*"([^"]+)"/i) || 
-                               errorStr.match(/reason[^"]*"([^"]+)"/i) ||
-                               simMessage.match(/"([^"]+)"/)
-            if (revertMatch && revertMatch[1]) {
-              errorReason = revertMatch[1]
-            } else {
-              errorReason = simMessage || 'Transaction would revert. Please check your balance, allowance, and game status.'
-            }
-          }
-        }
-        alert(`Transaction failed: ${errorReason}`)
-        return
-      }
-      
-      console.log('========================')
-      
-      // ============================================================
-      // CRITICAL: Save "before" snapshot for accurate win tracking
-      // ============================================================
-      try {
-        const beforeStats = await readContract(wagmiConfig, {
-          address: PIZZA_PARTY_ADDRESS as `0x${string}`,
-          abi: PIZZA_PARTY_ABI,
-          functionName: 'getPlayerLifetimeStats',
-          args: [wallet.address as `0x${string}`],
-        }) as readonly [bigint, bigint, bigint, bigint, bigint] | {
-          totalDailyWins: bigint
-          totalWeeklyWins: bigint
-          totalVmfWon: bigint
-          lifetimeToppings: bigint
-          lifetimeReferrals: bigint
-        }
-        
-        const currentGameId = await readContract(wagmiConfig, {
-          address: PIZZA_PARTY_ADDRESS as `0x${string}`,
-          abi: PIZZA_PARTY_ABI,
-          functionName: 'dailyGameId',
-        }) as bigint
-        
-        // Handle both tuple and object formats
-        const beforeVmfWon = Array.isArray(beforeStats)
-          ? beforeStats[2]
-          : (beforeStats as { totalVmfWon: bigint }).totalVmfWon
-        
-        const beforeKey = `pizza_party_vmf_before_game_${currentGameId}`
-        if (typeof window !== 'undefined') {
-          localStorage.setItem(beforeKey, beforeVmfWon.toString())
-        }
-        
-        console.debug('💾 Saved before snapshot:', {
-          gameId: currentGameId.toString(),
-          vmfBefore: (Number(beforeVmfWon) / 1e18).toFixed(2),
-        })
-      } catch (snapshotErr) {
-        console.warn('Failed to save before snapshot:', snapshotErr)
-        // Continue anyway - fallback to calculation
-      }
-      // ============================================================
-      
-      console.log('=== ENTERING GAME ===')
-      console.log('Entry Fee (wei):', entryFeeWei.toString())
-      console.log('Entry Fee (VMF):', (Number(entryFeeWei) / 1e18).toFixed(4))
-      console.log('VMF Price (USD):', vmfUsdPrice.toFixed(6))
-      console.log('Referral Code:', code || '(none)')
-      console.log('Calling enterDailyGame with amount:', entryFeeWei.toString())
-      
-      // Send the transaction - simulation already validated it will work
+      console.debug('💾 Saved before snapshot:', {
+        gameId: currentGameId.toString(),
+        vmfBefore: (Number(beforeVmfWon) / 1e18).toFixed(2),
+      })
+    } catch (snapshotErr) {
+      console.warn('Failed to save before snapshot:', snapshotErr)
+      // Continue anyway - fallback to calculation
+    }
+    // ============================================================
+    
+    console.log('=== FINAL PRE-TX CHECK ===')
+    console.log('Contract:', PIZZA_PARTY_ADDRESS)
+    console.log('Function:', 'enterDailyGame')
+    console.log('Args:', [code, entryFeeWei])
+    console.log('Chain ID:', networkId)
+    
+    try {
+      // Just call writeContract - let wagmi handle everything
       const result = await writeContract({
         address: PIZZA_PARTY_ADDRESS as `0x${string}`,
         abi: PIZZA_PARTY_ABI,
@@ -1042,7 +955,7 @@ export function useGamePageData() {
         args: [code, entryFeeWei],
       })
       
-      console.log('✅ Transaction submitted:', result)
+      console.log('✅ Transaction sent successfully:', result)
       setHasEnteredToday(true)
       
       // Refresh data after a short delay
@@ -1056,98 +969,45 @@ export function useGamePageData() {
       }, 3000)
       
     } catch (err: unknown) {
-      console.error('❌ Enter game failed:', err)
-      const errRecord = isRecord(err) ? err : null
-      const message = getErrorMessage(err)
-      
-      // Log detailed error information
-      if (errRecord) {
-        if ('name' in errRecord) console.error('Error name:', errRecord.name)
-        console.error('Error message:', message)
-        if ('code' in errRecord) console.error('Error code:', errRecord.code)
-        if ('cause' in errRecord) console.error('Error cause:', errRecord.cause)
-        if ('data' in errRecord) {
-          console.error('Error data:', errRecord.data)
-          // Try to extract revert reason from data
-          if (typeof errRecord.data === 'object' && errRecord.data !== null) {
-            const dataStr = JSON.stringify(errRecord.data)
-            console.error('Error data (stringified):', dataStr)
-          }
-        }
-        // Check for shortMessage which viem/wagmi often uses
-        if ('shortMessage' in errRecord) {
-          console.error('Error shortMessage:', errRecord.shortMessage)
-        }
-      } else {
-        console.error('Error message:', message)
-      }
+      console.error('❌ Transaction failed:', err)
       
       // Reset hasEnteredToday if transaction failed
       setHasEnteredToday(false)
       
-      // Parse common error messages
-      let errorMessage = 'Unknown error'
-      const fullErrorText = JSON.stringify(err)
+      // Parse the error for a better message
+      const error = err as any
+      let message = 'Transaction failed'
       
-      if (message) {
-        if (message.includes('User rejected') || message.includes('user rejected')) {
-          errorMessage = 'Transaction rejected by user'
-        } else if (message.includes('insufficient funds') || message.includes('insufficient balance')) {
-          errorMessage = 'Insufficient funds for gas or tokens'
-        } else if (message.includes('Already played') || message.includes('hasPlayedDaily')) {
-          errorMessage = 'You have already entered today'
-        } else if (message.includes('Game settled')) {
-          errorMessage = 'This game has ended. Please wait for the next game.'
-        } else if (message.includes('Game ended') || message.includes('block.timestamp')) {
-          errorMessage = 'Game ended. Please wait for settlement.'
-        } else if (message.includes('Weekly limit reached') || message.includes('dailyPlays')) {
-          errorMessage = 'You have reached the weekly play limit (7 entries/week).'
-        } else if (message.includes('Code not found')) {
-          errorMessage = "❌ This referral code hasn't been registered yet"
-        } else if (message.includes('Referrer must play first')) {
-          errorMessage = '❌ Your friend needs to play at least once before you can use their code'
-        } else if (message.includes('Already used referral')) {
-          errorMessage = '❌ You already used a referral code!'
-        } else if (message.includes('Cannot refer self')) {
-          errorMessage = "❌ You can't use your own referral code"
-        } else if (message.includes('Referral limit')) {
-          errorMessage = '❌ Your friend has reached their weekly referral limit (3/week)'
-        } else if (message.includes('Amount too low') || message.includes('MIN_ENTRY_FEE')) {
-          errorMessage = `Entry amount too low. Minimum: ${Number(GAME_CONSTANTS.MIN_ENTRY_FEE_WEI) / 1e18} VMF`
-        } else if (message.includes('Amount too high') || message.includes('MAX_ENTRY_FEE')) {
-          errorMessage = `Entry amount too high. Maximum: ${Number(GAME_CONSTANTS.MAX_ENTRY_FEE_WEI) / 1e18} VMF`
-        } else if (message.includes('insufficient allowance') || message.includes('ERC20') || message.includes('allowance')) {
-          errorMessage = 'Insufficient token allowance. Please approve VMF spending first.'
-        } else if (message.includes('revert') || message.includes('reverted')) {
-          // Try to extract the actual revert reason
-          const revertMatch = fullErrorText.match(/revert[^"]*"([^"]+)"/i) || 
-                             fullErrorText.match(/reason[^"]*"([^"]+)"/i) ||
-                             fullErrorText.match(/message[^"]*"([^"]+)"/i) ||
-                             message.match(/"([^"]+)"/)
-          if (revertMatch && revertMatch[1]) {
-            errorMessage = revertMatch[1]
-          } else {
-            errorMessage = 'Transaction would revert. Please check your balance, allowance, and game status.'
-          }
-        } else if (message.includes('ContractFunctionExecutionError')) {
-          errorMessage = 'Transaction simulation failed. Please check your balance, allowance, and that the game is active.'
+      if (error?.message) {
+        const msg = error.message.toLowerCase()
+        
+        if (msg.includes('insufficient funds') || msg.includes('insufficient balance')) {
+          message = 'Insufficient ETH for gas fees. Please add some ETH to your Base wallet.'
+        } else if (msg.includes('user rejected') || msg.includes('user denied')) {
+          message = 'Transaction was cancelled.'
+        } else if (msg.includes('allowance')) {
+          message = 'Token allowance issue. Please try approving VMF again.'
+        } else if (msg.includes('already') || msg.includes('played')) {
+          message = 'You have already played today.'
+        } else if (msg.includes('game ended') || msg.includes('game settled')) {
+          message = 'Game has ended. Please wait for the next game.'
+        } else if (msg.includes('weekly limit')) {
+          message = 'You have reached the weekly play limit (7 entries/week).'
         } else {
-          errorMessage = message
+          message = error.message
         }
-      } else if (fullErrorText.includes('revert')) {
-        // Try to extract revert reason from full error text
-        const revertMatch = fullErrorText.match(/revert[^"]*"([^"]+)"/i) || 
-                           fullErrorText.match(/reason[^"]*"([^"]+)"/i)
-        if (revertMatch && revertMatch[1]) {
-          errorMessage = revertMatch[1]
+      } else if (error?.shortMessage) {
+        const msg = error.shortMessage.toLowerCase()
+        if (msg.includes('insufficient funds') || msg.includes('insufficient balance')) {
+          message = 'Insufficient ETH for gas fees. Please add some ETH to your Base wallet.'
         } else {
-          errorMessage = 'Transaction would revert. Please check your balance, allowance, and game status.'
+          message = error.shortMessage
         }
       }
       
-      alert(`Failed to enter game: ${errorMessage}`)
+      alert(message)
     }
-  }, [wallet.isAuthenticated, wallet.address, writeContract, networkId, checkStatus, fetchPlayerInfo, playerInfo, hasEnteredToday, needsApproval, refreshDaily, fetchVmfBalance, fetchWeekly, vmfBalance, entryFeeWei, hasEnoughVMF, fetchPlayerLifetimeStats, vmfUsdPrice])
+  }, [wallet.isAuthenticated, wallet.address, writeContract, networkId, checkStatus, fetchPlayerInfo, refreshDaily, fetchVmfBalance, fetchWeekly, vmfBalance, entryFeeWei, hasEnoughVMF, needsApproval, hasEnteredToday, fetchPlayerLifetimeStats])
 
   const openWalletModal = useCallback(() => open(), [open])
 
