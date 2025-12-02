@@ -18,7 +18,7 @@ import { ethers } from "ethers";
 // ========== CONFIGURATION ==========
 // Update these addresses before running
 const OLD_CONTRACT_ADDRESS = "0x5432260CfcAc5C45773449089EA603a6e5Dc7DA7"; // Previous deployment
-const NEW_CONTRACT_ADDRESS = "0x"; // Your new contract address (update after deployment)
+const NEW_CONTRACT_ADDRESS = "0xC24449caEf85f2abEdB879be5e0b1e5864839D73"; // New contract address
 const RPC_URL = process.env.BASE_RPC_URL || "https://mainnet.base.org";
 const PRIVATE_KEY = process.env.PRIVATE_KEY || "";
 
