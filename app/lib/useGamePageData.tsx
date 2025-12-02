@@ -523,10 +523,6 @@ export function useGamePageData() {
       let projectedJackpotWei = jackpotWei
       let projectedPlayerCount = Number(claimerCount)
 
-      // Always use current daily entries as base for weekly player count
-      // This ensures we count all players including those who entered before weekly settlement
-      projectedPlayerCount = Math.max(projectedPlayerCount, daily.totalEntries)
-
       if (publicClient) {
         try {
           // Count from ToppingsEarned events for the current week
@@ -561,19 +557,21 @@ export function useGamePageData() {
             currentWeekId: currentWeekId.toString(),
             totalEarnedToppings: totalEarned.toString(),
             claimerCount: claimerCount.toString(),
-            projectedPlayerCountBefore: projectedPlayerCount,
+            dailyTotalEntries: daily.totalEntries,
           })
 
-          // Use ToppingsEarned as source of truth for jackpot
+          // Use ToppingsEarned as source of truth
           if (totalEarned > 0n) {
             // Jackpot = total toppings earned this week from all sources (daily plays, referrals, holdings bonus)
             projectedJackpotWei = totalEarned * WEI_PER_VMF
+            // Weekly Players = unique players from events, or use daily entries if events are low
+            const eventPlayerCount = Math.max(uniquePlayersThisWeek.size, toppingsLogs.length)
+            projectedPlayerCount = Math.max(eventPlayerCount, Number(claimerCount))
           }
 
           console.debug('Weekly projection (after processing):', {
             projectedPlayerCount: projectedPlayerCount,
             projectedJackpotWei: projectedJackpotWei.toString(),
-            dailyTotalEntries: daily.totalEntries,
           })
         } catch (projErr) {
           console.error('Failed to compute projected weekly totals', projErr)
