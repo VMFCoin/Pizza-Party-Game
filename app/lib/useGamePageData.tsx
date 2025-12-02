@@ -568,10 +568,6 @@ export function useGamePageData() {
             const eventPlayerCount = Math.max(uniquePlayersThisWeek.size, toppingsLogs.length)
             projectedPlayerCount = Math.max(eventPlayerCount, Number(claimerCount))
 
-            // HOTFIX: Week ID 2 hardcoded to show 8 players (accounts for players who entered before weekly settlement)
-            if (currentWeekId === 2n) {
-              projectedPlayerCount = 8
-            }
           }
 
           console.debug('Weekly projection (after processing):', {
@@ -919,8 +915,10 @@ export function useGamePageData() {
         console.warn('Could not fetch game state:', gameErr)
       }
       
-      // Try to simulate the actual transaction first
-      console.log('Simulating contract call...')
+      // Optional simulation (non-blocking) to help with debugging.
+      // We intentionally DO NOT block the actual transaction if simulation fails,
+      // so that the wallet confirmation still shows up.
+      console.log('Simulating contract call (non-blocking)...')
       try {
         await simulateContract(wagmiConfig, {
           address: PIZZA_PARTY_ADDRESS as `0x${string}`,
@@ -931,63 +929,7 @@ export function useGamePageData() {
         })
         console.log('✅ Simulation passed')
       } catch (simError: unknown) {
-        console.error('❌ Simulation failed:', simError)
-        
-        // Try to extract revert reason
-        let revertReason = 'Unknown contract error'
-        const message = getErrorMessage(simError)
-        
-        // Check for common revert reasons
-        if (message) {
-          if (message.includes('Already played') || message.includes('hasPlayedDaily')) {
-            revertReason = 'You have already entered today'
-          } else if (message.includes('Game settled')) {
-            revertReason = 'Game has been completed'
-          } else if (message.includes('Game ended') || message.includes('block.timestamp')) {
-            revertReason = 'Game has ended, waiting for settlement'
-          } else if (message.includes('Weekly limit reached') || message.includes('dailyPlays')) {
-            revertReason = 'You have reached the 7 entries per week limit'
-          } else if (message.includes('Amount too low') || message.includes('MIN_ENTRY_FEE')) {
-            revertReason = `Entry amount too low. Minimum: ${Number(GAME_CONSTANTS.MIN_ENTRY_FEE_WEI) / 1e18} VMF`
-          } else if (message.includes('Amount too high') || message.includes('MAX_ENTRY_FEE')) {
-            revertReason = `Entry amount too high. Maximum: ${Number(GAME_CONSTANTS.MAX_ENTRY_FEE_WEI) / 1e18} VMF`
-          } else if (message.includes('Invalid code')) {
-            revertReason = 'Invalid referral code'
-          } else if (message.includes('Referral limit')) {
-            revertReason = 'Referrer has reached their weekly invite limit'
-          } else if (message.includes('Already used referral')) {
-            revertReason = 'You have already used a referral code'
-          } else if (message.includes('Code not found')) {
-            revertReason = "This referral code hasn't been registered yet"
-          } else if (message.includes('Referrer must play first')) {
-            revertReason = 'Referrer must play at least once before sharing their code'
-          } else if (message.includes('Cannot refer self')) {
-            revertReason = "You can't use your own referral code"
-          } else if (message.includes('insufficient allowance') || message.includes('ERC20')) {
-            revertReason = 'Insufficient token allowance. Please approve VMF spending first.'
-          } else if (message.includes('insufficient funds') || message.includes('balance')) {
-            revertReason = `Insufficient VMF balance. You need ${(Number(entryFeeWei) / 1e18).toFixed(4)} VMF`
-          } else {
-            // Try to extract the actual revert reason from the error
-            const errorStr = JSON.stringify(simError)
-            if (errorStr.includes('revert')) {
-              // Look for revert reason in error data
-              const revertMatch = errorStr.match(/revert[^"]*"([^"]+)"/i) || 
-                                   errorStr.match(/reason[^"]*"([^"]+)"/i) ||
-                                   errorStr.match(/message[^"]*"([^"]+)"/i)
-              if (revertMatch && revertMatch[1]) {
-                revertReason = revertMatch[1]
-              } else {
-                revertReason = message || 'Transaction would revert. Please check your balance, allowance, and game status.'
-              }
-            } else {
-              revertReason = message || 'Transaction would revert. Please check your balance, allowance, and game status.'
-            }
-          }
-        }
-        
-        alert(`Transaction would fail: ${revertReason}`)
-        return
+        console.warn('⚠️ Simulation failed but continuing to send transaction:', simError)
       }
       
       console.log('========================')
