@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { toZonedTime, fromZonedTime } from 'date-fns-tz'
 import { parseAbiItem, maxUint256 } from 'viem'
-import { readContract, watchBlockNumber, getPublicClient } from '@wagmi/core'
+import { readContract, watchBlockNumber, getPublicClient, simulateContract } from '@wagmi/core'
 import { useAccount, useChainId, useWriteContract } from 'wagmi'
 import { useAppKit } from '@reown/appkit/react'
 import {
@@ -919,14 +919,15 @@ export function useGamePageData() {
         console.warn('Could not fetch game state:', gameErr)
       }
       
-      // Try to simulate the call first
+      // Try to simulate the actual transaction first
       console.log('Simulating contract call...')
       try {
-        await readContract(wagmiConfig, {
+        await simulateContract(wagmiConfig, {
           address: PIZZA_PARTY_ADDRESS as `0x${string}`,
           abi: PIZZA_PARTY_ABI,
-          functionName: 'hasPlayedDailyGame',
-          args: [wallet.address as `0x${string}`],
+          functionName: 'enterDailyGame',
+          args: [code, entryFeeWei],
+          account: wallet.address as `0x${string}`,
         })
         console.log('✅ Simulation passed')
       } catch (simError: unknown) {
@@ -935,15 +936,21 @@ export function useGamePageData() {
         // Try to extract revert reason
         let revertReason = 'Unknown contract error'
         const message = getErrorMessage(simError)
+        
+        // Check for common revert reasons
         if (message) {
-          if (message.includes('Already played')) {
+          if (message.includes('Already played') || message.includes('hasPlayedDaily')) {
             revertReason = 'You have already entered today'
           } else if (message.includes('Game settled')) {
             revertReason = 'Game has been completed'
-          } else if (message.includes('Game ended')) {
+          } else if (message.includes('Game ended') || message.includes('block.timestamp')) {
             revertReason = 'Game has ended, waiting for settlement'
-          } else if (message.includes('Weekly limit reached')) {
+          } else if (message.includes('Weekly limit reached') || message.includes('dailyPlays')) {
             revertReason = 'You have reached the 7 entries per week limit'
+          } else if (message.includes('Amount too low') || message.includes('MIN_ENTRY_FEE')) {
+            revertReason = `Entry amount too low. Minimum: ${Number(GAME_CONSTANTS.MIN_ENTRY_FEE_WEI) / 1e18} VMF`
+          } else if (message.includes('Amount too high') || message.includes('MAX_ENTRY_FEE')) {
+            revertReason = `Entry amount too high. Maximum: ${Number(GAME_CONSTANTS.MAX_ENTRY_FEE_WEI) / 1e18} VMF`
           } else if (message.includes('Invalid code')) {
             revertReason = 'Invalid referral code'
           } else if (message.includes('Referral limit')) {
@@ -956,8 +963,26 @@ export function useGamePageData() {
             revertReason = 'Referrer must play at least once before sharing their code'
           } else if (message.includes('Cannot refer self')) {
             revertReason = "You can't use your own referral code"
+          } else if (message.includes('insufficient allowance') || message.includes('ERC20')) {
+            revertReason = 'Insufficient token allowance. Please approve VMF spending first.'
+          } else if (message.includes('insufficient funds') || message.includes('balance')) {
+            revertReason = `Insufficient VMF balance. You need ${(Number(entryFeeWei) / 1e18).toFixed(4)} VMF`
           } else {
-            revertReason = message
+            // Try to extract the actual revert reason from the error
+            const errorStr = JSON.stringify(simError)
+            if (errorStr.includes('revert')) {
+              // Look for revert reason in error data
+              const revertMatch = errorStr.match(/revert[^"]*"([^"]+)"/i) || 
+                                   errorStr.match(/reason[^"]*"([^"]+)"/i) ||
+                                   errorStr.match(/message[^"]*"([^"]+)"/i)
+              if (revertMatch && revertMatch[1]) {
+                revertReason = revertMatch[1]
+              } else {
+                revertReason = message || 'Transaction would revert. Please check your balance, allowance, and game status.'
+              }
+            } else {
+              revertReason = message || 'Transaction would revert. Please check your balance, allowance, and game status.'
+            }
           }
         }
         
@@ -1056,12 +1081,25 @@ export function useGamePageData() {
       console.error('❌ Enter game failed:', err)
       const errRecord = isRecord(err) ? err : null
       const message = getErrorMessage(err)
+      
+      // Log detailed error information
       if (errRecord) {
         if ('name' in errRecord) console.error('Error name:', errRecord.name)
         console.error('Error message:', message)
         if ('code' in errRecord) console.error('Error code:', errRecord.code)
         if ('cause' in errRecord) console.error('Error cause:', errRecord.cause)
-        if ('data' in errRecord) console.error('Error data:', errRecord.data)
+        if ('data' in errRecord) {
+          console.error('Error data:', errRecord.data)
+          // Try to extract revert reason from data
+          if (typeof errRecord.data === 'object' && errRecord.data !== null) {
+            const dataStr = JSON.stringify(errRecord.data)
+            console.error('Error data (stringified):', dataStr)
+          }
+        }
+        // Check for shortMessage which viem/wagmi often uses
+        if ('shortMessage' in errRecord) {
+          console.error('Error shortMessage:', errRecord.shortMessage)
+        }
       } else {
         console.error('Error message:', message)
       }
@@ -1071,19 +1109,21 @@ export function useGamePageData() {
       
       // Parse common error messages
       let errorMessage = 'Unknown error'
+      const fullErrorText = JSON.stringify(err)
+      
       if (message) {
-        if (message.includes('User rejected')) {
+        if (message.includes('User rejected') || message.includes('user rejected')) {
           errorMessage = 'Transaction rejected by user'
-        } else if (message.includes('insufficient funds')) {
-          errorMessage = 'Insufficient funds for gas'
-        } else if (message.includes('Already played')) {
+        } else if (message.includes('insufficient funds') || message.includes('insufficient balance')) {
+          errorMessage = 'Insufficient funds for gas or tokens'
+        } else if (message.includes('Already played') || message.includes('hasPlayedDaily')) {
           errorMessage = 'You have already entered today'
         } else if (message.includes('Game settled')) {
           errorMessage = 'This game has ended. Please wait for the next game.'
-        } else if (message.includes('Game ended')) {
+        } else if (message.includes('Game ended') || message.includes('block.timestamp')) {
           errorMessage = 'Game ended. Please wait for settlement.'
-        } else if (message.includes('Weekly limit reached')) {
-          errorMessage = 'You have reached the weekly play limit.'
+        } else if (message.includes('Weekly limit reached') || message.includes('dailyPlays')) {
+          errorMessage = 'You have reached the weekly play limit (7 entries/week).'
         } else if (message.includes('Code not found')) {
           errorMessage = "❌ This referral code hasn't been registered yet"
         } else if (message.includes('Referrer must play first')) {
@@ -1094,12 +1134,36 @@ export function useGamePageData() {
           errorMessage = "❌ You can't use your own referral code"
         } else if (message.includes('Referral limit')) {
           errorMessage = '❌ Your friend has reached their weekly referral limit (3/week)'
-        } else if (message.includes('Amount too low')) {
-          errorMessage = 'Entry amount too low for current VMF price'
-        } else if (message.includes('Amount too high')) {
-          errorMessage = 'Entry amount too high for current VMF price'
+        } else if (message.includes('Amount too low') || message.includes('MIN_ENTRY_FEE')) {
+          errorMessage = `Entry amount too low. Minimum: ${Number(GAME_CONSTANTS.MIN_ENTRY_FEE_WEI) / 1e18} VMF`
+        } else if (message.includes('Amount too high') || message.includes('MAX_ENTRY_FEE')) {
+          errorMessage = `Entry amount too high. Maximum: ${Number(GAME_CONSTANTS.MAX_ENTRY_FEE_WEI) / 1e18} VMF`
+        } else if (message.includes('insufficient allowance') || message.includes('ERC20') || message.includes('allowance')) {
+          errorMessage = 'Insufficient token allowance. Please approve VMF spending first.'
+        } else if (message.includes('revert') || message.includes('reverted')) {
+          // Try to extract the actual revert reason
+          const revertMatch = fullErrorText.match(/revert[^"]*"([^"]+)"/i) || 
+                             fullErrorText.match(/reason[^"]*"([^"]+)"/i) ||
+                             fullErrorText.match(/message[^"]*"([^"]+)"/i) ||
+                             message.match(/"([^"]+)"/)
+          if (revertMatch && revertMatch[1]) {
+            errorMessage = revertMatch[1]
+          } else {
+            errorMessage = 'Transaction would revert. Please check your balance, allowance, and game status.'
+          }
+        } else if (message.includes('ContractFunctionExecutionError')) {
+          errorMessage = 'Transaction simulation failed. Please check your balance, allowance, and that the game is active.'
         } else {
           errorMessage = message
+        }
+      } else if (fullErrorText.includes('revert')) {
+        // Try to extract revert reason from full error text
+        const revertMatch = fullErrorText.match(/revert[^"]*"([^"]+)"/i) || 
+                           fullErrorText.match(/reason[^"]*"([^"]+)"/i)
+        if (revertMatch && revertMatch[1]) {
+          errorMessage = revertMatch[1]
+        } else {
+          errorMessage = 'Transaction would revert. Please check your balance, allowance, and game status.'
         }
       }
       
