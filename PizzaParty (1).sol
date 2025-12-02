@@ -12,7 +12,9 @@ import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
  * @dev Daily lottery + Weekly jackpot with topping-based tickets
  * 
  * Daily Game:
- * - Pay 100 VMF ($1) to enter, earn 1 topping, get 1 entry
+ * - Pay dynamic VMF amount ($1 worth at current market price) to enter, earn 1 topping, get 1 entry
+ * - Entry fee adjusts based on VMF market price (frontend calculates amount for $1)
+ * - Min: 1 VMF, Max: 1000 VMF (safety bounds)
  * - 8 winners split the daily pot
  * - First player each day gets 1% bonus from pot
  * - Games without entries either carry over or are skipped
@@ -35,7 +37,9 @@ contract PizzaParty is Ownable, ReentrancyGuard {
     
     // ============ Constants ============
     
-    uint256 public constant ENTRY_FEE = 100e18; // 100 VMF = $1
+    // ✅ Dynamic entry fee with safety bounds (replaces fixed ENTRY_FEE)
+    uint256 public constant MIN_ENTRY_FEE = 1e18;      // 1 VMF minimum
+    uint256 public constant MAX_ENTRY_FEE = 1000e18;   // 1000 VMF maximum
     uint256 public constant DAILY_WINNERS = 8;
     uint256 public constant WEEKLY_WINNERS = 10;
     // Daily pot split (100% total):
@@ -119,7 +123,7 @@ contract PizzaParty is Ownable, ReentrancyGuard {
     // ============ Events ============
     
     event DailyGameStarted(uint256 indexed gameId, uint256 startTime, uint256 endTime);
-    event DailyGameEntered(uint256 indexed gameId, address indexed player, bool isFirst);
+    event DailyGameEntered(uint256 indexed gameId, address indexed player, bool isFirst, uint256 amount);
     event DailyGameSettled(uint256 indexed gameId, address[] winners, uint256 pot);
     event WeeklyGameStarted(uint256 indexed gameId, uint256 claimStart, uint256 claimEnd);
     event ToppingsEarned(uint256 indexed weekId, address indexed player, uint256 amount, string reason);
@@ -133,14 +137,16 @@ contract PizzaParty is Ownable, ReentrancyGuard {
     event OwnerFeePayout(uint256 indexed gameId, address indexed owner, uint256 amount);
     
     // ============ Constructor ============
-    
+
     constructor(
         address _vmfToken,
         address _treasury,
-        address[] memory _charities
-    ) Ownable(msg.sender) {
+        address[] memory _charities,
+        address _owner
+    ) Ownable(_owner) {
         require(_vmfToken != address(0), "Invalid VMF");
         require(_treasury != address(0), "Invalid treasury");
+        require(_owner != address(0), "Invalid owner");
         require(_charities.length <= MAX_CHARITIES, "Too many charities");
 
         // Validate charity addresses and ensure uniqueness
@@ -162,20 +168,25 @@ contract PizzaParty is Ownable, ReentrancyGuard {
     // ============ Daily Game ============
     
     /**
-     * @dev Enter daily game with optional referral code (first-time only)
+     * @dev Enter daily game with dynamic amount
+     * @param amountPaid VMF amount to pay (must be within MIN/MAX bounds)
      */
-    function enterDailyGame(string memory referralCode) external nonReentrant {
-        _enterDaily(msg.sender, referralCode);
+    function enterDailyGame(uint256 amountPaid) external nonReentrant {
+        require(amountPaid >= MIN_ENTRY_FEE, "Amount too low");
+        require(amountPaid <= MAX_ENTRY_FEE, "Amount too high");
+        _enterDaily(msg.sender, amountPaid);
     }
     
     /**
-     * @dev Enter daily game without referral
+     * @dev Use a referral code (separate from entry)
+     * @param code Referral code to use
      */
-    function enterDailyGameNoRef() external nonReentrant {
-        _enterDaily(msg.sender, "");
+    function useReferralCode(string memory code) external nonReentrant {
+        require(!hasUsedReferral[msg.sender], "Already used referral");
+        _processReferral(msg.sender, code);
     }
     
-    function _enterDaily(address player, string memory referralCode) internal {
+    function _enterDaily(address player, uint256 amount) internal {
         // Auto-settle weekly game if the claim window has ended
         WeeklyGame storage week = weeklyGames[weeklyGameId];
         if (block.timestamp >= week.claimWindowEnd && !week.settled) {
@@ -200,9 +211,9 @@ contract PizzaParty is Ownable, ReentrancyGuard {
         PlayerWeekly storage weekly = weeklyPlayers[weeklyGameId][player];
         require(weekly.dailyPlays < 7, "Weekly limit reached");
         
-        // Collect entry fee
-        vmfToken.safeTransferFrom(player, address(this), ENTRY_FEE);
-        currentDailyPot += ENTRY_FEE;
+        // ✅ Collect dynamic entry fee
+        vmfToken.safeTransferFrom(player, address(this), amount);
+        currentDailyPot += amount;
         
         // Track first player for bonus
         bool isFirst = (game.players.length == 0);
@@ -227,13 +238,8 @@ contract PizzaParty is Ownable, ReentrancyGuard {
             emit ReferralCodeCreated(player, myCode);
         }
         
-        emit DailyGameEntered(gameId, player, isFirst);
+        emit DailyGameEntered(gameId, player, isFirst, amount);
         emit ToppingsEarned(weeklyGameId, player, 1, "daily_play");
-        
-        // Process referral if first time
-        if (bytes(referralCode).length > 0 && !hasUsedReferral[player]) {
-            _processReferral(player, referralCode);
-        }
     }
     
     /**
@@ -815,7 +821,26 @@ contract PizzaParty is Ownable, ReentrancyGuard {
     }
     
     // ============ Admin Functions ============
-    
+
+    /**
+     * @dev Migrate player stats from old contract to preserve history on redeployment
+     * Call this after deploying new contract to import stats from previous deployment
+     * @param players Array of player addresses
+     * @param stats Array of PlayerLifetimeStats corresponding to each player
+     */
+    function migratePlayerStats(
+        address[] calldata players,
+        PlayerLifetimeStats[] calldata stats
+    ) external onlyOwner {
+        require(players.length == stats.length, "Length mismatch");
+        require(players.length > 0, "Empty array");
+
+        for (uint256 i = 0; i < players.length; i++) {
+            require(players[i] != address(0), "Invalid player address");
+            playerStats[players[i]] = stats[i];
+        }
+    }
+
     function setTreasuryWallet(address _treasury) external onlyOwner {
         require(_treasury != address(0), "Invalid treasury");
         treasuryWallet = _treasury;

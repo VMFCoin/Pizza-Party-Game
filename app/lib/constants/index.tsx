@@ -49,8 +49,8 @@ export const VMF_TOKEN_ABI = [
 // ==============================
 export const PIZZA_PARTY_ABI = [
   // --- Core Gameplay ---
-  { type: 'function', name: 'enterDailyGame', stateMutability: 'nonpayable', inputs: [{ type: 'string', name: 'referralCode' }, { type: 'uint256', name: 'amount' }], outputs: [] },
-  { type: 'function', name: 'enterDailyGameNoRef', stateMutability: 'nonpayable', inputs: [{ type: 'uint256', name: 'amount' }], outputs: [] },
+  { type: 'function', name: 'enterDailyGame', stateMutability: 'nonpayable', inputs: [{ type: 'uint256', name: 'amountPaid' }], outputs: [] },
+  { type: 'function', name: 'useReferralCode', stateMutability: 'nonpayable', inputs: [{ type: 'string', name: 'code' }], outputs: [] },
   { type: 'function', name: 'settleDailyGame', stateMutability: 'nonpayable', inputs: [], outputs: [] },
   { type: 'function', name: 'claimToppings', stateMutability: 'nonpayable', inputs: [], outputs: [] },
   { type: 'function', name: 'settleWeeklyGame', stateMutability: 'nonpayable', inputs: [], outputs: [] },

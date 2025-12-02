@@ -946,12 +946,35 @@ export function useGamePageData() {
     
     try {
       // Just call writeContract - let wagmi handle everything
+      // Note: Referrals are handled separately via useReferralCode()
       const result = await writeContract({
         address: PIZZA_PARTY_ADDRESS as `0x${string}`,
         abi: PIZZA_PARTY_ABI,
         functionName: 'enterDailyGame',
-        args: [code, entryFeeWei],
+        args: [entryFeeWei], // Only pass the amount
       })
+      
+      // If referral code provided and this is first entry, use it separately
+      if (code && code.length > 0 && playerInfo?.dailyEntries === 0n) {
+        try {
+          // Wait a bit for entry transaction to confirm, then use referral
+          setTimeout(async () => {
+            try {
+              await writeContract({
+                address: PIZZA_PARTY_ADDRESS as `0x${string}`,
+                abi: PIZZA_PARTY_ABI,
+                functionName: 'useReferralCode',
+                args: [code],
+              })
+              console.log('✅ Referral code used successfully')
+            } catch (refErr) {
+              console.warn('⚠️ Failed to use referral code (non-critical):', refErr)
+            }
+          }, 2000)
+        } catch (refErr) {
+          console.warn('⚠️ Referral code handling error (non-critical):', refErr)
+        }
+      }
       
       console.log('✅ Transaction sent successfully:', result)
       setHasEnteredToday(true)
