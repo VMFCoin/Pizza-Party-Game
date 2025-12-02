@@ -23,7 +23,7 @@ const customFontStyle = {
 const HOW_TO_WIN = [
   'Play Daily: 1 topping each day you play',
   'Refer new players: 2 toppings per referral (max 3 per week)',
-  'Hold VMF tokens: 3 toppings for every 10,000 VMF you hold',
+  'Hold VMF tokens: 3 toppings for every 1,000 VMF you hold',
   'More toppings = more tickets in the weekly draw',
 ]
 
@@ -39,7 +39,7 @@ const TERMS = {
   weeklyJackpot: [
     'Claim toppings during Sunday 12pm–Monday 12pm PST to enter',
     '10 winners selected Monday 12pm PST with odds weighted by toppings claimed',
-    'Total jackpot = total toppings claimed (1 topping = 1 VMF)',
+    'Total jackpot = total toppings claimed (1 topping = 10 VMF)',
     'Unclaimed toppings expire weekly—claim or lose them',
   ],
 }
