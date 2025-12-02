@@ -19,7 +19,7 @@ const PACIFIC_TZ = 'America/Los_Angeles'
 const BASE_CHAIN_ID = 8453
 const ENTRY_FEE_WEI = GAME_CONSTANTS.ENTRY_FEE_WEI
 const WEI_PER_VMF = 10n ** 18n
-const VMF_USD_PRICE = 0.01
+const DEFAULT_VMF_USD_PRICE = 0.01
 const TOPPINGS_EARNED_EVENT = parseAbiItem(
   'event ToppingsEarned(uint256 indexed weekId, address indexed player, uint256 amount, string reason)',
 )
@@ -194,10 +194,62 @@ export function useGamePageData() {
     error: null as Error | null,
   }), [address, isConnected])
 
-  // ================= Entry Fee (Fixed from Minimal Contract) =================
-  const entryFeeWei = ENTRY_FEE_WEI
-  const vmfUsdPrice = VMF_USD_PRICE
-  const priceOracleWorking = true
+  // ================= Dynamic VMF Price from DEXScreener =================
+  const [vmfUsdPrice, setVmfUsdPrice] = useState<number>(DEFAULT_VMF_USD_PRICE)
+  const [priceOracleWorking, setPriceOracleWorking] = useState(true)
+
+  const fetchVmfPrice = useCallback(async () => {
+    try {
+      const response = await fetch('/api/price', {
+        cache: 'no-store',
+      })
+
+      if (!response.ok) {
+        console.warn('Price API returned non-ok status:', response.status)
+        // Keep existing price on error
+        return
+      }
+
+      const data = await response.json()
+
+      if (data.success && typeof data.priceUsd === 'number' && data.priceUsd > 0) {
+        setVmfUsdPrice(data.priceUsd)
+        setPriceOracleWorking(true)
+        console.debug('✅ VMF price updated:', `$${data.priceUsd.toFixed(6)}`)
+      } else {
+        // API returned error, keep existing price
+        console.warn('Price API error:', data.error)
+        setPriceOracleWorking(true) // Still mark as working to not break UI
+      }
+    } catch (err) {
+      console.error('Failed to fetch VMF price:', err)
+      // Keep existing price on network error
+      setPriceOracleWorking(true) // Still mark as working to not break UI
+    }
+  }, [])
+
+  // ================= Entry Fee (Dynamic based on VMF price) =================
+  const entryFeeWei = useMemo(() => {
+    if (!vmfUsdPrice || vmfUsdPrice <= 0) {
+      // Fallback to default if price not available
+      return 100n * WEI_PER_VMF
+    }
+    
+    // Calculate VMF needed for $1: 1 / price
+    const vmfPerDollar = 1 / vmfUsdPrice
+    
+    // Convert to wei with proper rounding
+    const amountWei = BigInt(Math.floor(vmfPerDollar * Number(WEI_PER_VMF)))
+    
+    // Clamp to contract bounds
+    const minFee = GAME_CONSTANTS.MIN_ENTRY_FEE_WEI
+    const maxFee = GAME_CONSTANTS.MAX_ENTRY_FEE_WEI
+    
+    if (amountWei < minFee) return minFee
+    if (amountWei > maxFee) return maxFee
+    
+    return amountWei
+  }, [vmfUsdPrice])
 
   // ================= VMF Amount for Display =================
   const vmfAmount = useMemo(() => {
@@ -670,6 +722,7 @@ export function useGamePageData() {
     void fetchPlayerInfo()
     void fetchWeekly()
     void fetchPlayerLifetimeStats()
+    void fetchVmfPrice()
 
     unwatch = watchBlockNumber(wagmiConfig, {
       onBlockNumber: () => {
@@ -679,11 +732,25 @@ export function useGamePageData() {
         void fetchPlayerInfo()
         void fetchWeekly()
         void fetchPlayerLifetimeStats()
+        void fetchVmfPrice()
       },
       onError: () => {},
     })
     return () => { if (unwatch) unwatch() }
-  }, [fetchVmfBalance, refreshDaily, checkStatus, fetchPlayerInfo, fetchWeekly, fetchPlayerLifetimeStats])
+  }, [fetchVmfBalance, refreshDaily, checkStatus, fetchPlayerInfo, fetchWeekly, fetchPlayerLifetimeStats, fetchVmfPrice])
+
+  // ================= Periodic Price Refresh =================
+  useEffect(() => {
+    // Fetch price immediately on mount
+    void fetchVmfPrice()
+
+    // Then refresh every 30 seconds to keep price current
+    const priceInterval = setInterval(() => {
+      void fetchVmfPrice()
+    }, 30000)
+
+    return () => clearInterval(priceInterval)
+  }, [fetchVmfPrice])
 
   // ================= Reset-detection (new Pacific day) =================
   const prevMsRef = useRef<number | null>(null)
@@ -931,15 +998,18 @@ export function useGamePageData() {
       }
       // ============================================================
       
-      console.log('Calling enterDailyGame...')
-      console.log('Contract:', PIZZA_PARTY_ADDRESS)
-      console.log('Args:', [code])
+      console.log('=== ENTERING GAME ===')
+      console.log('Entry Fee (wei):', entryFeeWei.toString())
+      console.log('Entry Fee (VMF):', (Number(entryFeeWei) / 1e18).toFixed(4))
+      console.log('VMF Price (USD):', vmfUsdPrice.toFixed(6))
+      console.log('Referral Code:', code || '(none)')
+      console.log('Calling enterDailyGame with amount:', entryFeeWei.toString())
       
       const result = await writeContract({
         address: PIZZA_PARTY_ADDRESS as `0x${string}`,
         abi: PIZZA_PARTY_ABI,
         functionName: 'enterDailyGame',
-        args: [code],
+        args: [code, entryFeeWei], // ✅ Pass the dynamic amount
       })
       
       console.log('✅ Transaction submitted:', result)
@@ -997,6 +1067,10 @@ export function useGamePageData() {
           errorMessage = "❌ You can't use your own referral code"
         } else if (message.includes('Referral limit')) {
           errorMessage = '❌ Your friend has reached their weekly referral limit (3/week)'
+        } else if (message.includes('Amount too low')) {
+          errorMessage = 'Entry amount too low for current VMF price'
+        } else if (message.includes('Amount too high')) {
+          errorMessage = 'Entry amount too high for current VMF price'
         } else {
           errorMessage = message
         }
@@ -1004,7 +1078,7 @@ export function useGamePageData() {
       
       alert(`Failed to enter game: ${errorMessage}`)
     }
-  }, [wallet.isAuthenticated, wallet.address, writeContract, networkId, checkStatus, fetchPlayerInfo, playerInfo, hasEnteredToday, needsApproval, refreshDaily, fetchVmfBalance, fetchWeekly, vmfBalance, entryFeeWei, hasEnoughVMF, fetchPlayerLifetimeStats])
+  }, [wallet.isAuthenticated, wallet.address, writeContract, networkId, checkStatus, fetchPlayerInfo, playerInfo, hasEnteredToday, needsApproval, refreshDaily, fetchVmfBalance, fetchWeekly, vmfBalance, entryFeeWei, hasEnoughVMF, fetchPlayerLifetimeStats, vmfUsdPrice])
 
   const openWalletModal = useCallback(() => open(), [open])
 

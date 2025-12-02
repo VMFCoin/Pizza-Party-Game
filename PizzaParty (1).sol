@@ -41,11 +41,13 @@ contract PizzaParty is Ownable, ReentrancyGuard {
     // Daily pot split (100% total):
     // - 1%  → FIRST_PLAYER_BONUS_BPS (first player bonus)
     // - 5%  → CHARITY_TOTAL_BPS (charity distribution)
-    // - 94% → PLAYERS_POOL_BPS (distributed equally among winners)
+    // - 94% → PLAYERS_POOL_BPS (distributed equally among winners, minus owner fee if set)
+    // - 0%-5% → OWNER_FEE_BPS (optional owner fee, subtracted from players pool)
     // NOTE: All percentages are expressed in basis points (BPS), where 10000 = 100%.
     uint256 public constant FIRST_PLAYER_BONUS_BPS = 100; // 1% = 100 basis points
     uint256 public constant CHARITY_TOTAL_BPS = 500; // 5% = 500 basis points
     uint256 public constant PLAYERS_POOL_BPS = 9400; // 94% = 9400 basis points
+    uint256 public constant MAX_OWNER_FEE_BPS = 500; // Maximum 5% owner fee
     uint256 public constant BPS_DENOMINATOR = 10000;
     uint256 public constant MAX_CHARITIES = 20;
     uint256 public constant MAX_REFERRALS_PER_WEEK = 3;
@@ -58,6 +60,8 @@ contract PizzaParty is Ownable, ReentrancyGuard {
     IERC20 public immutable vmfToken;
     address public treasuryWallet;
     address[] public charityWallets;
+
+    uint256 public ownerFeeBPS = 0; // Start at 0%, adjustable up to MAX_OWNER_FEE_BPS
     
     uint256 public dailyGameId = 1;
     uint256 public weeklyGameId = 1;
@@ -125,6 +129,8 @@ contract PizzaParty is Ownable, ReentrancyGuard {
     event ReferralUsed(address indexed referrer, address indexed referee);
     event CharityPayout(uint256 indexed gameId, address indexed charity, uint256 amount);
     event CharityWalletsUpdated(address[] oldCharities, address[] newCharities);
+    event OwnerFeeUpdated(uint256 oldFeeBPS, uint256 newFeeBPS);
+    event OwnerFeePayout(uint256 indexed gameId, address indexed owner, uint256 amount);
     
     // ============ Constructor ============
     
@@ -257,13 +263,14 @@ contract PizzaParty is Ownable, ReentrancyGuard {
         
         uint256 pot = currentDailyPot;
         uint256 winnerCount = game.players.length < DAILY_WINNERS ? game.players.length : DAILY_WINNERS;
-        
+
         // Calculate allocations
         uint256 firstPlayerBonus = (pot * FIRST_PLAYER_BONUS_BPS) / BPS_DENOMINATOR;
         uint256 charityTotal = (pot * CHARITY_TOTAL_BPS) / BPS_DENOMINATOR;
-        uint256 playersPool = (pot * PLAYERS_POOL_BPS) / BPS_DENOMINATOR;
+        uint256 ownerFee = (pot * ownerFeeBPS) / BPS_DENOMINATOR;
+        uint256 playersPool = (pot * PLAYERS_POOL_BPS) / BPS_DENOMINATOR - ownerFee;
 
-        uint256 totalAllocated = firstPlayerBonus + charityTotal + playersPool;
+        uint256 totalAllocated = firstPlayerBonus + charityTotal + ownerFee + playersPool;
         uint256 dust = pot > totalAllocated ? pot - totalAllocated : 0;
 
         // Select winners randomly
@@ -275,7 +282,13 @@ contract PizzaParty is Ownable, ReentrancyGuard {
             playerStats[game.firstPlayer].totalVmfWon += firstPlayerBonus;
         }
 
-        // 2. Pay charities equally (first charity gets remainder)
+        // 2. Pay owner fee (if set)
+        if (ownerFee > 0) {
+            vmfToken.safeTransfer(owner(), ownerFee);
+            emit OwnerFeePayout(gameId, owner(), ownerFee);
+        }
+
+        // 3. Pay charities equally (first charity gets remainder)
         if (charityTotal > 0 && charityWallets.length > 0) {
             uint256 charityShare = charityTotal / charityWallets.length;
             uint256 charityRemainder = charityTotal - (charityShare * charityWallets.length);
@@ -289,7 +302,7 @@ contract PizzaParty is Ownable, ReentrancyGuard {
             }
         }
 
-        // 3. Pay winners from players pool (first winner gets remainder)
+        // 4. Pay winners from players pool (first winner gets remainder)
         uint256 winnerShare = playersPool / winnerCount;
         uint256 playersRemainder = playersPool - (winnerShare * winnerCount);
         uint256[] memory winnerPayouts = new uint256[](winnerCount);
@@ -303,7 +316,7 @@ contract PizzaParty is Ownable, ReentrancyGuard {
             }
         }
 
-        // 5. Send any remaining dust to players (winner #1)
+        // 5. Send any remaining dust to first winner
         if (dust > 0 && winnerCount > 0) {
             vmfToken.safeTransfer(winners[0], dust);
             winnerPayouts[0] += dust;
@@ -806,6 +819,13 @@ contract PizzaParty is Ownable, ReentrancyGuard {
     function setTreasuryWallet(address _treasury) external onlyOwner {
         require(_treasury != address(0), "Invalid treasury");
         treasuryWallet = _treasury;
+    }
+
+    function setOwnerFee(uint256 _bps) external onlyOwner {
+        require(_bps <= MAX_OWNER_FEE_BPS, "Fee exceeds maximum");
+        uint256 oldFee = ownerFeeBPS;
+        ownerFeeBPS = _bps;
+        emit OwnerFeeUpdated(oldFee, _bps);
     }
 
     function setCharityWallets(address[] memory _charities) external onlyOwner {

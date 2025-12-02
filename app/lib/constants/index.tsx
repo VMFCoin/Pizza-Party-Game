@@ -44,13 +44,13 @@ export const VMF_TOKEN_ABI = [
 ] as const
 
 // ==============================
-// PizzaParty ABI (Minimal Contract - PizzaPartyMinimal.sol)
-// Fixed entry fee: 100 VMF = $1 (no oracle)
+// PizzaParty ABI (Dynamic Pricing Version)
+// Entry fee adjusts based on VMF market price (frontend calculates amount for $1)
 // ==============================
 export const PIZZA_PARTY_ABI = [
   // --- Core Gameplay ---
-  { type: 'function', name: 'enterDailyGame', stateMutability: 'nonpayable', inputs: [{ type: 'string', name: 'referralCode' }], outputs: [] },
-  { type: 'function', name: 'enterDailyGameNoRef', stateMutability: 'nonpayable', inputs: [], outputs: [] },
+  { type: 'function', name: 'enterDailyGame', stateMutability: 'nonpayable', inputs: [{ type: 'string', name: 'referralCode' }, { type: 'uint256', name: 'amount' }], outputs: [] },
+  { type: 'function', name: 'enterDailyGameNoRef', stateMutability: 'nonpayable', inputs: [{ type: 'uint256', name: 'amount' }], outputs: [] },
   { type: 'function', name: 'settleDailyGame', stateMutability: 'nonpayable', inputs: [], outputs: [] },
   { type: 'function', name: 'claimToppings', stateMutability: 'nonpayable', inputs: [], outputs: [] },
   { type: 'function', name: 'settleWeeklyGame', stateMutability: 'nonpayable', inputs: [], outputs: [] },
@@ -163,6 +163,7 @@ export const PIZZA_PARTY_ABI = [
   { type: 'function', name: 'isWeeklyGameReady', stateMutability: 'view', inputs: [], outputs: [{ type: 'bool' }] },
   { type: 'function', name: 'getReferralCode', stateMutability: 'view', inputs: [{ type: 'address', name: 'player' }], outputs: [{ type: 'string' }] },
   { type: 'function', name: 'getPlayerFromCode', stateMutability: 'view', inputs: [{ type: 'string', name: 'code' }], outputs: [{ type: 'address' }] },
+  { type: 'function', name: 'isValidEntryAmount', stateMutability: 'pure', inputs: [{ type: 'uint256', name: 'amount' }], outputs: [{ type: 'bool' }] },
   {
     type: 'function',
     name: 'getPlayerLifetimeStats',
@@ -199,7 +200,8 @@ export const PIZZA_PARTY_ABI = [
     inputs: [
       { indexed: true, name: 'gameId', type: 'uint256' },
       { indexed: true, name: 'player', type: 'address' },
-      { indexed: false, name: 'isFirst', type: 'bool' }
+      { indexed: false, name: 'isFirst', type: 'bool' },
+      { indexed: false, name: 'amount', type: 'uint256' }
     ]
   },
   {
@@ -298,12 +300,15 @@ export type ContractRegistryKey = keyof typeof CONTRACT_REGISTRY
 const ONE_ETHER = 10n ** 18n
 
 export const GAME_CONSTANTS = {
-  ENTRY_FEE_WEI: 100n * ONE_ETHER,
+  MIN_ENTRY_FEE_WEI: 1n * ONE_ETHER,        // 1 VMF min
+  MAX_ENTRY_FEE_WEI: 1000n * ONE_ETHER,    // 1000 VMF max
+  TARGET_ENTRY_FEE_USD: 1n * ONE_ETHER,     // $1 target
   HOLDINGS_UNIT: 10000n * ONE_ETHER,
   HOLDINGS_TICKETS: 3,
   MAX_INVITES_PER_WEEK: 3,
   TOPPING_TO_VMF_RATE: 1n * ONE_ETHER,
-  TARGET_ENTRY_FEE_USD: 1n * ONE_ETHER,
   WEEKLY_WINNERS_COUNT: 10,
   DEFAULT_DAILY_WINNERS_COUNT: 8,
+  // Legacy constant for backward compatibility (deprecated - use dynamic calculation)
+  ENTRY_FEE_WEI: 100n * ONE_ETHER,
 } as const

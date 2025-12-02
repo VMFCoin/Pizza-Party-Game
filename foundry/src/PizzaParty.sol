@@ -8,11 +8,12 @@ import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
 
 /**
- * @title PizzaParty
+ * @title PizzaParty - Dynamic Pricing Version
  * @dev Daily lottery + Weekly jackpot with topping-based tickets
  * 
  * Daily Game:
- * - Pay 100 VMF ($1) to enter, earn 1 topping, get 1 entry
+ * - Pay dynamic VMF amount ($1 worth at current market price) to enter, earn 1 topping, get 1 entry
+ * - Entry fee adjusts based on VMF market price (frontend calculates amount for $1)
  * - 8 winners split the daily pot
  * - First player each day gets 1% bonus from pot
  * - Games without entries either carry over or are skipped
@@ -29,13 +30,22 @@ import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
  * - Daily play: 1 topping (max 7/week)
  * - Referrals: 2 toppings per successful referral (max 3/week)
  * - Holdings: 3 toppings per 10k VMF held (snapshot at claim time)
+ * 
+ * CHANGES FROM ORIGINAL:
+ * - Removed fixed ENTRY_FEE constant
+ * - Added MIN_ENTRY_FEE and MAX_ENTRY_FEE bounds
+ * - enterDailyGame() now accepts uint256 amount parameter
+ * - All entry functions validate amount is within bounds
  */
 contract PizzaParty is Ownable, ReentrancyGuard {
     using SafeERC20 for IERC20;
     
     // ============ Constants ============
     
-    uint256 public constant ENTRY_FEE = 100e18; // 100 VMF = $1
+    // ✅ NEW: Flexible entry fee with safety bounds
+    uint256 public constant MIN_ENTRY_FEE = 1e18;      // 1 VMF (if price = $1)
+    uint256 public constant MAX_ENTRY_FEE = 1000e18;    // 1000 VMF (if price = $0.001)
+    uint256 public constant TARGET_USD_VALUE = 1e18;     // Target: $1 entry
     uint256 public constant DAILY_WINNERS = 8;
     uint256 public constant WEEKLY_WINNERS = 10;
     uint256 public constant FIRST_PLAYER_BONUS_BPS = 100; // 1% = 100 basis points
@@ -105,7 +115,7 @@ contract PizzaParty is Ownable, ReentrancyGuard {
     // ============ Events ============
     
     event DailyGameStarted(uint256 indexed gameId, uint256 startTime, uint256 endTime);
-    event DailyGameEntered(uint256 indexed gameId, address indexed player, bool isFirst);
+    event DailyGameEntered(uint256 indexed gameId, address indexed player, bool isFirst, uint256 amount);
     event DailyGameSettled(uint256 indexed gameId, address[] winners, uint256 pot);
     event WeeklyGameStarted(uint256 indexed gameId, uint256 claimStart, uint256 claimEnd);
     event ToppingsEarned(uint256 indexed weekId, address indexed player, uint256 amount, string reason);
@@ -130,20 +140,33 @@ contract PizzaParty is Ownable, ReentrancyGuard {
     // ============ Daily Game ============
     
     /**
-     * @dev Enter daily game with optional referral code (first-time only)
+     * @dev Enter daily game with dynamic amount and optional referral code
+     * @param referralCode Optional referral code (empty string if none)
+     * @param amount VMF amount to pay (must be within MIN/MAX bounds)
      */
-    function enterDailyGame(string memory referralCode) external nonReentrant {
-        _enterDaily(msg.sender, referralCode);
+    function enterDailyGame(string memory referralCode, uint256 amount) external nonReentrant {
+        require(amount >= MIN_ENTRY_FEE, "Amount too low");
+        require(amount <= MAX_ENTRY_FEE, "Amount too high");
+        _enterDaily(msg.sender, referralCode, amount);
     }
     
     /**
-     * @dev Enter daily game without referral
+     * @dev Enter daily game without referral code
+     * @param amount VMF amount to pay
      */
-    function enterDailyGameNoRef() external nonReentrant {
-        _enterDaily(msg.sender, "");
+    function enterDailyGameNoRef(uint256 amount) external nonReentrant {
+        require(amount >= MIN_ENTRY_FEE, "Amount too low");
+        require(amount <= MAX_ENTRY_FEE, "Amount too high");
+        _enterDaily(msg.sender, "", amount);
     }
     
-    function _enterDaily(address player, string memory referralCode) internal {
+    function _enterDaily(address player, string memory referralCode, uint256 amount) internal {
+        // Auto-settle weekly game if claim window ended
+        WeeklyGame storage week = weeklyGames[weeklyGameId];
+        if (block.timestamp >= week.claimWindowEnd && !week.settled) {
+            _settleWeeklyGame(weeklyGameId);
+        }
+        
         uint256 gameId = dailyGameId;
         DailyGame storage game = dailyGames[gameId];
         
@@ -162,9 +185,9 @@ contract PizzaParty is Ownable, ReentrancyGuard {
         PlayerWeekly storage weekly = weeklyPlayers[weeklyGameId][player];
         require(weekly.dailyPlays < 7, "Weekly limit reached");
         
-        // Collect entry fee
-        vmfToken.safeTransferFrom(player, address(this), ENTRY_FEE);
-        currentDailyPot += ENTRY_FEE;
+        // ✅ Collect dynamic entry fee
+        vmfToken.safeTransferFrom(player, address(this), amount);
+        currentDailyPot += amount;
         
         // Track first player for bonus
         bool isFirst = (game.players.length == 0);
@@ -189,7 +212,7 @@ contract PizzaParty is Ownable, ReentrancyGuard {
             emit ReferralCodeCreated(player, myCode);
         }
         
-        emit DailyGameEntered(gameId, player, isFirst);
+        emit DailyGameEntered(gameId, player, isFirst, amount);
         emit ToppingsEarned(weeklyGameId, player, 1, "daily_play");
         
         // Process referral if first time
@@ -759,6 +782,15 @@ contract PizzaParty is Ownable, ReentrancyGuard {
     
     function getWeeklyGameWinners(uint256 weekId) external view returns (address[] memory) {
         return weeklyGames[weekId].winners;
+    }
+    
+    /**
+     * @dev Helper to check if an amount is valid for entry
+     * @param amount The VMF amount to validate
+     * @return bool True if amount is within bounds
+     */
+    function isValidEntryAmount(uint256 amount) external pure returns (bool) {
+        return amount >= MIN_ENTRY_FEE && amount <= MAX_ENTRY_FEE;
     }
     
     // ============ Admin Functions ============
