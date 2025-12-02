@@ -4,7 +4,7 @@ import type { Abi } from 'viem'
 // ==============================
 // Contract addresses (Base mainnet)
 // ==============================
-export const PIZZA_PARTY_ADDRESS = "0x5432260CfcAc5C45773449089EA603a6e5Dc7DA7" // PizzaParty contract (latest deployment)
+export const PIZZA_PARTY_ADDRESS = "0x90E0603774edE5A5F05c2Da05136d1a06B5a49F6" // PizzaParty contract (latest deployment)
 export const VMF_TOKEN_ADDRESS = "0xA3E82adF6bd3207a1d2470ED7Ad742596Ee81776" // Fixed checksum
 
 // SushiSwap pair kept for legacy tooling (not used in minimal contract)
@@ -300,8 +300,8 @@ export type ContractRegistryKey = keyof typeof CONTRACT_REGISTRY
 const ONE_ETHER = 10n ** 18n
 
 export const GAME_CONSTANTS = {
-  MIN_ENTRY_FEE_WEI: 1n * ONE_ETHER,        // 1 VMF min
-  MAX_ENTRY_FEE_WEI: 1000n * ONE_ETHER,    // 1000 VMF max
+  MIN_ENTRY_FEE_WEI: 1n * (ONE_ETHER / 100n),  // 0.01 VMF minimum (when VMF = $100, entry = 0.01 VMF for $1)
+  MAX_ENTRY_FEE_WEI: 1000n * ONE_ETHER,        // 1000 VMF maximum (when VMF = $0.001, entry = 1000 VMF for $1)
   TARGET_ENTRY_FEE_USD: 1n * ONE_ETHER,     // $1 target
   HOLDINGS_UNIT: 10000n * ONE_ETHER,
   HOLDINGS_TICKETS: 3,

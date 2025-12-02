@@ -241,11 +241,15 @@ export function useGamePageData() {
     const amountWei = BigInt(Math.floor(vmfPerDollar * Number(WEI_PER_VMF)))
     
     // Clamp to contract bounds
-    const minFee = GAME_CONSTANTS.MIN_ENTRY_FEE_WEI
-    const maxFee = GAME_CONSTANTS.MAX_ENTRY_FEE_WEI
+    // Entry is always $1 USD, but VMF amount varies:
+    // - If VMF = $100: need 0.01 VMF (minimum)
+    // - If VMF = $1: need 1 VMF
+    // - If VMF = $0.001: need 1000 VMF (maximum)
+    const minFee = GAME_CONSTANTS.MIN_ENTRY_FEE_WEI  // 0.01 VMF minimum
+    const maxFee = GAME_CONSTANTS.MAX_ENTRY_FEE_WEI  // 1000 VMF maximum
     
-    if (amountWei < minFee) return minFee
-    if (amountWei > maxFee) return maxFee
+    if (amountWei < minFee) return minFee  // Clamp up to 0.01 VMF minimum
+    if (amountWei > maxFee) return maxFee  // Clamp down to 1000 VMF maximum
     
     return amountWei
   }, [vmfUsdPrice])

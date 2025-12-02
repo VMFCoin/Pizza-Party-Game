@@ -37,9 +37,13 @@ contract PizzaParty is Ownable, ReentrancyGuard {
     
     // ============ Constants ============
     
-    // ✅ Dynamic entry fee with safety bounds (replaces fixed ENTRY_FEE)
-    uint256 public constant MIN_ENTRY_FEE = 1e18;      // 1 VMF minimum
-    uint256 public constant MAX_ENTRY_FEE = 1000e18;   // 1000 VMF maximum
+    // ✅ Dynamic entry fee: Always $1 USD, but VMF amount varies with price
+    // If VMF = $100: need 0.01 VMF for $1 entry
+    // If VMF = $1: need 1 VMF for $1 entry
+    // If VMF = $0.001: need 1000 VMF for $1 entry
+    // So bounds are: minimum 0.01 VMF (when VMF is very expensive) to maximum 1000 VMF (when VMF is very cheap)
+    uint256 public constant MIN_ENTRY_FEE = 1e16;      // 0.01 VMF minimum (covers VMF up to $100 per token)
+    uint256 public constant MAX_ENTRY_FEE = 1000e18; // 1000 VMF maximum (when VMF = $0.001, need 1000 VMF for $1)
     uint256 public constant DAILY_WINNERS = 8;
     uint256 public constant WEEKLY_WINNERS = 10;
     // Daily pot split (100% total):
@@ -172,8 +176,11 @@ contract PizzaParty is Ownable, ReentrancyGuard {
      * @param amountPaid VMF amount to pay (must be within MIN/MAX bounds)
      */
     function enterDailyGame(uint256 amountPaid) external nonReentrant {
-        require(amountPaid >= MIN_ENTRY_FEE, "Amount too low");
-        require(amountPaid <= MAX_ENTRY_FEE, "Amount too high");
+        // Entry fee is always $1 USD, but VMF amount varies with VMF price
+        // Minimum: 0.01 VMF (when VMF = $100 per token, entry = 0.01 VMF = $1)
+        // Maximum: 1000 VMF (when VMF = $0.001 per token, entry = 1000 VMF = $1)
+        require(amountPaid >= MIN_ENTRY_FEE, "Amount too low");   // Must be >= 0.01 VMF
+        require(amountPaid <= MAX_ENTRY_FEE, "Amount too high"); // Must be <= 1000 VMF
         _enterDaily(msg.sender, amountPaid);
     }
     
