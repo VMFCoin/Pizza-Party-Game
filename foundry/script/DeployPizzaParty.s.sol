@@ -10,8 +10,12 @@ contract DeployPizzaParty is Script {
     address constant OWNER_WALLET = 0xf091E8c19D1F5F3D44D0D3311001Af1437B4F5B8;
 
     function run() external {
-        // PRIVATE_KEY must have 0x prefix in .env file
-        uint256 deployerPrivateKey = vm.envUint("PRIVATE_KEY");
+        // PRIVATE_KEY must be a hex string (0x...) in .env file
+        // Read as string and parse as uint256 (handles hex strings)
+        string memory keyStr = vm.envString("PRIVATE_KEY");
+        require(bytes(keyStr).length > 0, "PRIVATE_KEY not set in .env file");
+        uint256 deployerPrivateKey = vm.parseUint(keyStr);  // parseUint handles both hex (0x...) and decimal
+        
         address treasuryWallet = vm.envAddress("TREASURY_WALLET");
 
         vm.startBroadcast(deployerPrivateKey);
