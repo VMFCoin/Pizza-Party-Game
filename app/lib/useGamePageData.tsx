@@ -573,7 +573,7 @@ export function useGamePageData() {
 
           // Use daily toppings count as source of truth for player count
           // since each DailyGameEntered event = 1 topping = 1 entry for the week
-          let finalPlayerCount = Number(dailyToppingsCount)
+          const finalPlayerCount = Number(dailyToppingsCount)
 
           // For jackpot, prefer ToppingsEarned total (includes all sources: daily, referrals, holdings)
           // But use daily entries as fallback if ToppingsEarned is 0
@@ -622,7 +622,7 @@ export function useGamePageData() {
         error: err instanceof Error ? err : new Error('Failed to load weekly'),
       }))
     }
-  }, [publicClient, WEI_PER_VMF])
+  }, [publicClient])
 
   const refreshDaily = useCallback(async () => {
     try {
