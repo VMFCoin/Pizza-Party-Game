@@ -434,10 +434,10 @@ function GamePageContent({ onNavigateToWeekly, onNavigateToLeaderboard }: GamePa
           {/* Referral Code Input (First Entry Only) */}
           {showReferralInput && isFirstEntry && (
             <div className="bg-white/95 backdrop-blur-md rounded-xl border-2 border-purple-300 p-4 w-full">
-              <p className="text-purple-800 font-bold mb-2 text-center" style={customFontStyle}>
+              <p className="text-red-700 font-bold mb-2 text-center" style={customFontStyle}>
                 🎁 Have a Referral Code?
               </p>
-              <p className="text-xs text-purple-600 mb-3 text-center">
+              <p className="text-xs text-red-500 mb-3 text-center">
                 Optional: Enter a friend&apos;s code to get bonus toppings! Or skip to continue.
               </p>
               <input
@@ -445,22 +445,21 @@ function GamePageContent({ onNavigateToWeekly, onNavigateToLeaderboard }: GamePa
                 placeholder="Enter code (optional)"
                 value={referralCodeInput}
                 onChange={(e) => setReferralCodeInput(e.target.value.toUpperCase())}
-                className="w-full p-2 border-2 border-purple-300 rounded-lg mb-2 text-center font-bold"
+                className="w-full p-2 border-2 border-purple-300 rounded-lg mb-2 text-center font-bold text-black placeholder:text-black"
                 maxLength={10}
               />
-              <div className="flex gap-2">
+              <div className="w-full">
                 <Button
-                  className="!bg-green-600 hover:!bg-green-700 text-white font-bold py-2 rounded-lg flex-1"
+                  className="!bg-green-600 hover:!bg-green-700 text-white font-bold py-2 rounded-lg w-full border-4 border-green-800 uppercase"
+                  style={{ ...customFontStyle, fontSize: isMobile ? 18 : 20 }}
                   onClick={handleEnterWithReferral}
                   disabled={isEntryInProgress}
                 >
-                  {referralCodeInput.trim() ? 'Enter with Code' : 'Enter Game'}
-                </Button>
-                <Button
-                  className="!bg-gray-400 hover:!bg-gray-500 text-white font-bold py-2 rounded-lg px-4"
-                  onClick={() => setShowReferralInput(false)}
-                >
-                  Cancel
+                  {isEntryInProgress ? 'Processing...' : (
+                    <>
+                      <span className="text-xl">🍕</span> ENTER GAME <span className="text-xl">🍕</span>
+                    </>
+                  )}
                 </Button>
               </div>
             </div>
