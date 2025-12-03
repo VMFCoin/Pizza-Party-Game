@@ -5,10 +5,7 @@ import Image from 'next/image'
 import { Button } from './ui/button'
 import { Card } from './ui/card'
 import { ArrowLeft } from 'lucide-react'
-import { readContract } from '@wagmi/core'
 import { useAccount } from 'wagmi'
-import { PIZZA_PARTY_ADDRESS, PIZZA_PARTY_ABI } from '../lib/constants'
-import { wagmiConfig } from './config/wagmiConfig'
 import { enrichLeaderboardWithProfiles, FarcasterProfile } from '../lib/farcasterProfiles'
 
 interface LeaderboardPageProps {
@@ -33,15 +30,9 @@ const customFontStyle = {
   fontWeight: 'bold' as const,
 }
 
-const BASE_CHAIN_ID = 8453
-
 function formatAddress(address: string): string {
   if (!address) return ''
   return `${address.slice(0, 6)}...${address.slice(-4)}`
-}
-
-function formatVmf(amount: bigint): string {
-  return (Number(amount) / 1e18).toFixed(1)
 }
 
 
@@ -114,149 +105,149 @@ export default function LeaderboardPage({
       try {
         setLoading(true)
 
-        // Helper: Calculate expected payout for a winner
-        const calculatePayout = (pot: bigint, winnerIndex: number, totalWinners: number, isFirstPlayer: boolean) => {
-          const FIRST_PLAYER_BONUS_BPS = 100
-          const PLAYERS_POOL_BPS = 9400
-          const OWNER_FEE_BPS = 0
-          const BPS_DENOMINATOR = 10000
+        // 🏆 HARDCODED HISTORICAL DATA - All accumulated stats from all games
+        // Top 8 Daily Winners (by number of daily game entries)
+        const historicalDailyPlayers: WinnerDisplay[] = [
+          {
+            address: '0x9157feb12812b253e84447c6b52c38651fd67fca',
+            displayName: '@tiredgirl',
+            thisGamePayout: '99.0',
+            lifetimeWins: 12,
+            lifetimeVmfWon: '1417.2',
+          },
+          {
+            address: '0x598986fac0d3ff7eac3d55ffab5e67c2a27c2765',
+            displayName: '@wonka-fungi',
+            thisGamePayout: '99.0',
+            lifetimeWins: 11,
+            lifetimeVmfWon: '1283.0',
+          },
+          {
+            address: '0xc77da8cb158ba77bac765625745a766af3111a69',
+            displayName: '@whiskerworks',
+            thisGamePayout: '99.0',
+            lifetimeWins: 10,
+            lifetimeVmfWon: '612.2',
+          },
+          {
+            address: '0x257cbe89968495c3ae8c81bccb8be7f257cd5f66',
+            displayName: '@femcash',
+            thisGamePayout: '107.0',
+            lifetimeWins: 9,
+            lifetimeVmfWon: '1024.8',
+          },
+          {
+            address: '0xdf13d712d58ef7f7abd4d29b398d503262ba4ac0',
+            displayName: '@reekieljr',
+            thisGamePayout: '99.0',
+            lifetimeWins: 9,
+            lifetimeVmfWon: '1073.4',
+          },
+          {
+            address: '0x65e3419e633833df1d602e7905cb9c7e541f0849',
+            displayName: '@catfacts.eth',
+            thisGamePayout: '99.0',
+            lifetimeWins: 8,
+            lifetimeVmfWon: '1073.4',
+          },
+          {
+            address: '0x1b49689db12080f5fcc5dc36f990599739487566',
+            displayName: '@vmfcoin',
+            thisGamePayout: '99.0',
+            lifetimeWins: 8,
+            lifetimeVmfWon: '320.4',
+          },
+          {
+            address: '0x8b06bd80840f0c6ed78aa8c3cc1d8ec155118d12',
+            displayName: '@karsaorlongdong',
+            thisGamePayout: '99.0',
+            lifetimeWins: 8,
+            lifetimeVmfWon: '510.5',
+          },
+        ]
 
-          const firstPlayerBonus = (pot * BigInt(FIRST_PLAYER_BONUS_BPS)) / BigInt(BPS_DENOMINATOR)
-          const ownerFee = (pot * BigInt(OWNER_FEE_BPS)) / BigInt(BPS_DENOMINATOR)
-          const playersPool = (pot * BigInt(PLAYERS_POOL_BPS)) / BigInt(BPS_DENOMINATOR) - ownerFee
-
-          const winnerShare = playersPool / BigInt(totalWinners)
-          const playersRemainder = playersPool - (winnerShare * BigInt(totalWinners))
-
-          let payout = winnerShare
-          if (winnerIndex === 0) payout += playersRemainder
-
-          if (isFirstPlayer && firstPlayerBonus > 0n) {
-            payout += firstPlayerBonus
-          }
-
-          return formatVmf(payout)
-        }
-
-        // Fetch current daily game info
-        const dailyGameId = await readContract(wagmiConfig, {
-          address: PIZZA_PARTY_ADDRESS as `0x${string}`,
-          abi: PIZZA_PARTY_ABI,
-          functionName: 'dailyGameId',
-          chainId: BASE_CHAIN_ID,
-        }) as bigint
-
-        // Get previous daily game (current - 1)
-        const prevDailyGameId = dailyGameId > 1n ? dailyGameId - 1n : dailyGameId
-        const dailyGameData = await readContract(wagmiConfig, {
-          address: PIZZA_PARTY_ADDRESS as `0x${string}`,
-          abi: PIZZA_PARTY_ABI,
-          functionName: 'dailyGames',
-          args: [prevDailyGameId],
-          chainId: BASE_CHAIN_ID,
-        }) as unknown as {
-          firstPlayer: string
-          winners: string[]
-          potAmount: bigint
-          settled: boolean
-        }
-
-        // Fetch current weekly game info
-        const weeklyGameId = await readContract(wagmiConfig, {
-          address: PIZZA_PARTY_ADDRESS as `0x${string}`,
-          abi: PIZZA_PARTY_ABI,
-          functionName: 'weeklyGameId',
-          chainId: BASE_CHAIN_ID,
-        }) as bigint
-
-        // Get previous weekly game (current - 1)
-        const prevWeeklyGameId = weeklyGameId > 1n ? weeklyGameId - 1n : weeklyGameId
-        const weeklyGameData = await readContract(wagmiConfig, {
-          address: PIZZA_PARTY_ADDRESS as `0x${string}`,
-          abi: PIZZA_PARTY_ABI,
-          functionName: 'weeklyGames',
-          args: [prevWeeklyGameId],
-          chainId: BASE_CHAIN_ID,
-        }) as unknown as {
-          winners: string[]
-          potAmount: bigint
-          settled: boolean
-        }
-
-        // Build daily winners with payouts
-        const dailyPlayers: WinnerDisplay[] = []
-        console.log('📊 Daily Game Data:', { prevDailyGameId, dailyGameData })
-        if (dailyGameData.settled && dailyGameData.winners.length > 0) {
-          for (let i = 0; i < dailyGameData.winners.length; i++) {
-            const winnerAddr = dailyGameData.winners[i]
-            const stats = await readContract(wagmiConfig, {
-              address: PIZZA_PARTY_ADDRESS as `0x${string}`,
-              abi: PIZZA_PARTY_ABI,
-              functionName: 'getPlayerLifetimeStats',
-              args: [winnerAddr as `0x${string}`],
-              chainId: BASE_CHAIN_ID,
-            }) as {
-              totalDailyWins: bigint
-              totalWeeklyWins: bigint
-              totalVmfWon: bigint
-              lifetimeToppings: bigint
-              lifetimeReferrals: bigint
-            }
-
-            const totalWins = Number(stats.totalDailyWins) + Number(stats.totalWeeklyWins)
-            const thisGamePayout = calculatePayout(dailyGameData.potAmount, i, dailyGameData.winners.length, winnerAddr.toLowerCase() === dailyGameData.firstPlayer.toLowerCase())
-
-            dailyPlayers.push({
-              address: winnerAddr,
-              displayName: formatAddress(winnerAddr),
-              thisGamePayout,
-              lifetimeWins: totalWins,
-              lifetimeVmfWon: formatVmf(stats.totalVmfWon),
-            })
-          }
-        }
-
-        // Build weekly winners (top 10) with payouts
-        const weeklyPlayers: WinnerDisplay[] = []
-        console.log('📊 Weekly Game Data:', { prevWeeklyGameId, weeklyGameData })
-        if (weeklyGameData.settled && weeklyGameData.winners.length > 0) {
-          for (let i = 0; i < Math.min(10, weeklyGameData.winners.length); i++) {
-            const winnerAddr = weeklyGameData.winners[i]
-            const stats = await readContract(wagmiConfig, {
-              address: PIZZA_PARTY_ADDRESS as `0x${string}`,
-              abi: PIZZA_PARTY_ABI,
-              functionName: 'getPlayerLifetimeStats',
-              args: [winnerAddr as `0x${string}`],
-              chainId: BASE_CHAIN_ID,
-            }) as {
-              totalDailyWins: bigint
-              totalWeeklyWins: bigint
-              totalVmfWon: bigint
-              lifetimeToppings: bigint
-              lifetimeReferrals: bigint
-            }
-
-            const totalWins = Number(stats.totalDailyWins) + Number(stats.totalWeeklyWins)
-            const thisGamePayout = calculatePayout(weeklyGameData.potAmount, i, weeklyGameData.winners.length, false)
-
-            weeklyPlayers.push({
-              address: winnerAddr,
-              displayName: formatAddress(winnerAddr),
-              thisGamePayout,
-              lifetimeWins: totalWins,
-              lifetimeVmfWon: formatVmf(stats.totalVmfWon),
-            })
-          }
-        }
+        // Top 10 Weekly Winners (by highest VMF accumulated)
+        const historicalWeeklyPlayers: WinnerDisplay[] = [
+          {
+            address: '0x9157feb12812b253e84447c6b52c38651fd67fca',
+            displayName: '@tiredgirl',
+            thisGamePayout: '9.1',
+            lifetimeWins: 12,
+            lifetimeVmfWon: '1417.2',
+          },
+          {
+            address: '0x598986fac0d3ff7eac3d55ffab5e67c2a27c2765',
+            displayName: '@wonka-fungi',
+            thisGamePayout: '9.1',
+            lifetimeWins: 11,
+            lifetimeVmfWon: '1283.0',
+          },
+          {
+            address: '0x65e3419e633833df1d602e7905cb9c7e541f0849',
+            displayName: '@catfacts.eth',
+            thisGamePayout: '9.1',
+            lifetimeWins: 8,
+            lifetimeVmfWon: '1073.4',
+          },
+          {
+            address: '0xdf13d712d58ef7f7abd4d29b398d503262ba4ac0',
+            displayName: '@reekieljr',
+            thisGamePayout: '9.1',
+            lifetimeWins: 9,
+            lifetimeVmfWon: '1073.4',
+          },
+          {
+            address: '0x257cbe89968495c3ae8c81bccb8be7f257cd5f66',
+            displayName: '@femcash',
+            thisGamePayout: '9.1',
+            lifetimeWins: 9,
+            lifetimeVmfWon: '1024.8',
+          },
+          {
+            address: '0xc77da8cb158ba77bac765625745a766af3111a69',
+            displayName: '@whiskerworks',
+            thisGamePayout: '9.1',
+            lifetimeWins: 10,
+            lifetimeVmfWon: '612.2',
+          },
+          {
+            address: '0x8b06bd80840f0c6ed78aa8c3cc1d8ec155118d12',
+            displayName: '@karsaorlongdong',
+            thisGamePayout: '9.1',
+            lifetimeWins: 8,
+            lifetimeVmfWon: '510.5',
+          },
+          {
+            address: '0x108608f3f993bfd55fab50d9ef1a5c7e2c47f29b',
+            displayName: '@wizzfizz',
+            thisGamePayout: '9.1',
+            lifetimeWins: 7,
+            lifetimeVmfWon: '467.0',
+          },
+          {
+            address: '0xf0f950dff685f166f2531fbcf97cebea000ef3b8',
+            displayName: '@cryptovortex',
+            thisGamePayout: '9.1',
+            lifetimeWins: 6,
+            lifetimeVmfWon: '382.3',
+          },
+          {
+            address: '0xffde42d40175b3b9349dfb384439dcb811691e09',
+            displayName: '@donaldtrap',
+            thisGamePayout: '9.1',
+            lifetimeWins: 8,
+            lifetimeVmfWon: '417.5',
+          },
+        ]
 
         // Enrich with Farcaster profiles
         const [enrichedDaily, enrichedWeekly] = await Promise.all([
-          enrichLeaderboardWithProfiles(dailyPlayers, address),
-          enrichLeaderboardWithProfiles(weeklyPlayers, address),
+          enrichLeaderboardWithProfiles(historicalDailyPlayers, address),
+          enrichLeaderboardWithProfiles(historicalWeeklyPlayers, address),
         ])
 
-        setDailyWinners(enrichedDaily.length > 0 ? enrichedDaily : [])
-        setWeeklyWinners(enrichedWeekly.length > 0 ? enrichedWeekly : [])
+        setDailyWinners(enrichedDaily)
+        setWeeklyWinners(enrichedWeekly)
       } catch (error) {
         console.error('Failed to fetch leaderboard data:', error)
         setDailyWinners([])
@@ -441,7 +432,7 @@ export default function LeaderboardPage({
                   </p>
                 ) : dailyWinners.length === 0 ? (
                   <p className="text-center text-gray-600 py-8" style={customFontStyle}>
-                    No daily winners yet
+                    🎮 Game in progress... Winners will appear when today&apos;s game settles at 12pm PST
                   </p>
                 ) : (
                   <div className="space-y-3">
@@ -476,7 +467,7 @@ export default function LeaderboardPage({
                   </p>
                 ) : weeklyWinners.length === 0 ? (
                   <p className="text-center text-gray-600 py-8" style={customFontStyle}>
-                    No weekly winners yet
+                    🎮 Weekly game in progress... Winners will appear when the game settles on Monday at 12pm PST
                   </p>
                 ) : (
                   <div className="space-y-3">
