@@ -384,152 +384,52 @@ export default function LeaderboardPage({
       try {
         setLoading(true)
 
-        const [dailyId, weeklyId] = await Promise.all([
-          readContract(wagmiConfig, {
-            address: PIZZA_PARTY_ADDRESS as `0x${string}`,
-            abi: PIZZA_PARTY_ABI,
-            functionName: 'dailyGameId',
-            chainId: BASE_CHAIN_ID,
-          }),
-          readContract(wagmiConfig, {
-            address: PIZZA_PARTY_ADDRESS as `0x${string}`,
-            abi: PIZZA_PARTY_ABI,
-            functionName: 'weeklyGameId',
-            chainId: BASE_CHAIN_ID,
-          }),
-        ])
+        // 🎯 HISTORICAL LEADERBOARD: Fetch top lifetime performers
+        // Query all players with stats from the migrated data
+        const migratedPlayers = [
+          "0x9157feb12812b253e84447c6b52c38651fd67fca",
+          "0x598986fac0d3ff7eac3d55ffab5e67c2a27c2765",
+          "0x65e3419e633833df1d602e7905cb9c7e541f0849",
+          "0xd68c5493e41f03fac90776ad0366376e245255e8",
+          "0xdf13d712d58ef7f7abd4d29b398d503262ba4ac0",
+          "0x257cbe89968495c3ae8c81bccb8be7f257cd5f66",
+          "0x108608f3f993bfd55fab50d9ef1a5c7e2c47f29b",
+          "0xc77da8cb158ba77bac765625745a766af3111a69",
+          "0x1b49689db12080f5fcc5dc36f990599739487566",
+          "0xffde42d40175b3b9349dfb384439dcb811691e09",
+          "0xacbf90a3f03a34faa8235854ca6c3ee0cc8c7546",
+          "0xf0f950dff685f166f2531fbcf97cebea000ef3b8",
+          "0xbc4340af8b93b0260ec8052cfa50982dd0865ba7",
+          "0x14e8fddfa4a7c709c19a8c7da5205c3ae366355c",
+          "0x194fee25b9fb539e105fe13c53bff4ee46adc7cc",
+          "0x944fa0f3f2168d4b27110f7f97972ad9425c4f52",
+          "0xd1cb812192c535d2762bf4ad1f1c1d4dee3e383e",
+          "0x8b06bd80840f0c6ed78aa8c3cc1d8ec155118d12",
+        ]
 
-        const currentDailyId = dailyId as bigint
-        const currentWeeklyId = weeklyId as bigint
+        console.log('📊 Fetching historical leaderboard for', migratedPlayers.length, 'players...')
 
-        // Fetch the LAST SETTLED game (current - 1)
-        const dailyGameIdToFetch = currentDailyId > 1n ? currentDailyId - 1n : currentDailyId
-        const weeklyGameIdToFetch = currentWeeklyId > 1n ? currentWeeklyId - 1n : currentWeeklyId
+        // Fetch lifetime stats for all migrated players
+        const lifetimeStats = await fetchLifetimeStatsForAddresses(migratedPlayers)
 
-        console.log('📊 Fetching game data:', {
-          dailyGameId: dailyGameIdToFetch.toString(),
-          weeklyGameId: weeklyGameIdToFetch.toString(),
-        })
-
-        const [dailyWins, weeklyWins, dailyGameData, weeklyGameData] = await Promise.all([
-          readContract(wagmiConfig, {
-            address: PIZZA_PARTY_ADDRESS as `0x${string}`,
-            abi: PIZZA_PARTY_ABI,
-            functionName: 'getDailyGameWinners',
-            args: [dailyGameIdToFetch],
-            chainId: BASE_CHAIN_ID,
-          }).catch(() => [] as string[]),
-          readContract(wagmiConfig, {
-            address: PIZZA_PARTY_ADDRESS as `0x${string}`,
-            abi: PIZZA_PARTY_ABI,
-            functionName: 'getWeeklyGameWinners',
-            args: [weeklyGameIdToFetch],
-            chainId: BASE_CHAIN_ID,
-          }).catch(() => [] as string[]),
-          readContract(wagmiConfig, {
-            address: PIZZA_PARTY_ADDRESS as `0x${string}`,
-            abi: PIZZA_PARTY_ABI,
-            functionName: 'dailyGames',
-            args: [dailyGameIdToFetch],
-            chainId: BASE_CHAIN_ID,
-          }).catch(() => null),
-          readContract(wagmiConfig, {
-            address: PIZZA_PARTY_ADDRESS as `0x${string}`,
-            abi: PIZZA_PARTY_ABI,
-            functionName: 'weeklyGames',
-            args: [weeklyGameIdToFetch],
-            chainId: BASE_CHAIN_ID,
-          }).catch(() => null),
-        ])
-
-        const dailyWinnerAddresses = (dailyWins as string[]) || []
-        const weeklyWinnerAddresses = (weeklyWins as string[]) || []
-
-        console.log('🎯 Winners found:', {
-          daily: dailyWinnerAddresses.length,
-          weekly: weeklyWinnerAddresses.length,
-        })
-
-        // Fetch lifetime stats for all winners
-        const [dailyLifetimeStats, weeklyLifetimeStats] = await Promise.all([
-          fetchLifetimeStatsForAddresses(dailyWinnerAddresses),
-          fetchLifetimeStatsForAddresses(weeklyWinnerAddresses),
-        ])
-
-        const dailyPotAmount = dailyGameData ? (dailyGameData as { potAmount: bigint }).potAmount : 0n
-        const weeklyPotAmount = weeklyGameData ? (weeklyGameData as { potAmount: bigint }).potAmount : 0n
-
-        // ✅ CRITICAL: Fetch ACTUAL payouts from Transfer events
-        // IMPORTANT: Pass pot amount to help match correct transfers by amount range
-        const [dailyPayouts, weeklyPayouts] = await Promise.all([
-          fetchGamePayoutsFromTransfers(dailyGameIdToFetch, dailyWinnerAddresses, 'daily', dailyPotAmount),
-          fetchGamePayoutsFromTransfers(weeklyGameIdToFetch, weeklyWinnerAddresses, 'weekly', weeklyPotAmount),
-        ])
-
-        // Build daily winners display data
-        const dailyBase: WinnerDisplay[] = dailyWinnerAddresses.map((addr, idx) => {
-          const addressLower = addr.toLowerCase()
-          
-          // Get ACTUAL payout from Transfer events
-          let thisGamePayout = dailyPayouts.get(addressLower) || '0.0'
-          
-          // Fallback: if no transfer found, calculate from game data
-          if (thisGamePayout === '0.0' && dailyGameData) {
-            const gameData = dailyGameData as {
-              firstPlayer: string
-              potAmount: bigint
-            }
-            const isFirstPlayer = gameData.firstPlayer?.toLowerCase() === addressLower
-            thisGamePayout = calculateFallbackPayout(
-              gameData.potAmount,
-              dailyWinnerAddresses.length,
-              isFirstPlayer,
-              'daily'  // ✅ Specify this is a daily game
-            )
-            console.warn('⚠️ Using daily fallback calculation for', addr.slice(0, 6), ':', thisGamePayout)
-          }
-
+        // Build winner display data
+        const allPlayers: WinnerDisplay[] = migratedPlayers.map((addr, idx) => {
           return {
             address: addr,
             displayName: formatAddress(addr),
-            thisGamePayout,  // ✅ EXACT amount from THIS daily game
-            lifetimeWins: dailyLifetimeStats[idx]?.totalWins || 0,
-            lifetimeVmfWon: dailyLifetimeStats[idx]?.totalVmfWon || '0.0',  // ✅ Total from ALL games
+            thisGamePayout: '0.0',  // Not applicable for historical view
+            lifetimeWins: lifetimeStats[idx]?.totalWins || 0,
+            lifetimeVmfWon: lifetimeStats[idx]?.totalVmfWon || '0.0',
           }
         })
 
-        // Build weekly winners display data
-        const weeklyBase: WinnerDisplay[] = weeklyWinnerAddresses.map((addr, idx) => {
-          const addressLower = addr.toLowerCase()
-          let thisGamePayout = weeklyPayouts.get(addressLower) || '0.0'
-          
-          // Fallback for weekly
-          if (thisGamePayout === '0.0' && weeklyGameData) {
-            const gameData = weeklyGameData as { potAmount: bigint }
-            thisGamePayout = calculateFallbackPayout(
-              gameData.potAmount,
-              weeklyWinnerAddresses.length,
-              false,  // No first player bonus in weekly
-              'weekly'  // ✅ Specify this is a weekly game
-            )
-            console.warn('⚠️ Using weekly fallback calculation for', addr.slice(0, 6), ':', thisGamePayout)
-          }
+        // Sort by lifetime stats (highest VMF won first)
+        const sorted = sortByLifetimeStats(allPlayers)
 
-          return {
-            address: addr,
-            displayName: formatAddress(addr),
-            thisGamePayout,  // ✅ EXACT amount from THIS weekly game
-            lifetimeWins: weeklyLifetimeStats[idx]?.totalWins || 0,
-            lifetimeVmfWon: weeklyLifetimeStats[idx]?.totalVmfWon || '0.0',
-          }
-        })
-
-        const dailySorted = sortByLifetimeStats(dailyBase)
-        const weeklySorted = sortByLifetimeStats(weeklyBase)
-
+        // Enrich with Farcaster profiles
         const [enrichedDaily, enrichedWeekly] = await Promise.all([
-          enrichLeaderboardWithProfiles(dailySorted, address),
-          enrichLeaderboardWithProfiles(weeklySorted, address),
+          enrichLeaderboardWithProfiles(sorted.slice(0, 8), address),
+          enrichLeaderboardWithProfiles(sorted, address),
         ])
 
         setDailyWinners(padWinners(enrichedDaily, 8, 'daily'))
@@ -705,12 +605,12 @@ export default function LeaderboardPage({
                     className="text-2xl font-bold text-center"
                     style={{ ...customFontStyle, fontSize: 'clamp(20px, 8vw, 28px)', color: '#16a34a' }}
                 >
-                  DAILY WINNERS
-                </h2>
+                  TOP 8 PLAYERS
+                  </h2>
                   <span className="text-2xl">🎯</span>
                 </div>
                 <p className="text-base font-semibold mb-2 text-center" style={{ ...customFontStyle, color: '#16a34a' }}>
-                  Today&apos;s 8 lucky winners
+                  All-time highest VMF winners
                 </p>
                 {loading ? (
                   <p className="text-center text-gray-600 py-8" style={customFontStyle}>
@@ -740,12 +640,12 @@ export default function LeaderboardPage({
                     className="text-2xl font-bold text-center"
                     style={{ ...customFontStyle, fontSize: 'clamp(20px, 8vw, 28px)', color: '#16a34a' }}
                 >
-                  WEEKLY WINNERS
-                </h2>
+                  TOP 10 PLAYERS
+                  </h2>
                   <span className="text-2xl">🍕</span>
                 </div>
                 <p className="text-base font-semibold mb-4 text-center" style={{ ...customFontStyle, color: '#16a34a' }}>
-                  This week&apos;s top 10 champions
+                  All-time highest VMF winners
                 </p>
                 {loading ? (
                   <p className="text-center text-gray-600 py-8" style={customFontStyle}>
@@ -793,20 +693,20 @@ export default function LeaderboardPage({
                   className="text-red-600 text-xl font-bold mb-2"
                   style={{ ...customFontStyle, textAlign: 'center' }}
                 >
-                  How to Get on the Leaderboard
+                  🏆 Historical Leaderboard
                 </p>
                 <ul className="space-y-1.5 text-red-700 text-sm font-semibold">
                   <li className="flex items-start gap-2">
-                    <span>🍅</span>
-                    <span>Daily Winners: 8 players randomly selected every day at 12pm PST</span>
+                    <span>📊</span>
+                    <span>Showing all-time stats from migrated player history</span>
                   </li>
                   <li className="flex items-start gap-2">
-                    <span>🍅</span>
-                    <span>Weekly Winners: 10 random players selected with weighted probability based on claimed toppings</span>
+                    <span>💰</span>
+                    <span>Ranked by total VMF won across all games</span>
                   </li>
                   <li className="flex items-start gap-2">
-                    <span>🍅</span>
-                    <span>Earn More Toppings: Play daily, refer friends, and hold VMF coins!</span>
+                    <span>🎮</span>
+                    <span>Keep playing to earn more and climb the rankings!</span>
                   </li>
                 </ul>
               </div>
