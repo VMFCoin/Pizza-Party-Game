@@ -5,10 +5,9 @@ import Image from 'next/image'
 import { Button } from './ui/button'
 import { Card } from './ui/card'
 import { ArrowLeft } from 'lucide-react'
-import { readContract, getPublicClient } from '@wagmi/core'
+import { readContract } from '@wagmi/core'
 import { useAccount } from 'wagmi'
-import { parseAbiItem } from 'viem'
-import { PIZZA_PARTY_ADDRESS, PIZZA_PARTY_ABI, VMF_TOKEN_ADDRESS } from '../lib/constants'
+import { PIZZA_PARTY_ADDRESS, PIZZA_PARTY_ABI } from '../lib/constants'
 import { wagmiConfig } from './config/wagmiConfig'
 import { enrichLeaderboardWithProfiles, FarcasterProfile } from '../lib/farcasterProfiles'
 
@@ -40,10 +39,6 @@ const customFontStyle = {
 }
 
 const BASE_CHAIN_ID = 8453
-
-const TRANSFER_EVENT = parseAbiItem(
-  'event Transfer(address indexed from, address indexed to, uint256 value)'
-)
 
 function padWinners(
   list: WinnerDisplay[],
@@ -119,201 +114,6 @@ async function fetchLifetimeStatsForAddresses(addresses: string[]): Promise<Life
   )
 }
 
-/**
- * Fetch EXACT payout for each winner from Transfer events
- * This is the ACTUAL amount sent to each winner in this specific game
- * 
- * CRITICAL: This handles cases where daily and weekly games settle at the same time
- * (both at 12pm PST on Mondays), so we need to match transfers intelligently.
- * 
- * @param gameId - The game ID
- * @param winners - Array of winner addresses
- * @param gameType - 'daily' or 'weekly' to know which game's transfers to fetch
- * @param potAmount - The total pot for this game (helps validate amounts)
- */
-async function fetchGamePayoutsFromTransfers(
-  gameId: bigint,
-  winners: string[],
-  gameType: 'daily' | 'weekly',
-  potAmount: bigint
-): Promise<Map<string, string>> {
-  const payoutMap = new Map<string, string>()
-  
-  if (winners.length === 0) {
-    return payoutMap
-  }
-  
-  try {
-    const publicClient = getPublicClient(wagmiConfig, { chainId: BASE_CHAIN_ID })
-    if (!publicClient) {
-      console.error('No public client available')
-      return payoutMap
-    }
-
-    console.log(`🔍 Fetching ${gameType} game #${gameId} payouts (pot: ${formatVmf(potAmount)} VMF)`)
-
-    // Calculate expected payout ranges for this game type
-    const expectedMin = gameType === 'daily' 
-      ? (potAmount * 90n) / 100n / BigInt(winners.length)  // ~90% (accounting for bonuses)
-      : potAmount / BigInt(winners.length) - (potAmount / BigInt(winners.length) * 10n / 100n) // Weekly ±10%
-    
-    const expectedMax = gameType === 'daily'
-      ? (potAmount * 100n) / 100n / BigInt(winners.length)  // Up to 100% share (if first player + dust)
-      : potAmount / BigInt(winners.length) + (potAmount / BigInt(winners.length) * 10n / 100n)
-
-    console.log(`📊 Expected ${gameType} payout range: ${formatVmf(expectedMin)} - ${formatVmf(expectedMax)} VMF`)
-
-    // Get the game data to find settlement block range
-    const functionName = gameType === 'daily' ? 'dailyGames' : 'weeklyGames'
-    const gameData = await readContract(wagmiConfig, {
-      address: PIZZA_PARTY_ADDRESS as `0x${string}`,
-      abi: PIZZA_PARTY_ABI,
-      functionName,
-      args: [gameId],
-      chainId: BASE_CHAIN_ID,
-    }) as {
-      startTime?: bigint
-      endTime?: bigint
-      claimWindowStart?: bigint
-      claimWindowEnd?: bigint
-      firstPlayer?: string
-      potAmount: bigint
-      settled: boolean
-    }
-
-    if (!gameData.settled) {
-      console.warn(`${gameType} game not settled:`, gameId)
-      return payoutMap
-    }
-
-    // Get settlement timestamp
-    const settlementTime = gameType === 'daily' 
-      ? gameData.endTime 
-      : gameData.claimWindowEnd
-
-    // Fetch transfers for EACH winner
-    const transferPromises = winners.map(async (winnerAddress) => {
-      try {
-        const logs = await publicClient.getLogs({
-          address: VMF_TOKEN_ADDRESS as `0x${string}`,
-          event: TRANSFER_EVENT,
-          args: {
-            from: PIZZA_PARTY_ADDRESS as `0x${string}`,
-            to: winnerAddress as `0x${string}`,
-          },
-          fromBlock: 'earliest',
-          toBlock: 'latest',
-        })
-
-        if (logs.length === 0) {
-          console.warn(`⚠️ No transfers found for ${winnerAddress.slice(0, 6)}`)
-          return
-        }
-
-        // Sort by block number (most recent last)
-        const sortedLogs = logs.sort((a, b) => Number(a.blockNumber) - Number(b.blockNumber))
-
-        // Strategy: Find transfers that match the expected amount range
-        // and are closest to the settlement time
-        let bestMatch: typeof sortedLogs[0] | null = null
-        let bestMatchScore = -1
-
-        for (let i = sortedLogs.length - 1; i >= Math.max(0, sortedLogs.length - 10); i--) {
-          const log = sortedLogs[i]
-          const amount = log.args.value ?? 0n
-
-          // Check if amount is in expected range for this game type
-          const inRange = amount >= expectedMin && amount <= expectedMax
-
-          if (!inRange) {
-            continue // Skip transfers that don't match this game's payout range
-          }
-
-          try {
-            const block = await publicClient.getBlock({ blockNumber: log.blockNumber })
-            const blockTime = block.timestamp
-
-            // Calculate score: prefer transfers closest to settlement time
-            const timeDiff = settlementTime ? Number(blockTime > settlementTime ? blockTime - settlementTime : settlementTime - blockTime) : 0
-            const score = inRange ? (10000 - timeDiff) : 0 // Higher score = better match
-
-            if (score > bestMatchScore) {
-              bestMatchScore = score
-              bestMatch = log
-            }
-
-            // If we found a transfer within 5 minutes of settlement, that's definitely it
-            if (timeDiff < 300 && inRange) {
-              console.log(`✅ Found ${gameType} transfer for ${winnerAddress.slice(0, 6)} at block ${log.blockNumber} (${timeDiff}s from settlement)`)
-              break
-            }
-          } catch (err) {
-            console.warn('Failed to get block timestamp:', err)
-          }
-        }
-
-        if (bestMatch) {
-          const amount = bestMatch.args.value ?? 0n
-          if (amount > 0n) {
-            const vmfAmount = formatVmf(amount)
-            payoutMap.set(winnerAddress.toLowerCase(), vmfAmount)
-            console.log(`✅ ${gameType.toUpperCase()} payout for ${winnerAddress.slice(0, 6)}: ${vmfAmount} VMF`)
-          }
-        } else {
-          console.warn(`⚠️ No matching ${gameType} transfer found for ${winnerAddress.slice(0, 6)} (will use fallback)`)
-        }
-      } catch (err) {
-        console.error(`Failed to fetch ${gameType} transfers for`, winnerAddress, ':', err)
-      }
-    })
-
-    await Promise.all(transferPromises)
-
-    console.log(`✅ Fetched ${payoutMap.size}/${winners.length} ${gameType} payouts from transfers`)
-
-  } catch (error) {
-    console.error(`Failed to fetch ${gameType} game payouts from transfers:`, error)
-  }
-
-  return payoutMap
-}
-
-/**
- * Fallback: Calculate expected payout from game data
- * Use this if Transfer events aren't available
- */
-function calculateFallbackPayout(
-  pot: bigint,
-  winnerCount: number,
-  isFirstPlayer: boolean,
-  gameType: 'daily' | 'weekly'
-): string {
-  if (winnerCount === 0) return '0.0'
-
-  if (gameType === 'weekly') {
-    // Weekly: Simple equal split
-    const perWinner = pot / BigInt(winnerCount)
-    return formatVmf(perWinner)
-  }
-
-  // Daily game calculation (current contract - no charity)
-  const firstPlayerBonus = (pot * 100n) / 10000n  // 1%
-  const playersPool = pot - firstPlayerBonus       // 99%
-  const baseShare = playersPool / BigInt(winnerCount)
-  const _remainder = playersPool - (baseShare * BigInt(winnerCount))
-
-  let payout = baseShare
-
-  // First player gets their bonus
-  if (isFirstPlayer) {
-    payout += firstPlayerBonus
-  }
-
-  // Approximate: winner[0] would get remainder
-  // This is simplified - actual dust distribution may vary
-  // This is why we prefer Transfer events!
-  return formatVmf(payout)
-}
 
 function getPositionStyle(position: number) {
   if (position === 1) {

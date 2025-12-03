@@ -1036,7 +1036,7 @@ export function useGamePageData() {
       
       alert(message)
     }
-  }, [wallet.isAuthenticated, wallet.address, writeContract, networkId, checkStatus, fetchPlayerInfo, refreshDaily, fetchVmfBalance, fetchWeekly, vmfBalance, entryFeeWei, hasEnoughVMF, needsApproval, hasEnteredToday, fetchPlayerLifetimeStats])
+  }, [wallet.isAuthenticated, wallet.address, writeContract, networkId, checkStatus, fetchPlayerInfo, refreshDaily, fetchVmfBalance, fetchWeekly, vmfBalance, entryFeeWei, hasEnoughVMF, needsApproval, hasEnteredToday, fetchPlayerLifetimeStats, playerInfo])
 
   const openWalletModal = useCallback(() => open(), [open])
 
