@@ -35,6 +35,8 @@ const TERMS = {
     'Equal odds for all players regardless of holdings',
     '8 winners randomly selected daily at 12pm PST',
     'Daily jackpot split equally among winners; prizes auto-paid',
+    'New games are called when a new player enters after 12pm PST and receives a 1% reward from the daily jackpot',
+    'VMF partnered veteran charities receive 5% of the daily jackpot',
   ],
   weeklyJackpot: [
     'Claim toppings during Sunday 12pm–Monday 12pm PST to enter',
