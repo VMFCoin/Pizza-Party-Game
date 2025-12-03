@@ -467,23 +467,25 @@ function GamePageContent({ onNavigateToWeekly, onNavigateToLeaderboard }: GamePa
           )}
 
 
-          {/* Main Action Button (Approve / Enter) */}
-          <Button
-            className={`!bg-green-600 hover:!bg-green-700 text-white font-bold py-2 rounded-xl border-4 border-green-800 w-full ${buttonConfig.disabled ? 'opacity-50 cursor-not-allowed' : ''}`}
-            style={{ ...customFontStyle, fontSize: isMobile ? 18 : 20 }}
-            onClick={buttonConfig.onClick}
-            disabled={buttonConfig.disabled}
-          >
-            {isEntryInProgress ? 'Processing...' : (
-              buttonConfig.text.includes('🍕') ? (
-                <>
-                  <span className="text-xl">🍕</span> {buttonConfig.text.replace(/🍕/g, '').trim()} <span className="text-xl">🍕</span>
-                </>
-              ) : (
-                buttonConfig.text
-              )
-            )}
-          </Button>
+          {/* Main Action Button (Approve / Enter) - hidden during first-entry referral prompt */}
+          {!(showReferralInput && isFirstEntry) && (
+            <Button
+              className={`!bg-green-600 hover:!bg-green-700 text-white font-bold py-2 rounded-xl border-4 border-green-800 w-full ${buttonConfig.disabled ? 'opacity-50 cursor-not-allowed' : ''}`}
+              style={{ ...customFontStyle, fontSize: isMobile ? 18 : 20 }}
+              onClick={buttonConfig.onClick}
+              disabled={buttonConfig.disabled}
+            >
+              {isEntryInProgress ? 'Processing...' : (
+                buttonConfig.text.includes('🍕') ? (
+                  <>
+                    <span className="text-xl">🍕</span> {buttonConfig.text.replace(/🍕/g, '').trim()} <span className="text-xl">🍕</span>
+                  </>
+                ) : (
+                  buttonConfig.text
+                )
+              )}
+            </Button>
+          )}
 
           {/* Referral Code Management */}
           {wallet?.isAuthenticated && (
