@@ -520,7 +520,7 @@ export default function LeaderboardPage({
                   </li>
                   <li className="flex items-start gap-2">
                     <span>🍅</span>
-                    <span>Gray = Lifetime stats | Green = This game&apos;s payout to Earn More Toppings: Play daily, refer friends, hold VMF coins.</span>
+                    <span><strong>Earn More Toppings:</strong> Play daily, refer friends, hold VMF coins.</span>
                   </li>
                 </ul>
               </div>
