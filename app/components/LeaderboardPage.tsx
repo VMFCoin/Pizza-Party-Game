@@ -511,16 +511,16 @@ export default function LeaderboardPage({
                 </p>
                 <ul className="space-y-1.5 text-red-700 text-sm font-semibold">
                   <li className="flex items-start gap-2">
-                    <span>🏆</span>
+                    <span>🍅</span>
                     <span><strong>DAILY WINNERS:</strong> Today&apos;s 8 lucky winners</span>
                   </li>
                   <li className="flex items-start gap-2">
-                    <span>🍕</span>
+                    <span>🍅</span>
                     <span><strong>WEEKLY WINNERS:</strong> This week&apos;s top 10 champions</span>
                   </li>
                   <li className="flex items-start gap-2">
-                    <span>💚</span>
-                    <span>Gray = Lifetime stats | Green = This game&apos;s payout</span>
+                    <span>🍅</span>
+                    <span>Gray = Lifetime stats | Green = This game&apos;s payout to Earn More Toppings: Play daily, refer friends, hold VMF coins.</span>
                   </li>
                 </ul>
               </div>
