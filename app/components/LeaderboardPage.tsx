@@ -35,26 +35,6 @@ const customFontStyle = {
 
 const BASE_CHAIN_ID = 8453
 
-function padWinners(
-  list: WinnerDisplay[],
-  target: number,
-  label: 'daily' | 'weekly'
-): WinnerDisplay[] {
-  const result = [...list]
-  while (result.length < target) {
-    result.push({
-      address: `placeholder-${label}-${result.length}`,
-      displayName: `Waiting for winner #${result.length + 1}`,
-      thisGamePayout: '0.0',
-      lifetimeWins: 0,
-      lifetimeVmfWon: '0.0',
-      farcasterProfile: undefined,
-      isPlaceholder: true,
-    })
-  }
-  return result
-}
-
 function formatAddress(address: string): string {
   if (!address) return ''
   return `${address.slice(0, 6)}...${address.slice(-4)}`
@@ -205,6 +185,7 @@ export default function LeaderboardPage({
 
         // Build daily winners with payouts
         const dailyPlayers: WinnerDisplay[] = []
+        console.log('📊 Daily Game Data:', { prevDailyGameId, dailyGameData })
         if (dailyGameData.settled && dailyGameData.winners.length > 0) {
           for (let i = 0; i < dailyGameData.winners.length; i++) {
             const winnerAddr = dailyGameData.winners[i]
@@ -237,6 +218,7 @@ export default function LeaderboardPage({
 
         // Build weekly winners (top 10) with payouts
         const weeklyPlayers: WinnerDisplay[] = []
+        console.log('📊 Weekly Game Data:', { prevWeeklyGameId, weeklyGameData })
         if (weeklyGameData.settled && weeklyGameData.winners.length > 0) {
           for (let i = 0; i < Math.min(10, weeklyGameData.winners.length); i++) {
             const winnerAddr = weeklyGameData.winners[i]
@@ -273,12 +255,12 @@ export default function LeaderboardPage({
           enrichLeaderboardWithProfiles(weeklyPlayers, address),
         ])
 
-        setDailyWinners(padWinners(enrichedDaily, 8, 'daily'))
-        setWeeklyWinners(padWinners(enrichedWeekly, 10, 'weekly'))
+        setDailyWinners(enrichedDaily.length > 0 ? enrichedDaily : [])
+        setWeeklyWinners(enrichedWeekly.length > 0 ? enrichedWeekly : [])
       } catch (error) {
         console.error('Failed to fetch leaderboard data:', error)
-        setDailyWinners(padWinners([], 8, 'daily'))
-        setWeeklyWinners(padWinners([], 10, 'weekly'))
+        setDailyWinners([])
+        setWeeklyWinners([])
       } finally {
         setLoading(false)
       }
