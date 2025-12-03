@@ -71,26 +71,28 @@ async function migrateStats() {
 
     // ========== STEP 1: QUERY OLD CONTRACT FOR PLAYERS ==========
     console.log("⏳ Querying player stats from old contract...");
-    console.log("   Found 16 players from transaction history\n");
+    console.log("   Found 18 players with recorded stats (from complete CSV export)\n");
 
-    // Player addresses extracted from old contract transactions
+    // Player addresses with stats (18 total from complete CSV export Nov 21 - Dec 2)
     const playerAddresses = [
-      "0x9157Feb12812b253e84447C6B52C38651fd67FcA",
-      "0xdf13d712d58EF7F7Abd4D29B398d503262ba4AC0",
-      "0xffde42d40175b3b9349Dfb384439dCB811691E09",
-      "0xD68C5493e41F03faC90776ad0366376E245255E8",
-      "0xC77dA8cB158BA77BaC765625745a766Af3111A69",
-      "0x65e3419E633833Df1D602e7905Cb9C7e541f0849",
-      "0x598986FaC0D3ff7EaC3D55fFAB5e67c2a27C2765",
-      "0x257Cbe89968495C3aE8C81BccB8BE7f257CD5f66",
-      "0xBc4340Af8B93b0260ec8052CFA50982dD0865ba7",
-      "0x1B49689db12080f5FcC5DC36f990599739487566",
-      "0x8B06bd80840F0c6Ed78Aa8c3cc1d8eC155118d12",
-      "0xF0F950DfF685f166F2531fbCf97CebEa000ef3B8",
-      "0xd1CB812192C535d2762Bf4AD1f1C1D4deE3e383e",
-      "0x14E8FddFa4a7c709C19a8C7DA5205c3ae366355c",
-      "0xc64c699514E74451a627ccE93D45dc2E8f3a7793",
-      "0xf091E8c19D1F5F3D44D0D3311001Af1437B4F5B8",
+      "0x9157feb12812b253e84447c6b52c38651fd67fca",
+      "0x598986fac0d3ff7eac3d55ffab5e67c2a27c2765",
+      "0x65e3419e633833df1d602e7905cb9c7e541f0849",
+      "0xd68c5493e41f03fac90776ad0366376e245255e8",
+      "0xdf13d712d58ef7f7abd4d29b398d503262ba4ac0",
+      "0x257cbe89968495c3ae8c81bccb8be7f257cd5f66",
+      "0x108608f3f993bfd55fab50d9ef1a5c7e2c47f29b",
+      "0xc77da8cb158ba77bac765625745a766af3111a69",
+      "0x1b49689db12080f5fcc5dc36f990599739487566",
+      "0xffde42d40175b3b9349dfb384439dcb811691e09",
+      "0xacbf90a3f03a34faa8235854ca6c3ee0cc8c7546",
+      "0xf0f950dff685f166f2531fbcf97cebea000ef3b8",
+      "0xbc4340af8b93b0260ec8052cfa50982dd0865ba7",
+      "0x14e8fddfa4a7c709c19a8c7da5205c3ae366355c",
+      "0x194fee25b9fb539e105fe13c53bff4ee46adc7cc",
+      "0x944fa0f3f2168d4b27110f7f97972ad9425c4f52",
+      "0xd1cb812192c535d2762bf4ad1f1c1d4dee3e383e",
+      "0x8b06bd80840f0c6ed78aa8c3cc1d8ec155118d12",
     ];
 
     if (playerAddresses.length === 0) {
@@ -143,12 +145,41 @@ async function migrateStats() {
           );
         }
       } catch (error) {
-        // Rate limit or other error - skip this player and continue
-        console.warn(`  ⚠️  Skipping ${playerAddr} (RPC error: ${error.code})`);
-        // Add a small delay to avoid hammering the RPC
-        await new Promise(resolve => setTimeout(resolve, 500));
-        continue;
+        // Retry with longer delay on error
+        console.warn(`  ⚠️  Error fetching stats, retrying after 2 seconds...`);
+        await new Promise(resolve => setTimeout(resolve, 2000));
+
+        try {
+          const stats = await oldContract.getPlayerLifetimeStats(playerAddr);
+          if (
+            stats.totalDailyWins > 0n ||
+            stats.totalWeeklyWins > 0n ||
+            stats.totalVmfWon > 0n ||
+            stats.lifetimeToppings > 0n ||
+            stats.lifetimeReferrals > 0n
+          ) {
+            playersData.push({
+              address: playerAddr,
+              stats: {
+                totalDailyWins: stats.totalDailyWins,
+                totalWeeklyWins: stats.totalWeeklyWins,
+                totalVmfWon: stats.totalVmfWon,
+                lifetimeToppings: stats.lifetimeToppings,
+                lifetimeReferrals: stats.lifetimeReferrals,
+              },
+            });
+
+            console.log(
+              `  ✓ ${playerAddr}: ${Number(stats.totalDailyWins)} daily wins, ${Number(stats.totalWeeklyWins)} weekly wins, ${ethers.formatEther(stats.totalVmfWon)} VMF won`
+            );
+          }
+        } catch (retryError) {
+          console.warn(`  ⚠️  Skipping ${playerAddr} (retry failed: ${retryError.code})`);
+        }
       }
+
+      // Always add delay between requests to avoid rate limiting
+      await new Promise(resolve => setTimeout(resolve, 1500));
     }
 
     if (playersData.length === 0) {
