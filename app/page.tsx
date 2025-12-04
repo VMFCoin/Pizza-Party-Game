@@ -69,6 +69,8 @@ export default function HomePage() {
     sdk.actions.ready();
   }, []);
 
+  const handleStartPlaying = () => goToView('game')
+
   const handleBackToHome = () => goToView('home')
 
   const handleNavigateToWeekly = () => goToView('weekly')
@@ -228,7 +230,7 @@ export default function HomePage() {
             {/* Action Buttons */}
             <div className="flex flex-col mt-[-12px]" style={{ gap: "12px" }}>
               <Button
-                onClick={() => {}}
+                onClick={handleStartPlaying}
                 className="w-full !bg-green-600 hover:!bg-green-700 text-white py-3 px-6 rounded-xl border-4 border-green-900 shadow-lg transform hover:scale-105 transition-all touch-manipulation"
                 style={{ ...customFontStyle, letterSpacing: "1px", fontSize: isMobile ? 18 : 20, fontWeight: '900' }}
               >
@@ -236,7 +238,7 @@ export default function HomePage() {
               </Button>
 
               <Button
-                onClick={() => {}}
+                onClick={handleNavigateToWeekly}
                 className="w-full !bg-yellow-500 hover:!bg-yellow-600 text-white py-3 px-6 rounded-xl border-4 border-yellow-800 shadow-lg transform hover:scale-105 transition-all touch-manipulation"
                 style={{ ...customFontStyle, letterSpacing: "1px", fontSize: isMobile ? 18 : 20, fontWeight: '900' }}
               >
@@ -246,7 +248,7 @@ export default function HomePage() {
               </Button>
 
               <Button
-                onClick={() => {}}
+                onClick={handleNavigateToLeaderboard}
                 className="w-full !bg-red-700 hover:!bg-red-800 text-white font-bold py-3 px-6 rounded-xl border-4 border-red-900 shadow-lg transform hover:scale-105 transition-all touch-manipulation uppercase"
                 style={{ ...customFontStyle, letterSpacing: "1px", fontSize: isMobile ? 18 : 20 }}
               >
