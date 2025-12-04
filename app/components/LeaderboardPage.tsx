@@ -5,8 +5,10 @@ import Image from 'next/image'
 import { Button } from './ui/button'
 import { Card } from './ui/card'
 import { ArrowLeft } from 'lucide-react'
-import { useAccount } from 'wagmi'
+import { useAccount, useReadContract, useReadContracts } from 'wagmi'
 import { enrichLeaderboardWithProfiles, FarcasterProfile } from '../lib/farcasterProfiles'
+import { PIZZA_PARTY_ADDRESS, PIZZA_PARTY_ABI } from '../lib/constants'
+import { formatUnits } from 'viem'
 
 interface LeaderboardPageProps {
   onBack?: () => void
@@ -100,150 +102,99 @@ export default function LeaderboardPage({
     }
   }, [onNavigateToWeekly])
 
+  // Old contract address for historical data (Game 12 and earlier)
+  const OLD_CONTRACT_ADDRESS = '0x5c3aaD450F0014292Ff363b2147e6571b16c8035'
+
+  // Get current game IDs from new contract
+  const { data: dailyGameId } = useReadContract({
+    address: PIZZA_PARTY_ADDRESS as `0x${string}`,
+    abi: PIZZA_PARTY_ABI,
+    functionName: 'dailyGameId',
+  })
+
+  const { data: weeklyGameId } = useReadContract({
+    address: PIZZA_PARTY_ADDRESS as `0x${string}`,
+    abi: PIZZA_PARTY_ABI,
+    functionName: 'weeklyGameId',
+  })
+
+  // Determine which contract to read from based on game ID
+  const currentDailyId = dailyGameId ? Number(dailyGameId) : 13
+  const currentWeeklyId = weeklyGameId ? Number(weeklyGameId) : 3
+  const previousDailyGameId = currentDailyId - 1 // Game 12
+  const previousWeeklyGameId = currentWeeklyId - 1 // Weekly 2
+
+  // Game 12 was on the OLD contract, Game 13+ on new contract
+  const dailyContractAddress = previousDailyGameId <= 12 ? OLD_CONTRACT_ADDRESS : PIZZA_PARTY_ADDRESS
+  const weeklyContractAddress = previousWeeklyGameId <= 2 ? OLD_CONTRACT_ADDRESS : PIZZA_PARTY_ADDRESS
+
+  const { data: dailyWinnersAddresses } = useReadContract({
+    address: dailyContractAddress as `0x${string}`,
+    abi: PIZZA_PARTY_ABI,
+    functionName: 'getDailyGameWinners',
+    args: [BigInt(previousDailyGameId)],
+  })
+
+  const { data: weeklyWinnersAddresses } = useReadContract({
+    address: weeklyContractAddress as `0x${string}`,
+    abi: PIZZA_PARTY_ABI,
+    functionName: 'getWeeklyGameWinners',
+    args: [BigInt(previousWeeklyGameId)],
+  })
+
+  const { data: previousDailyGame } = useReadContract({
+    address: dailyContractAddress as `0x${string}`,
+    abi: PIZZA_PARTY_ABI,
+    functionName: 'dailyGames',
+    args: [BigInt(previousDailyGameId)],
+  })
+
+  const { data: previousWeeklyGame } = useReadContract({
+    address: weeklyContractAddress as `0x${string}`,
+    abi: PIZZA_PARTY_ABI,
+    functionName: 'weeklyGames',
+    args: [BigInt(previousWeeklyGameId)],
+  })
+
   useEffect(() => {
     async function fetchLeaderboardData() {
       try {
         setLoading(true)
 
-        // 🏆 HARDCODED HISTORICAL DATA - All accumulated stats from all games
-        // Top 8 Daily Winners (by number of daily game entries)
-        const historicalDailyPlayers: WinnerDisplay[] = [
-          {
-            address: '0x9157feb12812b253e84447c6b52c38651fd67fca',
-            displayName: '@tiredgirl',
-            thisGamePayout: '99.0',
-            lifetimeWins: 12,
-            lifetimeVmfWon: '1417.2',
-          },
-          {
-            address: '0x598986fac0d3ff7eac3d55ffab5e67c2a27c2765',
-            displayName: '@wonka-fungi',
-            thisGamePayout: '99.0',
-            lifetimeWins: 11,
-            lifetimeVmfWon: '1283.0',
-          },
-          {
-            address: '0xc77da8cb158ba77bac765625745a766af3111a69',
-            displayName: '@whiskerworks',
-            thisGamePayout: '99.0',
-            lifetimeWins: 10,
-            lifetimeVmfWon: '612.2',
-          },
-          {
-            address: '0x257cbe89968495c3ae8c81bccb8be7f257cd5f66',
-            displayName: '@femcash',
-            thisGamePayout: '107.0',
-            lifetimeWins: 9,
-            lifetimeVmfWon: '1024.8',
-          },
-          {
-            address: '0xdf13d712d58ef7f7abd4d29b398d503262ba4ac0',
-            displayName: '@reekieljr',
-            thisGamePayout: '99.0',
-            lifetimeWins: 9,
-            lifetimeVmfWon: '1073.4',
-          },
-          {
-            address: '0x65e3419e633833df1d602e7905cb9c7e541f0849',
-            displayName: '@catfacts.eth',
-            thisGamePayout: '99.0',
-            lifetimeWins: 8,
-            lifetimeVmfWon: '1073.4',
-          },
-          {
-            address: '0x1b49689db12080f5fcc5dc36f990599739487566',
-            displayName: '@vmfcoin',
-            thisGamePayout: '99.0',
-            lifetimeWins: 8,
-            lifetimeVmfWon: '320.4',
-          },
-          {
-            address: '0x8b06bd80840f0c6ed78aa8c3cc1d8ec155118d12',
-            displayName: '@karsaorlongdong',
-            thisGamePayout: '99.0',
-            lifetimeWins: 8,
-            lifetimeVmfWon: '510.5',
-          },
-        ]
+        // Build daily winners from contract data
+        const dailyAddresses = (dailyWinnersAddresses as string[]) || []
+        const dailyPot = previousDailyGame ? (previousDailyGame as any).potAmount : 0n
+        const dailyPayoutPerWinner = dailyAddresses.length > 0
+          ? Number(formatUnits(BigInt(dailyPot) * 94n / 100n / BigInt(dailyAddresses.length), 18)).toFixed(1)
+          : '0'
 
-        // Top 10 Weekly Winners (by highest VMF accumulated)
-        const historicalWeeklyPlayers: WinnerDisplay[] = [
-          {
-            address: '0x9157feb12812b253e84447c6b52c38651fd67fca',
-            displayName: '@tiredgirl',
-            thisGamePayout: '9.1',
-            lifetimeWins: 12,
-            lifetimeVmfWon: '1417.2',
-          },
-          {
-            address: '0x598986fac0d3ff7eac3d55ffab5e67c2a27c2765',
-            displayName: '@wonka-fungi',
-            thisGamePayout: '9.1',
-            lifetimeWins: 11,
-            lifetimeVmfWon: '1283.0',
-          },
-          {
-            address: '0x65e3419e633833df1d602e7905cb9c7e541f0849',
-            displayName: '@catfacts.eth',
-            thisGamePayout: '9.1',
-            lifetimeWins: 8,
-            lifetimeVmfWon: '1073.4',
-          },
-          {
-            address: '0xdf13d712d58ef7f7abd4d29b398d503262ba4ac0',
-            displayName: '@reekieljr',
-            thisGamePayout: '9.1',
-            lifetimeWins: 9,
-            lifetimeVmfWon: '1073.4',
-          },
-          {
-            address: '0x257cbe89968495c3ae8c81bccb8be7f257cd5f66',
-            displayName: '@femcash',
-            thisGamePayout: '9.1',
-            lifetimeWins: 9,
-            lifetimeVmfWon: '1024.8',
-          },
-          {
-            address: '0xc77da8cb158ba77bac765625745a766af3111a69',
-            displayName: '@whiskerworks',
-            thisGamePayout: '9.1',
-            lifetimeWins: 10,
-            lifetimeVmfWon: '612.2',
-          },
-          {
-            address: '0x8b06bd80840f0c6ed78aa8c3cc1d8ec155118d12',
-            displayName: '@karsaorlongdong',
-            thisGamePayout: '9.1',
-            lifetimeWins: 8,
-            lifetimeVmfWon: '510.5',
-          },
-          {
-            address: '0x108608f3f993bfd55fab50d9ef1a5c7e2c47f29b',
-            displayName: '@wizzfizz',
-            thisGamePayout: '9.1',
-            lifetimeWins: 7,
-            lifetimeVmfWon: '467.0',
-          },
-          {
-            address: '0xf0f950dff685f166f2531fbcf97cebea000ef3b8',
-            displayName: '@cryptovortex',
-            thisGamePayout: '9.1',
-            lifetimeWins: 6,
-            lifetimeVmfWon: '382.3',
-          },
-          {
-            address: '0xffde42d40175b3b9349dfb384439dcb811691e09',
-            displayName: '@donaldtrap',
-            thisGamePayout: '9.1',
-            lifetimeWins: 8,
-            lifetimeVmfWon: '417.5',
-          },
-        ]
+        const dailyPlayersData: WinnerDisplay[] = dailyAddresses.map((addr: string) => ({
+          address: addr,
+          displayName: formatAddress(addr),
+          thisGamePayout: dailyPayoutPerWinner,
+          lifetimeWins: 0, // Will be enriched below
+          lifetimeVmfWon: '0',
+        }))
+
+        // Build weekly winners from contract data
+        const weeklyAddresses = (weeklyWinnersAddresses as string[]) || []
+        const weeklyPot = previousWeeklyGame ? (previousWeeklyGame as any).potAmount : 0n
+        const weeklyPayoutPerWinner = weeklyAddresses.length > 0
+          ? Number(formatUnits(BigInt(weeklyPot) / BigInt(weeklyAddresses.length), 18)).toFixed(1)
+          : '0'
+
+        const weeklyPlayersData: WinnerDisplay[] = weeklyAddresses.map((addr: string) => ({
+          address: addr,
+          displayName: formatAddress(addr),
+          thisGamePayout: weeklyPayoutPerWinner,
+          lifetimeWins: 0,
+          lifetimeVmfWon: '0',
+        }))
 
         // Enrich with Farcaster profiles
         const [enrichedDaily, enrichedWeekly] = await Promise.all([
-          enrichLeaderboardWithProfiles(historicalDailyPlayers, address),
-          enrichLeaderboardWithProfiles(historicalWeeklyPlayers, address),
+          enrichLeaderboardWithProfiles(dailyPlayersData, address),
+          enrichLeaderboardWithProfiles(weeklyPlayersData, address),
         ])
 
         setDailyWinners(enrichedDaily)
@@ -257,8 +208,10 @@ export default function LeaderboardPage({
       }
     }
 
-    fetchLeaderboardData()
-  }, [address])
+    if (dailyWinnersAddresses !== undefined || weeklyWinnersAddresses !== undefined) {
+      fetchLeaderboardData()
+    }
+  }, [address, dailyWinnersAddresses, weeklyWinnersAddresses, previousDailyGame, previousWeeklyGame])
 
   const ProfilePicture = ({ 
     pfpUrl, 
