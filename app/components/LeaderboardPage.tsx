@@ -182,29 +182,53 @@ export default function LeaderboardPage({
   })
 
   // Helper function to fetch lifetime stats from both contracts
+  // Old contract has Games 1-12, New contract has Games 13+ (no migration overlap)
   async function fetchLifetimeStats(playerAddress: string): Promise<{ wins: number; vmfWon: string }> {
     try {
-      // Fetch from old contract (historical stats)
-      const oldStats = await publicClient.readContract({
-        address: OLD_CONTRACT_ADDRESS,
-        abi: PIZZA_PARTY_ABI,
-        functionName: 'getPlayerLifetimeStats',
-        args: [playerAddress as `0x${string}`],
-      }) as [bigint, bigint, bigint, bigint, bigint]
+      // Fetch from old contract (Games 1-12 stats)
+      let oldDailyWins = 0
+      let oldWeeklyWins = 0
+      let oldVmfWon = 0n
 
-      // Fetch from new contract (migrated + new stats)
-      const newStats = await publicClient.readContract({
-        address: PIZZA_PARTY_ADDRESS as `0x${string}`,
-        abi: PIZZA_PARTY_ABI,
-        functionName: 'getPlayerLifetimeStats',
-        args: [playerAddress as `0x${string}`],
-      }) as [bigint, bigint, bigint, bigint, bigint]
+      try {
+        const oldStats = await publicClient.readContract({
+          address: OLD_CONTRACT_ADDRESS,
+          abi: PIZZA_PARTY_ABI,
+          functionName: 'getPlayerLifetimeStats',
+          args: [playerAddress as `0x${string}`],
+        }) as unknown as { totalDailyWins: bigint; totalWeeklyWins: bigint; totalVmfWon: bigint }
 
-      // Old contract stats: [totalDailyWins, totalWeeklyWins, totalVmfWon, lifetimeToppings, lifetimeReferrals]
-      // New contract has migrated stats, so we use the MAX of old and new (since new includes migrated data)
-      const totalDailyWins = Math.max(Number(oldStats[0]), Number(newStats[0]))
-      const totalWeeklyWins = Math.max(Number(oldStats[1]), Number(newStats[1]))
-      const totalVmfWon = BigInt(oldStats[2]) > BigInt(newStats[2]) ? oldStats[2] : newStats[2]
+        oldDailyWins = Number(oldStats.totalDailyWins)
+        oldWeeklyWins = Number(oldStats.totalWeeklyWins)
+        oldVmfWon = oldStats.totalVmfWon
+      } catch {
+        // Player may not exist in old contract
+      }
+
+      // Fetch from new contract (Games 13+ stats)
+      let newDailyWins = 0
+      let newWeeklyWins = 0
+      let newVmfWon = 0n
+
+      try {
+        const newStats = await publicClient.readContract({
+          address: PIZZA_PARTY_ADDRESS as `0x${string}`,
+          abi: PIZZA_PARTY_ABI,
+          functionName: 'getPlayerLifetimeStats',
+          args: [playerAddress as `0x${string}`],
+        }) as unknown as { totalDailyWins: bigint; totalWeeklyWins: bigint; totalVmfWon: bigint }
+
+        newDailyWins = Number(newStats.totalDailyWins)
+        newWeeklyWins = Number(newStats.totalWeeklyWins)
+        newVmfWon = newStats.totalVmfWon
+      } catch {
+        // Player may not exist in new contract yet
+      }
+
+      // ADD stats from both contracts (old = Games 1-12, new = Games 13+)
+      const totalDailyWins = oldDailyWins + newDailyWins
+      const totalWeeklyWins = oldWeeklyWins + newWeeklyWins
+      const totalVmfWon = oldVmfWon + newVmfWon
 
       return {
         wins: totalDailyWins + totalWeeklyWins,
