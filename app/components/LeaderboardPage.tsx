@@ -102,8 +102,21 @@ export default function LeaderboardPage({
     }
   }, [onNavigateToWeekly])
 
-  // Old contract address for historical data (Game 12 and earlier)
-  const OLD_CONTRACT_ADDRESS = '0x5c3aaD450F0014292Ff363b2147e6571b16c8035'
+  // Game 12 Daily Winners (from old contract settlement tx 0x68b8accb...)
+  // These are hardcoded because old contract didn't store winners array
+  const GAME_12_DAILY_WINNERS: WinnerDisplay[] = [
+    { address: '0xc77da8cb158ba77bac765625745a766af3111a69', displayName: '', thisGamePayout: '128.8', lifetimeWins: 0, lifetimeVmfWon: '0' },
+    { address: '0xd68c5493e41f03fac90776ad0366376e245255e8', displayName: '', thisGamePayout: '128.8', lifetimeWins: 0, lifetimeVmfWon: '0' },
+    { address: '0x1b49689db12080f5fcc5dc36f990599739487566', displayName: '', thisGamePayout: '128.8', lifetimeWins: 0, lifetimeVmfWon: '0' },
+    { address: '0x14e8fddfa4a7c709c19a8c7da5205c3ae366355c', displayName: '', thisGamePayout: '128.8', lifetimeWins: 0, lifetimeVmfWon: '0' },
+    { address: '0x802f18765d6945b82075241e40b6214331ca3641', displayName: '', thisGamePayout: '128.8', lifetimeWins: 0, lifetimeVmfWon: '0' },
+    { address: '0xffde42d40175b3b9349dfb384439dcb811691e09', displayName: '', thisGamePayout: '128.8', lifetimeWins: 0, lifetimeVmfWon: '0' },
+    { address: '0x86e36c9ba3c6a2542fd761bc2b4fd61a110ea6cd', displayName: '', thisGamePayout: '128.8', lifetimeWins: 0, lifetimeVmfWon: '0' },
+    { address: '0x598986fac0d3ff7eac3d55ffab5e67c2a27c2765', displayName: '', thisGamePayout: '128.8', lifetimeWins: 0, lifetimeVmfWon: '0' },
+  ]
+
+  // Weekly 2 Winners (no weekly settlement yet for week 2)
+  const WEEK_2_WINNERS: WinnerDisplay[] = []
 
   // Get current game IDs from new contract
   const { data: dailyGameId } = useReadContract({
@@ -118,42 +131,43 @@ export default function LeaderboardPage({
     functionName: 'weeklyGameId',
   })
 
-  // Determine which contract to read from based on game ID
+  // Determine which game we're showing (previous settled game)
   const currentDailyId = dailyGameId ? Number(dailyGameId) : 13
   const currentWeeklyId = weeklyGameId ? Number(weeklyGameId) : 3
   const previousDailyGameId = currentDailyId - 1 // Game 12
   const previousWeeklyGameId = currentWeeklyId - 1 // Weekly 2
 
-  // Game 12 was on the OLD contract, Game 13+ on new contract
-  const dailyContractAddress = previousDailyGameId <= 12 ? OLD_CONTRACT_ADDRESS : PIZZA_PARTY_ADDRESS
-  const weeklyContractAddress = previousWeeklyGameId <= 2 ? OLD_CONTRACT_ADDRESS : PIZZA_PARTY_ADDRESS
-
+  // For Game 13+, read from new contract
   const { data: dailyWinnersAddresses } = useReadContract({
-    address: dailyContractAddress as `0x${string}`,
+    address: PIZZA_PARTY_ADDRESS as `0x${string}`,
     abi: PIZZA_PARTY_ABI,
     functionName: 'getDailyGameWinners',
     args: [BigInt(previousDailyGameId)],
+    query: { enabled: previousDailyGameId >= 13 },
   })
 
   const { data: weeklyWinnersAddresses } = useReadContract({
-    address: weeklyContractAddress as `0x${string}`,
+    address: PIZZA_PARTY_ADDRESS as `0x${string}`,
     abi: PIZZA_PARTY_ABI,
     functionName: 'getWeeklyGameWinners',
     args: [BigInt(previousWeeklyGameId)],
+    query: { enabled: previousWeeklyGameId >= 3 },
   })
 
   const { data: previousDailyGame } = useReadContract({
-    address: dailyContractAddress as `0x${string}`,
+    address: PIZZA_PARTY_ADDRESS as `0x${string}`,
     abi: PIZZA_PARTY_ABI,
     functionName: 'dailyGames',
     args: [BigInt(previousDailyGameId)],
+    query: { enabled: previousDailyGameId >= 13 },
   })
 
   const { data: previousWeeklyGame } = useReadContract({
-    address: weeklyContractAddress as `0x${string}`,
+    address: PIZZA_PARTY_ADDRESS as `0x${string}`,
     abi: PIZZA_PARTY_ABI,
     functionName: 'weeklyGames',
     args: [BigInt(previousWeeklyGameId)],
+    query: { enabled: previousWeeklyGameId >= 3 },
   })
 
   useEffect(() => {
@@ -161,35 +175,50 @@ export default function LeaderboardPage({
       try {
         setLoading(true)
 
-        // Build daily winners from contract data
-        const dailyAddresses = (dailyWinnersAddresses as string[]) || []
-        const dailyPot = previousDailyGame ? (previousDailyGame as { potAmount: bigint }).potAmount : 0n
-        const dailyPayoutPerWinner = dailyAddresses.length > 0
-          ? Number(formatUnits(BigInt(dailyPot) * 94n / 100n / BigInt(dailyAddresses.length), 18)).toFixed(1)
-          : '0'
+        let dailyPlayersData: WinnerDisplay[]
+        let weeklyPlayersData: WinnerDisplay[]
 
-        const dailyPlayersData: WinnerDisplay[] = dailyAddresses.map((addr: string) => ({
-          address: addr,
-          displayName: formatAddress(addr),
-          thisGamePayout: dailyPayoutPerWinner,
-          lifetimeWins: 0, // Will be enriched below
-          lifetimeVmfWon: '0',
-        }))
+        // Use hardcoded data for Game 12, otherwise read from contract
+        if (previousDailyGameId === 12) {
+          dailyPlayersData = GAME_12_DAILY_WINNERS
+        } else if (previousDailyGameId >= 13) {
+          const dailyAddresses = (dailyWinnersAddresses as string[]) || []
+          const dailyPot = previousDailyGame ? (previousDailyGame as { potAmount: bigint }).potAmount : 0n
+          const dailyPayoutPerWinner = dailyAddresses.length > 0
+            ? Number(formatUnits(BigInt(dailyPot) * 94n / 100n / BigInt(dailyAddresses.length), 18)).toFixed(1)
+            : '0'
 
-        // Build weekly winners from contract data
-        const weeklyAddresses = (weeklyWinnersAddresses as string[]) || []
-        const weeklyPot = previousWeeklyGame ? (previousWeeklyGame as { potAmount: bigint }).potAmount : 0n
-        const weeklyPayoutPerWinner = weeklyAddresses.length > 0
-          ? Number(formatUnits(BigInt(weeklyPot) / BigInt(weeklyAddresses.length), 18)).toFixed(1)
-          : '0'
+          dailyPlayersData = dailyAddresses.map((addr: string) => ({
+            address: addr,
+            displayName: formatAddress(addr),
+            thisGamePayout: dailyPayoutPerWinner,
+            lifetimeWins: 0,
+            lifetimeVmfWon: '0',
+          }))
+        } else {
+          dailyPlayersData = []
+        }
 
-        const weeklyPlayersData: WinnerDisplay[] = weeklyAddresses.map((addr: string) => ({
-          address: addr,
-          displayName: formatAddress(addr),
-          thisGamePayout: weeklyPayoutPerWinner,
-          lifetimeWins: 0,
-          lifetimeVmfWon: '0',
-        }))
+        // Use hardcoded data for Week 2, otherwise read from contract
+        if (previousWeeklyGameId === 2) {
+          weeklyPlayersData = WEEK_2_WINNERS
+        } else if (previousWeeklyGameId >= 3) {
+          const weeklyAddresses = (weeklyWinnersAddresses as string[]) || []
+          const weeklyPot = previousWeeklyGame ? (previousWeeklyGame as { potAmount: bigint }).potAmount : 0n
+          const weeklyPayoutPerWinner = weeklyAddresses.length > 0
+            ? Number(formatUnits(BigInt(weeklyPot) / BigInt(weeklyAddresses.length), 18)).toFixed(1)
+            : '0'
+
+          weeklyPlayersData = weeklyAddresses.map((addr: string) => ({
+            address: addr,
+            displayName: formatAddress(addr),
+            thisGamePayout: weeklyPayoutPerWinner,
+            lifetimeWins: 0,
+            lifetimeVmfWon: '0',
+          }))
+        } else {
+          weeklyPlayersData = []
+        }
 
         // Enrich with Farcaster profiles
         const [enrichedDaily, enrichedWeekly] = await Promise.all([
@@ -208,10 +237,8 @@ export default function LeaderboardPage({
       }
     }
 
-    if (dailyWinnersAddresses !== undefined || weeklyWinnersAddresses !== undefined) {
-      fetchLeaderboardData()
-    }
-  }, [address, dailyWinnersAddresses, weeklyWinnersAddresses, previousDailyGame, previousWeeklyGame])
+    fetchLeaderboardData()
+  }, [address, dailyWinnersAddresses, weeklyWinnersAddresses, previousDailyGame, previousWeeklyGame, previousDailyGameId, previousWeeklyGameId])
 
   const ProfilePicture = ({ 
     pfpUrl, 
