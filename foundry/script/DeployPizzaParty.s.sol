@@ -26,7 +26,14 @@ contract DeployPizzaParty is Script {
         console.log("Owner:", OWNER_WALLET);
         console.log("Deployer:", vm.addr(deployerPrivateKey));
 
-        PizzaParty pizzaParty = new PizzaParty(VMF_TOKEN, treasuryWallet, new address[](0), OWNER_WALLET);
+        PizzaParty pizzaParty = new PizzaParty(
+            VMF_TOKEN,
+            treasuryWallet,
+            new address[](0),
+            OWNER_WALLET,
+            13,  // _startingDailyGameId (continues from Game 12)
+            3    // _startingWeeklyGameId (continues from Weekly 2)
+        );
 
         console.log("PizzaParty deployed at:", address(pizzaParty));
         console.log("Owner:", pizzaParty.owner());

@@ -108,7 +108,7 @@ export default function WeeklyJackpotPage({
     isEntryInProgress,
   } = useGamePageData()
   const [isMobile, setIsMobile] = useState(false)
-  const [showToppingBreakdown, setShowToppingBreakdown] = useState(true)  // Temporary: Set to true for visual preview
+  const [showToppingBreakdown, setShowToppingBreakdown] = useState(false)
 
   useEffect(() => {
     const handleResize = () => setIsMobile(window.innerWidth < 960)

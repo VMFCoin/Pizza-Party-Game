@@ -543,17 +543,51 @@ export function useGamePageData() {
           let totalEarned = 0n
           const uniquePlayersThisWeek = new Set<string>()
 
+          // Debug: Track breakdown by reason
+          const toppingsByReason: Record<string, bigint> = {}
+          const playersByReason: Record<string, Set<string>> = {}
+
           for (const log of toppingsLogs) {
             const amount = log.args?.amount ?? 0n
             const playerArg = log.args?.player
+            const reason = (log.args as { reason?: string })?.reason ?? 'unknown'
 
             totalEarned += amount
+
+            // Track by reason for debugging
+            toppingsByReason[reason] = (toppingsByReason[reason] ?? 0n) + amount
+            if (!playersByReason[reason]) {
+              playersByReason[reason] = new Set()
+            }
 
             // Track unique players who earned any toppings this week
             if (playerArg) {
               uniquePlayersThisWeek.add(playerArg.toLowerCase())
+              playersByReason[reason].add(playerArg.toLowerCase())
             }
           }
+
+          // Log detailed breakdown
+          console.log('=== WEEKLY JACKPOT DEBUG ===')
+          console.log('Total ToppingsEarned events:', toppingsLogs.length)
+          console.log('Unique players (all reasons):', uniquePlayersThisWeek.size)
+          console.log('Total toppings earned:', totalEarned.toString())
+          console.log('Projected jackpot:', (Number(totalEarned) * 10).toString(), 'VMF')
+          console.log('')
+          console.log('Breakdown by reason:')
+          for (const [reason, amount] of Object.entries(toppingsByReason)) {
+            const players = playersByReason[reason]
+            console.log(`  ${reason}: ${amount.toString()} toppings from ${players?.size ?? 0} unique players`)
+            if (players && players.size <= 10) {
+              console.log(`    Players: ${Array.from(players).join(', ')}`)
+            }
+          }
+          console.log('')
+          console.log('All unique player addresses:')
+          for (const addr of uniquePlayersThisWeek) {
+            console.log(`  ${addr}`)
+          }
+          console.log('=== END DEBUG ===')
 
           console.debug('Weekly projection (from events):', {
             toppingsEarnedEvents: toppingsLogs.length,
