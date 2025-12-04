@@ -205,10 +205,10 @@ export function PizzaPartyResultPopup() {
         {/* X Button */}
         <button
           onClick={handleClose}
-          className="absolute -top-2 -right-2 z-50 w-16 h-16 bg-[#2D2D2D] rounded-full flex items-center justify-center hover:bg-[#1D1D1D] transition-colors shadow-xl"
+          className="absolute -top-2 -right-2 z-50 w-12 h-12 bg-[#2D2D2D] rounded-full flex items-center justify-center hover:bg-[#1D1D1D] transition-colors shadow-xl"
           aria-label="Close"
         >
-          <X className="w-9 h-9 text-white" />
+          <X className="w-7 h-7 text-white" />
         </button>
 
         {isWinner ? (
@@ -219,95 +219,66 @@ export function PizzaPartyResultPopup() {
           >
             <div className="absolute inset-4 border-4 border-black rounded-2xl" />
 
-            {/* WINNER Text */}
-            <div 
-              className="absolute top-6 left-1/2 -translate-x-1/2 text-center w-full px-4"
-              style={customFontStyle}
-            >
-              <h1 
-                className="font-black"
-                style={{
-                  color: '#FFA500',
-                  textShadow: '5px 5px 0px #000, -3px -3px 0px #000, 3px -3px 0px #000, -3px 3px 0px #000',
-                  WebkitTextStroke: '4px black',
-                  fontWeight: 900,
-                  letterSpacing: '0.05em',
-                  transform: 'scaleY(1.1)',
-                  fontSize: 'clamp(2.5rem, 10vw, 6rem)',
-                }}
-              >
-                WINNER
-              </h1>
-            </div>
+            <div className="relative z-10 h-full w-full px-6 py-8 flex flex-col items-center justify-center gap-5 text-center">
+              <div style={customFontStyle}>
+                <h1 
+                  className="font-black"
+                  style={{
+                    color: '#FFA500',
+                    textShadow: '2px 2px 0px #000, -2px -2px 0px #000, 2px -2px 0px #000, -2px 2px 0px #000',
+                    WebkitTextStroke: '2px black',
+                    fontWeight: 900,
+                    letterSpacing: '0.04em',
+                    fontSize: 'clamp(2.25rem, 9vw, 4rem)',
+                  }}
+                >
+                  WINNER
+                </h1>
+              </div>
 
-            {/* Won Big? Share The Dough! */}
-            <div 
-              className="absolute left-1/2 -translate-x-1/2 text-center w-full px-4"
-              style={{ top: '35%' }}
-            >
-              <p 
-                className="font-bold text-black"
-                style={{ 
-                  ...customFontStyle,
-                  fontSize: 'clamp(0.875rem, 3vw, 1.5rem)',
-                }}
-              >
-                Won Big? Share The Dough!
-              </p>
-            </div>
+              <div className="space-y-1" style={customFontStyle}>
+                <p
+                  className="font-bold text-black"
+                  style={{ fontSize: 'clamp(0.95rem, 3.5vw, 1.4rem)' }}
+                >
+                  Won Big? Share The Dough!
+                </p>
+                <p
+                  className="font-bold text-white"
+                  style={{ fontSize: 'clamp(1.1rem, 4vw, 1.8rem)' }}
+                >
+                  You Won
+                </p>
+              </div>
 
-            {/* You Won */}
-            <div 
-              className="absolute left-1/2 -translate-x-1/2 text-center w-full px-4"
-              style={{ top: 'calc(35% + 32px + 8px)' }}
-            >
-              <p 
-                className="font-bold text-white"
-                style={{ 
-                  ...customFontStyle,
-                  fontSize: 'clamp(1rem, 3.5vw, 1.875rem)',
-                }}
-              >
-                You Won
-              </p>
-            </div>
-
-            {/* VMF Amount */}
-            <div 
-              className="absolute left-1/2 -translate-x-1/2 text-center w-full px-4"
-              style={{ top: 'calc(35% + 32px + 8px + 36px + 8px)' }}
-            >
-              <p 
+              <p
                 className="font-bold text-white whitespace-nowrap"
                 style={{
                   ...customFontStyle,
-                  textShadow: '4px 4px 0px #000, -2px -2px 0px #000, 2px -2px 0px #000, -2px 2px 0px #000',
-                  fontSize: 'clamp(2rem, 7vw, 4rem)',
+                  textShadow: '2px 2px 0px #000, -2px -2px 0px #000, 2px -2px 0px #000, -2px 2px 0px #000',
+                  fontSize: 'clamp(2.2rem, 7.5vw, 3.6rem)',
                 }}
               >
                 {vmfWon} VMF
               </p>
-            </div>
 
-            {/* Share Button */}
-            <button
-              onClick={handleShare}
-              className="absolute bottom-6 left-1/2 -translate-x-1/2 bg-gradient-to-b from-yellow-400 to-yellow-500 hover:from-yellow-300 hover:to-yellow-400 active:scale-95 transition-all rounded-full border-4 border-black shadow-xl"
-              style={{
-                padding: 'clamp(0.5rem, 2vw, 0.75rem) clamp(2rem, 6vw, 3.5rem)',
-              }}
-            >
-              <p 
-                className="font-bold text-white whitespace-nowrap"
-                style={{
-                  ...customFontStyle,
-                  textShadow: '2px 2px 0px #000, -1px -1px 0px #000',
-                  fontSize: 'clamp(1rem, 3vw, 1.875rem)',
-                }}
+              <button
+                onClick={handleShare}
+                className="bg-gradient-to-b from-yellow-400 to-yellow-500 hover:from-yellow-300 hover:to-yellow-400 active:scale-95 transition-all rounded-full border-4 border-black shadow-xl px-8 py-2"
+                style={{ maxWidth: 'min(260px, 80%)' }}
               >
-                SHARE
-              </p>
-            </button>
+                <p 
+                  className="font-bold text-white whitespace-nowrap"
+                  style={{
+                    ...customFontStyle,
+                    textShadow: '2px 2px 0px #000, -1px -1px 0px #000',
+                    fontSize: 'clamp(1rem, 3.5vw, 1.6rem)',
+                  }}
+                >
+                  SHARE
+                </p>
+              </button>
+            </div>
           </div>
         ) : (
           /* LOSER CARD - FULLY RESPONSIVE */
@@ -317,76 +288,43 @@ export function PizzaPartyResultPopup() {
           >
             <div className="absolute inset-4 border-4 border-black rounded-2xl" />
 
-            {/* NOT A WINNER Text */}
-            <div 
-              className="absolute top-3 left-1/2 -translate-x-1/2 text-center w-full px-4"
-              style={customFontStyle}
-            >
-              <h1 
-                className="font-black"
-                style={{
-                  color: '#FFA500',
-                  textShadow: '5px 5px 0px #000, -3px -3px 0px #000, 3px -3px 0px #000, -3px 3px 0px #000',
-                  WebkitTextStroke: '4px black',
-                  fontWeight: 900,
-                  letterSpacing: '0.05em',
-                  transform: 'scaleY(1.1)',
-                  fontSize: 'clamp(2rem, 8vw, 5rem)',
-                }}
-              >
-                NOT A
-              </h1>
-              <h1 
-                className="font-black"
-                style={{
-                  color: '#FFA500',
-                  textShadow: '5px 5px 0px #000, -3px -3px 0px #000, 3px -3px 0px #000, -3px 3px 0px #000',
-                  WebkitTextStroke: '4px black',
-                  fontWeight: 900,
-                  letterSpacing: '0.05em',
-                  transform: 'scaleY(1.1)',
-                  marginTop: '8px',
-                  fontSize: 'clamp(2rem, 8vw, 5rem)',
-                }}
-              >
-                WINNER
-              </h1>
-            </div>
+            <div className="relative z-10 h-full w-full px-6 py-8 flex flex-col items-center justify-center gap-6 text-center">
+              <div style={customFontStyle}>
+                <h1
+                  className="font-black"
+                  style={{
+                    color: '#FFA500',
+                    textShadow: '2px 2px 0px #000, -2px -2px 0px #000, 2px -2px 0px #000, -2px 2px 0px #000',
+                    WebkitTextStroke: '2px black',
+                    fontWeight: 900,
+                    letterSpacing: '0.04em',
+                    fontSize: 'clamp(1.8rem, 7vw, 3.5rem)',
+                  }}
+                >
+                  NOT A WINNER
+                </h1>
+              </div>
 
-            {/* Message Text */}
-            <div 
-              className="absolute left-1/2 -translate-x-1/2 text-center w-full px-4"
-              style={{ bottom: '10%' }}
-            >
-              <p 
-                className="font-bold text-black whitespace-nowrap" 
-                style={{ 
-                  ...customFontStyle, 
-                  marginBottom: '8px',
-                  fontSize: 'clamp(1rem, 4vw, 2.25rem)',
-                }}
-              >
-                Keep Playing To Claim
-              </p>
-              <p 
-                className="font-bold text-black whitespace-nowrap" 
-                style={{ 
-                  ...customFontStyle, 
-                  marginBottom: '8px',
-                  fontSize: 'clamp(1rem, 4vw, 2.25rem)',
-                }}
-              >
-                More Toppings.
-              </p>
-              <p 
-                className="font-bold text-black whitespace-nowrap" 
-                style={{ 
-                  ...customFontStyle,
-                  fontSize: 'clamp(1rem, 4vw, 2.25rem)',
-                }}
-              >
-                Grow The Weekly Jackpot
-              </p>
+              <div className="space-y-2" style={customFontStyle}>
+                <p
+                  className="font-bold text-black"
+                  style={{ fontSize: 'clamp(1rem, 4vw, 1.75rem)' }}
+                >
+                  Keep Playing To Claim
+                </p>
+                <p
+                  className="font-bold text-black"
+                  style={{ fontSize: 'clamp(1rem, 4vw, 1.75rem)' }}
+                >
+                  More Toppings.
+                </p>
+                <p
+                  className="font-bold text-black"
+                  style={{ fontSize: 'clamp(1rem, 4vw, 1.75rem)' }}
+                >
+                  Grow The Weekly Jackpot.
+                </p>
+              </div>
             </div>
           </div>
         )}
