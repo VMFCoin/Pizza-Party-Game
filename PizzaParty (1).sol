@@ -163,8 +163,22 @@ contract PizzaParty is Ownable, ReentrancyGuard {
 
         vmfToken = IERC20(_vmfToken);
         treasuryWallet = _treasury;
-        charityWallets = _charities;
-        
+
+        // If charities not provided in constructor, use the default list
+        if (_charities.length == 0) {
+            charityWallets.push(0x6456879a5073038b0E57ea8E498Cb0240e949fC3); // Patriots Promise
+            charityWallets.push(0x700B53ff9a58Ee257F9A2EFda3a373D391028007); // Victory For Veterans
+            charityWallets.push(0xB697C8b4bCaE454d9dee1E83f73327D7a63600a1); // Holy Family Village
+            charityWallets.push(0x5951A4160F73b8798D68e7177dF8af6a7902e725); // Camp Cowboy
+            charityWallets.push(0xfB0EF51792c36Ae1fE6636603be199788819b67D); // Veterans In Need Project
+            charityWallets.push(0x10F01632DC709F7fA413A140739D8843b06235A1); // Honor HER Foundation
+            charityWallets.push(0x0730d4dc43cf10A3Cd986FEE17f30cB0E75410e0); // Magicians On Mission
+            charityWallets.push(0x043820C97771c570d830bB0e189778Fdef5E6EEb); // April Forces
+            charityWallets.push(0x097701F99CC7b0Ff816C2355faC104ADdC6e27B9); // Little Patriots Embraced
+        } else {
+            charityWallets = _charities;
+        }
+
         _initializeDailyGame(dailyGameId);
         _initializeWeeklyGame(weeklyGameId);
     }
@@ -264,7 +278,7 @@ contract PizzaParty is Ownable, ReentrancyGuard {
     
     function _settleDailyGame(uint256 gameId) internal {
         DailyGame storage game = dailyGames[gameId];
-        
+
         // No players: skip this game, move to next day
         if (game.players.length == 0) {
             game.settled = true;
@@ -273,7 +287,20 @@ contract PizzaParty is Ownable, ReentrancyGuard {
             emit DailyGameSettled(gameId, new address[](0), 0);
             return;
         }
-        
+
+        // Auto-initialize charities on first settlement if not set
+        if (charityWallets.length == 0) {
+            charityWallets.push(0x6456879a5073038b0E57ea8E498Cb0240e949fC3); // Patriots Promise
+            charityWallets.push(0x700B53ff9a58Ee257F9A2EFda3a373D391028007); // Victory For Veterans
+            charityWallets.push(0xB697C8b4bCaE454d9dee1E83f73327D7a63600a1); // Holy Family Village
+            charityWallets.push(0x5951A4160F73b8798D68e7177dF8af6a7902e725); // Camp Cowboy
+            charityWallets.push(0xfB0EF51792c36Ae1fE6636603be199788819b67D); // Veterans In Need Project
+            charityWallets.push(0x10F01632DC709F7fA413A140739D8843b06235A1); // Honor HER Foundation
+            charityWallets.push(0x0730d4dc43cf10A3Cd986FEE17f30cB0E75410e0); // Magicians On Mission
+            charityWallets.push(0x043820C97771c570d830bB0e189778Fdef5E6EEb); // April Forces
+            charityWallets.push(0x097701F99CC7b0Ff816C2355faC104ADdC6e27B9); // Little Patriots Embraced
+        }
+
         uint256 pot = currentDailyPot;
         uint256 winnerCount = game.players.length < DAILY_WINNERS ? game.players.length : DAILY_WINNERS;
 
@@ -292,7 +319,8 @@ contract PizzaParty is Ownable, ReentrancyGuard {
         // 1. Pay first player bonus
         if (firstPlayerBonus > 0 && game.firstPlayer != address(0)) {
             vmfToken.safeTransfer(game.firstPlayer, firstPlayerBonus);
-            playerStats[game.firstPlayer].totalVmfWon += firstPlayerBonus;
+            // Note: First player bonus does NOT count as a win for leaderboard purposes
+            // Only actual daily winners (selected from the pool) go on the leaderboard
         }
 
         // 2. Pay owner fee (if set)

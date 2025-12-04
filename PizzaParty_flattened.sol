@@ -717,10 +717,21 @@ contract PizzaParty is Ownable, ReentrancyGuard {
     constructor(address _vmfToken, address _treasury) Ownable(msg.sender) {
         require(_vmfToken != address(0), "Invalid VMF");
         require(_treasury != address(0), "Invalid treasury");
-        
+
         vmfToken = IERC20(_vmfToken);
         treasuryWallet = _treasury;
-        
+
+        // Initialize charity addresses
+        charityAddresses[0] = 0x6456879a5073038b0E57ea8E498Cb0240e949fC3; // Patriots Promise
+        charityAddresses[1] = 0x700B53ff9a58Ee257F9A2EFda3a373D391028007; // Victory For Veterans
+        charityAddresses[2] = 0xB697C8b4bCaE454d9dee1E83f73327D7a63600a1; // Holy Family Village
+        charityAddresses[3] = 0x5951A4160F73b8798D68e7177dF8af6a7902e725; // Camp Cowboy
+        charityAddresses[4] = 0xfB0EF51792c36Ae1fE6636603be199788819b67D; // Veterans In Need Project
+        charityAddresses[5] = 0x10F01632DC709F7fA413A140739D8843b06235A1; // Honor HER Foundation
+        charityAddresses[6] = 0x0730d4dc43cf10A3Cd986FEE17f30cB0E75410e0; // Magicians On Mission
+        charityAddresses[7] = 0x043820C97771c570d830bB0e189778Fdef5E6EEb; // April Forces
+        charityAddresses[8] = 0x097701F99CC7b0Ff816C2355faC104ADdC6e27B9; // Little Patriots Embraced
+
         _initializeDailyGame(dailyGameId);
         _initializeWeeklyGame(weeklyGameId);
     }
