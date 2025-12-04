@@ -7,7 +7,7 @@ import {PizzaParty} from "../../PizzaParty (1).sol";
 contract DeployPizzaParty is Script {
     // Base mainnet addresses
     address constant VMF_TOKEN = 0xA3E82adF6bd3207a1d2470ED7Ad742596Ee81776;
-    address constant OWNER_WALLET = 0xf091E8c19D1F5F3D44D0D3311001Af1437B4F5B8;
+    address constant OWNER_WALLET = 0x828F516b379A2532bB33a00d34125560BF4c1853;
 
     function run() external {
         // PRIVATE_KEY must be a hex string (0x...) in .env file
