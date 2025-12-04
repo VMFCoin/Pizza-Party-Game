@@ -9,6 +9,17 @@ import { useAccount, useReadContract } from 'wagmi'
 import { enrichLeaderboardWithProfiles, FarcasterProfile } from '../lib/farcasterProfiles'
 import { PIZZA_PARTY_ADDRESS, PIZZA_PARTY_ABI } from '../lib/constants'
 import { formatUnits } from 'viem'
+import { createPublicClient, http } from 'viem'
+import { base } from 'viem/chains'
+
+// Create a client for direct RPC calls
+const publicClient = createPublicClient({
+  chain: base,
+  transport: http(),
+})
+
+// Old contract for historical stats
+const OLD_CONTRACT_ADDRESS = '0x5c3aaD450F0014292Ff363b2147e6571b16c8035' as const
 
 interface LeaderboardPageProps {
   onBack?: () => void
@@ -170,6 +181,41 @@ export default function LeaderboardPage({
     query: { enabled: previousWeeklyGameId >= 3 },
   })
 
+  // Helper function to fetch lifetime stats from both contracts
+  async function fetchLifetimeStats(playerAddress: string): Promise<{ wins: number; vmfWon: string }> {
+    try {
+      // Fetch from old contract (historical stats)
+      const oldStats = await publicClient.readContract({
+        address: OLD_CONTRACT_ADDRESS,
+        abi: PIZZA_PARTY_ABI,
+        functionName: 'getPlayerLifetimeStats',
+        args: [playerAddress as `0x${string}`],
+      }) as [bigint, bigint, bigint, bigint, bigint]
+
+      // Fetch from new contract (migrated + new stats)
+      const newStats = await publicClient.readContract({
+        address: PIZZA_PARTY_ADDRESS as `0x${string}`,
+        abi: PIZZA_PARTY_ABI,
+        functionName: 'getPlayerLifetimeStats',
+        args: [playerAddress as `0x${string}`],
+      }) as [bigint, bigint, bigint, bigint, bigint]
+
+      // Old contract stats: [totalDailyWins, totalWeeklyWins, totalVmfWon, lifetimeToppings, lifetimeReferrals]
+      // New contract has migrated stats, so we use the MAX of old and new (since new includes migrated data)
+      const totalDailyWins = Math.max(Number(oldStats[0]), Number(newStats[0]))
+      const totalWeeklyWins = Math.max(Number(oldStats[1]), Number(newStats[1]))
+      const totalVmfWon = BigInt(oldStats[2]) > BigInt(newStats[2]) ? oldStats[2] : newStats[2]
+
+      return {
+        wins: totalDailyWins + totalWeeklyWins,
+        vmfWon: Number(formatUnits(totalVmfWon, 18)).toFixed(1),
+      }
+    } catch (error) {
+      console.error('Error fetching lifetime stats for', playerAddress, error)
+      return { wins: 0, vmfWon: '0' }
+    }
+  }
+
   useEffect(() => {
     async function fetchLeaderboardData() {
       try {
@@ -180,7 +226,7 @@ export default function LeaderboardPage({
 
         // Use hardcoded data for Game 12, otherwise read from contract
         if (previousDailyGameId === 12) {
-          dailyPlayersData = GAME_12_DAILY_WINNERS
+          dailyPlayersData = [...GAME_12_DAILY_WINNERS]
         } else if (previousDailyGameId >= 13) {
           const dailyAddresses = (dailyWinnersAddresses as string[]) || []
           const dailyPot = previousDailyGame ? (previousDailyGame as { potAmount: bigint }).potAmount : 0n
@@ -201,7 +247,7 @@ export default function LeaderboardPage({
 
         // Use hardcoded data for Week 2, otherwise read from contract
         if (previousWeeklyGameId === 2) {
-          weeklyPlayersData = WEEK_2_WINNERS
+          weeklyPlayersData = [...WEEK_2_WINNERS]
         } else if (previousWeeklyGameId >= 3) {
           const weeklyAddresses = (weeklyWinnersAddresses as string[]) || []
           const weeklyPot = previousWeeklyGame ? (previousWeeklyGame as { potAmount: bigint }).potAmount : 0n
@@ -219,6 +265,38 @@ export default function LeaderboardPage({
         } else {
           weeklyPlayersData = []
         }
+
+        // Fetch lifetime stats for all players
+        const allAddresses = [...new Set([
+          ...dailyPlayersData.map(p => p.address),
+          ...weeklyPlayersData.map(p => p.address),
+        ])]
+
+        const statsPromises = allAddresses.map(addr => fetchLifetimeStats(addr))
+        const statsResults = await Promise.all(statsPromises)
+        const statsMap = new Map<string, { wins: number; vmfWon: string }>()
+        allAddresses.forEach((addr, i) => {
+          statsMap.set(addr.toLowerCase(), statsResults[i])
+        })
+
+        // Update players with lifetime stats
+        dailyPlayersData = dailyPlayersData.map(player => {
+          const stats = statsMap.get(player.address.toLowerCase())
+          return {
+            ...player,
+            lifetimeWins: stats?.wins || 0,
+            lifetimeVmfWon: stats?.vmfWon || '0',
+          }
+        })
+
+        weeklyPlayersData = weeklyPlayersData.map(player => {
+          const stats = statsMap.get(player.address.toLowerCase())
+          return {
+            ...player,
+            lifetimeWins: stats?.wins || 0,
+            lifetimeVmfWon: stats?.vmfWon || '0',
+          }
+        })
 
         // Enrich with Farcaster profiles
         const [enrichedDaily, enrichedWeekly] = await Promise.all([
