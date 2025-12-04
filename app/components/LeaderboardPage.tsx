@@ -5,7 +5,7 @@ import Image from 'next/image'
 import { Button } from './ui/button'
 import { Card } from './ui/card'
 import { ArrowLeft } from 'lucide-react'
-import { useAccount, useReadContract, useReadContracts } from 'wagmi'
+import { useAccount, useReadContract } from 'wagmi'
 import { enrichLeaderboardWithProfiles, FarcasterProfile } from '../lib/farcasterProfiles'
 import { PIZZA_PARTY_ADDRESS, PIZZA_PARTY_ABI } from '../lib/constants'
 import { formatUnits } from 'viem'
@@ -163,7 +163,7 @@ export default function LeaderboardPage({
 
         // Build daily winners from contract data
         const dailyAddresses = (dailyWinnersAddresses as string[]) || []
-        const dailyPot = previousDailyGame ? (previousDailyGame as any).potAmount : 0n
+        const dailyPot = previousDailyGame ? (previousDailyGame as { potAmount: bigint }).potAmount : 0n
         const dailyPayoutPerWinner = dailyAddresses.length > 0
           ? Number(formatUnits(BigInt(dailyPot) * 94n / 100n / BigInt(dailyAddresses.length), 18)).toFixed(1)
           : '0'
@@ -178,7 +178,7 @@ export default function LeaderboardPage({
 
         // Build weekly winners from contract data
         const weeklyAddresses = (weeklyWinnersAddresses as string[]) || []
-        const weeklyPot = previousWeeklyGame ? (previousWeeklyGame as any).potAmount : 0n
+        const weeklyPot = previousWeeklyGame ? (previousWeeklyGame as { potAmount: bigint }).potAmount : 0n
         const weeklyPayoutPerWinner = weeklyAddresses.length > 0
           ? Number(formatUnits(BigInt(weeklyPot) / BigInt(weeklyAddresses.length), 18)).toFixed(1)
           : '0'
