@@ -146,12 +146,16 @@ contract PizzaParty is Ownable, ReentrancyGuard {
         address _vmfToken,
         address _treasury,
         address[] memory _charities,
-        address _owner
+        address _owner,
+        uint256 _startingDailyGameId,
+        uint256 _startingWeeklyGameId
     ) Ownable(_owner) {
         require(_vmfToken != address(0), "Invalid VMF");
         require(_treasury != address(0), "Invalid treasury");
         require(_owner != address(0), "Invalid owner");
         require(_charities.length <= MAX_CHARITIES, "Too many charities");
+        require(_startingDailyGameId > 0, "Daily game ID must be > 0");
+        require(_startingWeeklyGameId > 0, "Weekly game ID must be > 0");
 
         // Validate charity addresses and ensure uniqueness
         for (uint256 i = 0; i < _charities.length; i++) {
@@ -178,6 +182,10 @@ contract PizzaParty is Ownable, ReentrancyGuard {
         } else {
             charityWallets = _charities;
         }
+
+        // Set game IDs to continue from previous deployment
+        dailyGameId = _startingDailyGameId;
+        weeklyGameId = _startingWeeklyGameId;
 
         _initializeDailyGame(dailyGameId);
         _initializeWeeklyGame(weeklyGameId);
@@ -952,5 +960,44 @@ contract PizzaParty is Ownable, ReentrancyGuard {
         uint256 weekId = weeklyGameId;
         require(!weeklyGames[weekId].settled, "Already settled");
         _settleWeeklyGame(weekId);
+    }
+
+    // ============ Stat Migration ============
+
+    /**
+     * @dev Migrate player stats from old contract to this new contract
+     * Allows seamless redeployment without losing player history
+     * @param oldContract Address of the previous PizzaParty contract
+     * @param players Array of player addresses to migrate stats for
+     */
+    function migratePlayerStats(address oldContract, address[] calldata players) external onlyOwner {
+        require(oldContract != address(0), "Invalid old contract");
+        require(players.length > 0, "No players to migrate");
+
+        // Call the old contract to fetch stats for each player
+        for (uint256 i = 0; i < players.length; i++) {
+            address player = players[i];
+            require(player != address(0), "Invalid player address");
+
+            // Call old contract's playerStats mapping (read-only via delegatecall simulation)
+            // We use a low-level call to safely get the data
+            (bool success, bytes memory result) = oldContract.staticcall(
+                abi.encodeWithSignature("playerStats(address)", player)
+            );
+
+            if (success && result.length == 128) {
+                // Decode: (uint256 totalDailyWins, uint256 totalWeeklyWins, uint256 totalVmfWon, uint256 lifetimeToppings, uint256 lifetimeReferrals)
+                (uint256 dailyWins, uint256 weeklyWins, uint256 vmfWon, uint256 toppings, uint256 referrals) =
+                    abi.decode(result, (uint256, uint256, uint256, uint256, uint256));
+
+                playerStats[player] = PlayerLifetimeStats({
+                    totalDailyWins: dailyWins,
+                    totalWeeklyWins: weeklyWins,
+                    totalVmfWon: vmfWon,
+                    lifetimeToppings: toppings,
+                    lifetimeReferrals: referrals
+                });
+            }
+        }
     }
 }
