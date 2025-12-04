@@ -571,9 +571,8 @@ export function useGamePageData() {
             // at claim time based on VMF balance snapshot at that moment
             // This projection shows what the jackpot will be if all earned toppings are claimed
             projectedJackpotWei = totalEarned * GAME_CONSTANTS.TOPPING_TO_VMF_RATE
-            // Weekly Players = unique players from events, or use daily entries if events are low
-            const eventPlayerCount = Math.max(uniquePlayersThisWeek.size, toppingsLogs.length)
-            projectedPlayerCount = Math.max(eventPlayerCount, Number(claimerCount))
+            // Weekly Players = unique players only (one player counts as 1, regardless of how many times they played)
+            projectedPlayerCount = Math.max(uniquePlayersThisWeek.size, Number(claimerCount))
 
           }
 
