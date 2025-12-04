@@ -67,7 +67,7 @@ export default function ToppingBreakdownModal({
           </div>
         </div>
         <p className={`${isMobile ? 'text-xs' : 'text-xs'} text-red-500 mb-3 text-center`}>
-          See how many toppings you've earned this week
+          See how many toppings you&apos;ve earned this week
         </p>
 
         <div className={`${isMobile ? 'space-y-2 mb-4' : 'space-y-3 mb-6'}`}>
