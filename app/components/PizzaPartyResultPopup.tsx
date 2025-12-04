@@ -199,53 +199,53 @@ export function PizzaPartyResultPopup() {
     >
       {/* FIXED: Proper width constraints and centering */}
       <div
-        className="relative w-full max-w-[800px]"
+        className="relative w-full max-w-[360px] sm:max-w-[420px] md:max-w-[520px]"
         onClick={(e) => e.stopPropagation()}
       >
         {/* X Button */}
         <button
           onClick={handleClose}
-          className="absolute -top-2 -right-2 z-50 w-12 h-12 bg-[#2D2D2D] rounded-full flex items-center justify-center hover:bg-[#1D1D1D] transition-colors shadow-xl"
+          className="absolute -top-2 -right-2 z-50 w-10 h-10 md:w-12 md:h-12 bg-[#2D2D2D] rounded-full flex items-center justify-center hover:bg-[#1D1D1D] transition-colors shadow-xl"
           aria-label="Close"
         >
-          <X className="w-7 h-7 text-white" />
+          <X className="w-6 h-6 md:w-7 md:h-7 text-white" />
         </button>
 
         {isWinner ? (
           /* WINNER CARD - FULLY RESPONSIVE */
           <div 
             className="relative w-full bg-gradient-to-br from-red-600 to-red-700 rounded-3xl border-4 border-black shadow-2xl overflow-hidden"
-            style={{ aspectRatio: '400/230' }}
+            style={{ aspectRatio: '360/220' }}
           >
-            <div className="absolute inset-4 border-4 border-black rounded-2xl" />
+            <div className="absolute inset-3 sm:inset-4 border-4 border-black rounded-2xl" />
 
-            <div className="relative z-10 h-full w-full px-6 py-8 flex flex-col items-center justify-center gap-5 text-center">
+            <div className="relative z-10 h-full w-full px-4 sm:px-6 py-6 sm:py-8 flex flex-col items-center justify-center gap-3 sm:gap-4 text-center">
               <div style={customFontStyle}>
                 <h1 
                   className="font-black"
                   style={{
                     color: '#FFA500',
-                    textShadow: '2px 2px 0px #000, -2px -2px 0px #000, 2px -2px 0px #000, -2px 2px 0px #000',
-                    WebkitTextStroke: '2px black',
+                    textShadow: '1px 1px 0px #000, -1px -1px 0px #000, 1px -1px 0px #000, -1px 1px 0px #000',
+                    WebkitTextStroke: '1.5px black',
                     fontWeight: 900,
-                    letterSpacing: '0.04em',
-                    fontSize: 'clamp(2.25rem, 9vw, 4rem)',
+                    letterSpacing: '0.035em',
+                    fontSize: 'clamp(2rem, 7vw, 3.2rem)',
                   }}
                 >
                   WINNER
                 </h1>
               </div>
 
-              <div className="space-y-1" style={customFontStyle}>
+              <div className="space-y-1 leading-tight" style={customFontStyle}>
                 <p
                   className="font-bold text-black"
-                  style={{ fontSize: 'clamp(0.95rem, 3.5vw, 1.4rem)' }}
+                  style={{ fontSize: 'clamp(0.9rem, 3.2vw, 1.3rem)' }}
                 >
                   Won Big? Share The Dough!
                 </p>
                 <p
                   className="font-bold text-white"
-                  style={{ fontSize: 'clamp(1.1rem, 4vw, 1.8rem)' }}
+                  style={{ fontSize: 'clamp(1rem, 3.5vw, 1.6rem)' }}
                 >
                   You Won
                 </p>
@@ -255,8 +255,8 @@ export function PizzaPartyResultPopup() {
                 className="font-bold text-white whitespace-nowrap"
                 style={{
                   ...customFontStyle,
-                  textShadow: '2px 2px 0px #000, -2px -2px 0px #000, 2px -2px 0px #000, -2px 2px 0px #000',
-                  fontSize: 'clamp(2.2rem, 7.5vw, 3.6rem)',
+                  textShadow: '2px 2px 0px #000, -1px -1px 0px #000, 1px -1px 0px #000, -1px 1px 0px #000',
+                  fontSize: 'clamp(2rem, 7vw, 3.2rem)',
                 }}
               >
                 {vmfWon} VMF
@@ -264,8 +264,7 @@ export function PizzaPartyResultPopup() {
 
               <button
                 onClick={handleShare}
-                className="bg-gradient-to-b from-yellow-400 to-yellow-500 hover:from-yellow-300 hover:to-yellow-400 active:scale-95 transition-all rounded-full border-4 border-black shadow-xl px-8 py-2"
-                style={{ maxWidth: 'min(260px, 80%)' }}
+                className="bg-gradient-to-b from-yellow-400 to-yellow-500 hover:from-yellow-300 hover:to-yellow-400 active:scale-95 transition-all rounded-full border-4 border-black shadow-xl px-5 py-2 w-full max-w-[260px] mt-1"
               >
                 <p 
                   className="font-bold text-white whitespace-nowrap"
@@ -284,11 +283,11 @@ export function PizzaPartyResultPopup() {
           /* LOSER CARD - FULLY RESPONSIVE */
           <div 
             className="relative w-full bg-gradient-to-br from-red-600 to-red-700 rounded-3xl border-4 border-black shadow-2xl overflow-hidden"
-            style={{ aspectRatio: '400/230' }}
+            style={{ aspectRatio: '360/220' }}
           >
-            <div className="absolute inset-4 border-4 border-black rounded-2xl" />
+            <div className="absolute inset-3 sm:inset-4 border-4 border-black rounded-2xl" />
 
-            <div className="relative z-10 h-full w-full px-6 py-8 flex flex-col items-center justify-center gap-6 text-center">
+            <div className="relative z-10 h-full w-full px-4 sm:px-6 py-6 sm:py-8 flex flex-col items-center justify-center gap-5 sm:gap-6 text-center">
               <div style={customFontStyle}>
                 <h1
                   className="font-black"

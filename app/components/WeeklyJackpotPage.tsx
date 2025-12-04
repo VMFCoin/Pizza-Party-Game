@@ -7,6 +7,7 @@ import { Button } from './ui/button'
 import { Card } from './ui/card'
 import { ArrowLeft } from 'lucide-react'
 import { useGamePageData } from '../lib/useGamePageData'
+import ToppingBreakdownModal from './ToppingBreakdownModal'
 
 interface WeeklyJackpotPageProps {
   onBack?: () => void
@@ -107,6 +108,7 @@ export default function WeeklyJackpotPage({
     isEntryInProgress,
   } = useGamePageData()
   const [isMobile, setIsMobile] = useState(false)
+  const [showToppingBreakdown, setShowToppingBreakdown] = useState(true)  // Temporary: Set to true for visual preview
 
   useEffect(() => {
     const handleResize = () => setIsMobile(window.innerWidth < 960)
@@ -160,6 +162,23 @@ export default function WeeklyJackpotPage({
   const claimButtonLabel = wallet?.isAuthenticated
     ? `🍕 Claim ${claimableNumber} Toppings 🍕`
     : 'Connect wallet to claim'
+
+  // Calculate topping breakdown
+  const dailyPlayToppings = Number(playerWeekly?.dailyPlays ?? 0n) * 1
+  const referralToppings = Number(playerWeekly?.referralsUsed ?? 0n) * 2
+  const holdingsToppings = Number(playerWeekly?.projectedHoldingsBonus ?? 0n)
+  const totalToppingsBeforeClaim = dailyPlayToppings + referralToppings + holdingsToppings
+
+  const handleOpenToppingBreakdown = () => {
+    if (!claimButtonDisabled) {
+      setShowToppingBreakdown(true)
+    }
+  }
+
+  const handleClaimFromModal = () => {
+    setShowToppingBreakdown(false)
+    handleClaimToppings()
+  }
 
   return (
     <div
@@ -248,11 +267,7 @@ export default function WeeklyJackpotPage({
             className="w-full !bg-red-600 hover:!bg-red-700 text-white font-bold py-2.5 rounded-xl border-4 border-red-800"
             style={customFontStyle}
             disabled={claimButtonDisabled}
-            onClick={() => {
-              if (!claimButtonDisabled) {
-                handleClaimToppings()
-              }
-            }}
+            onClick={handleOpenToppingBreakdown}
           >
             {claimWindowOpen ? claimButtonLabel : 'CLAIM WINDOW CLOSED'}
           </Button>
@@ -335,6 +350,19 @@ export default function WeeklyJackpotPage({
           </div>
         </Card>
       </div>
+
+      {/* Topping Breakdown Modal */}
+      <ToppingBreakdownModal
+        isOpen={showToppingBreakdown}
+        onClose={() => setShowToppingBreakdown(false)}
+        dailyPlayToppings={dailyPlayToppings}
+        referralToppings={referralToppings}
+        holdingsToppings={holdingsToppings}
+        totalToppings={totalToppingsBeforeClaim}
+        isLoading={isEntryInProgress}
+        onClaim={handleClaimFromModal}
+        isMobile={isMobile}
+      />
     </div>
   )
 }
