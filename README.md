@@ -1,59 +1,203 @@
-# Getting Started with Create React App
+# 🍕 Pizza Party
 
-This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
+> *Where every slice is a chance to win!*
 
-## Available Scripts
+A blockchain-based dual-lottery game built on **Base** where players collect toppings (weighted lottery tickets) for a shot at daily prizes and weekly jackpots. Built as a **Farcaster MiniApp** for the social gaming community.
 
-In the project directory, you can run:
+**Live Game**: [pizza-party-game.vmfcoin.com](https://pizza-party-game.vmfcoin.com)
 
-### `yarn run start`
+---
 
-Runs the app in the development mode.\
-Open [http://localhost:3000](http://localhost:3000) to view it in your browser.
+## What's Cooking?
 
-Launches the test runner in the interactive watch mode.\
-See the section about [running tests](https://facebook.github.io/create-react-app/docs/running-tests) for more information.
+Pizza Party serves up two delicious ways to win:
 
-### `yarn run build`
+### 🌞 Daily Game
+- Pay ~$1 USD worth of VMF tokens to enter
+- **8 winners** split the daily pot
+- First player of the day gets a 1% bonus (*the early bird gets the pepperoni*)
+- New game every 24 hours (12pm PST)
 
-Builds the app for production to the `build` folder.\
-It correctly bundles React in production mode and optimizes the build for the best performance.
+### 🏆 Weekly Jackpot
+- Collect **toppings** throughout the week
+- Claim your toppings during the Sunday-Monday window
+- **10 winners** selected, weighted by topping count
+- Jackpot = claimed toppings × 10 VMF
 
-The build is minified and the filenames include the hashes.\
-Your app is ready to be deployed!
+### 🧀 Earning Toppings
 
-See the section about [deployment](https://facebook.github.io/create-react-app/docs/deployment) for more information.
+| Action | Toppings | Limit |
+|--------|----------|-------|
+| Daily play | 1 | 7/week |
+| Referrals | 2 each | 3/week |
+| VMF holdings | 3 per 1,000 VMF | No limit |
 
-### `npx kill-port 3000`
+---
 
-If you have a localhost already running @ 3000, you can use this command to make the port available to you.
+## Tech Stack
 
-## Learn More
+This pizza was baked with:
 
-You can learn more in the [Create React App documentation](https://facebook.github.io/create-react-app/docs/getting-started).
+- **Next.js 15** + **React 19** + **TypeScript**
+- **Tailwind CSS** + **Radix UI** for that crispy UI
+- **Wagmi** + **Viem** for blockchain interactions
+- **Farcaster MiniApp SDK** for social integration
+- **Prisma** + **PostgreSQL** for data
+- **Upstash Redis** for notifications
+- **Foundry** for Solidity contracts
 
-To learn React, check out the [React documentation](https://reactjs.org/).
+---
 
-### Code Splitting
+## Getting Started
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/code-splitting](https://facebook.github.io/create-react-app/docs/code-splitting)
+### Prerequisites
 
-### Analyzing the Bundle Size
+- Node.js 18+
+- PostgreSQL database
+- Base network wallet with ETH
+- API keys (Neynar, Reown, OnchainKit)
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size](https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size)
+### Installation
 
-### Making a Progressive Web App
+```bash
+# Clone the repo
+git clone <repository-url>
+cd pizzaApp
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app](https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app)
+# Install dependencies
+npm install
 
-### Advanced Configuration
+# Set up environment variables
+cp .env.example .env.local
+# Edit .env.local with your keys
+```
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/advanced-configuration](https://facebook.github.io/create-react-app/docs/advanced-configuration)
+### Environment Variables
 
-### Deployment
+```env
+# Public
+NEXT_PUBLIC_ONCHAINKIT_API_KEY=
+NEXT_PUBLIC_REOWN_PROJECT_ID=
+NEXT_PUBLIC_NEYNAR_API_KEY=
+NEXT_PUBLIC_BASE_URL=
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/deployment](https://facebook.github.io/create-react-app/docs/deployment)
+# Blockchain
+BASE_RPC_URL=https://mainnet.base.org
+BASESCAN_API_KEY=
 
-### `npm run build` fails to minify
+# Wallets
+PRIVATE_KEY=
+OWNER_WALLET=
+TREASURY_WALLET=
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify](https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify)
+# Database & Services
+DATABASE_URL=
+UPSTASH_REDIS_REST_URL=
+UPSTASH_REDIS_REST_TOKEN=
+CRON_SECRET=
+```
+
+### Development
+
+```bash
+# Start the dev server
+npm run dev
+
+# Open http://localhost:3000
+```
+
+### Production
+
+```bash
+npm run build
+npm start
+```
+
+---
+
+## Smart Contracts
+
+The game runs on a verified contract deployed to Base mainnet.
+
+| Contract | Address |
+|----------|---------|
+| Pizza Party | `0x5c3aaD450F0014292Ff363b2147e6571b16c8035` |
+| VMF Token | `0xa3e82aDf6bD3207a1D2470ED7Ad742596Ee81776` |
+
+### Contract Development
+
+```bash
+cd foundry
+
+# Build
+forge build
+
+# Deploy
+forge script script/DeployPizzaParty.s.sol:DeployPizzaParty \
+  --rpc-url $BASE_RPC_URL \
+  --broadcast \
+  --verify
+```
+
+---
+
+## Project Structure
+
+```
+pizzaApp/
+├── app/
+│   ├── api/              # Backend routes (auth, price, cron)
+│   ├── components/       # React components
+│   │   ├── game/         # Main game logic
+│   │   └── ui/           # Radix UI components
+│   ├── lib/              # Hooks, utils, constants
+│   └── context/          # Wagmi providers
+├── foundry/              # Solidity contracts
+├── prisma/               # Database schema
+└── public/               # Static assets
+```
+
+---
+
+## Key Features
+
+- **Dynamic pricing** - Entry fee adjusts with VMF market price
+- **Referral system** - Share codes, earn toppings
+- **Push notifications** - Never miss a game
+- **Leaderboards** - Track daily/weekly/lifetime stats
+- **Farcaster profiles** - Social identity integration
+- **Real-time updates** - Block listener for instant state changes
+
+---
+
+## Game Schedule
+
+All times in **Pacific Standard Time (PST)**:
+
+| Event | Time |
+|-------|------|
+| Daily game reset | 12:00 PM |
+| Weekly claim window opens | Sunday 12:00 PM |
+| Weekly claim window closes | Monday 12:00 PM |
+
+---
+
+## Contributing
+
+Found a bug? Got a feature idea? PRs welcome!
+
+1. Fork the repo
+2. Create your branch (`git checkout -b feature/extra-cheese`)
+3. Commit changes (`git commit -m 'Add extra cheese'`)
+4. Push (`git push origin feature/extra-cheese`)
+5. Open a PR
+
+---
+
+## License
+
+This project is proprietary to VMF Coin.
+
+---
+
+*In pizza we crust.* 🍕
