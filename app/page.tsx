@@ -69,8 +69,6 @@ export default function HomePage() {
     sdk.actions.ready();
   }, []);
 
-  const handleStartPlaying = () => goToView('game')
-
   const handleBackToHome = () => goToView('home')
 
   const handleNavigateToWeekly = () => goToView('weekly')
