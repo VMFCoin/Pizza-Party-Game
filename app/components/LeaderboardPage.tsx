@@ -409,11 +409,6 @@ export default function LeaderboardPage({
                 ? `@${winner.farcasterProfile.username}`
                 : formatAddress(winner.address)}
             </span>
-            {winner.farcasterProfile?.displayName && !isPlaceholder && (
-              <span className="text-xs text-gray-500" style={customFontStyle}>
-                {winner.farcasterProfile.displayName}
-              </span>
-            )}
             {isPlaceholder ? (
               <span className="text-xs text-gray-600" style={customFontStyle}>
                 Awaiting winner…
