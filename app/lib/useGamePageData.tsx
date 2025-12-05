@@ -23,6 +23,12 @@ const TOPPINGS_EARNED_EVENT = parseAbiItem(
   'event ToppingsEarned(uint256 indexed weekId, address indexed player, uint256 amount, string reason)',
 )
 
+// Old contract for migration - query ToppingsEarned events from Monday 12pm PST
+// This is needed because we deployed a new contract mid-week (Weekly 3)
+const OLD_PIZZA_PARTY_ADDRESS = '0x5c3aaD450F0014292Ff363b2147e6571b16c8035'
+// Monday Dec 2, 2024 at 12:00 PM PST (20:00 UTC) = block 23190127
+const WEEKLY_3_START_BLOCK = 23190127n
+
 // ------------------ Types ------------------
 
 interface DailyData {
@@ -533,12 +539,31 @@ export function useGamePageData() {
           // Query from genesis to ensure no events are missed (weekId filter ensures only current week)
           const fromBlock = 0n
 
+          // Query NEW contract for current week's toppings
           const toppingsLogs = await publicClient.getLogs({
             address: PIZZA_PARTY_ADDRESS as `0x${string}`,
             event: TOPPINGS_EARNED_EVENT,
             args: { weekId: currentWeekId },
             fromBlock,
           })
+
+          // MIGRATION: Also query OLD contract for Weekly 3 toppings earned since Monday 12pm PST
+          // This is needed because we deployed a new contract mid-week
+          // Old contract weekId for Weekly 3 was 1 (the contract was at week 2 when deployed,
+          // but Weekly 3 events are stored with weekId=1 in the old contract)
+          const oldContractWeekId = 1n
+          let oldContractLogs: typeof toppingsLogs = []
+          try {
+            oldContractLogs = await publicClient.getLogs({
+              address: OLD_PIZZA_PARTY_ADDRESS as `0x${string}`,
+              event: TOPPINGS_EARNED_EVENT,
+              args: { weekId: oldContractWeekId },
+              fromBlock: WEEKLY_3_START_BLOCK,
+            })
+            console.log(`[MIGRATION] Found ${oldContractLogs.length} ToppingsEarned events from old contract since Monday 12pm PST`)
+          } catch (oldErr) {
+            console.error('[MIGRATION] Failed to query old contract:', oldErr)
+          }
 
           let totalEarned = 0n
           const uniquePlayersThisWeek = new Set<string>()
@@ -547,7 +572,10 @@ export function useGamePageData() {
           const toppingsByReason: Record<string, bigint> = {}
           const playersByReason: Record<string, Set<string>> = {}
 
-          for (const log of toppingsLogs) {
+          // Process logs from BOTH contracts
+          const allLogs = [...oldContractLogs, ...toppingsLogs]
+
+          for (const log of allLogs) {
             const amount = log.args?.amount ?? 0n
             const playerArg = log.args?.player
             const reason = (log.args as { reason?: string })?.reason ?? 'unknown'
@@ -569,7 +597,9 @@ export function useGamePageData() {
 
           // Log detailed breakdown
           console.log('=== WEEKLY JACKPOT DEBUG ===')
-          console.log('Total ToppingsEarned events:', toppingsLogs.length)
+          console.log('Old contract events (since Monday):', oldContractLogs.length)
+          console.log('New contract events:', toppingsLogs.length)
+          console.log('Total ToppingsEarned events:', allLogs.length)
           console.log('Unique players (all reasons):', uniquePlayersThisWeek.size)
           console.log('Total toppings earned:', totalEarned.toString())
           console.log('Projected jackpot:', (Number(totalEarned) * 10).toString(), 'VMF')
@@ -590,7 +620,9 @@ export function useGamePageData() {
           console.log('=== END DEBUG ===')
 
           console.debug('Weekly projection (from events):', {
-            toppingsEarnedEvents: toppingsLogs.length,
+            toppingsEarnedEvents: allLogs.length,
+            oldContractEvents: oldContractLogs.length,
+            newContractEvents: toppingsLogs.length,
             uniquePlayersFromEvents: uniquePlayersThisWeek.size,
             currentWeekId: currentWeekId.toString(),
             totalEarnedToppings: totalEarned.toString(),
