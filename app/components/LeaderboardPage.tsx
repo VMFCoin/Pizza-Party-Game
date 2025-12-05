@@ -18,8 +18,8 @@ const publicClient = createPublicClient({
   transport: http('https://base-mainnet.public.blastapi.io'),
 })
 
-// Old contract for historical stats
-const OLD_CONTRACT_ADDRESS = '0x5c3aaD450F0014292Ff363b2147e6571b16c8035' as const
+// All historical stats have been migrated to the current contract
+// No need to read from old contracts anymore
 
 interface LeaderboardPageProps {
   onBack?: () => void
@@ -251,62 +251,32 @@ export default function LeaderboardPage({
 
         const statsMap = new Map<string, { wins: number; vmfWon: string }>()
 
-        // Use multicall to batch all requests to each contract
+        // Use multicall to batch all requests - all stats are now in current contract
         try {
-          // Prepare multicall contracts for old contract
-          const oldContractCalls = allAddresses.map(addr => ({
-            address: OLD_CONTRACT_ADDRESS,
-            abi: PIZZA_PARTY_ABI,
-            functionName: 'getPlayerLifetimeStats',
-            args: [addr as `0x${string}`],
-          } as const))
-
-          // Prepare multicall contracts for new contract
-          const newContractCalls = allAddresses.map(addr => ({
+          const contractCalls = allAddresses.map(addr => ({
             address: PIZZA_PARTY_ADDRESS as `0x${string}`,
             abi: PIZZA_PARTY_ABI,
             functionName: 'getPlayerLifetimeStats',
             args: [addr as `0x${string}`],
           } as const))
 
-          // Execute multicalls (2 RPC calls instead of 16)
-          const [oldResults, newResults] = await Promise.all([
-            publicClient.multicall({ contracts: oldContractCalls, allowFailure: true }),
-            publicClient.multicall({ contracts: newContractCalls, allowFailure: true }),
-          ])
+          const results = await publicClient.multicall({ contracts: contractCalls, allowFailure: true })
 
           // Process results
           allAddresses.forEach((addr, i) => {
-            let totalDailyWins = 0
-            let totalWeeklyWins = 0
-            let totalVmfWon = 0n
-
-            // Old contract stats
-            const oldResult = oldResults[i]
-            if (oldResult.status === 'success' && oldResult.result) {
-              const stats = oldResult.result as unknown as { totalDailyWins: bigint; totalWeeklyWins: bigint; totalVmfWon: bigint }
-              totalDailyWins += Number(stats.totalDailyWins)
-              totalWeeklyWins += Number(stats.totalWeeklyWins)
-              totalVmfWon += stats.totalVmfWon
+            const result = results[i]
+            if (result.status === 'success' && result.result) {
+              const stats = result.result as unknown as { totalDailyWins: bigint; totalWeeklyWins: bigint; totalVmfWon: bigint }
+              statsMap.set(addr.toLowerCase(), {
+                wins: Number(stats.totalDailyWins) + Number(stats.totalWeeklyWins),
+                vmfWon: Number(formatUnits(stats.totalVmfWon, 18)).toFixed(1),
+              })
+            } else {
+              statsMap.set(addr.toLowerCase(), { wins: 0, vmfWon: '0' })
             }
-
-            // New contract stats
-            const newResult = newResults[i]
-            if (newResult.status === 'success' && newResult.result) {
-              const stats = newResult.result as unknown as { totalDailyWins: bigint; totalWeeklyWins: bigint; totalVmfWon: bigint }
-              totalDailyWins += Number(stats.totalDailyWins)
-              totalWeeklyWins += Number(stats.totalWeeklyWins)
-              totalVmfWon += stats.totalVmfWon
-            }
-
-            statsMap.set(addr.toLowerCase(), {
-              wins: totalDailyWins + totalWeeklyWins,
-              vmfWon: Number(formatUnits(totalVmfWon, 18)).toFixed(1),
-            })
           })
         } catch (err) {
           console.error('Error fetching lifetime stats via multicall:', err)
-          // Fallback: set all to 0
           allAddresses.forEach(addr => {
             statsMap.set(addr.toLowerCase(), { wins: 0, vmfWon: '0' })
           })
