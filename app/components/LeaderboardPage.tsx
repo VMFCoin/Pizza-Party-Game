@@ -126,8 +126,20 @@ export default function LeaderboardPage({
     { address: '0x598986fac0d3ff7eac3d55ffab5e67c2a27c2765', displayName: '', thisGamePayout: '128.8', lifetimeWins: 0, lifetimeVmfWon: '0' },
   ]
 
-  // Weekly 2 Winners (no weekly settlement yet for week 2)
-  const WEEK_2_WINNERS: WinnerDisplay[] = []
+  // Weekly 2 Winners (from old contract settlement tx 0xf1e890ad...)
+  // 10 winners, 91 VMF pot = 9.1 VMF each
+  const WEEK_2_WINNERS: WinnerDisplay[] = [
+    { address: '0xacbf90a3f03a34faa8235854ca6c3ee0cc8c7546', displayName: '', thisGamePayout: '9.1', lifetimeWins: 0, lifetimeVmfWon: '0' },
+    { address: '0x108608f3f993bfd55fab50d9ef1a5c7e2c47f29b', displayName: '', thisGamePayout: '9.1', lifetimeWins: 0, lifetimeVmfWon: '0' },
+    { address: '0xdf13d712d58ef7f7abd4d29b398d503262ba4ac0', displayName: '', thisGamePayout: '9.1', lifetimeWins: 0, lifetimeVmfWon: '0' },
+    { address: '0x1b49689db12080f5fcc5dc36f990599739487566', displayName: '', thisGamePayout: '9.1', lifetimeWins: 0, lifetimeVmfWon: '0' },
+    { address: '0x257cbe89968495c3ae8c81bccb8be7f257cd5f66', displayName: '', thisGamePayout: '9.1', lifetimeWins: 0, lifetimeVmfWon: '0' },
+    { address: '0xc77da8cb158ba77bac765625745a766af3111a69', displayName: '', thisGamePayout: '9.1', lifetimeWins: 0, lifetimeVmfWon: '0' },
+    { address: '0xffde42d40175b3b9349dfb384439dcb811691e09', displayName: '', thisGamePayout: '9.1', lifetimeWins: 0, lifetimeVmfWon: '0' },
+    { address: '0x65e3419e633833df1d602e7905cb9c7e541f0849', displayName: '', thisGamePayout: '9.1', lifetimeWins: 0, lifetimeVmfWon: '0' },
+    { address: '0xd68c5493e41f03fac90776ad0366376e245255e8', displayName: '', thisGamePayout: '9.1', lifetimeWins: 0, lifetimeVmfWon: '0' },
+    { address: '0x12e31f706010ae0996a2d8247c432d9102e3c871', displayName: '', thisGamePayout: '9.1', lifetimeWins: 0, lifetimeVmfWon: '0' },
+  ]
 
   // Get current game IDs from new contract
   const { data: dailyGameId } = useReadContract({
@@ -318,6 +330,19 @@ export default function LeaderboardPage({
             lifetimeVmfWon: stats?.vmfWon || '0',
           }
         })
+
+        // Sort by lifetime wins (descending), then by VMF won (descending) as tiebreaker
+        const sortByLifetimeStats = (a: WinnerDisplay, b: WinnerDisplay) => {
+          // First sort by wins (more wins = higher rank)
+          if (b.lifetimeWins !== a.lifetimeWins) {
+            return b.lifetimeWins - a.lifetimeWins
+          }
+          // Tiebreaker: sort by VMF won (more VMF = higher rank)
+          return parseFloat(b.lifetimeVmfWon) - parseFloat(a.lifetimeVmfWon)
+        }
+
+        dailyPlayersData.sort(sortByLifetimeStats)
+        weeklyPlayersData.sort(sortByLifetimeStats)
 
         // Enrich with Farcaster profiles
         const [enrichedDaily, enrichedWeekly] = await Promise.all([
