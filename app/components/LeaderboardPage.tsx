@@ -431,10 +431,13 @@ export default function LeaderboardPage({
             )}
           </div>
         </div>
-        <div className="text-right">
+        <div className="text-right leading-tight">
           {/* ✅ THIS GAME'S PAYOUT (green) - Amount won in THIS specific game */}
-          <span className="text-lg font-bold text-green-600" style={customFontStyle}>
-            {winner.thisGamePayout} VMF
+          <span className="block text-lg font-bold text-green-600" style={customFontStyle}>
+            {winner.thisGamePayout}
+          </span>
+          <span className="block text-lg font-bold text-green-600" style={customFontStyle}>
+            VMF
           </span>
         </div>
       </div>
