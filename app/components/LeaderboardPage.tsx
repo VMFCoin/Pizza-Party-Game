@@ -386,18 +386,18 @@ export default function LeaderboardPage({
       <div
         className={`flex items-center justify-between p-2 rounded-xl border-2 ${style.bg} ${style.border} shadow-md`}
       >
-        <div className="flex items-center gap-2 flex-1">
-          <div className="flex items-center gap-1 min-w-[40px]">
+        <div className="flex items-center gap-3 flex-1">
+          <div className="flex items-center gap-2 min-w-[60px]">
             <span className={`text-lg font-bold ${style.textColor}`} style={customFontStyle}>
               {position}.
             </span>
+            <ProfilePicture
+              key={`${winner.address}-${winner.farcasterProfile?.pfpUrl || 'no-pfp'}`}
+              pfpUrl={winner.farcasterProfile?.pfpUrl}
+              address={winner.address}
+              isPlaceholder={isPlaceholder}
+            />
           </div>
-          <ProfilePicture
-            key={`${winner.address}-${winner.farcasterProfile?.pfpUrl || 'no-pfp'}`}
-            pfpUrl={winner.farcasterProfile?.pfpUrl}
-            address={winner.address}
-            isPlaceholder={isPlaceholder}
-          />
           <div className="flex flex-col">
             <span
               className={`font-bold text-base ${isPlaceholder ? 'text-gray-500' : isCurrentUser ? 'text-red-600' : style.textColor}`}
