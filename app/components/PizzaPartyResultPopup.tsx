@@ -215,12 +215,12 @@ export function PizzaPartyResultPopup() {
           /* WINNER CARD - FULLY RESPONSIVE */
           <div 
             className="relative w-full bg-gradient-to-br from-red-600 to-red-700 rounded-3xl border-4 border-black shadow-2xl overflow-hidden"
-            style={{ aspectRatio: '360/220' }}
+            style={{ aspectRatio: '360/240' }}
           >
             <div className="absolute inset-3 sm:inset-4 border-4 border-black rounded-2xl" />
 
-            <div className="relative z-10 h-full w-full px-4 sm:px-6 py-6 sm:py-8 flex flex-col items-center justify-center gap-3 sm:gap-4 text-center">
-              <div style={customFontStyle}>
+            <div className="relative z-10 h-full w-full px-5 sm:px-7 py-8 sm:py-10 flex flex-col justify-between items-center text-center gap-4">
+              <div style={customFontStyle} className="w-full">
                 <h1 
                   className="font-black"
                   style={{
@@ -229,54 +229,55 @@ export function PizzaPartyResultPopup() {
                     WebkitTextStroke: '1.5px black',
                     fontWeight: 900,
                     letterSpacing: '0.035em',
-                    fontSize: 'clamp(2rem, 7vw, 3.2rem)',
+                    fontSize: 'clamp(1.9rem, 6.5vw, 3rem)',
                   }}
                 >
                   WINNER
                 </h1>
               </div>
 
-              <div className="space-y-1 leading-tight" style={customFontStyle}>
+              <div className="space-y-2 leading-tight" style={customFontStyle}>
                 <p
                   className="font-bold text-black"
-                  style={{ fontSize: 'clamp(0.9rem, 3.2vw, 1.3rem)' }}
+                  style={{ fontSize: 'clamp(0.9rem, 3vw, 1.2rem)' }}
                 >
                   Won Big? Share The Dough!
                 </p>
                 <p
                   className="font-bold text-white"
-                  style={{ fontSize: 'clamp(1rem, 3.5vw, 1.6rem)' }}
+                  style={{ fontSize: 'clamp(0.95rem, 3.2vw, 1.4rem)' }}
                 >
                   You Won
                 </p>
-              </div>
-
-              <p
-                className="font-bold text-white whitespace-nowrap"
-                style={{
-                  ...customFontStyle,
-                  textShadow: '2px 2px 0px #000, -1px -1px 0px #000, 1px -1px 0px #000, -1px 1px 0px #000',
-                  fontSize: 'clamp(2rem, 7vw, 3.2rem)',
-                }}
-              >
-                {vmfWon} VMF
-              </p>
-
-              <button
-                onClick={handleShare}
-                className="bg-gradient-to-b from-yellow-400 to-yellow-500 hover:from-yellow-300 hover:to-yellow-400 active:scale-95 transition-all rounded-full border-4 border-black shadow-xl px-5 py-2 w-full max-w-[260px] mt-1"
-              >
-                <p 
+                <p
                   className="font-bold text-white whitespace-nowrap"
                   style={{
                     ...customFontStyle,
-                    textShadow: '2px 2px 0px #000, -1px -1px 0px #000',
-                    fontSize: 'clamp(1rem, 3.5vw, 1.6rem)',
+                    textShadow: '2px 2px 0px #000, -1px -1px 0px #000, 1px -1px 0px #000, -1px 1px 0px #000',
+                    fontSize: 'clamp(1.9rem, 6.8vw, 3rem)',
                   }}
                 >
-                  SHARE
+                  {vmfWon} VMF
                 </p>
-              </button>
+              </div>
+
+              <div className="w-full flex justify-center">
+                <button
+                  onClick={handleShare}
+                  className="bg-gradient-to-b from-yellow-400 to-yellow-500 hover:from-yellow-300 hover:to-yellow-400 active:scale-95 transition-all rounded-full border-4 border-black shadow-xl px-6 py-2 w-full max-w-[240px]"
+                >
+                  <p 
+                    className="font-bold text-white whitespace-nowrap"
+                    style={{
+                      ...customFontStyle,
+                      textShadow: '2px 2px 0px #000, -1px -1px 0px #000',
+                      fontSize: 'clamp(0.95rem, 3.2vw, 1.4rem)',
+                    }}
+                  >
+                    SHARE
+                  </p>
+                </button>
+              </div>
             </div>
           </div>
         ) : (
