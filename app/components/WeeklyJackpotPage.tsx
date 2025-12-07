@@ -106,6 +106,7 @@ export default function WeeklyJackpotPage({
     claimableToppings,
     handleClaimToppings,
     isEntryInProgress,
+    vmfUsd,
   } = useGamePageData()
   const [isMobile, setIsMobile] = useState(false)
   const [showToppingBreakdown, setShowToppingBreakdown] = useState(false)
@@ -154,8 +155,8 @@ export default function WeeklyJackpotPage({
   const jackpotWeiToDisplay =
     weekly.projectedJackpotWei > weekly.jackpotWei ? weekly.projectedJackpotWei : weekly.jackpotWei
   const jackpotVmF = Number(jackpotWeiToDisplay) / 1e18
-  const jackpotDisplay =
-    jackpotWeiToDisplay > 0n ? jackpotVmF.toFixed(jackpotVmF >= 1 ? 0 : 2) : '0'
+  const jackpotUsdValue = jackpotVmF * vmfUsd
+  const jackpotDisplay = jackpotUsdValue.toFixed(2)
   const claimButtonDisabled =
     !wallet?.isAuthenticated || !claimWindowOpen || hasClaimed || claimableNumber <= 0 || isEntryInProgress
 
@@ -229,7 +230,7 @@ export default function WeeklyJackpotPage({
               Weekly Jackpot
             </p>
             <p className="text-white text-4xl font-black" style={customFontStyle}>
-              {jackpotDisplay} VMF
+              ${jackpotDisplay}
             </p>
             <p className="text-white text-sm font-semibold mt-2" style={customFontStyle}>
               Weekly Players {weeklyPlayersDisplay}
