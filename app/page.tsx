@@ -69,7 +69,7 @@ export default function HomePage() {
     sdk.actions.ready();
   }, []);
 
-  const _handleStartPlaying = () => goToView('game')
+  const handleStartPlaying = () => goToView('game')
 
   const handleBackToHome = () => goToView('home')
 
