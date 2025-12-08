@@ -15,7 +15,24 @@ export function PizzaPartyResultPopup() {
   const [showPopup, setShowPopup] = useState(false)
   const [isWinner, setIsWinner] = useState(false)
   const [vmfWon, setVmfWon] = useState('0.00')
+  const [vmfUsd, setVmfUsd] = useState(0.01)
   const [hasChecked, setHasChecked] = useState(false)
+
+  // Fetch VMF/USD price
+  useEffect(() => {
+    const fetchPrice = async () => {
+      try {
+        const res = await fetch('/api/price')
+        const data = await res.json()
+        if (data.priceUsd) {
+          setVmfUsd(parseFloat(data.priceUsd))
+        }
+      } catch (error) {
+        console.error('Failed to fetch VMF price:', error)
+      }
+    }
+    fetchPrice()
+  }, [])
 
   useEffect(() => {
     if (!isConnected || !address || hasChecked) return
@@ -158,7 +175,8 @@ export function PizzaPartyResultPopup() {
   }
 
   const handleShare = async () => {
-    const shareText = `🍕 Just sliced ${vmfWon} VMF in Pizza Party! Who's next? Come get this dough! 🍕`
+    const usdValue = (parseFloat(vmfWon) * vmfUsd).toFixed(2)
+    const shareText = `🍕 Just sliced $${usdValue} of $VMF in Pizza Party! Who's next? Come get this dough! 🍕`
 
     try {
       const actions = sdk.actions as {
@@ -257,7 +275,7 @@ export function PizzaPartyResultPopup() {
                     fontSize: 'clamp(1.9rem, 6.8vw, 3rem)',
                   }}
                 >
-                  {vmfWon} VMF
+                  ${(parseFloat(vmfWon) * vmfUsd).toFixed(2)} of $VMF
                 </p>
               </div>
 
