@@ -113,17 +113,17 @@ export default function LeaderboardPage({
     }
   }, [onNavigateToWeekly])
 
-  // Game 12 Daily Winners (from old contract settlement tx 0x68b8accb...)
-  // These are hardcoded because old contract didn't store winners array
-  const GAME_12_DAILY_WINNERS: WinnerDisplay[] = [
-    { address: '0xc77da8cb158ba77bac765625745a766af3111a69', displayName: '', thisGamePayout: '128.8', lifetimeWins: 0, lifetimeVmfWon: '0' },
-    { address: '0xd68c5493e41f03fac90776ad0366376e245255e8', displayName: '', thisGamePayout: '128.8', lifetimeWins: 0, lifetimeVmfWon: '0' },
-    { address: '0x1b49689db12080f5fcc5dc36f990599739487566', displayName: '', thisGamePayout: '128.8', lifetimeWins: 0, lifetimeVmfWon: '0' },
-    { address: '0x14e8fddfa4a7c709c19a8c7da5205c3ae366355c', displayName: '', thisGamePayout: '128.8', lifetimeWins: 0, lifetimeVmfWon: '0' },
-    { address: '0x802f18765d6945b82075241e40b6214331ca3641', displayName: '', thisGamePayout: '128.8', lifetimeWins: 0, lifetimeVmfWon: '0' },
-    { address: '0xffde42d40175b3b9349dfb384439dcb811691e09', displayName: '', thisGamePayout: '128.8', lifetimeWins: 0, lifetimeVmfWon: '0' },
-    { address: '0x86e36c9ba3c6a2542fd761bc2b4fd61a110ea6cd', displayName: '', thisGamePayout: '128.8', lifetimeWins: 0, lifetimeVmfWon: '0' },
-    { address: '0x598986fac0d3ff7eac3d55ffab5e67c2a27c2765', displayName: '', thisGamePayout: '128.8', lifetimeWins: 0, lifetimeVmfWon: '0' },
+  // Game 16 Daily Winners (settled Dec 8, 2025 from old contract 0x10BEB7B8495E7daeAB06C2e10e77251FD9429adB)
+  // 8 winners, 88.73 VMF each (verified from settlement tx 0x88cf2324...)
+  const GAME_16_DAILY_WINNERS: WinnerDisplay[] = [
+    { address: '0x257Cbe89968495C3aE8C81BccB8BE7f257CD5f66', displayName: '', thisGamePayout: '88.73', lifetimeWins: 0, lifetimeVmfWon: '0' },
+    { address: '0x944Fa0f3f2168D4b27110f7f97972Ad9425C4f52', displayName: '', thisGamePayout: '88.73', lifetimeWins: 0, lifetimeVmfWon: '0' },
+    { address: '0x86E36C9Ba3C6A2542Fd761bC2b4FD61A110ea6CD', displayName: '', thisGamePayout: '88.73', lifetimeWins: 0, lifetimeVmfWon: '0' },
+    { address: '0xffde42d40175b3b9349Dfb384439dCB811691E09', displayName: '', thisGamePayout: '88.73', lifetimeWins: 0, lifetimeVmfWon: '0' },
+    { address: '0xB1fadDeca6cBCCD536355a4eFe0E2d5517a1F04F', displayName: '', thisGamePayout: '88.73', lifetimeWins: 0, lifetimeVmfWon: '0' },
+    { address: '0xC77dA8cB158BA77BaC765625745a766Af3111A69', displayName: '', thisGamePayout: '88.73', lifetimeWins: 0, lifetimeVmfWon: '0' },
+    { address: '0x8f6Ee583447d75E3B070d9c35DB6F685aa9cc319', displayName: '', thisGamePayout: '88.73', lifetimeWins: 0, lifetimeVmfWon: '0' },
+    { address: '0x14E8FddFa4a7c709C19a8C7DA5205c3ae366355c', displayName: '', thisGamePayout: '88.73', lifetimeWins: 0, lifetimeVmfWon: '0' },
   ]
 
   // Weekly 2 Winners (from old contract settlement tx 0xf1e890ad...)
@@ -141,6 +141,21 @@ export default function LeaderboardPage({
     { address: '0x12e31f706010ae0996a2d8247c432d9102e3c871', displayName: '', thisGamePayout: '9.1', lifetimeWins: 0, lifetimeVmfWon: '0' },
   ]
 
+  // Weekly 3 Winners (settled Dec 8, 2024 from old contract 0x10BEB7B8495E7daeAB06C2e10e77251FD9429adB)
+  // 10 winners, 2000 VMF pot = 200 VMF each
+  const WEEK_3_WINNERS: WinnerDisplay[] = [
+    { address: '0x257Cbe89968495C3aE8C81BccB8BE7f257CD5f66', displayName: '', thisGamePayout: '200', lifetimeWins: 0, lifetimeVmfWon: '0' },
+    { address: '0x598986FaC0D3ff7EaC3D55fFAB5e67c2a27C2765', displayName: '', thisGamePayout: '200', lifetimeWins: 0, lifetimeVmfWon: '0' },
+    { address: '0xC77dA8cB158BA77BaC765625745a766Af3111A69', displayName: '', thisGamePayout: '200', lifetimeWins: 0, lifetimeVmfWon: '0' },
+    { address: '0x46E9BeEF5dC68dFf095EcA56DaDF90247f1Af7EF', displayName: '', thisGamePayout: '200', lifetimeWins: 0, lifetimeVmfWon: '0' },
+    { address: '0x65e3419E633833Df1D602e7905Cb9C7e541f0849', displayName: '', thisGamePayout: '200', lifetimeWins: 0, lifetimeVmfWon: '0' },
+    { address: '0x802F18765D6945b82075241e40b6214331ca3641', displayName: '', thisGamePayout: '200', lifetimeWins: 0, lifetimeVmfWon: '0' },
+    { address: '0x14E8FddFa4a7c709C19a8C7DA5205c3ae366355c', displayName: '', thisGamePayout: '200', lifetimeWins: 0, lifetimeVmfWon: '0' },
+    { address: '0xffde42d40175b3b9349Dfb384439dCB811691E09', displayName: '', thisGamePayout: '200', lifetimeWins: 0, lifetimeVmfWon: '0' },
+    { address: '0x9157Feb12812b253e84447C6B52C38651fd67FcA', displayName: '', thisGamePayout: '200', lifetimeWins: 0, lifetimeVmfWon: '0' },
+    { address: '0xD68C5493e41F03faC90776ad0366376E245255E8', displayName: '', thisGamePayout: '200', lifetimeWins: 0, lifetimeVmfWon: '0' },
+  ]
+
   // Get current game IDs from new contract
   const { data: dailyGameId } = useReadContract({
     address: PIZZA_PARTY_ADDRESS as `0x${string}`,
@@ -155,10 +170,12 @@ export default function LeaderboardPage({
   })
 
   // Determine which game we're showing (previous settled game)
-  const currentDailyId = dailyGameId ? Number(dailyGameId) : 13
-  const currentWeeklyId = weeklyGameId ? Number(weeklyGameId) : 3
-  const previousDailyGameId = currentDailyId - 1 // Game 12
-  const previousWeeklyGameId = currentWeeklyId - 1 // Weekly 2
+  // Note: Contract was deployed with dailyGameId=18 but we're actually on Game 17
+  // So we subtract 2 to get the correct previous settled game (Game 16)
+  const currentDailyId = dailyGameId ? Number(dailyGameId) - 1 : 17  // Actual current game
+  const currentWeeklyId = weeklyGameId ? Number(weeklyGameId) : 4    // Weekly 4 is current
+  const previousDailyGameId = currentDailyId - 1  // Game 16 (last settled)
+  const previousWeeklyGameId = currentWeeklyId - 1 // Weekly 3 (last settled)
 
   // For Game 13+, read from new contract
   const { data: dailyWinnersAddresses } = useReadContract({
@@ -174,7 +191,7 @@ export default function LeaderboardPage({
     abi: PIZZA_PARTY_ABI,
     functionName: 'getWeeklyGameWinners',
     args: [BigInt(previousWeeklyGameId)],
-    query: { enabled: previousWeeklyGameId >= 3 },
+    query: { enabled: previousWeeklyGameId >= 4 },  // Week 2 and 3 use hardcoded data
   })
 
   const { data: previousDailyGame } = useReadContract({
@@ -190,7 +207,7 @@ export default function LeaderboardPage({
     abi: PIZZA_PARTY_ABI,
     functionName: 'weeklyGames',
     args: [BigInt(previousWeeklyGameId)],
-    query: { enabled: previousWeeklyGameId >= 3 },
+    query: { enabled: previousWeeklyGameId >= 4 },  // Week 2 and 3 use hardcoded data
   })
 
   useEffect(() => {
@@ -201,15 +218,14 @@ export default function LeaderboardPage({
         let dailyPlayersData: WinnerDisplay[]
         let weeklyPlayersData: WinnerDisplay[]
 
-        // Use hardcoded data for Game 12, otherwise read from contract
-        if (previousDailyGameId === 12) {
-          dailyPlayersData = [...GAME_12_DAILY_WINNERS]
-        } else if (previousDailyGameId >= 13) {
-          const dailyAddresses = (dailyWinnersAddresses as string[]) || []
+        // Try to read from contract first, fallback to hardcoded Game 16 if no winners
+        // Game 16 was settled on old contract 0x10BEB7B8... on Dec 8, 2025
+        const dailyAddresses = (dailyWinnersAddresses as string[]) || []
+
+        if (dailyAddresses.length > 0) {
+          // We have winners from the new contract
           const dailyPot = previousDailyGame ? (previousDailyGame as { potAmount: bigint }).potAmount : 0n
-          const dailyPayoutPerWinner = dailyAddresses.length > 0
-            ? Number(formatUnits(BigInt(dailyPot) * 94n / 100n / BigInt(dailyAddresses.length), 18)).toFixed(1)
-            : '0'
+          const dailyPayoutPerWinner = Number(formatUnits(BigInt(dailyPot) * 94n / 100n / BigInt(dailyAddresses.length), 18)).toFixed(1)
 
           dailyPlayersData = dailyAddresses.map((addr: string) => ({
             address: addr,
@@ -219,13 +235,16 @@ export default function LeaderboardPage({
             lifetimeVmfWon: '0',
           }))
         } else {
-          dailyPlayersData = []
+          // No winners from new contract - show Game 16 winners (last settled game from old contract)
+          dailyPlayersData = [...GAME_16_DAILY_WINNERS]
         }
 
-        // Use hardcoded data for Week 2, otherwise read from contract
+        // Use hardcoded data for Week 2 and Week 3 (settled on old contracts), otherwise read from contract
         if (previousWeeklyGameId === 2) {
           weeklyPlayersData = [...WEEK_2_WINNERS]
-        } else if (previousWeeklyGameId >= 3) {
+        } else if (previousWeeklyGameId === 3) {
+          weeklyPlayersData = [...WEEK_3_WINNERS]
+        } else if (previousWeeklyGameId >= 4) {
           const weeklyAddresses = (weeklyWinnersAddresses as string[]) || []
           const weeklyPot = previousWeeklyGame ? (previousWeeklyGame as { potAmount: bigint }).potAmount : 0n
           const weeklyPayoutPerWinner = weeklyAddresses.length > 0

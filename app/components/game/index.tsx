@@ -360,7 +360,7 @@ function GamePageContent({ onNavigateToWeekly, onNavigateToLeaderboard }: GamePa
           <p className="text-blue-600 text-sm mt-1">
             {daily.loading
               ? 'Loading entries...'
-              : `Total entries: ${daily.totalEntries} • Game #${daily.dailyGameId}`}
+              : `Total entries: ${daily.totalEntries} • Game #${daily.dailyGameId - 1}`}
           </p>
 
           {daily.isCompleted && !daily.loading && (
