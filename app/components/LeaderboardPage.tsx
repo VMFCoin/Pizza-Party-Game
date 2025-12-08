@@ -332,6 +332,7 @@ export default function LeaderboardPage({
     }
 
     fetchLeaderboardData()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [address, dailyWinnersAddresses, weeklyWinnersAddresses, previousDailyGame, previousWeeklyGame, previousDailyGameId, previousWeeklyGameId])
 
   const ProfilePicture = ({ 
