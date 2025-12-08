@@ -25,9 +25,9 @@ const TOPPINGS_EARNED_EVENT = parseAbiItem(
 
 // Old contract for migration - query ToppingsEarned events from Monday 12pm PST
 // This is needed because we deployed a new contract mid-week (Weekly 3)
-const OLD_PIZZA_PARTY_ADDRESS = '0x5c3aaD450F0014292Ff363b2147e6571b16c8035'
+const _OLD_PIZZA_PARTY_ADDRESS = '0x5c3aaD450F0014292Ff363b2147e6571b16c8035'
 // Monday Dec 2, 2024 at 12:00 PM PST (20:00 UTC) = block 23190127
-const WEEKLY_3_START_BLOCK = 23190127n
+const _WEEKLY_3_START_BLOCK = 23190127n
 
 // ------------------ Types ------------------
 
