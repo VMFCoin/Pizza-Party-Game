@@ -1,0 +1,494 @@
+{
+  "summary": {
+    "extractionTimestamp": "2025-12-08T21:24:18.507Z",
+    "contractAddress": "0x10BEB7B8495E7daeAB06C2e10e77251FD9429adB",
+    "currentDailyGameId": "17",
+    "currentWeeklyGameId": "4",
+    "totalAddressesScanned": 27,
+    "totalActivePlayers": 25,
+    "totalPlayersWithErrors": 0,
+    "playersWithWins": 23,
+    "playersWithReferralCodes": 25,
+    "totalVmfWonAllPlayers": "24476007832863822081724",
+    "totalVmfWonAllPlayersFormatted": "24476.007832863822081724",
+    "totalLifetimeToppings": "264",
+    "totalLifetimeReferrals": "14"
+  },
+  "players": [
+    {
+      "address": "0x9157feb12812b253e84447c6b52c38651fd67fca",
+      "lifetimeStats": {
+        "totalDailyWins": "24",
+        "totalWeeklyWins": "3",
+        "totalVmfWon": "3222517940791711153418",
+        "totalVmfWonFormatted": "3222.517940791711153418",
+        "lifetimeToppings": "30",
+        "lifetimeReferrals": "0"
+      },
+      "referralCode": "PZDB21706D",
+      "currentWeeklyInfo": {
+        "toppingsEarned": "1",
+        "toppingsClaimed": "0",
+        "dailyPlays": "1",
+        "referralsUsed": "0",
+        "hasClaimed": false
+      }
+    },
+    {
+      "address": "0x598986fac0d3ff7eac3d55ffab5e67c2a27c2765",
+      "lifetimeStats": {
+        "totalDailyWins": "22",
+        "totalWeeklyWins": "3",
+        "totalVmfWon": "2864536829545062161755",
+        "totalVmfWonFormatted": "2864.536829545062161755",
+        "lifetimeToppings": "30",
+        "lifetimeReferrals": "0"
+      },
+      "referralCode": "PZ9083B124",
+      "currentWeeklyInfo": {
+        "toppingsEarned": "0",
+        "toppingsClaimed": "0",
+        "dailyPlays": "0",
+        "referralsUsed": "0",
+        "hasClaimed": false
+      }
+    },
+    {
+      "address": "0xd68c5493e41f03fac90776ad0366376e245255e8",
+      "lifetimeStats": {
+        "totalDailyWins": "16",
+        "totalWeeklyWins": "3",
+        "totalVmfWon": "2499500819812271317714",
+        "totalVmfWonFormatted": "2499.500819812271317714",
+        "lifetimeToppings": "21",
+        "lifetimeReferrals": "0"
+      },
+      "referralCode": "PZ71A3FCF7",
+      "currentWeeklyInfo": {
+        "toppingsEarned": "1",
+        "toppingsClaimed": "0",
+        "dailyPlays": "1",
+        "referralsUsed": "0",
+        "hasClaimed": false
+      }
+    },
+    {
+      "address": "0x257cbe89968495c3ae8c81bccb8be7f257cd5f66",
+      "lifetimeStats": {
+        "totalDailyWins": "18",
+        "totalWeeklyWins": "5",
+        "totalVmfWon": "2486688479107977760219",
+        "totalVmfWonFormatted": "2486.688479107977760219",
+        "lifetimeToppings": "21",
+        "lifetimeReferrals": "12"
+      },
+      "referralCode": "PZ1EDD8604",
+      "currentWeeklyInfo": {
+        "toppingsEarned": "1",
+        "toppingsClaimed": "0",
+        "dailyPlays": "1",
+        "referralsUsed": "0",
+        "hasClaimed": false
+      }
+    },
+    {
+      "address": "0x65e3419e633833df1d602e7905cb9c7e541f0849",
+      "lifetimeStats": {
+        "totalDailyWins": "15",
+        "totalWeeklyWins": "3",
+        "totalVmfWon": "2451400000000000000000",
+        "totalVmfWonFormatted": "2451.4",
+        "lifetimeToppings": "21",
+        "lifetimeReferrals": "0"
+      },
+      "referralCode": "PZ2D0F01C1",
+      "currentWeeklyInfo": {
+        "toppingsEarned": "1",
+        "toppingsClaimed": "0",
+        "dailyPlays": "1",
+        "referralsUsed": "0",
+        "hasClaimed": false
+      }
+    },
+    {
+      "address": "0xdf13d712d58ef7f7abd4d29b398d503262ba4ac0",
+      "lifetimeStats": {
+        "totalDailyWins": "15",
+        "totalWeeklyWins": "4",
+        "totalVmfWon": "1952600000000000000000",
+        "totalVmfWonFormatted": "1952.6",
+        "lifetimeToppings": "23",
+        "lifetimeReferrals": "2"
+      },
+      "referralCode": "PZBA3767A5",
+      "currentWeeklyInfo": {
+        "toppingsEarned": "0",
+        "toppingsClaimed": "0",
+        "dailyPlays": "0",
+        "referralsUsed": "0",
+        "hasClaimed": false
+      }
+    },
+    {
+      "address": "0xc77da8cb158ba77bac765625745a766af3111a69",
+      "lifetimeStats": {
+        "totalDailyWins": "14",
+        "totalWeeklyWins": "5",
+        "totalVmfWon": "1626651649562915598458",
+        "totalVmfWonFormatted": "1626.651649562915598458",
+        "lifetimeToppings": "24",
+        "lifetimeReferrals": "0"
+      },
+      "referralCode": "PZ0B7AC7D1",
+      "currentWeeklyInfo": {
+        "toppingsEarned": "1",
+        "toppingsClaimed": "0",
+        "dailyPlays": "1",
+        "referralsUsed": "0",
+        "hasClaimed": false
+      }
+    },
+    {
+      "address": "0xffde42d40175b3b9349dfb384439dcb811691e09",
+      "lifetimeStats": {
+        "totalDailyWins": "10",
+        "totalWeeklyWins": "3",
+        "totalVmfWon": "1440651649562915598458",
+        "totalVmfWonFormatted": "1440.651649562915598458",
+        "lifetimeToppings": "18",
+        "lifetimeReferrals": "0"
+      },
+      "referralCode": "PZ1A4C50E1",
+      "currentWeeklyInfo": {
+        "toppingsEarned": "0",
+        "toppingsClaimed": "0",
+        "dailyPlays": "0",
+        "referralsUsed": "0",
+        "hasClaimed": false
+      }
+    },
+    {
+      "address": "0x108608f3f993bfd55fab50d9ef1a5c7e2c47f29b",
+      "lifetimeStats": {
+        "totalDailyWins": "9",
+        "totalWeeklyWins": "2",
+        "totalVmfWon": "1338982879020560164290",
+        "totalVmfWonFormatted": "1338.98287902056016429",
+        "lifetimeToppings": "15",
+        "lifetimeReferrals": "0"
+      },
+      "referralCode": "PZ4513A6D7",
+      "currentWeeklyInfo": {
+        "toppingsEarned": "0",
+        "toppingsClaimed": "0",
+        "dailyPlays": "0",
+        "referralsUsed": "0",
+        "hasClaimed": false
+      }
+    },
+    {
+      "address": "0x14e8fddfa4a7c709c19a8c7da5205c3ae366355c",
+      "lifetimeStats": {
+        "totalDailyWins": "6",
+        "totalWeeklyWins": "1",
+        "totalVmfWon": "1103270538316266606800",
+        "totalVmfWonFormatted": "1103.2705383162666068",
+        "lifetimeToppings": "9",
+        "lifetimeReferrals": "0"
+      },
+      "referralCode": "PZ6CD8946F",
+      "currentWeeklyInfo": {
+        "toppingsEarned": "0",
+        "toppingsClaimed": "0",
+        "dailyPlays": "0",
+        "referralsUsed": "0",
+        "hasClaimed": false
+      }
+    },
+    {
+      "address": "0x1b49689db12080f5fcc5dc36f990599739487566",
+      "lifetimeStats": {
+        "totalDailyWins": "7",
+        "totalWeeklyWins": "2",
+        "totalVmfWon": "1062800000000000000000",
+        "totalVmfWonFormatted": "1062.8",
+        "lifetimeToppings": "17",
+        "lifetimeReferrals": "0"
+      },
+      "referralCode": "PZ275E7B20",
+      "currentWeeklyInfo": {
+        "toppingsEarned": "0",
+        "toppingsClaimed": "0",
+        "dailyPlays": "0",
+        "referralsUsed": "0",
+        "hasClaimed": false
+      }
+    },
+    {
+      "address": "0x802f18765d6945b82075241e40b6214331ca3641",
+      "lifetimeStats": {
+        "totalDailyWins": "2",
+        "totalWeeklyWins": "1",
+        "totalVmfWon": "461582879020560164290",
+        "totalVmfWonFormatted": "461.58287902056016429",
+        "lifetimeToppings": "3",
+        "lifetimeReferrals": "0"
+      },
+      "referralCode": "PZA94CBE2E",
+      "currentWeeklyInfo": {
+        "toppingsEarned": "0",
+        "toppingsClaimed": "0",
+        "dailyPlays": "0",
+        "referralsUsed": "0",
+        "hasClaimed": false
+      }
+    },
+    {
+      "address": "0x46e9beef5dc68dff095eca56dadf90247f1af7ef",
+      "lifetimeStats": {
+        "totalDailyWins": "2",
+        "totalWeeklyWins": "1",
+        "totalVmfWon": "437582879020560164290",
+        "totalVmfWonFormatted": "437.58287902056016429",
+        "lifetimeToppings": "9",
+        "lifetimeReferrals": "0"
+      },
+      "referralCode": "PZ3DC80485",
+      "currentWeeklyInfo": {
+        "toppingsEarned": "1",
+        "toppingsClaimed": "0",
+        "dailyPlays": "1",
+        "referralsUsed": "0",
+        "hasClaimed": false
+      }
+    },
+    {
+      "address": "0x86e36c9ba3c6a2542fd761bc2b4fd61a110ea6cd",
+      "lifetimeStats": {
+        "totalDailyWins": "3",
+        "totalWeeklyWins": "0",
+        "totalVmfWon": "300851649562915598461",
+        "totalVmfWonFormatted": "300.851649562915598461",
+        "lifetimeToppings": "5",
+        "lifetimeReferrals": "0"
+      },
+      "referralCode": "PZC3D76C1B",
+      "currentWeeklyInfo": {
+        "toppingsEarned": "0",
+        "toppingsClaimed": "0",
+        "dailyPlays": "0",
+        "referralsUsed": "0",
+        "hasClaimed": false
+      }
+    },
+    {
+      "address": "0x944fa0f3f2168d4b27110f7f97972ad9425c4f52",
+      "lifetimeStats": {
+        "totalDailyWins": "2",
+        "totalWeeklyWins": "0",
+        "totalVmfWon": "220887659295706442505",
+        "totalVmfWonFormatted": "220.887659295706442505",
+        "lifetimeToppings": "3",
+        "lifetimeReferrals": "0"
+      },
+      "referralCode": "PZ87980F93",
+      "currentWeeklyInfo": {
+        "toppingsEarned": "0",
+        "toppingsClaimed": "0",
+        "dailyPlays": "0",
+        "referralsUsed": "0",
+        "hasClaimed": false
+      }
+    },
+    {
+      "address": "0xe915da3b1d1f730dbfc7bf6d31f654e994fa8c6d",
+      "lifetimeStats": {
+        "totalDailyWins": "2",
+        "totalWeeklyWins": "0",
+        "totalVmfWon": "215471891316213150883",
+        "totalVmfWonFormatted": "215.471891316213150883",
+        "lifetimeToppings": "2",
+        "lifetimeReferrals": "0"
+      },
+      "referralCode": "PZ8175153F",
+      "currentWeeklyInfo": {
+        "toppingsEarned": "0",
+        "toppingsClaimed": "0",
+        "dailyPlays": "0",
+        "referralsUsed": "0",
+        "hasClaimed": false
+      }
+    },
+    {
+      "address": "0x442c463eb4778c1a576d5b80927b429756723014",
+      "lifetimeStats": {
+        "totalDailyWins": "1",
+        "totalWeeklyWins": "0",
+        "totalVmfWon": "132782879020560164290",
+        "totalVmfWonFormatted": "132.78287902056016429",
+        "lifetimeToppings": "1",
+        "lifetimeReferrals": "0"
+      },
+      "referralCode": "PZ64151483",
+      "currentWeeklyInfo": {
+        "toppingsEarned": "0",
+        "toppingsClaimed": "0",
+        "dailyPlays": "0",
+        "referralsUsed": "0",
+        "hasClaimed": false
+      }
+    },
+    {
+      "address": "0xc143cf8515b87ea88d8db8a9892639b5046cf81c",
+      "lifetimeStats": {
+        "totalDailyWins": "1",
+        "totalWeeklyWins": "0",
+        "totalVmfWon": "132153950524501997465",
+        "totalVmfWonFormatted": "132.153950524501997465",
+        "lifetimeToppings": "2",
+        "lifetimeReferrals": "0"
+      },
+      "referralCode": "PZE04E9C18",
+      "currentWeeklyInfo": {
+        "toppingsEarned": "0",
+        "toppingsClaimed": "0",
+        "dailyPlays": "0",
+        "referralsUsed": "0",
+        "hasClaimed": false
+      }
+    },
+    {
+      "address": "0xf0f950dff685f166f2531fbcf97cebea000ef3b8",
+      "lifetimeStats": {
+        "totalDailyWins": "1",
+        "totalWeeklyWins": "0",
+        "totalVmfWon": "132153950524501997465",
+        "totalVmfWonFormatted": "132.153950524501997465",
+        "lifetimeToppings": "1",
+        "lifetimeReferrals": "0"
+      },
+      "referralCode": "PZ3149E573",
+      "currentWeeklyInfo": {
+        "toppingsEarned": "0",
+        "toppingsClaimed": "0",
+        "dailyPlays": "0",
+        "referralsUsed": "0",
+        "hasClaimed": false
+      }
+    },
+    {
+      "address": "0x293f2bb46d15d6a496300a03e68eba21e17a0213",
+      "lifetimeStats": {
+        "totalDailyWins": "1",
+        "totalWeeklyWins": "0",
+        "totalVmfWon": "132153950524501997465",
+        "totalVmfWonFormatted": "132.153950524501997465",
+        "lifetimeToppings": "1",
+        "lifetimeReferrals": "0"
+      },
+      "referralCode": "PZE98B2011",
+      "currentWeeklyInfo": {
+        "toppingsEarned": "0",
+        "toppingsClaimed": "0",
+        "dailyPlays": "0",
+        "referralsUsed": "0",
+        "hasClaimed": false
+      }
+    },
+    {
+      "address": "0x8f6ee583447d75e3b070d9c35db6f685aa9cc319",
+      "lifetimeStats": {
+        "totalDailyWins": "1",
+        "totalWeeklyWins": "0",
+        "totalVmfWon": "88733708771204445040",
+        "totalVmfWonFormatted": "88.73370877120444504",
+        "lifetimeToppings": "2",
+        "lifetimeReferrals": "0"
+      },
+      "referralCode": "PZ5CC22435",
+      "currentWeeklyInfo": {
+        "toppingsEarned": "0",
+        "toppingsClaimed": "0",
+        "dailyPlays": "0",
+        "referralsUsed": "0",
+        "hasClaimed": false
+      }
+    },
+    {
+      "address": "0xb1faddeca6cbccd536355a4efe0e2d5517a1f04f",
+      "lifetimeStats": {
+        "totalDailyWins": "1",
+        "totalWeeklyWins": "0",
+        "totalVmfWon": "88733708771204445040",
+        "totalVmfWonFormatted": "88.73370877120444504",
+        "lifetimeToppings": "1",
+        "lifetimeReferrals": "0"
+      },
+      "referralCode": "PZ07F110E9",
+      "currentWeeklyInfo": {
+        "toppingsEarned": "0",
+        "toppingsClaimed": "0",
+        "dailyPlays": "0",
+        "referralsUsed": "0",
+        "hasClaimed": false
+      }
+    },
+    {
+      "address": "0x2216b7755f4bd2909756c41ddfe8f7c620ff2cea",
+      "lifetimeStats": {
+        "totalDailyWins": "1",
+        "totalWeeklyWins": "0",
+        "totalVmfWon": "83317940791711153418",
+        "totalVmfWonFormatted": "83.317940791711153418",
+        "lifetimeToppings": "1",
+        "lifetimeReferrals": "0"
+      },
+      "referralCode": "PZE4018A05",
+      "currentWeeklyInfo": {
+        "toppingsEarned": "0",
+        "toppingsClaimed": "0",
+        "dailyPlays": "0",
+        "referralsUsed": "0",
+        "hasClaimed": false
+      }
+    },
+    {
+      "address": "0xdc9abd58dd59f7c7d5e74555a5f8b1dede42f0b7",
+      "lifetimeStats": {
+        "totalDailyWins": "0",
+        "totalWeeklyWins": "0",
+        "totalVmfWon": "0",
+        "totalVmfWonFormatted": "0.0",
+        "lifetimeToppings": "3",
+        "lifetimeReferrals": "0"
+      },
+      "referralCode": "PZ46274169",
+      "currentWeeklyInfo": {
+        "toppingsEarned": "1",
+        "toppingsClaimed": "0",
+        "dailyPlays": "1",
+        "referralsUsed": "0",
+        "hasClaimed": false
+      }
+    },
+    {
+      "address": "0x13fff11296483bfbbfa8df3007e1ffe082fedc96",
+      "lifetimeStats": {
+        "totalDailyWins": "0",
+        "totalWeeklyWins": "0",
+        "totalVmfWon": "0",
+        "totalVmfWonFormatted": "0.0",
+        "lifetimeToppings": "1",
+        "lifetimeReferrals": "0"
+      },
+      "referralCode": "PZ2B05C532",
+      "currentWeeklyInfo": {
+        "toppingsEarned": "0",
+        "toppingsClaimed": "0",
+        "dailyPlays": "0",
+        "referralsUsed": "0",
+        "hasClaimed": false
+      }
+    }
+  ]
+}

@@ -15,7 +15,7 @@ contract DeployPizzaParty is Script {
         string memory keyStr = vm.envString("PRIVATE_KEY");
         require(bytes(keyStr).length > 0, "PRIVATE_KEY not set in .env file");
         uint256 deployerPrivateKey = vm.parseUint(keyStr);  // parseUint handles both hex (0x...) and decimal
-        
+
         address treasuryWallet = vm.envAddress("TREASURY_WALLET");
 
         vm.startBroadcast(deployerPrivateKey);
@@ -31,8 +31,8 @@ contract DeployPizzaParty is Script {
             treasuryWallet,
             new address[](0),
             OWNER_WALLET,
-            13,  // _startingDailyGameId (continues from Game 12)
-            3    // _startingWeeklyGameId (continues from Weekly 2)
+            18,  // _startingDailyGameId (continues from Game 17)
+            4    // _startingWeeklyGameId (continues Weekly 4 - wasn't settled due to bug)
         );
 
         console.log("PizzaParty deployed at:", address(pizzaParty));

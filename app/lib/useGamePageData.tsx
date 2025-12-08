@@ -547,23 +547,11 @@ export function useGamePageData() {
             fromBlock,
           })
 
-          // MIGRATION: Also query OLD contract for Weekly 3 toppings earned since Monday 12pm PST
-          // This is needed because we deployed a new contract mid-week
-          // Old contract weekId for Weekly 3 was 1 (the contract was at week 2 when deployed,
-          // but Weekly 3 events are stored with weekId=1 in the old contract)
-          const oldContractWeekId = 1n
-          let oldContractLogs: typeof toppingsLogs = []
-          try {
-            oldContractLogs = await publicClient.getLogs({
-              address: OLD_PIZZA_PARTY_ADDRESS as `0x${string}`,
-              event: TOPPINGS_EARNED_EVENT,
-              args: { weekId: oldContractWeekId },
-              fromBlock: WEEKLY_3_START_BLOCK,
-            })
-            console.log(`[MIGRATION] Found ${oldContractLogs.length} ToppingsEarned events from old contract since Monday 12pm PST`)
-          } catch (oldErr) {
-            console.error('[MIGRATION] Failed to query old contract:', oldErr)
-          }
+          // MIGRATION NOTE: Old contract (0x5c3aaD450F0014292Ff363b2147e6571b16c8035) was used for Weekly 3.
+          // Weekly 3 has now been settled via emergencySettleWeekly. We are now on Weekly 4.
+          // The old contract events should NO LONGER be queried for the current week's jackpot.
+          // Weekly 4+ only uses the new contract at PIZZA_PARTY_ADDRESS.
+          const oldContractLogs: typeof toppingsLogs = []
 
           let totalEarned = 0n
           const uniquePlayersThisWeek = new Set<string>()

@@ -4,7 +4,7 @@ import type { Abi } from 'viem'
 // ==============================
 // Contract addresses (Base mainnet)
 // ==============================
-export const PIZZA_PARTY_ADDRESS = "0x10BEB7B8495E7daeAB06C2e10e77251FD9429adB" // PizzaParty contract (Game 13 deployment - leaderboard fix, charity auto-init)
+export const PIZZA_PARTY_ADDRESS = "0x75a2AF05B626cc7858c93787ea7240926E5797b0" // PizzaParty contract (Game 18 deployment - weekly settlement bug fix)
 export const VMF_TOKEN_ADDRESS = "0xA3E82adF6bd3207a1d2470ED7Ad742596Ee81776" // Fixed checksum
 
 // SushiSwap pair kept for legacy tooling (not used in minimal contract)
