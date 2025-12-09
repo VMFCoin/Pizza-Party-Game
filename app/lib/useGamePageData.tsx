@@ -621,7 +621,7 @@ export function useGamePageData() {
           if (totalEarned > 0n) {
             // Jackpot = total toppings earned this week × 10 VMF per topping
             // IMPORTANT: Toppings are added to weekly jackpot IMMEDIATELY when earned (daily plays, referrals)
-            // The only exception is holdings bonus (3 toppings per 1,000 VMF) which is calculated
+            // The only exception is holdings bonus (3 toppings per $10 of VMF) which is calculated
             // at claim time based on VMF balance snapshot at that moment
             // This projection shows what the jackpot will be if all earned toppings are claimed
             projectedJackpotWei = totalEarned * GAME_CONSTANTS.TOPPING_TO_VMF_RATE

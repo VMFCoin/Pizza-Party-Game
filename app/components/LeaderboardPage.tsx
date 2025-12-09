@@ -169,13 +169,10 @@ export default function LeaderboardPage({
     functionName: 'weeklyGameId',
   })
 
-  // Determine which game we're showing (previous settled game)
-  // Note: Contract was deployed with dailyGameId=18 but we're actually on Game 17
-  // So we subtract 2 to get the correct previous settled game (Game 16)
-  const currentDailyId = dailyGameId ? Number(dailyGameId) - 1 : 17  // Actual current game
-  const currentWeeklyId = weeklyGameId ? Number(weeklyGameId) : 4    // Weekly 4 is current
-  const previousDailyGameId = currentDailyId - 1  // Game 16 (last settled)
-  const previousWeeklyGameId = currentWeeklyId - 1 // Weekly 3 (last settled)
+  // Determine which game we're showing (most recently settled game)
+  // Contract's dailyGameId is the NEXT game to be played, so dailyGameId - 1 is the just-settled game
+  const previousDailyGameId = dailyGameId ? Number(dailyGameId) - 1 : 18  // Last settled daily game
+  const previousWeeklyGameId = weeklyGameId ? Number(weeklyGameId) - 1 : 3 // Last settled weekly game
 
   // For Game 13+, read from new contract
   const { data: dailyWinnersAddresses } = useReadContract({
