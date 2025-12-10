@@ -79,9 +79,9 @@ export async function GET(request: NextRequest) {
   };
 
   try {
-    const privateKey = process.env.BOT_WALLET_PRIVATE_KEY;
+    const privateKey = process.env.AUTO_SETTLE_PRIVATE_KEY;
     if (!privateKey) {
-      return NextResponse.json({ error: 'BOT_WALLET_PRIVATE_KEY not configured' }, { status: 500 });
+      return NextResponse.json({ error: 'AUTO_SETTLE_PRIVATE_KEY not configured' }, { status: 500 });
     }
 
     // Create clients

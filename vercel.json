@@ -14,7 +14,7 @@
     },
     {
       "path": "/api/cron/settle-game",
-      "schedule": "0 20 * * *"
+      "schedule": "1 20 * * *"
     }
   ]
 }
