@@ -463,7 +463,7 @@ export default function LeaderboardPage({
         <div className="text-right leading-tight">
           {/* ✅ THIS GAME'S PAYOUT (green) - USD value won in THIS specific game */}
           <span className="block text-lg font-bold text-green-600" style={customFontStyle}>
-            ${(Number(winner.thisGamePayout) * vmfUsd).toFixed(2)}
+            $1.50
           </span>
           <span className="block text-lg font-bold text-green-600" style={customFontStyle}>
             VMF
