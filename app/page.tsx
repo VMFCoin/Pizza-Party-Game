@@ -271,6 +271,17 @@ export default function HomePage() {
                 />
               </Button>
 
+              <Button
+                className="w-full !bg-green-600 text-white font-bold py-3 px-6 rounded-xl border-4 border-green-900 shadow-lg uppercase cursor-default"
+                style={{
+                  ...customFontStyle,
+                  letterSpacing: "1px",
+                  fontSize: isMobile ? 18 : 20
+                }}
+              >
+                🍕 OWN A FRANCHISE 🍕
+              </Button>
+
             </div>
 
           </Card>
