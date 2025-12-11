@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, useMemo } from 'react'
 import Image from 'next/image'
 import { Button } from './ui/button'
 import { Card } from './ui/card'
@@ -89,6 +89,23 @@ export default function LeaderboardPage({
   const [weeklyWinners, setWeeklyWinners] = useState<WinnerDisplay[]>([])
   const [loading, setLoading] = useState(true)
   const [isMobile, setIsMobile] = useState(false)
+  const [vmfUsd, setVmfUsd] = useState(0.027) // Default VMF price
+
+  // Fetch VMF price from Dexscreener
+  useEffect(() => {
+    const fetchPrice = async () => {
+      try {
+        const res = await fetch('/api/price')
+        const data = await res.json()
+        if (data.priceUsd) {
+          setVmfUsd(parseFloat(data.priceUsd))
+        }
+      } catch (err) {
+        console.error('Failed to fetch VMF price:', err)
+      }
+    }
+    fetchPrice()
+  }, [])
 
   useEffect(() => {
     const handleResize = () => setIsMobile(window.innerWidth < 960)
@@ -444,9 +461,9 @@ export default function LeaderboardPage({
           </div>
         </div>
         <div className="text-right leading-tight">
-          {/* ✅ THIS GAME'S PAYOUT (green) - Amount won in THIS specific game */}
+          {/* ✅ THIS GAME'S PAYOUT (green) - USD value won in THIS specific game */}
           <span className="block text-lg font-bold text-green-600" style={customFontStyle}>
-            {winner.thisGamePayout}
+            ${(Number(winner.thisGamePayout) * vmfUsd).toFixed(2)}
           </span>
           <span className="block text-lg font-bold text-green-600" style={customFontStyle}>
             VMF
