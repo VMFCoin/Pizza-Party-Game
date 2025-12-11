@@ -93,6 +93,9 @@ export default async function RootLayout({
   return (
     <ContextProvider cookies={cookies}>
       <html lang="en">
+        <head>
+          <meta name="base:app_id" content="69254ad0547fca5d081313c0" />
+        </head>
         <body className={inter.className}>
           <AutoEnableNotifications />
           {children}
