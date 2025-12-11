@@ -241,7 +241,7 @@ function GamePageContent({ onNavigateToWeekly, onNavigateToLeaderboard }: GamePa
       return { text: '✅ ALREADY ENTERED TODAY', onClick: () => {}, disabled: true }
     }
     if (!hasEnoughVMF) {
-      return { text: `NEED ${vmfAmount} VMF TO PLAY`, onClick: () => {}, disabled: true }
+      return { text: 'NEED $1 VMF TO PLAY', onClick: () => window.open('https://app.uniswap.org/swap?outputCurrency=0xA3E82adF6bd3207a1d2470ED7Ad742596Ee81776&chain=base', '_blank'), disabled: false }
     }
     if (needsApproval) {
       return { text: '🔓 APPROVE VMF', onClick: handleApproveVMF, disabled: isEntryInProgress }
