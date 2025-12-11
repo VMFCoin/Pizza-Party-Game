@@ -411,10 +411,23 @@ export default function LeaderboardPage({
     )
   }
 
-  const renderWinnerRow = (winner: WinnerDisplay, position: number, isWeekly: boolean = false) => {
+  const renderWinnerRow = (winner: WinnerDisplay, position: number, isWeekly: boolean = false, gameId: number = 0) => {
     const style = getPositionStyle(position)
     const isPlaceholder = !!winner.isPlaceholder
     const isCurrentUser = !isPlaceholder && address?.toLowerCase() === winner.address.toLowerCase()
+
+    // For game 18 and earlier, use hardcoded values. For game 19+, calculate dynamically
+    const getUsdValue = () => {
+      if (isWeekly) {
+        // Weekly: game 4 and earlier use hardcoded, game 5+ calculate
+        if (gameId <= 4) return '$6.52'
+        return `$${(Number(winner.thisGamePayout) * vmfUsd).toFixed(2)}`
+      } else {
+        // Daily: game 18 and earlier use hardcoded, game 19+ calculate
+        if (gameId <= 18) return '$1.50'
+        return `$${(Number(winner.thisGamePayout) * vmfUsd).toFixed(2)}`
+      }
+    }
 
     return (
       <div
@@ -463,7 +476,7 @@ export default function LeaderboardPage({
         <div className="text-right leading-tight">
           {/* ✅ THIS GAME'S PAYOUT (green) - USD value won in THIS specific game */}
           <span className="block text-lg font-bold text-green-600" style={customFontStyle}>
-            {isWeekly ? '$6.52' : '$1.50'}
+            {getUsdValue()}
           </span>
           <span className="block text-lg font-bold text-green-600" style={customFontStyle}>
             VMF
@@ -544,7 +557,7 @@ export default function LeaderboardPage({
                   <div className="space-y-3">
                     {dailyWinners.map((winner, index) => (
                       <div key={`daily-${winner.address}-${index}`}>
-                        {renderWinnerRow(winner, index + 1)}
+                        {renderWinnerRow(winner, index + 1, false, previousDailyGameId)}
                       </div>
                     ))}
                   </div>
@@ -579,7 +592,7 @@ export default function LeaderboardPage({
                   <div className="space-y-3">
                     {weeklyWinners.map((winner, index) => (
                       <div key={`weekly-${winner.address}-${index}`}>
-                        {renderWinnerRow(winner, index + 1, true)}
+                        {renderWinnerRow(winner, index + 1, true, previousWeeklyGameId)}
                       </div>
                     ))}
                   </div>
