@@ -6,6 +6,7 @@ import { useAccount } from 'wagmi'
 import { readContract } from '@wagmi/core'
 import { wagmiConfig as config } from './config/wagmiConfig'
 import { PIZZA_PARTY_ADDRESS, PIZZA_PARTY_ABI } from '../lib/constants'
+import { useGamePageData } from '../lib/useGamePageData'
 import { sdk } from '@farcaster/miniapp-sdk'
 
 const SHARE_BASE_URL = 'https://farcaster.xyz/miniapps/wgY6OPqYoIkz/pizza-party'
@@ -14,6 +15,7 @@ type WinType = 'daily' | 'weekly' | 'both' | null
 
 export function PizzaPartyResultPopup() {
   const { address, isConnected } = useAccount()
+  const { referralInfo } = useGamePageData()
   const [showPopup, setShowPopup] = useState(false)
   const [isWinner, setIsWinner] = useState(false)
   const [winType, setWinType] = useState<WinType>(null)
@@ -274,14 +276,19 @@ export function PizzaPartyResultPopup() {
 
   const handleShare = async () => {
     const usdValue = (totalVmfWon * vmfUsd).toFixed(2)
-    const shareText = `🍕 Just sliced $${usdValue} of $VMF in Pizza Party! Who's next? Come get this dough! 🍕`
+    const referralCode = referralInfo?.referralCode ?? ''
+    const referralShareUrl = referralCode ? `${SHARE_BASE_URL}${referralCode}` : SHARE_BASE_URL
+
+    const shareText = referralCode
+      ? `🍕 Just sliced $${usdValue} of $VMF in Pizza Party! Who's next? Come get this dough!\nDaily and Weekly Jackpots paying out the cheese, use my referral code: ${referralCode}\nWe all win together! 🍕`
+      : `🍕 Just sliced $${usdValue} of $VMF in Pizza Party! Who's next? Come get this dough!\nDaily and Weekly Jackpots paying out the cheese!\nWe all win together! 🍕`
 
     try {
       const actions = sdk.actions as {
         openUrl?: (url: string) => Promise<void>
       }
 
-      const castUrl = `https://warpcast.com/~/compose?text=${encodeURIComponent(shareText)}&embeds[]=${encodeURIComponent(SHARE_BASE_URL)}`
+      const castUrl = `https://warpcast.com/~/compose?text=${encodeURIComponent(shareText)}&embeds[]=${encodeURIComponent(referralShareUrl)}`
 
       if (typeof actions.openUrl === 'function') {
         await actions.openUrl(castUrl)
@@ -293,7 +300,7 @@ export function PizzaPartyResultPopup() {
       console.error('Failed to share:', error)
 
       try {
-        await navigator.clipboard.writeText(`${shareText}\n${SHARE_BASE_URL}`)
+        await navigator.clipboard.writeText(`${shareText}\n${referralShareUrl}`)
         alert('Share text copied to clipboard!')
       } catch (clipboardError) {
         console.error('Clipboard failed:', clipboardError)
