@@ -411,7 +411,7 @@ export default function LeaderboardPage({
     )
   }
 
-  const renderWinnerRow = (winner: WinnerDisplay, position: number) => {
+  const renderWinnerRow = (winner: WinnerDisplay, position: number, isWeekly: boolean = false) => {
     const style = getPositionStyle(position)
     const isPlaceholder = !!winner.isPlaceholder
     const isCurrentUser = !isPlaceholder && address?.toLowerCase() === winner.address.toLowerCase()
@@ -463,7 +463,7 @@ export default function LeaderboardPage({
         <div className="text-right leading-tight">
           {/* ✅ THIS GAME'S PAYOUT (green) - USD value won in THIS specific game */}
           <span className="block text-lg font-bold text-green-600" style={customFontStyle}>
-            $1.50
+            {isWeekly ? '$6.52' : '$1.50'}
           </span>
           <span className="block text-lg font-bold text-green-600" style={customFontStyle}>
             VMF
@@ -579,7 +579,7 @@ export default function LeaderboardPage({
                   <div className="space-y-3">
                     {weeklyWinners.map((winner, index) => (
                       <div key={`weekly-${winner.address}-${index}`}>
-                        {renderWinnerRow(winner, index + 1)}
+                        {renderWinnerRow(winner, index + 1, true)}
                       </div>
                     ))}
                   </div>
