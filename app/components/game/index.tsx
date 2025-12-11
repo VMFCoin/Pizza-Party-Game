@@ -274,8 +274,8 @@ function GamePageContent({ onNavigateToWeekly, onNavigateToLeaderboard }: GamePa
   const referralCode = referralInfo?.referralCode ?? ''
   const referralShareUrl = referralCode ? `${SHARE_BASE_URL}${referralCode}` : ''
   const shareText = referralCode
-    ? `🍕 Join Pizza Party to win some cheesy Jackpots of $VMF!\nCome grab a slice with us. Daily and Weekly Jackpots, use my referral code: ${referralCode}.\nEarn toppings and the jackpot grows! We all win together!! 🍕`
-    : '🍕 Join Pizza Party to win some cheesy Jackpots of $VMF!\nCome grab a slice with us. Daily and Weekly Jackpots.\nEarn toppings and the jackpot grows! We all win together!! 🍕'
+    ? `🍕 Join Pizza Party to win some cheesy Jackpots of $VMF!\n\nCome grab a slice with us. Daily and Weekly Jackpots, use my referral code: ${referralCode}.\n\nEarn toppings and the jackpot grows! We all win together!! 🍕`
+    : '🍕 Join Pizza Party to win some cheesy Jackpots of $VMF!\n\nCome grab a slice with us. Daily and Weekly Jackpots.\n\nEarn toppings and the jackpot grows! We all win together!! 🍕'
 
   const tryFarcasterShare = useCallback(async (url: string, text: string) => {
     const actions = sdk.actions as {

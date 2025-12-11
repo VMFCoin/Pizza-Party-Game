@@ -280,8 +280,8 @@ export function PizzaPartyResultPopup() {
     const referralShareUrl = referralCode ? `${SHARE_BASE_URL}${referralCode}` : SHARE_BASE_URL
 
     const shareText = referralCode
-      ? `🍕 Just sliced $${usdValue} of $VMF in Pizza Party! Who's next? Come get this dough!\nDaily and Weekly Jackpots paying out the cheese, use my referral code: ${referralCode}\nWe all win together! 🍕`
-      : `🍕 Just sliced $${usdValue} of $VMF in Pizza Party! Who's next? Come get this dough!\nDaily and Weekly Jackpots paying out the cheese!\nWe all win together! 🍕`
+      ? `🍕 Just sliced $${usdValue} of $VMF in Pizza Party! Who's next? Come get this dough!\n\nDaily and Weekly Jackpots paying out the cheese, use my referral code: ${referralCode}\n\nWe all win together! 🍕`
+      : `🍕 Just sliced $${usdValue} of $VMF in Pizza Party! Who's next? Come get this dough!\n\nDaily and Weekly Jackpots paying out the cheese!\n\nWe all win together! 🍕`
 
     try {
       const actions = sdk.actions as {
