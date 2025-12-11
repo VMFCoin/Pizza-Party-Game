@@ -65,7 +65,9 @@ export async function generateMetadata(): Promise<Metadata> {
           },
         },
       }),
-      // Base manifest (ADD THIS)
+      // Base app ID for Mini App discovery
+      'base:app_id': '69254ad0547fca5d081313c0',
+      // Base manifest
       'miniapp:manifest': JSON.stringify({
         name: 'Pizza Party',
         iconUrl: remoteOgImage,
