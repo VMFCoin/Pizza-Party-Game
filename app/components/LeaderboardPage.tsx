@@ -416,17 +416,12 @@ export default function LeaderboardPage({
     const isPlaceholder = !!winner.isPlaceholder
     const isCurrentUser = !isPlaceholder && address?.toLowerCase() === winner.address.toLowerCase()
 
-    // For game 18 and earlier, use hardcoded values. For game 19+, calculate dynamically
+    // Calculate USD value - weekly game 4 and earlier uses hardcoded, all else calculates dynamically
     const getUsdValue = () => {
-      if (isWeekly) {
-        // Weekly: game 4 and earlier use hardcoded, game 5+ calculate
-        if (gameId <= 4) return '$6.52'
-        return `$${(Number(winner.thisGamePayout) * vmfUsd).toFixed(2)}`
-      } else {
-        // Daily: game 18 and earlier use hardcoded, game 19+ calculate
-        if (gameId <= 18) return '$1.50'
-        return `$${(Number(winner.thisGamePayout) * vmfUsd).toFixed(2)}`
+      if (isWeekly && gameId <= 4) {
+        return '$6.52'
       }
+      return `$${(Number(winner.thisGamePayout) * vmfUsd).toFixed(2)}`
     }
 
     return (
@@ -557,7 +552,7 @@ export default function LeaderboardPage({
                   <div className="space-y-3">
                     {dailyWinners.map((winner, index) => (
                       <div key={`daily-${winner.address}-${index}`}>
-                        {renderWinnerRow(winner, index + 1, false, previousDailyGameId)}
+                        {renderWinnerRow(winner, index + 1)}
                       </div>
                     ))}
                   </div>

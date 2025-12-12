@@ -5,6 +5,7 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import "@openzeppelin/contracts/token/ERC20/extensions/IERC20Permit.sol";
 
 
 /**
@@ -181,6 +182,43 @@ contract PizzaParty is Ownable, ReentrancyGuard {
         // Maximum: 1000 VMF (when VMF = $0.001 per token, entry = 1000 VMF = $1)
         require(amountPaid >= MIN_ENTRY_FEE, "Amount too low");   // Must be >= 0.01 VMF
         require(amountPaid <= MAX_ENTRY_FEE, "Amount too high"); // Must be <= 1000 VMF
+        _enterDaily(msg.sender, amountPaid);
+    }
+
+    /**
+     * @dev Enter daily game with permit (single transaction - no prior approval needed)
+     * Uses EIP-2612 permit to approve and enter in one transaction
+     * @param amountPaid VMF amount to pay (must be within MIN/MAX bounds)
+     * @param deadline Timestamp after which the permit is no longer valid
+     * @param v Recovery byte of the signature
+     * @param r Half of the ECDSA signature pair
+     * @param s Half of the ECDSA signature pair
+     */
+    function enterDailyGameWithPermit(
+        uint256 amountPaid,
+        uint256 deadline,
+        uint8 v,
+        bytes32 r,
+        bytes32 s
+    ) external nonReentrant {
+        require(amountPaid >= MIN_ENTRY_FEE, "Amount too low");
+        require(amountPaid <= MAX_ENTRY_FEE, "Amount too high");
+
+        // Use try/catch for permit as recommended by OpenZeppelin
+        // This handles cases where:
+        // 1. User already has sufficient allowance (permit would fail)
+        // 2. Permit was frontrun (someone else submitted it first)
+        // 3. Smart contract wallets that can't sign permits
+        try IERC20Permit(address(vmfToken)).permit(
+            msg.sender,
+            address(this),
+            amountPaid,
+            deadline,
+            v,
+            r,
+            s
+        ) {} catch {}
+
         _enterDaily(msg.sender, amountPaid);
     }
     
