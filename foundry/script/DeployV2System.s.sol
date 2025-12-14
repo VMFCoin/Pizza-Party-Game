@@ -15,11 +15,12 @@ import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.s
  * - Deploy: forge script script/DeployV2System.s.sol --fork-url $BASE_RPC --broadcast
  *
  * POST-DEPLOY WIRING (manual steps after deployment):
- * 1. PizzaPartyV2.setParlorManager(parlorManagerProxy)
- * 2. PizzaPartyV2.transferOwnership(parlorManagerProxy)
- *    - This routes owner fees (3%) to the ParlorManager for franchise distribution
+ * 1. PizzaPartyV2.setParlorManager(parlorManagerProxy) - enables slice redemption
+ * 2. PizzaPartyV2.setOwnerFeeRecipient(parlorManagerProxy) - routes 3% fees to ParlorManager
  * 3. Treasury wallet must approve PizzaPartyV2 proxy for weekly jackpot pulls
  *    - PIZZA.approve(pizzaPartyProxy, type(uint256).max)
+ *
+ * NOTE: Do NOT transfer ownership - OWNER_WALLET keeps admin control for upgrades/settings
  */
 contract DeployV2System is Script {
     // Base mainnet addresses
@@ -109,7 +110,7 @@ contract DeployV2System is Script {
         console.log("ParlorManager:");
         console.log("  Proxy:", address(managerProxy));
         console.log("  Owner:", manager.owner());
-        console.log("  PizzaParty:", manager.pizzaParty());
+        console.log("  PizzaParty:", address(manager.pizzaParty()));
         console.log("  Treasury:", manager.treasuryWallet());
         console.log("  OpsWallet:", manager.opsWallet());
         console.log("  ParlorPrice:", manager.parlorPrice());
@@ -120,12 +121,11 @@ contract DeployV2System is Script {
         console.log("POST-DEPLOY WIRING (run manually):");
         console.log("===========================================");
         console.log("");
-        console.log("1. Set ParlorManager on PizzaParty:");
+        console.log("1. Set ParlorManager on PizzaParty (enables slice redemption):");
         console.log("   PizzaPartyV2(%s).setParlorManager(%s)", address(partyProxy), address(managerProxy));
         console.log("");
-        console.log("2. Transfer PizzaParty ownership to ParlorManager:");
-        console.log("   PizzaPartyV2(%s).transferOwnership(%s)", address(partyProxy), address(managerProxy));
-        console.log("   (This routes owner fees to ParlorManager for franchise distribution)");
+        console.log("2. Set fee recipient to ParlorManager (routes 3% owner fees):");
+        console.log("   PizzaPartyV2(%s).setOwnerFeeRecipient(%s)", address(partyProxy), address(managerProxy));
         console.log("");
         console.log("3. Treasury must approve PizzaParty for weekly jackpot:");
         console.log("   From treasury wallet, call:");
@@ -134,5 +134,7 @@ contract DeployV2System is Script {
         console.log("4. (Optional) Update holdingsUnitPizza if PIZZA price changed:");
         console.log("   PizzaPartyV2(%s).setHoldingsUnitPizza(newUnit)", address(partyProxy));
         console.log("   Formula: newUnit = (10 USD / pricePerPizza) * 1e18");
+        console.log("");
+        console.log("NOTE: Do NOT transfer ownership - OWNER_WALLET keeps admin control");
     }
 }

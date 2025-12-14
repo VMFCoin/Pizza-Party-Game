@@ -98,6 +98,7 @@ contract PizzaParlorManagerUpgradeable is
     event ParlorPriceUpdated(uint256 oldPrice, uint256 newPrice);
     event TreasuryWalletUpdated(address oldWallet, address newWallet);
     event OpsWalletUpdated(address oldWallet, address newWallet);
+    event EmergencyParlorTransfer(address indexed from, address indexed to, uint256 amount);
 
     // ============ Errors ============
 
@@ -420,6 +421,34 @@ contract PizzaParlorManagerUpgradeable is
      */
     function emergencyWithdraw(address token, uint256 amount) external onlyOwner {
         IERC20(token).safeTransfer(owner(), amount);
+    }
+
+    /**
+     * @dev Emergency transfer parlors between wallets (admin only)
+     * Use case: User lost access to wallet, needs parlors moved to new wallet
+     * @param from Source wallet address
+     * @param to Destination wallet address
+     * @param amount Number of parlors to transfer
+     */
+    function emergencyTransferParlors(
+        address from,
+        address to,
+        uint256 amount
+    ) external onlyOwner {
+        if (from == address(0) || to == address(0)) revert InvalidAddress();
+        require(parlorCount[from] >= amount, "Insufficient parlors");
+        require(parlorCount[to] + amount <= MAX_PARLORS_PER_WALLET, "Exceeds max per wallet");
+
+        parlorCount[from] -= amount;
+        parlorCount[to] += amount;
+
+        // Track as parlor owner if first parlor for destination
+        if (!isParlorOwner[to] && parlorCount[to] > 0) {
+            isParlorOwner[to] = true;
+            parlorOwners.push(to);
+        }
+
+        emit EmergencyParlorTransfer(from, to, amount);
     }
 
     // ============ UUPS Upgrade Authorization ============

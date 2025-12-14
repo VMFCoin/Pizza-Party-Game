@@ -28,7 +28,6 @@ contract WireV2System is Script {
         address parlorManagerProxy = vm.envAddress("PARLOR_MANAGER_PROXY");
 
         PizzaPartyV2Upgradeable party = PizzaPartyV2Upgradeable(pizzaPartyProxy);
-        PizzaParlorManagerUpgradeable manager = PizzaParlorManagerUpgradeable(parlorManagerProxy);
 
         console.log("===========================================");
         console.log("WIRING V2 SYSTEM");
@@ -37,11 +36,12 @@ contract WireV2System is Script {
         console.log("ParlorManager Proxy:", parlorManagerProxy);
         console.log("Current PizzaParty Owner:", party.owner());
         console.log("Current ParlorManager:", party.parlorManager());
+        console.log("Current OwnerFeeRecipient:", party.ownerFeeRecipient());
         console.log("");
 
         vm.startBroadcast(deployerPrivateKey);
 
-        // Step 1: Set ParlorManager on PizzaParty
+        // Step 1: Set ParlorManager on PizzaParty (enables slice redemption)
         console.log("Step 1: Setting ParlorManager on PizzaParty...");
         if (party.parlorManager() != parlorManagerProxy) {
             party.setParlorManager(parlorManagerProxy);
@@ -50,16 +50,17 @@ contract WireV2System is Script {
             console.log("  Already set correctly");
         }
 
-        // Step 2: Transfer PizzaParty ownership to ParlorManager
-        // This routes owner fees (3%) to ParlorManager for franchise distribution
+        // Step 2: Set OwnerFeeRecipient to ParlorManager
+        // This routes 3% owner fees to ParlorManager for franchise distribution
+        // NOTE: Do NOT transfer ownership - OWNER_WALLET keeps admin control
         console.log("");
-        console.log("Step 2: Transferring PizzaParty ownership to ParlorManager...");
-        if (party.owner() != parlorManagerProxy) {
-            party.transferOwnership(parlorManagerProxy);
-            console.log("  Ownership transferred to:", parlorManagerProxy);
-            console.log("  (Owner fees will now flow to ParlorManager)");
+        console.log("Step 2: Setting OwnerFeeRecipient to ParlorManager...");
+        if (party.ownerFeeRecipient() != parlorManagerProxy) {
+            party.setOwnerFeeRecipient(parlorManagerProxy);
+            console.log("  OwnerFeeRecipient set to:", party.ownerFeeRecipient());
+            console.log("  (3% owner fees will now flow to ParlorManager)");
         } else {
-            console.log("  Already owned by ParlorManager");
+            console.log("  Already set correctly");
         }
 
         vm.stopBroadcast();
@@ -71,6 +72,7 @@ contract WireV2System is Script {
         console.log("===========================================");
         console.log("PizzaParty Owner:", party.owner());
         console.log("PizzaParty ParlorManager:", party.parlorManager());
+        console.log("PizzaParty OwnerFeeRecipient:", party.ownerFeeRecipient());
         console.log("");
         console.log("REMAINING MANUAL STEP:");
         console.log("Treasury wallet must approve PizzaParty for weekly jackpot:");

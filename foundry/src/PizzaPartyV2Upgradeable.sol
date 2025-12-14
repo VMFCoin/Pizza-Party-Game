@@ -77,6 +77,10 @@ contract PizzaPartyV2Upgradeable is OwnableUpgradeable, UUPSUpgradeable, Reentra
     address[] public charityWallets;
 
     uint256 public ownerFeeBPS; // Default 3%, flows to PizzaParlorManager
+    address public ownerFeeRecipient; // Address to receive owner fees (default: owner())
+
+    // DST handling: 19 = PDT (March-November), 20 = PST (November-March)
+    uint256 public noonPacificUtcHour; // Hour in UTC that corresponds to 12pm Pacific
 
     uint256 public dailyGameId;
     uint256 public weeklyGameId;
@@ -206,6 +210,7 @@ contract PizzaPartyV2Upgradeable is OwnableUpgradeable, UUPSUpgradeable, Reentra
         treasuryWallet = _treasury;
         charityWallets = _charities;
         ownerFeeBPS = 300; // Default 3%
+        noonPacificUtcHour = 20; // PST: 12pm Pacific = 20:00 UTC
         dailyGameId = 1;
         weeklyGameId = 1;
 
@@ -242,13 +247,19 @@ contract PizzaPartyV2Upgradeable is OwnableUpgradeable, UUPSUpgradeable, Reentra
     /**
      * @dev Enter daily game with dynamic amount
      * @param amountPaid PIZZA amount to pay (must be within MIN/MAX bounds)
+     * @param referralCode Optional referral code (empty string if none)
      */
-    function enterDailyGame(uint256 amountPaid) external nonReentrant {
-        // Entry fee is always $1 USD, but PIZZA amount varies with PIZZA price
-        // Minimum: 0.01 PIZZA (when PIZZA = $100 per token, entry = 0.01 PIZZA = $1)
-        // Maximum: 1000 PIZZA (when PIZZA = $0.001 per token, entry = 1000 PIZZA = $1)
-        require(amountPaid >= MIN_ENTRY_FEE, "Amount too low");   // Must be >= 0.01 PIZZA
-        require(amountPaid <= MAX_ENTRY_FEE, "Amount too high"); // Must be <= 1000 PIZZA
+    function enterDailyGame(uint256 amountPaid, string calldata referralCode) external nonReentrant {
+        require(amountPaid >= MIN_ENTRY_FEE, "Amount too low");
+        require(amountPaid <= MAX_ENTRY_FEE, "Amount too high");
+
+        // Process referral if provided (only for new players)
+        if (bytes(referralCode).length > 0) {
+            require(_isNewPlayer(msg.sender), "Referral only on first play");
+            require(!hasUsedReferral[msg.sender], "Already used referral");
+            _processReferral(msg.sender, referralCode);
+        }
+
         _enterDaily(msg.sender, amountPaid);
     }
 
@@ -256,6 +267,7 @@ contract PizzaPartyV2Upgradeable is OwnableUpgradeable, UUPSUpgradeable, Reentra
      * @dev Enter daily game with permit (single transaction - no prior approval needed)
      * Uses EIP-2612 permit to approve and enter in one transaction
      * @param amountPaid PIZZA amount to pay (must be within MIN/MAX bounds)
+     * @param referralCode Optional referral code (empty string if none)
      * @param deadline Timestamp after which the permit is no longer valid
      * @param v Recovery byte of the signature
      * @param r Half of the ECDSA signature pair
@@ -263,6 +275,7 @@ contract PizzaPartyV2Upgradeable is OwnableUpgradeable, UUPSUpgradeable, Reentra
      */
     function enterDailyGameWithPermit(
         uint256 amountPaid,
+        string calldata referralCode,
         uint256 deadline,
         uint8 v,
         bytes32 r,
@@ -271,11 +284,14 @@ contract PizzaPartyV2Upgradeable is OwnableUpgradeable, UUPSUpgradeable, Reentra
         require(amountPaid >= MIN_ENTRY_FEE, "Amount too low");
         require(amountPaid <= MAX_ENTRY_FEE, "Amount too high");
 
+        // Process referral if provided (only for new players)
+        if (bytes(referralCode).length > 0) {
+            require(_isNewPlayer(msg.sender), "Referral only on first play");
+            require(!hasUsedReferral[msg.sender], "Already used referral");
+            _processReferral(msg.sender, referralCode);
+        }
+
         // Use try/catch for permit as recommended by OpenZeppelin
-        // This handles cases where:
-        // 1. User already has sufficient allowance (permit would fail)
-        // 2. Permit was frontrun (someone else submitted it first)
-        // 3. Smart contract wallets that can't sign permits
         try IERC20Permit(address(pizzaToken)).permit(
             msg.sender,
             address(this),
@@ -287,15 +303,6 @@ contract PizzaPartyV2Upgradeable is OwnableUpgradeable, UUPSUpgradeable, Reentra
         ) {} catch {}
 
         _enterDaily(msg.sender, amountPaid);
-    }
-
-    /**
-     * @dev Use a referral code (separate from entry)
-     * @param code Referral code to use
-     */
-    function useReferralCode(string memory code) external nonReentrant {
-        require(!hasUsedReferral[msg.sender], "Already used referral");
-        _processReferral(msg.sender, code);
     }
 
     /**
@@ -327,12 +334,6 @@ contract PizzaPartyV2Upgradeable is OwnableUpgradeable, UUPSUpgradeable, Reentra
     }
 
     function _enterDaily(address player, uint256 amount) internal {
-        // Auto-settle weekly game if the claim window has ended (pass 0 for usdCents - should be set via explicit settleWeeklyGame call)
-        WeeklyGame storage week = weeklyGames[weeklyGameId];
-        if (block.timestamp >= week.claimWindowEnd && !week.settled) {
-            _settleWeeklyGame(weeklyGameId, 0);
-        }
-
         uint256 gameId = dailyGameId;
         DailyGame storage game = dailyGames[gameId];
 
@@ -442,10 +443,11 @@ contract PizzaPartyV2Upgradeable is OwnableUpgradeable, UUPSUpgradeable, Reentra
         // Select winners randomly
         address[] memory winners = _selectRandomWinners(game.players, winnerCount, gameId);
 
-        // 1. Pay owner fee (flows to PizzaParlorManager via owner())
+        // 1. Pay owner fee (flows to ownerFeeRecipient, defaults to owner())
         if (ownerFee > 0) {
-            pizzaToken.safeTransfer(owner(), ownerFee);
-            emit OwnerFeePayout(gameId, owner(), ownerFee);
+            address feeRecipient = ownerFeeRecipient != address(0) ? ownerFeeRecipient : owner();
+            pizzaToken.safeTransfer(feeRecipient, ownerFee);
+            emit OwnerFeePayout(gameId, feeRecipient, ownerFee);
         }
 
         // 2. Pay charities equally (first charity gets remainder)
@@ -463,23 +465,18 @@ contract PizzaPartyV2Upgradeable is OwnableUpgradeable, UUPSUpgradeable, Reentra
         }
 
         // 3. Pay winners from players pool
-        // DUST RULE: remainder + dust are added to winner[0] payout BEFORE sponsor split
         uint256 baseShare = playersPool / winnerCount;
         uint256 playersRemainder = playersPool - (baseShare * winnerCount);
         uint256[] memory winnerPayouts = new uint256[](winnerCount);
 
         for (uint256 i = 0; i < winnerCount; i++) {
-            // Calculate payout: base share + remainder/dust for first winner
             uint256 payout = baseShare;
-            if (i == 0) {
-                payout += playersRemainder + dust; // First winner gets remainder AND dust
-            }
 
             if (payout > 0) {
                 address sponsor = dailySliceSponsor[gameId][winners[i]];
 
                 if (sponsor != address(0)) {
-                    // 50/50 split applies to ENTIRE payout (including remainder + dust)
+                    // 50/50 split
                     uint256 sponsorCut = payout / 2;
                     uint256 playerCut = payout - sponsorCut;
 
@@ -496,6 +493,11 @@ contract PizzaPartyV2Upgradeable is OwnableUpgradeable, UUPSUpgradeable, Reentra
                     winnerPayouts[i] = payout;
                 }
             }
+        }
+
+        // Send remainder + dust to treasury
+        if (playersRemainder + dust > 0) {
+            pizzaToken.safeTransfer(treasuryWallet, playersRemainder + dust);
         }
 
         game.winners = winners;
@@ -536,6 +538,7 @@ contract PizzaPartyV2Upgradeable is OwnableUpgradeable, UUPSUpgradeable, Reentra
         uint256 holdingsBonus = _calculateHoldingsBonus(msg.sender);
         if (holdingsBonus > 0) {
             player.toppingsEarned += holdingsBonus;
+            playerStats[msg.sender].lifetimeToppings += holdingsBonus;
             emit ToppingsEarned(weekId, msg.sender, holdingsBonus, "holdings_bonus");
         }
 
@@ -618,24 +621,19 @@ contract PizzaPartyV2Upgradeable is OwnableUpgradeable, UUPSUpgradeable, Reentra
         address[] memory winners = _selectWeightedWinners(week.claimers, weekId, winnerCount);
 
         // Pay winners equally
-        // DUST RULE: remainder is added to winner[0] payout BEFORE sponsor split
         uint256 basePayoutEach = jackpot / winnerCount;
         uint256 remainder = jackpot - (basePayoutEach * winnerCount);
 
         uint256[] memory winnerPayouts = new uint256[](winnerCount);
         for (uint256 i = 0; i < winnerCount; i++) {
-            // Calculate payout: base + remainder for first winner
             uint256 payout = basePayoutEach;
-            if (i == 0) {
-                payout += remainder; // First winner gets remainder
-            }
 
             address winner = winners[i];
             address sponsor = firstSliceSponsor[winner];
             bool isFirstClaimWeek = (firstClaimWeekId[winner] == weekId);
 
             if (sponsor != address(0) && isFirstClaimWeek) {
-                // 50/50 split applies to ENTIRE payout (including remainder)
+                // 50/50 split
                 uint256 sponsorCut = payout / 2;
                 uint256 playerCut = payout - sponsorCut;
 
@@ -651,6 +649,11 @@ contract PizzaPartyV2Upgradeable is OwnableUpgradeable, UUPSUpgradeable, Reentra
                 pizzaToken.safeTransfer(winner, payout);
                 winnerPayouts[i] = payout;
             }
+        }
+
+        // Send remainder to treasury
+        if (remainder > 0) {
+            pizzaToken.safeTransfer(treasuryWallet, remainder);
         }
 
         week.winners = winners;
@@ -689,6 +692,7 @@ contract PizzaPartyV2Upgradeable is OwnableUpgradeable, UUPSUpgradeable, Reentra
 
     function createReferralCode() external {
         require(bytes(playerReferralCode[msg.sender]).length == 0, "Code exists");
+        require(!_isNewPlayer(msg.sender), "Must play first");
 
         string memory code = _generateCode(msg.sender);
 
@@ -756,6 +760,7 @@ contract PizzaPartyV2Upgradeable is OwnableUpgradeable, UUPSUpgradeable, Reentra
 
         // Award 2 toppings to referrer
         referrerWeekly.toppingsEarned += 2;
+        playerStats[referrer].lifetimeToppings += 2;
         playerStats[referrer].lifetimeReferrals += 1;
 
         emit ReferralUsed(referrer, referee);
@@ -892,10 +897,9 @@ contract PizzaPartyV2Upgradeable is OwnableUpgradeable, UUPSUpgradeable, Reentra
         emit WeeklyGameStarted(gameId, claimStart, claimEnd);
     }
 
-    function _nextNoonPT(uint256 timestamp) internal pure returns (uint256) {
-        uint256 PT_OFFSET = 8 hours; // PST/PDT offset (PT = UTC-8)
+    function _nextNoonPT(uint256 timestamp) internal view returns (uint256) {
         uint256 dayStart = (timestamp / 1 days) * 1 days;
-        uint256 noonPT = dayStart + (12 hours + PT_OFFSET); // 12pm PT = 20:00 UTC
+        uint256 noonPT = dayStart + (noonPacificUtcHour * 1 hours);
 
         if (timestamp >= noonPT) {
             return noonPT + 1 days;
@@ -903,21 +907,21 @@ contract PizzaPartyV2Upgradeable is OwnableUpgradeable, UUPSUpgradeable, Reentra
         return noonPT;
     }
 
-    function _nextSundayNoonPT(uint256 timestamp) internal pure returns (uint256) {
+    function _nextSundayNoonPT(uint256 timestamp) internal view returns (uint256) {
         uint256 THURSDAY_EPOCH = 4 days;
         uint256 daysSinceEpoch = (timestamp + THURSDAY_EPOCH) / 1 days;
         uint256 dayOfWeek = daysSinceEpoch % 7;
         uint256 daysUntilSunday = (7 - dayOfWeek) % 7;
 
         if (daysUntilSunday == 0) {
-            uint256 sundayNoon = (timestamp / 1 days) * 1 days + 20 hours;
+            uint256 sundayNoon = (timestamp / 1 days) * 1 days + (noonPacificUtcHour * 1 hours);
             if (timestamp >= sundayNoon) {
                 daysUntilSunday = 7;
             }
         }
 
         uint256 nextSundayMidnight = ((timestamp / 1 days) + daysUntilSunday) * 1 days;
-        return nextSundayMidnight + 20 hours; // 12pm PT = 20:00 UTC
+        return nextSundayMidnight + (noonPacificUtcHour * 1 hours);
     }
 
     // ============ View Functions ============
@@ -1074,6 +1078,23 @@ contract PizzaPartyV2Upgradeable is OwnableUpgradeable, UUPSUpgradeable, Reentra
         uint256 oldFee = ownerFeeBPS;
         ownerFeeBPS = _bps;
         emit OwnerFeeUpdated(oldFee, _bps);
+    }
+
+    /**
+     * @dev Set the owner fee recipient address
+     * @param _recipient New fee recipient (address(0) to use owner())
+     */
+    function setOwnerFeeRecipient(address _recipient) external onlyOwner {
+        ownerFeeRecipient = _recipient;
+    }
+
+    /**
+     * @dev Set the UTC hour for 12pm Pacific (DST handling)
+     * @param _hour 19 for PDT (March-November), 20 for PST (November-March)
+     */
+    function setNoonPacificUtcHour(uint256 _hour) external onlyOwner {
+        require(_hour == 19 || _hour == 20, "Invalid hour");
+        noonPacificUtcHour = _hour;
     }
 
     /**
