@@ -1,0 +1,29 @@
+[profile.default]
+src = "src"
+out = "out"
+libs = ["lib"]
+
+# Solidity version - use 0.8.24 for OZ v5 compatibility
+solc = "0.8.24"
+
+# Enable via-ir to handle stack depth issues
+via_ir = true
+optimizer = true
+optimizer_runs = 200
+
+# Remappings - override the auto-generated ones
+# Priority: @openzeppelin/contracts/ must point to OZ v5 (not local oz/)
+remappings = [
+    # OZ v5 contracts (from upgradeable lib's linked contracts)
+    "@openzeppelin/contracts/=lib/openzeppelin-contracts-upgradeable/lib/openzeppelin-contracts/contracts/",
+    # OZ v5 upgradeable contracts
+    "@openzeppelin/contracts-upgradeable/=lib/openzeppelin-contracts-upgradeable/contracts/",
+    # Forge std
+    "forge-std/=lib/forge-std/src/",
+    # Convenience aliases
+    "openzeppelin-contracts/=lib/openzeppelin-contracts-upgradeable/lib/openzeppelin-contracts/",
+    "openzeppelin-contracts-upgradeable/=lib/openzeppelin-contracts-upgradeable/",
+]
+
+# Allow paths for imports
+fs_permissions = [{ access = "read", path = "./"}]

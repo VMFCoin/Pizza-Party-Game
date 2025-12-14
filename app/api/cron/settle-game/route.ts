@@ -135,6 +135,7 @@ export async function GET(request: NextRequest) {
           address: CONTRACT_ADDRESS,
           abi: SETTLE_ABI,
           functionName: 'settleDailyGame',
+          gas: 2_000_000n, // Increased gas limit for settlement with many players/charities
         });
 
         // Wait for confirmation
@@ -180,6 +181,7 @@ export async function GET(request: NextRequest) {
             address: CONTRACT_ADDRESS,
             abi: SETTLE_ABI,
             functionName: 'settleWeeklyGame',
+            gas: 2_000_000n, // Increased gas limit for settlement with many players
           });
 
           const receipt = await publicClient.waitForTransactionReceipt({ hash });

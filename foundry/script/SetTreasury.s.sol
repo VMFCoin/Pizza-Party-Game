@@ -1,25 +1,30 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.20;
+pragma solidity ^0.8.24;
 
 import {Script, console} from "forge-std/Script.sol";
-import {PizzaParty} from "../src/PizzaParty.sol";
+
+interface IPizzaPartyAdmin {
+    function owner() external view returns (address);
+    function treasuryWallet() external view returns (address);
+    function setTreasuryWallet(address newWallet) external;
+}
 
 contract SetTreasury is Script {
     address constant PIZZA_PARTY_ADDRESS = 0x5432260CfcAc5C45773449089EA603a6e5Dc7DA7;
     address constant NEW_TREASURY = 0x4479b00012D35894278C754385f5640A7AD5A27E;
-    
+
     function run() external {
         uint256 deployerPrivateKey = vm.envUint("PRIVATE_KEY");
-        
+
         vm.startBroadcast(deployerPrivateKey);
-        
-        PizzaParty pizzaParty = PizzaParty(PIZZA_PARTY_ADDRESS);
-        
+
+        IPizzaPartyAdmin pizzaParty = IPizzaPartyAdmin(PIZZA_PARTY_ADDRESS);
+
         console.log("Current Treasury:", pizzaParty.treasuryWallet());
         console.log("Contract Owner:", pizzaParty.owner());
         console.log("Deployer:", vm.addr(deployerPrivateKey));
         console.log("New Treasury:", NEW_TREASURY);
-        
+
         // Check if treasury needs to be updated
         address currentTreasury = pizzaParty.treasuryWallet();
         if (currentTreasury == NEW_TREASURY) {
@@ -30,7 +35,7 @@ contract SetTreasury is Script {
             console.log("Treasury updated!");
             console.log("New Treasury:", pizzaParty.treasuryWallet());
         }
-        
+
         vm.stopBroadcast();
     }
 }
