@@ -279,7 +279,7 @@ export default function HomePage() {
                   fontSize: isMobile ? 18 : 20
                 }}
               >
-                🍕 OWN A FRANCHISE 🍕
+                🍍 OWN A FRANCHISE 🍍
               </Button>
 
             </div>
