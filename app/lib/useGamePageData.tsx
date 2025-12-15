@@ -270,7 +270,11 @@ export function useGamePageData() {
   // ================= PIZZA Balance =================
   const [pizzaBalance, setPizzaBalance] = useState<bigint>(0n)
   const fetchPizzaBalance = useCallback(async () => {
-    if (!wallet.address) return
+    if (!wallet.address) {
+      console.debug('fetchPizzaBalance: No wallet address yet')
+      return
+    }
+    console.debug('fetchPizzaBalance: Fetching for', wallet.address, 'from token', PIZZA_TOKEN_ADDRESS)
     try {
       const balanceData = await readContract(wagmiConfig, {
         address: PIZZA_TOKEN_ADDRESS as `0x${string}`,
@@ -284,10 +288,11 @@ export function useGamePageData() {
         : BigInt(String(balanceData ?? '0'))
 
       setPizzaBalance(balanceBigInt)
-      console.debug('PIZZA balance fetched:', balanceBigInt.toString())
+      const balanceVMF = Number(balanceBigInt) / 1e18
+      console.debug('✅ VMF balance fetched:', balanceBigInt.toString(), `(${balanceVMF.toFixed(2)} VMF)`)
 
     } catch (err) {
-      console.error('Failed to fetch PIZZA balance', err)
+      console.error('❌ Failed to fetch VMF balance:', err)
       setPizzaBalance(0n)
     }
   }, [wallet.address])
@@ -1084,8 +1089,11 @@ export function useGamePageData() {
   const openWalletModal = useCallback(() => open(), [open])
 
   useEffect(() => {
-    console.debug('pizzaBalance, entryFeeWei, hasEnoughPizza', pizzaBalance.toString(), entryFeeWei.toString(), hasEnoughPizza)
-  }, [pizzaBalance, entryFeeWei, hasEnoughPizza])
+    const balanceVMF = Number(pizzaBalance) / 1e18
+    const entryFeeVMF = Number(entryFeeWei) / 1e18
+    console.debug(`💰 Balance Check: ${balanceVMF.toFixed(2)} VMF, Entry Fee: ${entryFeeVMF.toFixed(2)} VMF, Has Enough: ${hasEnoughPizza}`)
+    console.debug(`   Price: $${pizzaUsdPrice.toFixed(4)}/VMF, Raw balance: ${pizzaBalance.toString()}, Raw fee: ${entryFeeWei.toString()}`)
+  }, [pizzaBalance, entryFeeWei, hasEnoughPizza, pizzaUsdPrice])
 
   return {
     wallet,
