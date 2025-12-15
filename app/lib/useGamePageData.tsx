@@ -917,6 +917,80 @@ export function useGamePageData() {
     }
 
     // ============================================================
+    // VALIDATE REFERRAL CODE (if provided)
+    // ============================================================
+    if (code.length > 0) {
+      console.log('=== VALIDATING REFERRAL CODE ===')
+
+      // Check format: must be PZ + 8 chars = 10 total
+      if (code.length !== 10) {
+        alert(`Invalid referral code format. Codes should be 10 characters (e.g., PZ12345678). You entered: ${code}`)
+        return
+      }
+      if (!code.startsWith('PZ')) {
+        alert(`Invalid referral code format. Codes must start with "PZ". You entered: ${code}`)
+        return
+      }
+
+      try {
+        // Check if code is registered in the contract
+        const referrerAddress = await readContract(wagmiConfig, {
+          address: PIZZA_PARTY_ADDRESS as `0x${string}`,
+          abi: PIZZA_PARTY_ABI,
+          functionName: 'getPlayerFromCode',
+          args: [code],
+        }) as `0x${string}`
+
+        console.log('Referrer address from code:', referrerAddress)
+
+        if (!referrerAddress || referrerAddress === '0x0000000000000000000000000000000000000000') {
+          alert(`Referral code "${code}" is not registered. The code owner needs to play at least once on the new contract first to activate their referral code.`)
+          return
+        }
+
+        // Check if referrer has played (lifetimeToppings > 0)
+        const referrerStats = await readContract(wagmiConfig, {
+          address: PIZZA_PARTY_ADDRESS as `0x${string}`,
+          abi: PIZZA_PARTY_ABI,
+          functionName: 'getPlayerLifetimeStats',
+          args: [referrerAddress],
+        }) as readonly [bigint, bigint, bigint, bigint, bigint] | {
+          lifetimeToppings: bigint
+        }
+
+        const referrerToppings = Array.isArray(referrerStats)
+          ? referrerStats[3]
+          : (referrerStats as { lifetimeToppings: bigint }).lifetimeToppings
+
+        console.log('Referrer lifetime toppings:', referrerToppings.toString())
+
+        if (referrerToppings === 0n) {
+          alert(`The referral code owner hasn't played yet on the new contract. They need to play at least once first.`)
+          return
+        }
+
+        // Check if current player has already used a referral
+        const alreadyUsedReferral = await readContract(wagmiConfig, {
+          address: PIZZA_PARTY_ADDRESS as `0x${string}`,
+          abi: PIZZA_PARTY_ABI,
+          functionName: 'hasUsedReferral',
+          args: [wallet.address as `0x${string}`],
+        }) as boolean
+
+        if (alreadyUsedReferral) {
+          alert(`You have already used a referral code before. Referral codes can only be used once per player.`)
+          return
+        }
+
+        console.log('✅ Referral code validated successfully')
+      } catch (validateErr) {
+        console.error('Failed to validate referral code:', validateErr)
+        alert(`Failed to validate referral code "${code}". Please try again or enter without a code.`)
+        return
+      }
+    }
+
+    // ============================================================
     // CRITICAL: Save "before" snapshot for accurate win tracking
     // ============================================================
     try {
