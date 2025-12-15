@@ -999,35 +999,15 @@ export function useGamePageData() {
       console.log('s:', s)
 
       // 5. Call enterDailyGameWithPermit - single transaction!
+      // Contract signature: enterDailyGameWithPermit(uint256 amountPaid, string referralCode, uint256 deadline, uint8 v, bytes32 r, bytes32 s)
       console.log('=== CALLING enterDailyGameWithPermit ===')
+      console.log('Referral code being passed:', code || '(empty string)')
       const result = await writeContract({
         address: PIZZA_PARTY_ADDRESS as `0x${string}`,
         abi: PIZZA_PARTY_ABI,
         functionName: 'enterDailyGameWithPermit',
-        args: [entryFeeWei, deadline, v, r, s],
+        args: [entryFeeWei, code, deadline, v, r, s],
       })
-
-      // If referral code provided and this is first entry, use it separately
-      if (code && code.length > 0 && playerInfo?.dailyEntries === 0n) {
-        try {
-          // Wait a bit for entry transaction to confirm, then use referral
-          setTimeout(async () => {
-            try {
-              await writeContract({
-                address: PIZZA_PARTY_ADDRESS as `0x${string}`,
-                abi: PIZZA_PARTY_ABI,
-                functionName: 'useReferralCode',
-                args: [code],
-              })
-              console.log('✅ Referral code used successfully')
-            } catch (refErr) {
-              console.warn('⚠️ Failed to use referral code (non-critical):', refErr)
-            }
-          }, 2000)
-        } catch (refErr) {
-          console.warn('⚠️ Referral code handling error (non-critical):', refErr)
-        }
-      }
 
       console.log('✅ Transaction sent successfully:', result)
       setHasEnteredToday(true)

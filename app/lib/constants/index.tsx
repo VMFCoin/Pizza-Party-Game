@@ -110,6 +110,7 @@ export const PIZZA_PARTY_ABI = [
     stateMutability: 'nonpayable',
     inputs: [
       { type: 'uint256', name: 'amountPaid' },
+      { type: 'string', name: 'referralCode' },
       { type: 'uint256', name: 'deadline' },
       { type: 'uint8', name: 'v' },
       { type: 'bytes32', name: 'r' },
