@@ -2,23 +2,23 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { toZonedTime, fromZonedTime } from 'date-fns-tz'
-import { parseAbiItem } from 'viem'
-import { readContract, watchBlockNumber, getPublicClient, signTypedData } from '@wagmi/core'
+import { parseAbiItem, maxUint256 } from 'viem'
+import { readContract, watchBlockNumber, getPublicClient } from '@wagmi/core'
 import { useAccount, useChainId, useWriteContract } from 'wagmi'
 import { useAppKit } from '@reown/appkit/react'
 import {
   GAME_CONSTANTS,
   PIZZA_PARTY_ADDRESS,
   PIZZA_PARTY_ABI,
-  PIZZA_TOKEN_ADDRESS,
-  PIZZA_TOKEN_ABI,
+  VMF_TOKEN_ADDRESS,
+  VMF_TOKEN_ABI,
 } from './constants'
 import { wagmiConfig } from '../components/config/wagmiConfig'
 
 const PACIFIC_TZ = 'America/Los_Angeles'
 const BASE_CHAIN_ID = 8453
-const WEI_PER_PIZZA = 10n ** 18n
-const DEFAULT_PIZZA_USD_PRICE = 0.01
+const WEI_PER_VMF = 10n ** 18n
+const DEFAULT_VMF_USD_PRICE = 0.01
 const TOPPINGS_EARNED_EVENT = parseAbiItem(
   'event ToppingsEarned(uint256 indexed weekId, address indexed player, uint256 amount, string reason)',
 )
@@ -131,7 +131,7 @@ interface WeeklyData {
   error: Error | null
 }
 
-const _isRecord = (value: unknown): value is Record<string, unknown> =>
+const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null
 
 const getErrorMessage = (error: unknown): string => {
@@ -199,11 +199,11 @@ export function useGamePageData() {
     error: null as Error | null,
   }), [address, isConnected])
 
-  // ================= Dynamic PIZZA Price from DEXScreener =================
-  const [pizzaUsdPrice, setPizzaUsdPrice] = useState<number>(DEFAULT_PIZZA_USD_PRICE)
+  // ================= Dynamic VMF Price from DEXScreener =================
+  const [vmfUsdPrice, setVmfUsdPrice] = useState<number>(DEFAULT_VMF_USD_PRICE)
   const [priceOracleWorking, setPriceOracleWorking] = useState(true)
 
-  const fetchPizzaPrice = useCallback(async () => {
+  const fetchVmfPrice = useCallback(async () => {
     try {
       const response = await fetch('/api/price', {
         cache: 'no-store',
@@ -218,65 +218,65 @@ export function useGamePageData() {
       const data = await response.json()
 
       if (data.success && typeof data.priceUsd === 'number' && data.priceUsd > 0) {
-        setPizzaUsdPrice(data.priceUsd)
+        setVmfUsdPrice(data.priceUsd)
         setPriceOracleWorking(true)
-        console.debug('✅ PIZZA price updated:', `$${data.priceUsd.toFixed(6)}`)
+        console.debug('✅ VMF price updated:', `$${data.priceUsd.toFixed(6)}`)
       } else {
         // API returned error, keep existing price
         console.warn('Price API error:', data.error)
         setPriceOracleWorking(true) // Still mark as working to not break UI
       }
     } catch (err) {
-      console.error('Failed to fetch PIZZA price:', err)
+      console.error('Failed to fetch VMF price:', err)
       // Keep existing price on network error
       setPriceOracleWorking(true) // Still mark as working to not break UI
     }
   }, [])
 
-  // ================= Entry Fee (Dynamic based on PIZZA price) =================
+  // ================= Entry Fee (Dynamic based on VMF price) =================
   const entryFeeWei = useMemo(() => {
-    if (!pizzaUsdPrice || pizzaUsdPrice <= 0) {
+    if (!vmfUsdPrice || vmfUsdPrice <= 0) {
       // Fallback to default if price not available
-      return 100n * WEI_PER_PIZZA
+      return 100n * WEI_PER_VMF
     }
-
-    // Calculate PIZZA needed for $1: 1 / price
-    const pizzaPerDollar = 1 / pizzaUsdPrice
-
+    
+    // Calculate VMF needed for $1: 1 / price
+    const vmfPerDollar = 1 / vmfUsdPrice
+    
     // Convert to wei with proper rounding
-    const amountWei = BigInt(Math.floor(pizzaPerDollar * Number(WEI_PER_PIZZA)))
-
+    const amountWei = BigInt(Math.floor(vmfPerDollar * Number(WEI_PER_VMF)))
+    
     // Clamp to contract bounds
-    // Entry is always $1 USD, but PIZZA amount varies:
-    // - If PIZZA = $100: need 0.01 PIZZA (minimum)
-    // - If PIZZA = $1: need 1 PIZZA
-    // - If PIZZA = $0.001: need 1000 PIZZA (maximum)
-    const minFee = GAME_CONSTANTS.MIN_ENTRY_FEE_WEI  // 0.01 PIZZA minimum
-    const maxFee = GAME_CONSTANTS.MAX_ENTRY_FEE_WEI  // 1000 PIZZA maximum
-
-    if (amountWei < minFee) return minFee  // Clamp up to 0.01 PIZZA minimum
-    if (amountWei > maxFee) return maxFee  // Clamp down to 1000 PIZZA maximum
-
+    // Entry is always $1 USD, but VMF amount varies:
+    // - If VMF = $100: need 0.01 VMF (minimum)
+    // - If VMF = $1: need 1 VMF
+    // - If VMF = $0.001: need 1000 VMF (maximum)
+    const minFee = GAME_CONSTANTS.MIN_ENTRY_FEE_WEI  // 0.01 VMF minimum
+    const maxFee = GAME_CONSTANTS.MAX_ENTRY_FEE_WEI  // 1000 VMF maximum
+    
+    if (amountWei < minFee) return minFee  // Clamp up to 0.01 VMF minimum
+    if (amountWei > maxFee) return maxFee  // Clamp down to 1000 VMF maximum
+    
     return amountWei
-  }, [pizzaUsdPrice])
+  }, [vmfUsdPrice])
 
-  // ================= PIZZA Amount for Display =================
-  const pizzaAmount = useMemo(() => {
-    const whole = entryFeeWei / WEI_PER_PIZZA
-    const fraction = entryFeeWei % WEI_PER_PIZZA
+  // ================= VMF Amount for Display =================
+  const vmfAmount = useMemo(() => {
+    const whole = entryFeeWei / WEI_PER_VMF
+    const fraction = entryFeeWei % WEI_PER_VMF
     if (fraction === 0n) return whole.toString()
     const fractionStr = fraction.toString().padStart(18, '0').replace(/0+$/, '')
     return `${whole.toString()}.${fractionStr}`
   }, [entryFeeWei])
 
-  // ================= PIZZA Balance =================
-  const [pizzaBalance, setPizzaBalance] = useState<bigint>(0n)
-  const fetchPizzaBalance = useCallback(async () => {
+  // ================= VMF Balance =================
+  const [vmfBalance, setVmfBalance] = useState<bigint>(0n)
+  const fetchVmfBalance = useCallback(async () => {
     if (!wallet.address) return
     try {
       const balanceData = await readContract(wagmiConfig, {
-        address: PIZZA_TOKEN_ADDRESS as `0x${string}`,
-        abi: PIZZA_TOKEN_ABI,
+        address: VMF_TOKEN_ADDRESS as `0x${string}`,
+        abi: VMF_TOKEN_ABI,
         functionName: 'balanceOf',
         args: [wallet.address as `0x${string}`],
       })
@@ -285,12 +285,12 @@ export function useGamePageData() {
         ? balanceData
         : BigInt(String(balanceData ?? '0'))
 
-      setPizzaBalance(balanceBigInt)
-      console.debug('PIZZA balance fetched:', balanceBigInt.toString())
+      setVmfBalance(balanceBigInt)
+      console.debug('VMF balance fetched:', balanceBigInt.toString())
 
     } catch (err) {
-      console.error('Failed to fetch PIZZA balance', err)
-      setPizzaBalance(0n)
+      console.error('Failed to fetch VMF balance', err)
+      setVmfBalance(0n)
     }
   }, [wallet.address])
 
@@ -619,12 +619,12 @@ export function useGamePageData() {
 
           // Use ToppingsEarned as source of truth
           if (totalEarned > 0n) {
-            // Jackpot = total toppings earned this week × 10 PIZZA per topping
+            // Jackpot = total toppings earned this week × 10 VMF per topping
             // IMPORTANT: Toppings are added to weekly jackpot IMMEDIATELY when earned (daily plays, referrals)
-            // The only exception is holdings bonus (3 toppings per $10 of PIZZA) which is calculated
-            // at claim time based on PIZZA balance snapshot at that moment
+            // The only exception is holdings bonus (3 toppings per $10 of VMF) which is calculated
+            // at claim time based on VMF balance snapshot at that moment
             // This projection shows what the jackpot will be if all earned toppings are claimed
-            projectedJackpotWei = totalEarned * GAME_CONSTANTS.TOPPING_TO_PIZZA_RATE
+            projectedJackpotWei = totalEarned * GAME_CONSTANTS.TOPPING_TO_VMF_RATE
             // Weekly Players = unique players only (one player counts as 1, regardless of how many times they played)
             projectedPlayerCount = Math.max(uniquePlayersThisWeek.size, Number(claimerCount))
 
@@ -702,7 +702,7 @@ export function useGamePageData() {
         console.debug('Parsed as object:', { playerCount: playerCount.toString(), pot: pot.toString(), settled })
       }
 
-      const jackpot = (pot / WEI_PER_PIZZA).toString()
+      const jackpot = (pot / WEI_PER_VMF).toString()
 
       setDaily({
         dailyGameId: Number(dailyId),
@@ -747,14 +747,34 @@ export function useGamePageData() {
   const nextResetPacific = useMemo(() => toZonedTime(nextResetRef.current, PACIFIC_TZ), [])
 
   // ================= Flags =================
-  const hasEnoughPizza = pizzaBalance >= entryFeeWei
+  const hasEnoughVMF = vmfBalance >= entryFeeWei
   const [hasEnteredToday, setHasEnteredToday] = useState(false)
-  // With permit, we don't need to track approval separately - it happens in one tx!
+  const [needsApproval, setNeedsApproval] = useState(false)
 
-  // ================= Check entry status =================
+  // ================= Check allowance & entry =================
   const checkStatus = useCallback(async () => {
     if (!wallet.address) return
     try {
+      // Check allowance
+      const allowance = await readContract(wagmiConfig, {
+        address: VMF_TOKEN_ADDRESS as `0x${string}`,
+        abi: VMF_TOKEN_ABI,
+        functionName: 'allowance',
+        args: [wallet.address as `0x${string}`, PIZZA_PARTY_ADDRESS as `0x${string}`],
+      })
+      const allowanceBigInt = typeof allowance === 'bigint'
+        ? allowance
+        : BigInt(String(allowance ?? '0'))
+
+      const needsApprovalValue = allowanceBigInt < entryFeeWei
+      setNeedsApproval(needsApprovalValue)
+      
+      console.debug('Approval status:', {
+        allowance: allowanceBigInt.toString(),
+        entryFee: entryFeeWei.toString(),
+        needsApproval: needsApprovalValue,
+      })
+
       // Check if already entered today
       const entered = await readContract(wagmiConfig, {
         address: PIZZA_PARTY_ADDRESS as `0x${string}`,
@@ -764,55 +784,56 @@ export function useGamePageData() {
       })
       const hasEntered = Boolean(entered)
       setHasEnteredToday(hasEntered)
-
+      
       console.debug('Entry status:', {
         hasEnteredToday: hasEntered,
       })
 
     } catch (err) {
       console.error('Failed to check status', err)
+      setNeedsApproval(false)
       setHasEnteredToday(false)
     }
-  }, [wallet.address])
+  }, [wallet.address, entryFeeWei])
 
   // ================= Watch blockchain =================
   useEffect(() => {
     let unwatch: (() => void) | null = null
-    void fetchPizzaBalance()
+    void fetchVmfBalance()
     void refreshDaily()
     void checkStatus()
     void fetchPlayerInfo()
     void fetchWeekly()
     void fetchPlayerLifetimeStats()
-    void fetchPizzaPrice()
+    void fetchVmfPrice()
 
     unwatch = watchBlockNumber(wagmiConfig, {
       onBlockNumber: () => {
-        void fetchPizzaBalance()
+        void fetchVmfBalance()
         void refreshDaily()
         void checkStatus()
         void fetchPlayerInfo()
         void fetchWeekly()
         void fetchPlayerLifetimeStats()
-        void fetchPizzaPrice()
+        void fetchVmfPrice()
       },
       onError: () => {},
     })
     return () => { if (unwatch) unwatch() }
-  }, [fetchPizzaBalance, refreshDaily, checkStatus, fetchPlayerInfo, fetchWeekly, fetchPlayerLifetimeStats, fetchPizzaPrice])
+  }, [fetchVmfBalance, refreshDaily, checkStatus, fetchPlayerInfo, fetchWeekly, fetchPlayerLifetimeStats, fetchVmfPrice])
 
   // ================= Periodic Price Refresh =================
   useEffect(() => {
     // Fetch price immediately on mount
-    void fetchPizzaPrice()
+    void fetchVmfPrice()
 
     // Then refresh every 30 seconds to keep price current
     const priceInterval = setInterval(() => {
-      void fetchPizzaPrice()
+      void fetchVmfPrice()
     }, 30000)
 
     return () => clearInterval(priceInterval)
-  }, [fetchPizzaPrice])
+  }, [fetchVmfPrice])
 
   // ================= Reset-detection (new Pacific day) =================
   const prevMsRef = useRef<number | null>(null)
@@ -826,15 +847,46 @@ export function useGamePageData() {
       setTimeout(() => {
         void refreshDaily()
         void checkStatus()
-        void fetchPizzaBalance()
+        void fetchVmfBalance()
         void fetchPlayerInfo()
       }, 500)
     }
     prevMsRef.current = msRemaining
-  }, [msRemaining, refreshDaily, checkStatus, fetchPizzaBalance, fetchPlayerInfo])
+  }, [msRemaining, refreshDaily, checkStatus, fetchVmfBalance, fetchPlayerInfo])
 
   // ================= Write Functions =================
-  // No separate approval needed - we use EIP-2612 permit for single-tx entry!
+  const handleApproveVMF = useCallback(async () => {
+    if (networkId !== BASE_CHAIN_ID || !wallet.isAuthenticated) {
+      console.error('Wrong network or not authenticated')
+      return
+    }
+    
+    try {
+      console.log('Approving VMF for PizzaParty contract...')
+      await writeContract({
+        address: VMF_TOKEN_ADDRESS as `0x${string}`,
+        abi: VMF_TOKEN_ABI,
+        functionName: 'approve',
+        args: [PIZZA_PARTY_ADDRESS as `0x${string}`, maxUint256],
+      })
+      
+      console.log('✅ Approval transaction submitted')
+      
+      // Wait a bit then check status
+      setTimeout(() => {
+        void checkStatus()
+      }, 2000)
+      
+    } catch (err: unknown) {
+      console.error('❌ Approve failed:', err)
+      const message = getErrorMessage(err) || 'Unknown error'
+      const code = isRecord(err) && 'code' in err ? err.code : undefined
+      if (code !== undefined) {
+        console.error('Error code:', code)
+      }
+      alert(`Approval failed: ${message}`)
+    }
+  }, [wallet.isAuthenticated, writeContract, networkId, checkStatus])
 
   const handleClaimToppings = useCallback(async () => {
     if (networkId !== BASE_CHAIN_ID) {
@@ -863,41 +915,47 @@ export function useGamePageData() {
   }, [networkId, wallet.isAuthenticated, writeContract, fetchPlayerInfo, fetchWeekly])
 
   const handleEnterGame = useCallback(async (referralCode?: string) => {
-    console.log('=== ENTER GAME WITH PERMIT CLICKED ===')
-
+    console.log('=== ENTER GAME CLICKED ===')
+    
     if (networkId !== BASE_CHAIN_ID) {
       console.error('Wrong network. Current:', networkId, 'Expected:', BASE_CHAIN_ID)
       alert(`Please switch to Base network (Chain ID: ${BASE_CHAIN_ID})`)
       return
     }
-
-    if (!wallet.isAuthenticated || !wallet.address) {
+    
+    if (!wallet.isAuthenticated) {
       console.error('Wallet not authenticated')
       alert('Please connect your wallet first')
       return
     }
-
+    
     // Safely handle referral code - default to empty string
     const code = typeof referralCode === 'string' ? referralCode.trim() : ''
-
+    
     // Pre-flight checks
     console.log('Wallet address:', wallet.address)
-    console.log('PIZZA Balance:', pizzaBalance.toString())
-    console.log('Entry Fee:', (Number(entryFeeWei) / 1e18).toFixed(4), 'PIZZA')
-    console.log('Has Enough PIZZA:', hasEnoughPizza)
+    console.log('VMF Balance:', vmfBalance.toString())
+    console.log('Entry Fee:', (Number(entryFeeWei) / 1e18).toFixed(4), 'VMF')
+    console.log('Has Enough VMF:', hasEnoughVMF)
+    console.log('Needs Approval:', needsApproval)
     console.log('Has Entered Today:', hasEnteredToday)
     console.log('Referral Code:', code || '(empty)')
-
-    if (!hasEnoughPizza) {
-      alert(`You need at least ${(Number(entryFeeWei) / 1e18).toFixed(4)} PIZZA to play. You have ${(Number(pizzaBalance) / 1e18).toFixed(4)} PIZZA.`)
+    
+    if (!hasEnoughVMF) {
+      alert(`You need at least ${(Number(entryFeeWei) / 1e18).toFixed(4)} VMF to play. You have ${(Number(vmfBalance) / 1e18).toFixed(4)} VMF.`)
       return
     }
-
+    
+    if (needsApproval) {
+      alert('Please approve VMF spending first.')
+      return
+    }
+    
     if (hasEnteredToday) {
       alert('You have already entered the game today.')
       return
     }
-
+    
     // ============================================================
     // CRITICAL: Save "before" snapshot for accurate win tracking
     // ============================================================
@@ -914,99 +972,49 @@ export function useGamePageData() {
         lifetimeToppings: bigint
         lifetimeReferrals: bigint
       }
-
+      
       const currentGameId = await readContract(wagmiConfig, {
         address: PIZZA_PARTY_ADDRESS as `0x${string}`,
         abi: PIZZA_PARTY_ABI,
         functionName: 'dailyGameId',
       }) as bigint
-
+      
       // Handle both tuple and object formats
-      const beforePizzaWon = Array.isArray(beforeStats)
+      const beforeVmfWon = Array.isArray(beforeStats)
         ? beforeStats[2]
         : (beforeStats as { totalVmfWon: bigint }).totalVmfWon
-
-      const beforeKey = `pizza_party_before_game_${currentGameId}`
+      
+      const beforeKey = `pizza_party_vmf_before_game_${currentGameId}`
       if (typeof window !== 'undefined') {
-        localStorage.setItem(beforeKey, beforePizzaWon.toString())
+        localStorage.setItem(beforeKey, beforeVmfWon.toString())
       }
-
+      
       console.debug('💾 Saved before snapshot:', {
         gameId: currentGameId.toString(),
-        pizzaBefore: (Number(beforePizzaWon) / 1e18).toFixed(2),
+        vmfBefore: (Number(beforeVmfWon) / 1e18).toFixed(2),
       })
     } catch (snapshotErr) {
       console.warn('Failed to save before snapshot:', snapshotErr)
       // Continue anyway - fallback to calculation
     }
     // ============================================================
-
-    // ============================================================
-    // EIP-2612 PERMIT: Sign approval off-chain, then submit single tx
-    // ============================================================
+    
+    console.log('=== FINAL PRE-TX CHECK ===')
+    console.log('Contract:', PIZZA_PARTY_ADDRESS)
+    console.log('Function:', 'enterDailyGame')
+    console.log('Args:', [code, entryFeeWei])
+    console.log('Chain ID:', networkId)
+    
     try {
-      // 1. Get current nonce from PIZZA token
-      const nonce = await readContract(wagmiConfig, {
-        address: PIZZA_TOKEN_ADDRESS as `0x${string}`,
-        abi: PIZZA_TOKEN_ABI,
-        functionName: 'nonces',
-        args: [wallet.address as `0x${string}`],
-      }) as bigint
-
-      // 2. Set deadline to 20 minutes from now
-      const deadline = BigInt(Math.floor(Date.now() / 1000) + 20 * 60)
-
-      console.log('=== PERMIT SIGNING ===')
-      console.log('Nonce:', nonce.toString())
-      console.log('Deadline:', deadline.toString())
-      console.log('Amount:', entryFeeWei.toString())
-
-      // 3. Sign EIP-712 typed data for permit
-      const signature = await signTypedData(wagmiConfig, {
-        domain: {
-          name: GAME_CONSTANTS.PERMIT_DOMAIN.name,
-          version: GAME_CONSTANTS.PERMIT_DOMAIN.version,
-          chainId: GAME_CONSTANTS.PERMIT_DOMAIN.chainId,
-          verifyingContract: PIZZA_TOKEN_ADDRESS as `0x${string}`,
-        },
-        types: {
-          Permit: [
-            { name: 'owner', type: 'address' },
-            { name: 'spender', type: 'address' },
-            { name: 'value', type: 'uint256' },
-            { name: 'nonce', type: 'uint256' },
-            { name: 'deadline', type: 'uint256' },
-          ],
-        },
-        primaryType: 'Permit',
-        message: {
-          owner: wallet.address as `0x${string}`,
-          spender: PIZZA_PARTY_ADDRESS as `0x${string}`,
-          value: entryFeeWei,
-          nonce,
-          deadline,
-        },
-      })
-
-      // 4. Split signature into v, r, s
-      const r = `0x${signature.slice(2, 66)}` as `0x${string}`
-      const s = `0x${signature.slice(66, 130)}` as `0x${string}`
-      const v = parseInt(signature.slice(130, 132), 16)
-
-      console.log('=== PERMIT SIGNATURE ===')
-      console.log('v:', v)
-      console.log('r:', r)
-      console.log('s:', s)
-
-      // 5. Call enterDailyGameWithPermit - single transaction!
-      console.log('=== CALLING enterDailyGameWithPermit ===')
+      // Just call writeContract - let wagmi handle everything
+      // Note: Referrals are handled separately via useReferralCode()
       const result = await writeContract({
         address: PIZZA_PARTY_ADDRESS as `0x${string}`,
         abi: PIZZA_PARTY_ABI,
-        functionName: 'enterDailyGameWithPermit',
-        args: [entryFeeWei, deadline, v, r, s],
+        functionName: 'enterDailyGame',
+        args: [entryFeeWei], // Only pass the amount
       })
-
+      
       // If referral code provided and this is first entry, use it separately
       if (code && code.length > 0 && playerInfo?.dailyEntries === 0n) {
         try {
@@ -1028,45 +1036,45 @@ export function useGamePageData() {
           console.warn('⚠️ Referral code handling error (non-critical):', refErr)
         }
       }
-
+      
       console.log('✅ Transaction sent successfully:', result)
       setHasEnteredToday(true)
-
+      
       // Refresh data after a short delay
       setTimeout(() => {
         void checkStatus()
         void fetchPlayerInfo()
         void refreshDaily()
-        void fetchPizzaBalance()
+        void fetchVmfBalance()
         void fetchWeekly()
         void fetchPlayerLifetimeStats()
       }, 3000)
-
+      
     } catch (err: unknown) {
       console.error('❌ Transaction failed:', err)
-
+      
       // Reset hasEnteredToday if transaction failed
       setHasEnteredToday(false)
-
+      
       // Parse the error for a better message
       const error = err as Record<string, unknown>
       let message = 'Transaction failed'
 
       if (error?.message && typeof error.message === 'string') {
         const msg = error.message.toLowerCase()
-
+        
         if (msg.includes('insufficient funds') || msg.includes('insufficient balance')) {
           message = 'Insufficient ETH for gas fees. Please add some ETH to your Base wallet.'
         } else if (msg.includes('user rejected') || msg.includes('user denied')) {
           message = 'Transaction was cancelled.'
+        } else if (msg.includes('allowance')) {
+          message = 'Token allowance issue. Please try approving VMF again.'
         } else if (msg.includes('already') || msg.includes('played')) {
           message = 'You have already played today.'
         } else if (msg.includes('game ended') || msg.includes('game settled')) {
           message = 'Game has ended. Please wait for the next game.'
         } else if (msg.includes('weekly limit')) {
           message = 'You have reached the weekly play limit (7 entries/week).'
-        } else if (msg.includes('permit') || msg.includes('signature')) {
-          message = 'Signature failed. Please try again.'
         } else {
           message = error.message
         }
@@ -1078,27 +1086,24 @@ export function useGamePageData() {
           message = error.shortMessage
         }
       }
-
+      
       alert(message)
     }
-  }, [wallet.isAuthenticated, wallet.address, writeContract, networkId, checkStatus, fetchPlayerInfo, refreshDaily, fetchPizzaBalance, fetchWeekly, pizzaBalance, entryFeeWei, hasEnoughPizza, hasEnteredToday, fetchPlayerLifetimeStats, playerInfo])
+  }, [wallet.isAuthenticated, wallet.address, writeContract, networkId, checkStatus, fetchPlayerInfo, refreshDaily, fetchVmfBalance, fetchWeekly, vmfBalance, entryFeeWei, hasEnoughVMF, needsApproval, hasEnteredToday, fetchPlayerLifetimeStats, playerInfo])
 
   const openWalletModal = useCallback(() => open(), [open])
 
   useEffect(() => {
-    const balanceVMF = Number(pizzaBalance) / 1e18
-    const feeVMF = Number(entryFeeWei) / 1e18
-    console.debug(`🎮 Balance: ${balanceVMF.toFixed(2)} VMF | Fee: ${feeVMF.toFixed(2)} VMF | Price: $${pizzaUsdPrice.toFixed(4)} | Enough: ${hasEnoughPizza}`)
-  }, [pizzaBalance, entryFeeWei, hasEnoughPizza, pizzaUsdPrice])
+    console.debug('vmfBalance, entryFeeWei, hasEnoughVMF', vmfBalance.toString(), entryFeeWei.toString(), hasEnoughVMF)
+  }, [vmfBalance, entryFeeWei, hasEnoughVMF])
 
   return {
     wallet,
     openWalletModal,
-    // Token price and amount (renamed from VMF to PIZZA but keeping similar interface for easy migration)
-    vmfUsd: pizzaUsdPrice,         // PIZZA price in USD
-    vmfAmount: pizzaAmount,         // PIZZA amount for entry fee display
-    vmfWei: entryFeeWei,           // Entry fee in wei
-    vmfBalance: pizzaBalance,       // User's PIZZA balance
+    vmfUsd: vmfUsdPrice,
+    vmfAmount,
+    vmfWei: entryFeeWei,
+    vmfBalance,
     daily,
     playerInfo,
     playerWeekly,
@@ -1107,13 +1112,12 @@ export function useGamePageData() {
     referralInfo,
     priceOracleWorking,
     pacificCountdown: { msRemaining, hours, minutes, seconds, nextResetPacific },
-    hasEnoughVMF: hasEnoughPizza,  // Has enough PIZZA to play
+    hasEnoughVMF,
     isEntryInProgress: isPending,
     handleEnterGame,
+    handleApproveVMF,
     handleClaimToppings,
-    // No longer needed with permit:
-    // handleApproveVMF - removed, permit handles approval in single tx
-    // needsApproval - removed, always false with permit
+    needsApproval,
     hasEnteredToday,
     claimableToppings,
   }
