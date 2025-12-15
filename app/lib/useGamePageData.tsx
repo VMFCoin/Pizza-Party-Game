@@ -18,7 +18,7 @@ import { wagmiConfig } from '../components/config/wagmiConfig'
 const PACIFIC_TZ = 'America/Los_Angeles'
 const BASE_CHAIN_ID = 8453
 const WEI_PER_PIZZA = 10n ** 18n
-const DEFAULT_PIZZA_USD_PRICE = 0.01
+const DEFAULT_PIZZA_USD_PRICE = 0.0126  // ~$0.0126 VMF price as of Dec 2025
 const TOPPINGS_EARNED_EVENT = parseAbiItem(
   'event ToppingsEarned(uint256 indexed weekId, address indexed player, uint256 amount, string reason)',
 )
@@ -235,13 +235,11 @@ export function useGamePageData() {
 
   // ================= Entry Fee (Dynamic based on PIZZA price) =================
   const entryFeeWei = useMemo(() => {
-    if (!pizzaUsdPrice || pizzaUsdPrice <= 0) {
-      // Fallback to default if price not available
-      return 100n * WEI_PER_PIZZA
-    }
+    // Use current price or default - always calculate $1 worth of VMF
+    const priceToUse = pizzaUsdPrice && pizzaUsdPrice > 0 ? pizzaUsdPrice : DEFAULT_PIZZA_USD_PRICE
 
     // Calculate PIZZA needed for $1: 1 / price
-    const pizzaPerDollar = 1 / pizzaUsdPrice
+    const pizzaPerDollar = 1 / priceToUse
 
     // Convert to wei with proper rounding
     const amountWei = BigInt(Math.floor(pizzaPerDollar * Number(WEI_PER_PIZZA)))

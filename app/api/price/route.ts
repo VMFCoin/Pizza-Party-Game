@@ -66,13 +66,10 @@ export async function GET() {
   } catch (error) {
     console.error('Price API error:', error)
 
+    // Return error without price - let frontend use its default
     return NextResponse.json({
       success: false,
       error: error instanceof Error ? error.message : 'Failed to fetch price',
-      // Fallback to 0.01 if API fails
-      priceUsd: 0.01,
-      vmfPerDollar: 100,
-      vmfPerDollarWei: '100000000000000000000', // 100 VMF
       timestamp: Date.now(),
     }, {
       status: 500,
