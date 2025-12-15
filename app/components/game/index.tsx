@@ -271,14 +271,19 @@ function GamePageContent({ onNavigateToWeekly, onNavigateToLeaderboard }: GamePa
 
   // Handle referral code submission
   const handleEnterWithReferral = async () => {
+    console.log('=== handleEnterWithReferral CALLED ===')
     const code = referralCodeInput.trim()
+    console.log('Referral code input:', code || '(empty)')
     // Don't hide modal until transaction is initiated
     // The handleEnterGame function will set hasEnteredToday=true on success
     // which will hide this modal via the conditional render
     try {
+      console.log('Calling handleEnterGame...')
       await handleEnterGame(code.length > 0 ? code : '')
+      console.log('handleEnterGame completed')
     } catch (err) {
       console.error('Entry failed:', err)
+      alert(`Entry failed: ${err instanceof Error ? err.message : 'Unknown error'}`)
     }
     // Only clear the input after attempting entry
     setReferralCodeInput('')
