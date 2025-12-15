@@ -156,9 +156,7 @@ export default function WeeklyJackpotPage({
     weekly.projectedJackpotWei > weekly.jackpotWei ? weekly.projectedJackpotWei : weekly.jackpotWei
   const jackpotVmF = Number(jackpotWeiToDisplay) / 1e18
   const jackpotUsdValue = jackpotVmF * vmfUsd
-  // Use hardcoded minimum of $53.60 (from old contract migration) or calculated value if higher
-  const calculatedDisplay = jackpotUsdValue.toFixed(2)
-  const jackpotDisplay = Number(calculatedDisplay) < 53.60 ? '53.60' : calculatedDisplay
+  const jackpotDisplay = jackpotUsdValue.toFixed(2)
   const claimButtonDisabled =
     !wallet?.isAuthenticated || !claimWindowOpen || hasClaimed || claimableNumber <= 0 || isEntryInProgress
 

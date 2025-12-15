@@ -196,11 +196,9 @@ function GamePageContent({ onNavigateToWeekly, onNavigateToLeaderboard }: GamePa
     pacificCountdown,
     openWalletModal,
     handleEnterGame,
-    handleApproveVMF,
     isEntryInProgress,
     hasEnteredToday,
     hasEnoughVMF,
-    needsApproval,
   } = useGamePageData()
 
   useEffect(() => {
@@ -233,6 +231,7 @@ function GamePageContent({ onNavigateToWeekly, onNavigateToLeaderboard }: GamePa
   }, [isFirstEntry])
 
   // Determine main action button state
+  // Note: No approval step needed - we use EIP-2612 permit for single-transaction entry!
   const buttonConfig = useMemo(() => {
     if (!wallet?.isAuthenticated) {
       return { text: '🍕 CONNECT WALLET 🍕', onClick: openWalletModal, disabled: false }
@@ -241,17 +240,12 @@ function GamePageContent({ onNavigateToWeekly, onNavigateToLeaderboard }: GamePa
       return { text: '✅ ALREADY ENTERED TODAY', onClick: () => {}, disabled: true }
     }
     if (!hasEnoughVMF) {
-      return { text: 'NEED $1 VMF TO PLAY', onClick: () => window.open('https://app.uniswap.org/swap?outputCurrency=0xa3e82aDf6bD3207a1D2470ed7Ad742596Ee81776&chain=base', '_blank'), disabled: false }
+      return { text: 'NEED $1 PIZZA TO PLAY', onClick: () => window.open('https://app.uniswap.org/swap?outputCurrency=0xbD0e3768B9A7C3d53e7b92EDC4C38728E2fA9b69&chain=base', '_blank'), disabled: false }
     }
-    // Ready to enter game - approval will be handled by handleEnterGame if needed
+    // Single transaction entry with permit - no separate approval needed!
     return {
-      text: needsApproval ? '🔓 APPROVE VMF 🔓' : '🍕 ENTER GAME 🍕',
+      text: '🍕 ENTER GAME 🍕',
       onClick: () => {
-        // If needs approval, do that first
-        if (needsApproval) {
-          handleApproveVMF()
-          return
-        }
         // If first entry, show referral input modal
         if (isFirstEntry) {
           setShowReferralInput(true)
@@ -262,7 +256,7 @@ function GamePageContent({ onNavigateToWeekly, onNavigateToLeaderboard }: GamePa
       },
       disabled: isEntryInProgress
     }
-  }, [wallet, hasEnteredToday, hasEnoughVMF, needsApproval, openWalletModal, handleEnterGame, handleApproveVMF, isEntryInProgress, isFirstEntry])
+  }, [wallet, hasEnteredToday, hasEnoughVMF, openWalletModal, handleEnterGame, isEntryInProgress, isFirstEntry])
 
   const { hours, minutes, seconds } = pacificCountdown
 
@@ -357,17 +351,20 @@ function GamePageContent({ onNavigateToWeekly, onNavigateToLeaderboard }: GamePa
         <div className="bg-blue-100/90 backdrop-blur-sm p-3 rounded-xl border-4 border-black w-full text-center">
           <p className="text-blue-600 text-xl font-bold" style={customFontStyle}>Daily Jackpot</p>
           <p className="text-blue-800 text-3xl font-bold" style={customFontStyle}>
-            {daily.loading ? '⏳' : `$${daily.totalEntries.toFixed(2)}`}
+            {daily.loading ? '⏳' : `$${(Number(daily.jackpot) * vmfUsd).toFixed(2)}`}
           </p>
 
           <p className="text-blue-600 text-sm mt-1">
             {daily.loading
               ? 'Loading entries...'
-              : `Total entries: ${daily.totalEntries} • Game #${daily.dailyGameId > 0 ? daily.dailyGameId - 3 : 21}`}
+              : `Total entries: ${daily.totalEntries} • Game #${daily.dailyGameId}`}
           </p>
 
           {daily.isCompleted && !daily.loading && (
             <p className="text-xs text-blue-700 mt-1">This game has been finalized.</p>
+          )}
+          {daily.error && (
+            <p className="text-xs text-red-600 mt-1">Error loading daily data</p>
           )}
         </div>
 

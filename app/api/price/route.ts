@@ -4,17 +4,19 @@ export const runtime = 'edge'
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
 
-// DEXScreener API for VMF/USDC pair on Base
-const DEXSCREENER_API = 'https://api.dexscreener.com/latest/dex/pairs/base/0xa471e375dd96b86acc3a263822a905f1d8e7f5d6857a9b03ee5dc276774ca33d'
+// DEXScreener API for PIZZA token on Base
+// Using token address lookup: 0xbD0e3768B9A7C3d53e7b92EDC4C38728E2fA9b69
+const DEXSCREENER_API = 'https://api.dexscreener.com/latest/dex/tokens/0xbD0e3768B9A7C3d53e7b92EDC4C38728E2fA9b69'
 
 interface DexScreenerPair {
   priceUsd: string
   liquidity?: { usd: number }
   volume?: { h24: number }
+  chainId: string
 }
 
 interface DexScreenerResponse {
-  pair: DexScreenerPair
+  pairs: DexScreenerPair[] | null
 }
 
 export async function GET() {
@@ -33,29 +35,35 @@ export async function GET() {
 
     const data: DexScreenerResponse = await response.json()
 
-    if (!data.pair || !data.pair.priceUsd) {
-      throw new Error('Invalid response from DEXScreener')
+    // Find the Base chain pair with highest liquidity
+    const basePairs = data.pairs?.filter(p => p.chainId === 'base') || []
+    const bestPair = basePairs.sort((a, b) =>
+      (b.liquidity?.usd || 0) - (a.liquidity?.usd || 0)
+    )[0]
+
+    if (!bestPair || !bestPair.priceUsd) {
+      throw new Error('No PIZZA pairs found on Base')
     }
 
-    const priceUsd = parseFloat(data.pair.priceUsd)
+    const priceUsd = parseFloat(bestPair.priceUsd)
 
     if (isNaN(priceUsd) || priceUsd <= 0) {
       throw new Error('Invalid price value')
     }
 
-    // Calculate how many VMF tokens = $1
-    const vmfPerDollar = 1 / priceUsd
+    // Calculate how many PIZZA tokens = $1
+    const pizzaPerDollar = 1 / priceUsd
 
     // Convert to wei (18 decimals)
-    const vmfPerDollarWei = Math.floor(vmfPerDollar * 1e18)
+    const pizzaPerDollarWei = Math.floor(pizzaPerDollar * 1e18)
 
     return NextResponse.json({
       success: true,
       priceUsd,
-      vmfPerDollar,
-      vmfPerDollarWei: vmfPerDollarWei.toString(),
-      liquidity: data.pair.liquidity?.usd || 0,
-      volume24h: data.pair.volume?.h24 || 0,
+      pizzaPerDollar,
+      pizzaPerDollarWei: pizzaPerDollarWei.toString(),
+      liquidity: bestPair.liquidity?.usd || 0,
+      volume24h: bestPair.volume?.h24 || 0,
       timestamp: Date.now(),
     }, {
       headers: {
@@ -69,10 +77,10 @@ export async function GET() {
     return NextResponse.json({
       success: false,
       error: error instanceof Error ? error.message : 'Failed to fetch price',
-      // Fallback to 0.01 if API fails
+      // Fallback to 0.01 if API fails (entry = 100 PIZZA for $1)
       priceUsd: 0.01,
-      vmfPerDollar: 100,
-      vmfPerDollarWei: '100000000000000000000', // 100 VMF
+      pizzaPerDollar: 100,
+      pizzaPerDollarWei: '100000000000000000000', // 100 PIZZA
       timestamp: Date.now(),
     }, {
       status: 500,

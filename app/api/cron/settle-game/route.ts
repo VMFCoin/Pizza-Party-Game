@@ -2,9 +2,10 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createPublicClient, createWalletClient, http } from 'viem';
 import { base } from 'viem/chains';
 import { privateKeyToAccount } from 'viem/accounts';
+import { PIZZA_PARTY_ADDRESS } from '@/app/lib/constants';
 
-// Contract address and ABI
-const CONTRACT_ADDRESS = '0x75a2AF05B626cc7858c93787ea7240926E5797b0';
+// Contract address from constants (PIZZA Party v2)
+const CONTRACT_ADDRESS = PIZZA_PARTY_ADDRESS as `0x${string}`;
 
 const SETTLE_ABI = [
   {

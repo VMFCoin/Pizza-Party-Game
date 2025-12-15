@@ -4,16 +4,17 @@ import type { Abi } from 'viem'
 // ==============================
 // Contract addresses (Base mainnet)
 // ==============================
-export const PIZZA_PARTY_ADDRESS = "0x75a2AF05B626cc7858c93787ea7240926E5797b0" // PizzaParty contract (Game 18 deployment - weekly settlement bug fix)
-export const VMF_TOKEN_ADDRESS = "0xA3E82adF6bd3207a1d2470ED7Ad742596Ee81776" // Fixed checksum
+// PizzaParty contract address - UPDATE THIS after deploying new contract with PIZZA token
+export const PIZZA_PARTY_ADDRESS = "0x0000000000000000000000000000000000000000" // TODO: Deploy and update
 
-// SushiSwap pair kept for legacy tooling (not used in minimal contract)
-export const SUSHISWAP_VMF_USDC_PAIR = "0x9C83A203133B65982F35D1B00E8283C9fb518cb1"
+// PIZZA Token (proxy with EIP-2612 permit support)
+export const PIZZA_TOKEN_ADDRESS = "0xbD0e3768B9A7C3d53e7b92EDC4C38728E2fA9b69"
 
 // ==============================
-// VMF Token ABI (ERC20)
+// PIZZA Token ABI (ERC20 with EIP-2612 Permit)
 // ==============================
-export const VMF_TOKEN_ABI = [
+export const PIZZA_TOKEN_ABI = [
+  // Standard ERC20
   {
     type: 'function',
     name: 'approve',
@@ -40,16 +41,82 @@ export const VMF_TOKEN_ABI = [
     stateMutability: 'view',
     inputs: [{ type: 'address', name: 'account' }],
     outputs: [{ type: 'uint256' }]
+  },
+  {
+    type: 'function',
+    name: 'name',
+    stateMutability: 'view',
+    inputs: [],
+    outputs: [{ type: 'string' }]
+  },
+  {
+    type: 'function',
+    name: 'symbol',
+    stateMutability: 'view',
+    inputs: [],
+    outputs: [{ type: 'string' }]
+  },
+  {
+    type: 'function',
+    name: 'decimals',
+    stateMutability: 'view',
+    inputs: [],
+    outputs: [{ type: 'uint8' }]
+  },
+  // EIP-2612 Permit
+  {
+    type: 'function',
+    name: 'permit',
+    stateMutability: 'nonpayable',
+    inputs: [
+      { type: 'address', name: 'owner' },
+      { type: 'address', name: 'spender' },
+      { type: 'uint256', name: 'value' },
+      { type: 'uint256', name: 'deadline' },
+      { type: 'uint8', name: 'v' },
+      { type: 'bytes32', name: 'r' },
+      { type: 'bytes32', name: 's' }
+    ],
+    outputs: []
+  },
+  {
+    type: 'function',
+    name: 'nonces',
+    stateMutability: 'view',
+    inputs: [{ type: 'address', name: 'owner' }],
+    outputs: [{ type: 'uint256' }]
+  },
+  {
+    type: 'function',
+    name: 'DOMAIN_SEPARATOR',
+    stateMutability: 'view',
+    inputs: [],
+    outputs: [{ type: 'bytes32' }]
   }
 ] as const
 
 // ==============================
-// PizzaParty ABI (Dynamic Pricing Version)
-// Entry fee adjusts based on VMF market price (frontend calculates amount for $1)
+// PizzaParty ABI (Dynamic Pricing Version with Permit)
+// Entry fee adjusts based on PIZZA market price (frontend calculates amount for $1)
+// Uses EIP-2612 permit for single-transaction approval + entry
 // ==============================
 export const PIZZA_PARTY_ABI = [
   // --- Core Gameplay ---
   { type: 'function', name: 'enterDailyGame', stateMutability: 'nonpayable', inputs: [{ type: 'uint256', name: 'amountPaid' }], outputs: [] },
+  // Single-transaction entry with EIP-2612 permit (no prior approval needed)
+  {
+    type: 'function',
+    name: 'enterDailyGameWithPermit',
+    stateMutability: 'nonpayable',
+    inputs: [
+      { type: 'uint256', name: 'amountPaid' },
+      { type: 'uint256', name: 'deadline' },
+      { type: 'uint8', name: 'v' },
+      { type: 'bytes32', name: 'r' },
+      { type: 'bytes32', name: 's' }
+    ],
+    outputs: []
+  },
   { type: 'function', name: 'useReferralCode', stateMutability: 'nonpayable', inputs: [{ type: 'string', name: 'code' }], outputs: [] },
   { type: 'function', name: 'settleDailyGame', stateMutability: 'nonpayable', inputs: [], outputs: [] },
   { type: 'function', name: 'claimToppings', stateMutability: 'nonpayable', inputs: [], outputs: [] },
@@ -285,9 +352,9 @@ export const CONTRACT_REGISTRY = {
     abi: PIZZA_PARTY_ABI as Abi,
     chainId: BASE_CHAIN_ID,
   },
-  vmf: {
-    address: VMF_TOKEN_ADDRESS as `0x${string}`,
-    abi: VMF_TOKEN_ABI as unknown as Abi,
+  pizzaToken: {
+    address: PIZZA_TOKEN_ADDRESS as `0x${string}`,
+    abi: PIZZA_TOKEN_ABI as unknown as Abi,
     chainId: BASE_CHAIN_ID,
   },
 } as const satisfies Record<string, ContractRegistryEntry>
@@ -300,15 +367,19 @@ export type ContractRegistryKey = keyof typeof CONTRACT_REGISTRY
 const ONE_ETHER = 10n ** 18n
 
 export const GAME_CONSTANTS = {
-  MIN_ENTRY_FEE_WEI: 1n * (ONE_ETHER / 100n),  // 0.01 VMF minimum (when VMF = $100, entry = 0.01 VMF for $1)
-  MAX_ENTRY_FEE_WEI: 1000n * ONE_ETHER,        // 1000 VMF maximum (when VMF = $0.001, entry = 1000 VMF for $1)
-  TARGET_ENTRY_FEE_USD: 1n * ONE_ETHER,     // $1 target
+  MIN_ENTRY_FEE_WEI: 1n * (ONE_ETHER / 100n),  // 0.01 PIZZA minimum (when PIZZA = $100, entry = 0.01 PIZZA for $1)
+  MAX_ENTRY_FEE_WEI: 1000n * ONE_ETHER,        // 1000 PIZZA maximum (when PIZZA = $0.001, entry = 1000 PIZZA for $1)
+  TARGET_ENTRY_FEE_USD: 1n * ONE_ETHER,        // $1 target
   HOLDINGS_UNIT: 10000n * ONE_ETHER,
   HOLDINGS_TICKETS: 3,
   MAX_INVITES_PER_WEEK: 3,
-  TOPPING_TO_VMF_RATE: 10n * ONE_ETHER,  // 1 topping = 10 VMF in weekly jackpot
+  TOPPING_TO_PIZZA_RATE: 10n * ONE_ETHER,  // 1 topping = 10 PIZZA in weekly jackpot
   WEEKLY_WINNERS_COUNT: 10,
   DEFAULT_DAILY_WINNERS_COUNT: 8,
-  // Legacy constant for backward compatibility (deprecated - use dynamic calculation)
-  ENTRY_FEE_WEI: 100n * ONE_ETHER,
+  // EIP-712 Permit Domain for PIZZA token
+  PERMIT_DOMAIN: {
+    name: 'Pizza',           // Must match token's name() exactly
+    version: '1',
+    chainId: 8453,           // Base mainnet
+  },
 } as const
