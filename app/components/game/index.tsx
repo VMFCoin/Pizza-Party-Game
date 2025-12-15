@@ -240,7 +240,7 @@ function GamePageContent({ onNavigateToWeekly, onNavigateToLeaderboard }: GamePa
       return { text: '✅ ALREADY ENTERED TODAY', onClick: () => {}, disabled: true }
     }
     if (!hasEnoughVMF) {
-      return { text: 'NEED $1 PIZZA TO PLAY', onClick: () => window.open('https://app.uniswap.org/swap?outputCurrency=0xbD0e3768B9A7C3d53e7b92EDC4C38728E2fA9b69&chain=base', '_blank'), disabled: false }
+      return { text: 'NEED $1 VMF TO PLAY', onClick: () => window.open('https://app.uniswap.org/swap?outputCurrency=0xa3e82aDf6bD3207a1D2470ed7Ad742596Ee81776&chain=base', '_blank'), disabled: false }
     }
     // Single transaction entry with permit - no separate approval needed!
     return {

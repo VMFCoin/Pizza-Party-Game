@@ -1086,8 +1086,10 @@ export function useGamePageData() {
   const openWalletModal = useCallback(() => open(), [open])
 
   useEffect(() => {
-    console.debug('pizzaBalance, entryFeeWei, hasEnoughPizza', pizzaBalance.toString(), entryFeeWei.toString(), hasEnoughPizza)
-  }, [pizzaBalance, entryFeeWei, hasEnoughPizza])
+    const balanceVMF = Number(pizzaBalance) / 1e18
+    const feeVMF = Number(entryFeeWei) / 1e18
+    console.debug(`🎮 Balance: ${balanceVMF.toFixed(2)} VMF | Fee: ${feeVMF.toFixed(2)} VMF | Price: $${pizzaUsdPrice.toFixed(4)} | Enough: ${hasEnoughPizza}`)
+  }, [pizzaBalance, entryFeeWei, hasEnoughPizza, pizzaUsdPrice])
 
   return {
     wallet,
