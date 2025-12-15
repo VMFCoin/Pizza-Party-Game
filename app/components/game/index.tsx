@@ -196,11 +196,9 @@ function GamePageContent({ onNavigateToWeekly, onNavigateToLeaderboard }: GamePa
     pacificCountdown,
     openWalletModal,
     handleEnterGame,
-    handleApproveVMF,
     isEntryInProgress,
     hasEnteredToday,
     hasEnoughVMF,
-    needsApproval,
   } = useGamePageData()
 
   useEffect(() => {
@@ -233,6 +231,7 @@ function GamePageContent({ onNavigateToWeekly, onNavigateToLeaderboard }: GamePa
   }, [isFirstEntry])
 
   // Determine main action button state
+  // Note: No approval step needed - we use EIP-2612 permit for single-transaction entry!
   const buttonConfig = useMemo(() => {
     if (!wallet?.isAuthenticated) {
       return { text: '🍕 CONNECT WALLET 🍕', onClick: openWalletModal, disabled: false }
@@ -241,13 +240,11 @@ function GamePageContent({ onNavigateToWeekly, onNavigateToLeaderboard }: GamePa
       return { text: '✅ ALREADY ENTERED TODAY', onClick: () => {}, disabled: true }
     }
     if (!hasEnoughVMF) {
-      return { text: 'NEED $1 VMF TO PLAY', onClick: () => window.open('https://app.uniswap.org/swap?outputCurrency=0xA3E82adF6bd3207a1d2470ED7Ad742596Ee81776&chain=base', '_blank'), disabled: false }
+      return { text: 'NEED $1 PIZZA TO PLAY', onClick: () => window.open('https://app.uniswap.org/swap?outputCurrency=0xbD0e3768B9A7C3d53e7b92EDC4C38728E2fA9b69&chain=base', '_blank'), disabled: false }
     }
-    if (needsApproval) {
-      return { text: '🔓 APPROVE VMF', onClick: handleApproveVMF, disabled: isEntryInProgress }
-    }
-    return { 
-      text: '🍕 ENTER GAME 🍕', 
+    // Single transaction entry with permit - no separate approval needed!
+    return {
+      text: '🍕 ENTER GAME 🍕',
       onClick: () => {
         // If first entry, show referral input modal
         if (isFirstEntry) {
@@ -256,10 +253,10 @@ function GamePageContent({ onNavigateToWeekly, onNavigateToLeaderboard }: GamePa
           // Not first entry - enter without referral code (pass empty string)
           handleEnterGame('')
         }
-      }, 
-      disabled: isEntryInProgress 
+      },
+      disabled: isEntryInProgress
     }
-  }, [wallet, hasEnteredToday, hasEnoughVMF, needsApproval, vmfAmount, openWalletModal, handleApproveVMF, handleEnterGame, isEntryInProgress, isFirstEntry])
+  }, [wallet, hasEnteredToday, hasEnoughVMF, openWalletModal, handleEnterGame, isEntryInProgress, isFirstEntry])
 
   const { hours, minutes, seconds } = pacificCountdown
 
