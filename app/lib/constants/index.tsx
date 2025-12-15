@@ -4,11 +4,11 @@ import type { Abi } from 'viem'
 // ==============================
 // Contract addresses (Base mainnet)
 // ==============================
-// PizzaParty contract address - UPDATE THIS after deploying new contract with PIZZA token
-export const PIZZA_PARTY_ADDRESS = "0x0000000000000000000000000000000000000000" // TODO: Deploy and update
+// PizzaParty contract address (deployed Dec 8, 2025 on Base mainnet)
+export const PIZZA_PARTY_ADDRESS = "0x75a2AF05B626cc7858c93787ea7240926E5797b0"
 
-// PIZZA Token (proxy with EIP-2612 permit support)
-export const PIZZA_TOKEN_ADDRESS = "0xbD0e3768B9A7C3d53e7b92EDC4C38728E2fA9b69"
+// VMF Token (the actual token used by the game)
+export const PIZZA_TOKEN_ADDRESS = "0xa3e82aDf6bD3207a1D2470ed7Ad742596Ee81776"
 
 // ==============================
 // PIZZA Token ABI (ERC20 with EIP-2612 Permit)
