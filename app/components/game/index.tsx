@@ -196,9 +196,11 @@ function GamePageContent({ onNavigateToWeekly, onNavigateToLeaderboard }: GamePa
     pacificCountdown,
     openWalletModal,
     handleEnterGame,
+    handleApproveVMF,
     isEntryInProgress,
     hasEnteredToday,
     hasEnoughVMF,
+    needsApproval,
   } = useGamePageData()
 
   useEffect(() => {
@@ -231,7 +233,6 @@ function GamePageContent({ onNavigateToWeekly, onNavigateToLeaderboard }: GamePa
   }, [isFirstEntry])
 
   // Determine main action button state
-  // Note: No approval step needed - we use EIP-2612 permit for single-transaction entry!
   const buttonConfig = useMemo(() => {
     if (!wallet?.isAuthenticated) {
       return { text: '🍕 CONNECT WALLET 🍕', onClick: openWalletModal, disabled: false }
@@ -242,10 +243,15 @@ function GamePageContent({ onNavigateToWeekly, onNavigateToLeaderboard }: GamePa
     if (!hasEnoughVMF) {
       return { text: 'NEED $1 VMF TO PLAY', onClick: () => window.open('https://app.uniswap.org/swap?outputCurrency=0xa3e82aDf6bD3207a1D2470ed7Ad742596Ee81776&chain=base', '_blank'), disabled: false }
     }
-    // Single transaction entry with permit - no separate approval needed!
+    // Ready to enter game - approval will be handled by handleEnterGame if needed
     return {
-      text: '🍕 ENTER GAME 🍕',
+      text: needsApproval ? '🔓 APPROVE VMF 🔓' : '🍕 ENTER GAME 🍕',
       onClick: () => {
+        // If needs approval, do that first
+        if (needsApproval) {
+          handleApproveVMF()
+          return
+        }
         // If first entry, show referral input modal
         if (isFirstEntry) {
           setShowReferralInput(true)
@@ -256,7 +262,7 @@ function GamePageContent({ onNavigateToWeekly, onNavigateToLeaderboard }: GamePa
       },
       disabled: isEntryInProgress
     }
-  }, [wallet, hasEnteredToday, hasEnoughVMF, openWalletModal, handleEnterGame, isEntryInProgress, isFirstEntry])
+  }, [wallet, hasEnteredToday, hasEnoughVMF, needsApproval, openWalletModal, handleEnterGame, handleApproveVMF, isEntryInProgress, isFirstEntry])
 
   const { hours, minutes, seconds } = pacificCountdown
 

@@ -290,7 +290,8 @@ export function useGamePageData() {
 
     } catch (err) {
       console.error('Failed to fetch VMF balance', err)
-      setVmfBalance(0n)
+      // Keep previous balance on error - don't reset to 0
+      // This prevents flickering when RPC calls fail temporarily
     }
   }, [wallet.address])
 
