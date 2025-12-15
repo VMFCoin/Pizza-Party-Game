@@ -400,16 +400,7 @@ export function useGamePageData() {
       setReferralInfo(refInfo)
     } catch (err) {
       console.error('Failed to fetch player info', err)
-      setPlayerInfo(null)
-      setPlayerWeekly(null)
-      // Set referralInfo with empty code instead of null so UI doesn't show "Loading..."
-      setReferralInfo({
-        referralCode: '',
-        referrer: '0x0000000000000000000000000000000000000000',
-        totalReferrals: 0n,
-        lifetimeReferrals: 0n,
-        isActive: false,
-      })
+      // Keep previous values on error - don't reset to prevent flickering
     }
   }, [wallet.address])
 
@@ -472,7 +463,7 @@ export function useGamePageData() {
       }
     } catch (err) {
       console.error('Failed to fetch player lifetime stats:', err)
-      setPlayerLifetimeStats(null)
+      // Keep previous values on error - don't reset to prevent flickering
     }
   }, [wallet.address])
 
@@ -792,14 +783,18 @@ export function useGamePageData() {
 
     } catch (err) {
       console.error('Failed to check status', err)
-      setNeedsApproval(false)
-      setHasEnteredToday(false)
+      // Keep previous values on error - don't reset to prevent flickering
     }
   }, [wallet.address, entryFeeWei])
 
   // ================= Watch blockchain =================
+  // Track last block to prevent duplicate updates
+  const lastBlockRef = useRef<bigint>(0n)
+
   useEffect(() => {
     let unwatch: (() => void) | null = null
+
+    // Initial fetch on mount
     void fetchVmfBalance()
     void refreshDaily()
     void checkStatus()
@@ -808,15 +803,20 @@ export function useGamePageData() {
     void fetchPlayerLifetimeStats()
     void fetchVmfPrice()
 
+    // Only refresh on block changes, debounced to every 5 blocks (~10 seconds)
     unwatch = watchBlockNumber(wagmiConfig, {
-      onBlockNumber: () => {
+      onBlockNumber: (blockNumber) => {
+        // Only refresh every 5 blocks to reduce flickering
+        if (blockNumber - lastBlockRef.current < 5n) return
+        lastBlockRef.current = blockNumber
+
         void fetchVmfBalance()
         void refreshDaily()
         void checkStatus()
         void fetchPlayerInfo()
         void fetchWeekly()
         void fetchPlayerLifetimeStats()
-        void fetchVmfPrice()
+        // Don't fetch price on every block - it has its own interval
       },
       onError: () => {},
     })
