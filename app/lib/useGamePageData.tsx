@@ -3,8 +3,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { toZonedTime, fromZonedTime } from 'date-fns-tz'
 import { parseAbiItem } from 'viem'
-import { readContract, watchBlockNumber, getPublicClient, signTypedData } from '@wagmi/core'
-import { useAccount, useChainId, useWriteContract } from 'wagmi'
+import { readContract, watchBlockNumber, getPublicClient } from '@wagmi/core'
+import { useAccount, useChainId, useWriteContract, useSignTypedData } from 'wagmi'
 import { useAppKit } from '@reown/appkit/react'
 import {
   GAME_CONSTANTS,
@@ -182,6 +182,7 @@ export function useGamePageData() {
   const { address, isConnected } = useAccount()
   const { open } = useAppKit()
   const { writeContract, isPending } = useWriteContract()
+  const { signTypedDataAsync } = useSignTypedData()
   const networkId = useChainId()
   const publicClient = useMemo(() => {
     try {
@@ -978,8 +979,8 @@ export function useGamePageData() {
       console.log('Deadline:', deadline.toString())
       console.log('Amount:', entryFeeWei.toString())
 
-      // 3. Sign EIP-712 typed data for permit
-      const signature = await signTypedData(wagmiConfig, {
+      // 3. Sign EIP-712 typed data for permit (using wagmi hook for proper connector handling)
+      const signature = await signTypedDataAsync({
         domain: {
           name: GAME_CONSTANTS.PERMIT_DOMAIN.name,
           version: GAME_CONSTANTS.PERMIT_DOMAIN.version,
@@ -1078,7 +1079,7 @@ export function useGamePageData() {
 
       alert(message)
     }
-  }, [wallet.isAuthenticated, wallet.address, writeContract, networkId, checkStatus, fetchPlayerInfo, refreshDaily, fetchPizzaBalance, fetchWeekly, pizzaBalance, entryFeeWei, hasEnoughPizza, hasEnteredToday, fetchPlayerLifetimeStats, playerInfo])
+  }, [wallet.isAuthenticated, wallet.address, writeContract, signTypedDataAsync, networkId, checkStatus, fetchPlayerInfo, refreshDaily, fetchPizzaBalance, fetchWeekly, pizzaBalance, entryFeeWei, hasEnoughPizza, hasEnteredToday, fetchPlayerLifetimeStats, playerInfo])
 
   const openWalletModal = useCallback(() => open(), [open])
 
