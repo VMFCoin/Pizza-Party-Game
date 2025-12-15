@@ -6,7 +6,7 @@ export const wagmiConfig = createConfig({
   chains: [base],
   connectors: [injected()],
   transports: {
-    [base.id]: http('https://base-mainnet.public.blastapi.io'), // public RPC or your Alchemy/Infura key
+    [base.id]: http('https://mainnet.base.org'),
   },
   ssr: true,
 });
