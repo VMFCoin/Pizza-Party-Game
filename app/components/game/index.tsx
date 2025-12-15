@@ -351,7 +351,7 @@ function GamePageContent({ onNavigateToWeekly, onNavigateToLeaderboard }: GamePa
         <div className="bg-blue-100/90 backdrop-blur-sm p-3 rounded-xl border-4 border-black w-full text-center">
           <p className="text-blue-600 text-xl font-bold" style={customFontStyle}>Daily Jackpot</p>
           <p className="text-blue-800 text-3xl font-bold" style={customFontStyle}>
-            {daily.loading ? '⏳' : `$${(Number(daily.jackpot) * vmfUsd).toFixed(2)}`}
+            {daily.loading ? '⏳' : `$${daily.totalEntries.toFixed(2)}`}
           </p>
 
           <p className="text-blue-600 text-sm mt-1">
