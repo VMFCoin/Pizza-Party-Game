@@ -11,9 +11,9 @@ const queryClient = new QueryClient();
 
 const metadata = {
   name: 'Pizza Party',
-  description: 'Play to win VMF tokens daily',
-  url: 'https://pizza-party.vmfcoin.com',
-  icons: ['https://pizza-party.vmfcoin.com/images/pizza-final.png'],
+  description: 'Play to win PIZZA tokens daily',
+  url: 'https://pizza-party-game.vmfcoin.com',
+  icons: ['https://pizza-party-game.vmfcoin.com/images/pizza-final.png'],
 };
 
 createAppKit({

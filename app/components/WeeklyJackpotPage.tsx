@@ -24,25 +24,25 @@ const customFontStyle = {
 const HOW_TO_WIN = [
   'Play Daily: 1 topping each day you play',
   'Refer new players: 2 toppings per referral (max 3 per week)',
-  'Hold VMF tokens: 3 toppings for every 1,000 VMF you hold',
+  'Hold PIZZA tokens: 3 toppings for every $10 of PIZZA you hold',
   'More toppings = more tickets in the weekly draw',
 ]
 
 const TERMS = {
   title: 'Pizza Party Terms',
   dailyGame: [
-    'Must hold VMF tokens to play',
+    'Must hold PIZZA tokens to play',
     'One entry per wallet per day (resets 12pm PST)',
     'Equal odds for all players regardless of holdings',
     '8 winners randomly selected daily at 12pm PST',
     'Daily jackpot split equally among winners; prizes auto-paid',
-    'New games are called when a new player enters after 12pm PST and receives a first player 1% reward from the daily jackpot',
-    'VMF partnered veteran charities receive 5% of the daily jackpot',
+    'New games are called when a new player enters after 12pm PST',
+    'Partnered veteran charities receive 3% of the daily jackpot',
   ],
   weeklyJackpot: [
     'Claim toppings during Sunday 12pm–Monday 12pm PST to enter',
     '10 winners selected Monday 12pm PST with odds weighted by toppings claimed',
-    'Total jackpot = total toppings claimed (1 topping = 10 VMF)',
+    'Total jackpot = total toppings claimed (1 topping = 100 PIZZA)',
     'Unclaimed toppings expire weekly—claim or lose them',
   ],
 }
@@ -106,7 +106,7 @@ export default function WeeklyJackpotPage({
     claimableToppings,
     handleClaimToppings,
     isEntryInProgress,
-    vmfUsd,
+    pizzaUsd,
   } = useGamePageData()
   const [isMobile, setIsMobile] = useState(false)
   const [showToppingBreakdown, setShowToppingBreakdown] = useState(false)
@@ -154,8 +154,8 @@ export default function WeeklyJackpotPage({
     claimStart > 0 && nowSec >= claimStart && nowSec < claimEnd
   const jackpotWeiToDisplay =
     weekly.projectedJackpotWei > weekly.jackpotWei ? weekly.projectedJackpotWei : weekly.jackpotWei
-  const jackpotVmF = Number(jackpotWeiToDisplay) / 1e18
-  const jackpotUsdValue = jackpotVmF * vmfUsd
+  const jackpotPizza = Number(jackpotWeiToDisplay) / 1e18
+  const jackpotUsdValue = jackpotPizza * pizzaUsd
   const jackpotDisplay = jackpotUsdValue.toFixed(2)
   const claimButtonDisabled =
     !wallet?.isAuthenticated || !claimWindowOpen || hasClaimed || claimableNumber <= 0 || isEntryInProgress

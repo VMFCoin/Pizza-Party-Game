@@ -188,8 +188,8 @@ function GamePageContent({ onNavigateToWeekly, onNavigateToLeaderboard }: GamePa
 
   const {
     wallet,
-    vmfUsd,
-    vmfAmount,
+    pizzaUsd,
+    pizzaAmount,
     daily,
     playerInfo,
     referralInfo,
@@ -198,7 +198,7 @@ function GamePageContent({ onNavigateToWeekly, onNavigateToLeaderboard }: GamePa
     handleEnterGame,
     isEntryInProgress,
     hasEnteredToday,
-    hasEnoughVMF,
+    hasEnoughPizza,
   } = useGamePageData()
 
   useEffect(() => {
@@ -239,8 +239,8 @@ function GamePageContent({ onNavigateToWeekly, onNavigateToLeaderboard }: GamePa
     if (hasEnteredToday) {
       return { text: '✅ ALREADY ENTERED TODAY', onClick: () => {}, disabled: true }
     }
-    if (!hasEnoughVMF) {
-      return { text: 'NEED $1 PIZZA TO PLAY', onClick: () => window.open('https://app.uniswap.org/swap?outputCurrency=0xbD0e3768B9A7C3d53e7b92EDC4C38728E2fA9b69&chain=base', '_blank'), disabled: false }
+    if (!hasEnoughPizza) {
+      return { text: 'NEED $1 PIZZA TO PLAY', onClick: () => window.open('https://app.uniswap.org/explore/pools/base/0xafd0d83ed4bdff9343d625822bd8ce09828336b4b487dec8b60fb83dcdc385d9', '_blank'), disabled: false }
     }
     // Single transaction entry with permit - no separate approval needed!
     return {
@@ -256,7 +256,7 @@ function GamePageContent({ onNavigateToWeekly, onNavigateToLeaderboard }: GamePa
       },
       disabled: isEntryInProgress
     }
-  }, [wallet, hasEnteredToday, hasEnoughVMF, openWalletModal, handleEnterGame, isEntryInProgress, isFirstEntry])
+  }, [wallet, hasEnteredToday, hasEnoughPizza, openWalletModal, handleEnterGame, isEntryInProgress, isFirstEntry])
 
   const { hours, minutes, seconds } = pacificCountdown
 
@@ -271,8 +271,8 @@ function GamePageContent({ onNavigateToWeekly, onNavigateToLeaderboard }: GamePa
   const referralCode = referralInfo?.referralCode ?? ''
   const referralShareUrl = referralCode ? `${SHARE_BASE_URL}${referralCode}` : ''
   const shareText = referralCode
-    ? `🍕 Join Pizza Party to win some cheesy Jackpots of $VMF!\n\nCome grab a slice with us. Daily and Weekly Jackpots, use my referral code: ${referralCode}.\n\nEarn toppings and the jackpot grows! We all win together!! 🍕`
-    : '🍕 Join Pizza Party to win some cheesy Jackpots of $VMF!\n\nCome grab a slice with us. Daily and Weekly Jackpots.\n\nEarn toppings and the jackpot grows! We all win together!! 🍕'
+    ? `🍕 Join Pizza Party to win some cheesy Jackpots of $PIZZA!\n\nCome grab a slice with us. Daily and Weekly Jackpots, use my referral code: ${referralCode}.\n\nEarn toppings and the jackpot grows! We all win together!! 🍕`
+    : '🍕 Join Pizza Party to win some cheesy Jackpots of $PIZZA!\n\nCome grab a slice with us. Daily and Weekly Jackpots.\n\nEarn toppings and the jackpot grows! We all win together!! 🍕'
 
   const tryFarcasterShare = useCallback(async (url: string, text: string) => {
     const actions = sdk.actions as {
@@ -351,7 +351,7 @@ function GamePageContent({ onNavigateToWeekly, onNavigateToLeaderboard }: GamePa
         <div className="bg-blue-100/90 backdrop-blur-sm p-3 rounded-xl border-4 border-black w-full text-center">
           <p className="text-blue-600 text-xl font-bold" style={customFontStyle}>Daily Jackpot</p>
           <p className="text-blue-800 text-3xl font-bold" style={customFontStyle}>
-            {daily.loading ? '⏳' : `$${(Number(daily.jackpot) * vmfUsd).toFixed(2)}`}
+            {daily.loading ? '⏳' : `$${(Number(daily.jackpot) * pizzaUsd).toFixed(2)}`}
           </p>
 
           <p className="text-blue-600 text-sm mt-1">
@@ -591,7 +591,7 @@ function GamePageContent({ onNavigateToWeekly, onNavigateToLeaderboard }: GamePa
 
         {/* Info Footer */}
         <div className="bg-white/80 backdrop-blur-sm rounded-xl border-4 border-black p-3 w-full text-center text-xs text-gray-600">
-          <p className="mb-1">🎮 Entry Fee: ${(Number(vmfAmount) * vmfUsd).toFixed(2)} (~{vmfAmount} VMF)</p>
+          <p className="mb-1">🎮 Entry Fee: ${(Number(pizzaAmount) * pizzaUsd).toFixed(2)} (~{pizzaAmount} PIZZA)</p>
           <p>🍕 Earn 1 topping per entry • Toppings = Weekly Jackpot tickets!</p>
         </div>
 

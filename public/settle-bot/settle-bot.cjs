@@ -206,7 +206,7 @@ class SettleBot {
           const parsed = this.contract.interface.parseLog(settleEvent);
           const pot = ethers.formatEther(parsed.args.pot);
           const winnersCount = parsed.args.winners.length;
-          this.log(`Pot: ${pot} VMF, Winners: ${winnersCount}`, 'SUCCESS');
+          this.log(`Pot: ${pot} PIZZA, Winners: ${winnersCount}`, 'SUCCESS');
         }
 
         return { success: true, txHash: tx.hash, gasUsed: receipt.gasUsed.toString(), gameId: dailyId.toString() };
@@ -275,7 +275,7 @@ class SettleBot {
           const parsed = this.contract.interface.parseLog(settleEvent);
           const pot = ethers.formatEther(parsed.args.pot);
           const winnersCount = parsed.args.winners.length;
-          this.log(`Pot: ${pot} VMF, Winners: ${winnersCount}`, 'SUCCESS');
+          this.log(`Pot: ${pot} PIZZA, Winners: ${winnersCount}`, 'SUCCESS');
         }
 
         return { success: true, txHash: tx.hash, gasUsed: receipt.gasUsed.toString(), gameId: weeklyId.toString() };

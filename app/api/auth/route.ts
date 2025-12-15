@@ -7,7 +7,7 @@ export const dynamic = "force-dynamic";
 const client = createClient();
 
 // Use your known domain here:
-const DOMAIN = "pizzaparty-zeta.vercel.app";
+const DOMAIN = "pizza-party-game.vmfcoin.com";
 
 // Small helper for consistent JSON + CORS
 function json(data: unknown, init?: number | ResponseInit) {

@@ -27,7 +27,7 @@ contract DeployV2System is Script {
     address constant PIZZA_TOKEN = 0xbD0e3768B9A7C3d53e7b92EDC4C38728E2fA9b69;
     address constant TREASURY_WALLET = 0xBfCA21E41D397C8B6beF0c348D394DA2c4826292;
     address constant OPS_WALLET = 0x828F516b379A2532bB33a00d34125560BF4c1853;
-    address constant OWNER_WALLET = 0x29F817c9931B98Ae84C9e0FF0426971BdC8bB2B6;
+    address constant OWNER_WALLET = 0x828F516b379A2532bB33a00d34125560BF4c1853;
 
     function run() external {
         // Load environment

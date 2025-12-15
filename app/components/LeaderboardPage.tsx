@@ -33,7 +33,7 @@ interface WinnerDisplay {
   displayName: string
   thisGamePayout: string  // Amount won in THIS specific game
   lifetimeWins: number
-  lifetimeVmfWon: string  // Total across ALL games
+  lifetimePizzaWon: string  // Total across ALL games
   farcasterProfile?: FarcasterProfile
   isPlaceholder?: boolean
 }
@@ -89,19 +89,19 @@ export default function LeaderboardPage({
   const [weeklyWinners, setWeeklyWinners] = useState<WinnerDisplay[]>([])
   const [loading, setLoading] = useState(true)
   const [isMobile, setIsMobile] = useState(false)
-  const [vmfUsd, setVmfUsd] = useState(0.027) // Default VMF price
+  const [pizzaUsd, setPizzaUsd] = useState(0.01) // Default PIZZA price
 
-  // Fetch VMF price from Dexscreener
+  // Fetch PIZZA price from Dexscreener
   useEffect(() => {
     const fetchPrice = async () => {
       try {
         const res = await fetch('/api/price')
         const data = await res.json()
         if (data.priceUsd) {
-          setVmfUsd(parseFloat(data.priceUsd))
+          setPizzaUsd(parseFloat(data.priceUsd))
         }
       } catch (err) {
-        console.error('Failed to fetch VMF price:', err)
+        console.error('Failed to fetch PIZZA price:', err)
       }
     }
     fetchPrice()
@@ -130,48 +130,7 @@ export default function LeaderboardPage({
     }
   }, [onNavigateToWeekly])
 
-  // Game 16 Daily Winners (settled Dec 8, 2025 from old contract 0x10BEB7B8495E7daeAB06C2e10e77251FD9429adB)
-  // 8 winners, 88.73 VMF each (verified from settlement tx 0x88cf2324...)
-  const GAME_16_DAILY_WINNERS: WinnerDisplay[] = [
-    { address: '0x257Cbe89968495C3aE8C81BccB8BE7f257CD5f66', displayName: '', thisGamePayout: '88.73', lifetimeWins: 0, lifetimeVmfWon: '0' },
-    { address: '0x944Fa0f3f2168D4b27110f7f97972Ad9425C4f52', displayName: '', thisGamePayout: '88.73', lifetimeWins: 0, lifetimeVmfWon: '0' },
-    { address: '0x86E36C9Ba3C6A2542Fd761bC2b4FD61A110ea6CD', displayName: '', thisGamePayout: '88.73', lifetimeWins: 0, lifetimeVmfWon: '0' },
-    { address: '0xffde42d40175b3b9349Dfb384439dCB811691E09', displayName: '', thisGamePayout: '88.73', lifetimeWins: 0, lifetimeVmfWon: '0' },
-    { address: '0xB1fadDeca6cBCCD536355a4eFe0E2d5517a1F04F', displayName: '', thisGamePayout: '88.73', lifetimeWins: 0, lifetimeVmfWon: '0' },
-    { address: '0xC77dA8cB158BA77BaC765625745a766Af3111A69', displayName: '', thisGamePayout: '88.73', lifetimeWins: 0, lifetimeVmfWon: '0' },
-    { address: '0x8f6Ee583447d75E3B070d9c35DB6F685aa9cc319', displayName: '', thisGamePayout: '88.73', lifetimeWins: 0, lifetimeVmfWon: '0' },
-    { address: '0x14E8FddFa4a7c709C19a8C7DA5205c3ae366355c', displayName: '', thisGamePayout: '88.73', lifetimeWins: 0, lifetimeVmfWon: '0' },
-  ]
-
-  // Weekly 2 Winners (from old contract settlement tx 0xf1e890ad...)
-  // 10 winners, 91 VMF pot = 9.1 VMF each
-  const WEEK_2_WINNERS: WinnerDisplay[] = [
-    { address: '0xacbf90a3f03a34faa8235854ca6c3ee0cc8c7546', displayName: '', thisGamePayout: '9.1', lifetimeWins: 0, lifetimeVmfWon: '0' },
-    { address: '0x108608f3f993bfd55fab50d9ef1a5c7e2c47f29b', displayName: '', thisGamePayout: '9.1', lifetimeWins: 0, lifetimeVmfWon: '0' },
-    { address: '0xdf13d712d58ef7f7abd4d29b398d503262ba4ac0', displayName: '', thisGamePayout: '9.1', lifetimeWins: 0, lifetimeVmfWon: '0' },
-    { address: '0x1b49689db12080f5fcc5dc36f990599739487566', displayName: '', thisGamePayout: '9.1', lifetimeWins: 0, lifetimeVmfWon: '0' },
-    { address: '0x257cbe89968495c3ae8c81bccb8be7f257cd5f66', displayName: '', thisGamePayout: '9.1', lifetimeWins: 0, lifetimeVmfWon: '0' },
-    { address: '0xc77da8cb158ba77bac765625745a766af3111a69', displayName: '', thisGamePayout: '9.1', lifetimeWins: 0, lifetimeVmfWon: '0' },
-    { address: '0xffde42d40175b3b9349dfb384439dcb811691e09', displayName: '', thisGamePayout: '9.1', lifetimeWins: 0, lifetimeVmfWon: '0' },
-    { address: '0x65e3419e633833df1d602e7905cb9c7e541f0849', displayName: '', thisGamePayout: '9.1', lifetimeWins: 0, lifetimeVmfWon: '0' },
-    { address: '0xd68c5493e41f03fac90776ad0366376e245255e8', displayName: '', thisGamePayout: '9.1', lifetimeWins: 0, lifetimeVmfWon: '0' },
-    { address: '0x12e31f706010ae0996a2d8247c432d9102e3c871', displayName: '', thisGamePayout: '9.1', lifetimeWins: 0, lifetimeVmfWon: '0' },
-  ]
-
-  // Weekly 3 Winners (settled Dec 8, 2024 from old contract 0x10BEB7B8495E7daeAB06C2e10e77251FD9429adB)
-  // 10 winners, 2000 VMF pot = 200 VMF each
-  const WEEK_3_WINNERS: WinnerDisplay[] = [
-    { address: '0x257Cbe89968495C3aE8C81BccB8BE7f257CD5f66', displayName: '', thisGamePayout: '200', lifetimeWins: 0, lifetimeVmfWon: '0' },
-    { address: '0x598986FaC0D3ff7EaC3D55fFAB5e67c2a27C2765', displayName: '', thisGamePayout: '200', lifetimeWins: 0, lifetimeVmfWon: '0' },
-    { address: '0xC77dA8cB158BA77BaC765625745a766Af3111A69', displayName: '', thisGamePayout: '200', lifetimeWins: 0, lifetimeVmfWon: '0' },
-    { address: '0x46E9BeEF5dC68dFf095EcA56DaDF90247f1Af7EF', displayName: '', thisGamePayout: '200', lifetimeWins: 0, lifetimeVmfWon: '0' },
-    { address: '0x65e3419E633833Df1D602e7905Cb9C7e541f0849', displayName: '', thisGamePayout: '200', lifetimeWins: 0, lifetimeVmfWon: '0' },
-    { address: '0x802F18765D6945b82075241e40b6214331ca3641', displayName: '', thisGamePayout: '200', lifetimeWins: 0, lifetimeVmfWon: '0' },
-    { address: '0x14E8FddFa4a7c709C19a8C7DA5205c3ae366355c', displayName: '', thisGamePayout: '200', lifetimeWins: 0, lifetimeVmfWon: '0' },
-    { address: '0xffde42d40175b3b9349Dfb384439dCB811691E09', displayName: '', thisGamePayout: '200', lifetimeWins: 0, lifetimeVmfWon: '0' },
-    { address: '0x9157Feb12812b253e84447C6B52C38651fd67FcA', displayName: '', thisGamePayout: '200', lifetimeWins: 0, lifetimeVmfWon: '0' },
-    { address: '0xD68C5493e41F03faC90776ad0366376E245255E8', displayName: '', thisGamePayout: '200', lifetimeWins: 0, lifetimeVmfWon: '0' },
-  ]
+  // V2 Contract - Fresh start! No historical data from old contracts.
 
   // Get current game IDs from new contract
   const { data: dailyGameId } = useReadContract({
@@ -187,41 +146,42 @@ export default function LeaderboardPage({
   })
 
   // Determine which game we're showing (most recently settled game)
-  // Contract's dailyGameId is 1 ahead of settled game (e.g., dailyGameId = 20, settled game = 19)
-  const previousDailyGameId = dailyGameId ? Number(dailyGameId) - 1 : 19  // Last settled daily game
-  const previousWeeklyGameId = weeklyGameId ? Number(weeklyGameId) - 1 : 4 // Last settled weekly game
+  // Contract's dailyGameId is 1 ahead of settled game (e.g., dailyGameId = 2, settled game = 1)
+  // V2 Contract: Fresh start at Game #1, Week #1
+  const previousDailyGameId = dailyGameId ? Number(dailyGameId) - 1 : 0  // Last settled daily game
+  const previousWeeklyGameId = weeklyGameId ? Number(weeklyGameId) - 1 : 0 // Last settled weekly game
 
-  // For Game 13+, read from new contract
+  // Read winners from V2 contract (only if a game has settled)
   const { data: dailyWinnersAddresses } = useReadContract({
     address: PIZZA_PARTY_ADDRESS as `0x${string}`,
     abi: PIZZA_PARTY_ABI,
     functionName: 'getDailyGameWinners',
-    args: [BigInt(previousDailyGameId)],
-    query: { enabled: previousDailyGameId >= 13 },
+    args: [BigInt(Math.max(previousDailyGameId, 1))],
+    query: { enabled: previousDailyGameId >= 1 },
   })
 
   const { data: weeklyWinnersAddresses } = useReadContract({
     address: PIZZA_PARTY_ADDRESS as `0x${string}`,
     abi: PIZZA_PARTY_ABI,
     functionName: 'getWeeklyGameWinners',
-    args: [BigInt(previousWeeklyGameId)],
-    query: { enabled: previousWeeklyGameId >= 4 },  // Week 2 and 3 use hardcoded data
+    args: [BigInt(Math.max(previousWeeklyGameId, 1))],
+    query: { enabled: previousWeeklyGameId >= 1 },
   })
 
   const { data: previousDailyGame } = useReadContract({
     address: PIZZA_PARTY_ADDRESS as `0x${string}`,
     abi: PIZZA_PARTY_ABI,
     functionName: 'dailyGames',
-    args: [BigInt(previousDailyGameId)],
-    query: { enabled: previousDailyGameId >= 13 },
+    args: [BigInt(Math.max(previousDailyGameId, 1))],
+    query: { enabled: previousDailyGameId >= 1 },
   })
 
   const { data: previousWeeklyGame } = useReadContract({
     address: PIZZA_PARTY_ADDRESS as `0x${string}`,
     abi: PIZZA_PARTY_ABI,
     functionName: 'weeklyGames',
-    args: [BigInt(previousWeeklyGameId)],
-    query: { enabled: previousWeeklyGameId >= 4 },  // Week 2 and 3 use hardcoded data
+    args: [BigInt(Math.max(previousWeeklyGameId, 1))],
+    query: { enabled: previousWeeklyGameId >= 1 },
   })
 
   useEffect(() => {
@@ -229,52 +189,48 @@ export default function LeaderboardPage({
       try {
         setLoading(true)
 
-        let dailyPlayersData: WinnerDisplay[]
-        let weeklyPlayersData: WinnerDisplay[]
+        let dailyPlayersData: WinnerDisplay[] = []
+        let weeklyPlayersData: WinnerDisplay[] = []
 
-        // Try to read from contract first, fallback to hardcoded Game 16 if no winners
-        // Game 16 was settled on old contract 0x10BEB7B8... on Dec 8, 2025
+        // V2 Contract - Fresh start! Only read from new contract.
         const dailyAddresses = (dailyWinnersAddresses as string[]) || []
 
-        if (dailyAddresses.length > 0) {
-          // We have winners from the new contract
+        if (dailyAddresses.length > 0 && previousDailyGameId >= 1) {
+          // We have winners from the V2 contract
           const dailyPot = previousDailyGame ? (previousDailyGame as { potAmount: bigint }).potAmount : 0n
-          const dailyPayoutPerWinner = Number(formatUnits(BigInt(dailyPot) * 94n / 100n / BigInt(dailyAddresses.length), 18)).toFixed(1)
+          const dailyPayoutPerWinner = dailyAddresses.length > 0 && dailyPot > 0n
+            ? Number(formatUnits(BigInt(dailyPot) * 94n / 100n / BigInt(dailyAddresses.length), 18)).toFixed(1)
+            : '0'
 
           dailyPlayersData = dailyAddresses.map((addr: string) => ({
             address: addr,
             displayName: formatAddress(addr),
             thisGamePayout: dailyPayoutPerWinner,
             lifetimeWins: 0,
-            lifetimeVmfWon: '0',
+            lifetimePizzaWon: '0',
           }))
-        } else {
-          // No winners from new contract - show Game 16 winners (last settled game from old contract)
-          dailyPlayersData = [...GAME_16_DAILY_WINNERS]
         }
+        // No fallback - if no winners yet, show empty state
 
-        // Use hardcoded data for Week 2 and Week 3 (settled on old contracts), otherwise read from contract
-        if (previousWeeklyGameId === 2) {
-          weeklyPlayersData = [...WEEK_2_WINNERS]
-        } else if (previousWeeklyGameId === 3) {
-          weeklyPlayersData = [...WEEK_3_WINNERS]
-        } else if (previousWeeklyGameId >= 4) {
+        // Weekly winners from V2 contract
+        if (previousWeeklyGameId >= 1) {
           const weeklyAddresses = (weeklyWinnersAddresses as string[]) || []
-          const weeklyPot = previousWeeklyGame ? (previousWeeklyGame as { potAmount: bigint }).potAmount : 0n
-          const weeklyPayoutPerWinner = weeklyAddresses.length > 0
-            ? Number(formatUnits(BigInt(weeklyPot) / BigInt(weeklyAddresses.length), 18)).toFixed(1)
-            : '0'
+          if (weeklyAddresses.length > 0) {
+            const weeklyPot = previousWeeklyGame ? (previousWeeklyGame as { potAmount: bigint }).potAmount : 0n
+            const weeklyPayoutPerWinner = weeklyAddresses.length > 0 && weeklyPot > 0n
+              ? Number(formatUnits(BigInt(weeklyPot) / BigInt(weeklyAddresses.length), 18)).toFixed(1)
+              : '0'
 
-          weeklyPlayersData = weeklyAddresses.map((addr: string) => ({
-            address: addr,
-            displayName: formatAddress(addr),
-            thisGamePayout: weeklyPayoutPerWinner,
-            lifetimeWins: 0,
-            lifetimeVmfWon: '0',
-          }))
-        } else {
-          weeklyPlayersData = []
+            weeklyPlayersData = weeklyAddresses.map((addr: string) => ({
+              address: addr,
+              displayName: formatAddress(addr),
+              thisGamePayout: weeklyPayoutPerWinner,
+              lifetimeWins: 0,
+              lifetimePizzaWon: '0',
+            }))
+          }
         }
+        // No fallback - if no weekly winners yet, show empty state
 
         // Fetch lifetime stats for all players using multicall for efficiency
         const allAddresses = [...new Set([
@@ -282,7 +238,7 @@ export default function LeaderboardPage({
           ...weeklyPlayersData.map(p => p.address),
         ])]
 
-        const statsMap = new Map<string, { wins: number; vmfWon: string }>()
+        const statsMap = new Map<string, { wins: number; pizzaWon: string }>()
 
         // Use multicall to batch all requests - all stats are now in current contract
         try {
@@ -299,19 +255,19 @@ export default function LeaderboardPage({
           allAddresses.forEach((addr, i) => {
             const result = results[i]
             if (result.status === 'success' && result.result) {
-              const stats = result.result as unknown as { totalDailyWins: bigint; totalWeeklyWins: bigint; totalVmfWon: bigint }
+              const stats = result.result as unknown as { totalDailyWins: bigint; totalWeeklyWins: bigint; totalPizzaWon: bigint }
               statsMap.set(addr.toLowerCase(), {
                 wins: Number(stats.totalDailyWins) + Number(stats.totalWeeklyWins),
-                vmfWon: Number(formatUnits(stats.totalVmfWon, 18)).toFixed(1),
+                pizzaWon: Number(formatUnits(stats.totalPizzaWon, 18)).toFixed(1),
               })
             } else {
-              statsMap.set(addr.toLowerCase(), { wins: 0, vmfWon: '0' })
+              statsMap.set(addr.toLowerCase(), { wins: 0, pizzaWon: '0' })
             }
           })
         } catch (err) {
           console.error('Error fetching lifetime stats via multicall:', err)
           allAddresses.forEach(addr => {
-            statsMap.set(addr.toLowerCase(), { wins: 0, vmfWon: '0' })
+            statsMap.set(addr.toLowerCase(), { wins: 0, pizzaWon: '0' })
           })
         }
 
@@ -321,7 +277,7 @@ export default function LeaderboardPage({
           return {
             ...player,
             lifetimeWins: stats?.wins || 0,
-            lifetimeVmfWon: stats?.vmfWon || '0',
+            lifetimePizzaWon: stats?.pizzaWon || '0',
           }
         })
 
@@ -330,18 +286,18 @@ export default function LeaderboardPage({
           return {
             ...player,
             lifetimeWins: stats?.wins || 0,
-            lifetimeVmfWon: stats?.vmfWon || '0',
+            lifetimePizzaWon: stats?.pizzaWon || '0',
           }
         })
 
-        // Sort by lifetime wins (descending), then by VMF won (descending) as tiebreaker
+        // Sort by lifetime wins (descending), then by PIZZA won (descending) as tiebreaker
         const sortByLifetimeStats = (a: WinnerDisplay, b: WinnerDisplay) => {
           // First sort by wins (more wins = higher rank)
           if (b.lifetimeWins !== a.lifetimeWins) {
             return b.lifetimeWins - a.lifetimeWins
           }
-          // Tiebreaker: sort by VMF won (more VMF = higher rank)
-          return parseFloat(b.lifetimeVmfWon) - parseFloat(a.lifetimeVmfWon)
+          // Tiebreaker: sort by PIZZA won (more PIZZA = higher rank)
+          return parseFloat(b.lifetimePizzaWon) - parseFloat(a.lifetimePizzaWon)
         }
 
         dailyPlayersData.sort(sortByLifetimeStats)
@@ -421,7 +377,7 @@ export default function LeaderboardPage({
       if (isWeekly && gameId <= 4) {
         return '$6.52'
       }
-      return `$${(Number(winner.thisGamePayout) * vmfUsd).toFixed(2)}`
+      return `$${(Number(winner.thisGamePayout) * pizzaUsd).toFixed(2)}`
     }
 
     return (
@@ -462,7 +418,7 @@ export default function LeaderboardPage({
                 </span>
                 {/* ✅ LIFETIME TOTAL (gray) - Sum of ALL games ever */}
                 <span className="text-xs text-gray-600" style={{ ...customFontStyle, whiteSpace: 'nowrap' }}>
-                  {winner.lifetimeVmfWon} VMF
+                  {winner.lifetimePizzaWon} PIZZA
                 </span>
               </>
             )}
@@ -474,7 +430,7 @@ export default function LeaderboardPage({
             {getUsdValue()}
           </span>
           <span className="block text-lg font-bold text-green-600" style={customFontStyle}>
-            VMF
+            PIZZA
           </span>
         </div>
       </div>
@@ -515,7 +471,7 @@ export default function LeaderboardPage({
               <div className="relative w-full" style={{ height: isMobile ? '88px' : '100px' }}>
                 <Image
                   src="/images/LeaderboardCard.png"
-                  alt="LEADERBOARD - See who's winning the most VMF tokens!"
+                  alt="LEADERBOARD - See who's winning the most PIZZA tokens!"
                   fill
                   className="object-cover"
                   priority
@@ -634,7 +590,7 @@ export default function LeaderboardPage({
                   </li>
                   <li className="flex items-start gap-2">
                     <span>🍅</span>
-                    <span><strong>EARN MORE TOPPINGS:</strong> Play daily, refer friends, hold VMF coins.</span>
+                    <span><strong>EARN MORE TOPPINGS:</strong> Play daily, refer friends, hold PIZZA coins.</span>
                   </li>
                 </ul>
               </div>

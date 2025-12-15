@@ -16,10 +16,10 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 
   return {
     title: `Join Pizza Party with code ${code}`,
-    description: '🍕 Join Pizza Party to win a slice of VMF!',
+    description: '🍕 Join Pizza Party to win a slice of PIZZA!',
     openGraph: {
       title: `Join Pizza Party with code ${code}`,
-      description: '🍕 Join Pizza Party to win a slice of VMF!',
+      description: '🍕 Join Pizza Party to win a slice of PIZZA!',
       images: [frameImage],
       url: `${baseUrl}/ref/${code}`,
     },

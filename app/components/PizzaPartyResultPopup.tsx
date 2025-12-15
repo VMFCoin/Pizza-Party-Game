@@ -19,25 +19,25 @@ export function PizzaPartyResultPopup() {
   const [showPopup, setShowPopup] = useState(false)
   const [isWinner, setIsWinner] = useState(false)
   const [winType, setWinType] = useState<WinType>(null)
-  const [dailyVmfWon, setDailyVmfWon] = useState(0)
-  const [weeklyVmfWon, setWeeklyVmfWon] = useState(0)
-  const [vmfUsd, setVmfUsd] = useState(0.01)
+  const [dailyPizzaWon, setDailyPizzaWon] = useState(0)
+  const [weeklyPizzaWon, setWeeklyPizzaWon] = useState(0)
+  const [pizzaUsd, setPizzaUsd] = useState(0.01)
   const [hasChecked, setHasChecked] = useState(false)
 
-  // Calculate total VMF won
-  const totalVmfWon = dailyVmfWon + weeklyVmfWon
+  // Calculate total PIZZA won
+  const totalPizzaWon = dailyPizzaWon + weeklyPizzaWon
 
-  // Fetch VMF/USD price
+  // Fetch PIZZA/USD price
   useEffect(() => {
     const fetchPrice = async () => {
       try {
         const res = await fetch('/api/price')
         const data = await res.json()
         if (data.priceUsd) {
-          setVmfUsd(parseFloat(data.priceUsd))
+          setPizzaUsd(parseFloat(data.priceUsd))
         }
       } catch (error) {
-        console.error('Failed to fetch VMF price:', error)
+        console.error('Failed to fetch PIZZA price:', error)
       }
     }
     fetchPrice()
@@ -145,7 +145,7 @@ export function PizzaPartyResultPopup() {
                 const totalDailyPayout = userPayout + firstPlayerBonus + dustShare
                 dailyPayout = Number(totalDailyPayout) / 1e18
 
-                console.log('Daily VMF Calculation:', {
+                console.log('Daily PIZZA Calculation:', {
                   pot: (Number(pot) / 1e18).toFixed(2),
                   playersPool: (Number(playersPool) / 1e18).toFixed(2),
                   winnerShare: (Number(winnerShare) / 1e18).toFixed(2),
@@ -188,7 +188,7 @@ export function PizzaPartyResultPopup() {
               const weeklyShare = weeklyPot / numberOfWeeklyWinners
               weeklyPayout = Number(weeklyShare) / 1e18
 
-              console.log('Weekly VMF Calculation:', {
+              console.log('Weekly PIZZA Calculation:', {
                 pot: (Number(weeklyPot) / 1e18).toFixed(2),
                 numberOfWinners: weeklyWinners.length,
                 payoutPerWinner: weeklyPayout,
@@ -200,8 +200,8 @@ export function PizzaPartyResultPopup() {
         // Set state based on results
         if (isDailyWinner || isWeeklyWinner) {
           setIsWinner(true)
-          setDailyVmfWon(dailyPayout)
-          setWeeklyVmfWon(weeklyPayout)
+          setDailyPizzaWon(dailyPayout)
+          setWeeklyPizzaWon(weeklyPayout)
 
           if (isDailyWinner && isWeeklyWinner) {
             setWinType('both')
@@ -275,13 +275,13 @@ export function PizzaPartyResultPopup() {
   }
 
   const handleShare = async () => {
-    const usdValue = (totalVmfWon * vmfUsd).toFixed(2)
+    const usdValue = (totalPizzaWon * pizzaUsd).toFixed(2)
     const referralCode = referralInfo?.referralCode ?? ''
     const referralShareUrl = referralCode ? `${SHARE_BASE_URL}${referralCode}` : SHARE_BASE_URL
 
     const shareText = referralCode
-      ? `🍕 Just sliced $${usdValue} of $VMF in Pizza Party! Who's next? Come get this dough!\n\nDaily and Weekly Jackpots paying out the cheese, use my referral code: ${referralCode}\n\nWe all win together! 🍕`
-      : `🍕 Just sliced $${usdValue} of $VMF in Pizza Party! Who's next? Come get this dough!\n\nDaily and Weekly Jackpots paying out the cheese!\n\nWe all win together! 🍕`
+      ? `🍕 Just sliced $${usdValue} of $PIZZA in Pizza Party! Who's next? Come get this dough!\n\nDaily and Weekly Jackpots paying out the cheese, use my referral code: ${referralCode}\n\nWe all win together! 🍕`
+      : `🍕 Just sliced $${usdValue} of $PIZZA in Pizza Party! Who's next? Come get this dough!\n\nDaily and Weekly Jackpots paying out the cheese!\n\nWe all win together! 🍕`
 
     try {
       const actions = sdk.actions as {
@@ -392,7 +392,7 @@ export function PizzaPartyResultPopup() {
                     fontSize: 'clamp(1.9rem, 6.8vw, 3rem)',
                   }}
                 >
-                  ${(totalVmfWon * vmfUsd).toFixed(2)} of $VMF
+                  ${(totalPizzaWon * pizzaUsd).toFixed(2)} of $PIZZA
                 </p>
               </div>
 

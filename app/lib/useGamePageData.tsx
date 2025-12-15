@@ -113,7 +113,7 @@ interface ReferralInfo {
 interface PlayerLifetimeStats {
   totalDailyWins: bigint
   totalWeeklyWins: bigint
-  totalVmfWon: bigint
+  totalPizzaWon: bigint
   lifetimeToppings: bigint
   lifetimeReferrals: bigint
 }
@@ -339,7 +339,7 @@ export function useGamePageData() {
       }) as readonly [bigint, bigint, bigint, bigint, bigint] | {
         totalDailyWins: bigint
         totalWeeklyWins: bigint
-        totalVmfWon: bigint
+        totalPizzaWon: bigint
         lifetimeToppings: bigint
         lifetimeReferrals: bigint
       }
@@ -347,7 +347,7 @@ export function useGamePageData() {
       // Handle both tuple and object formats
       let lifetimeToppings: bigint
       let lifetimeReferrals: bigint
-      
+
       if (Array.isArray(lifetimeStatsRaw)) {
         lifetimeToppings = lifetimeStatsRaw[3]
         lifetimeReferrals = lifetimeStatsRaw[4]
@@ -355,7 +355,7 @@ export function useGamePageData() {
         const statsObj = lifetimeStatsRaw as {
           totalDailyWins: bigint
           totalWeeklyWins: bigint
-          totalVmfWon: bigint
+          totalPizzaWon: bigint
           lifetimeToppings: bigint
           lifetimeReferrals: bigint
         }
@@ -428,44 +428,44 @@ export function useGamePageData() {
       }) as readonly [bigint, bigint, bigint, bigint, bigint] | {
         totalDailyWins: bigint
         totalWeeklyWins: bigint
-        totalVmfWon: bigint
+        totalPizzaWon: bigint
         lifetimeToppings: bigint
         lifetimeReferrals: bigint
       }
 
       // Handle both tuple and object formats
       if (Array.isArray(stats)) {
-        const [totalDailyWins, totalWeeklyWins, totalVmfWon, lifetimeToppings, lifetimeReferrals] = stats
+        const [totalDailyWins, totalWeeklyWins, totalPizzaWon, lifetimeToppings, lifetimeReferrals] = stats
         setPlayerLifetimeStats({
           totalDailyWins,
           totalWeeklyWins,
-          totalVmfWon,
+          totalPizzaWon,
           lifetimeToppings,
           lifetimeReferrals,
         })
-        
+
         console.debug('✅ Player lifetime stats fetched:', {
-          totalVmfWon: `${(Number(totalVmfWon) / 1e18).toFixed(2)} VMF`,
+          totalPizzaWon: `${(Number(totalPizzaWon) / 1e18).toFixed(2)} PIZZA`,
           totalWins: (Number(totalDailyWins) + Number(totalWeeklyWins)).toString(),
         })
       } else {
         const statsObj = stats as {
           totalDailyWins: bigint
           totalWeeklyWins: bigint
-          totalVmfWon: bigint
+          totalPizzaWon: bigint
           lifetimeToppings: bigint
           lifetimeReferrals: bigint
         }
         setPlayerLifetimeStats({
           totalDailyWins: statsObj.totalDailyWins,
           totalWeeklyWins: statsObj.totalWeeklyWins,
-          totalVmfWon: statsObj.totalVmfWon,
+          totalPizzaWon: statsObj.totalPizzaWon,
           lifetimeToppings: statsObj.lifetimeToppings,
           lifetimeReferrals: statsObj.lifetimeReferrals,
         })
-        
+
         console.debug('✅ Player lifetime stats fetched:', {
-          totalVmfWon: `${(Number(statsObj.totalVmfWon) / 1e18).toFixed(2)} VMF`,
+          totalPizzaWon: `${(Number(statsObj.totalPizzaWon) / 1e18).toFixed(2)} PIZZA`,
           totalWins: (Number(statsObj.totalDailyWins) + Number(statsObj.totalWeeklyWins)).toString(),
         })
       }
@@ -590,7 +590,7 @@ export function useGamePageData() {
           console.log('Total ToppingsEarned events:', allLogs.length)
           console.log('Unique players (all reasons):', uniquePlayersThisWeek.size)
           console.log('Total toppings earned:', totalEarned.toString())
-          console.log('Projected jackpot:', (Number(totalEarned) * 10).toString(), 'VMF')
+          console.log('Projected jackpot:', (Number(totalEarned) * 100).toString(), 'PIZZA')
           console.log('')
           console.log('Breakdown by reason:')
           for (const [reason, amount] of Object.entries(toppingsByReason)) {
@@ -910,7 +910,7 @@ export function useGamePageData() {
       }) as readonly [bigint, bigint, bigint, bigint, bigint] | {
         totalDailyWins: bigint
         totalWeeklyWins: bigint
-        totalVmfWon: bigint
+        totalPizzaWon: bigint
         lifetimeToppings: bigint
         lifetimeReferrals: bigint
       }
@@ -924,7 +924,7 @@ export function useGamePageData() {
       // Handle both tuple and object formats
       const beforePizzaWon = Array.isArray(beforeStats)
         ? beforeStats[2]
-        : (beforeStats as { totalVmfWon: bigint }).totalVmfWon
+        : (beforeStats as { totalPizzaWon: bigint }).totalPizzaWon
 
       const beforeKey = `pizza_party_before_game_${currentGameId}`
       if (typeof window !== 'undefined') {
@@ -1092,11 +1092,11 @@ export function useGamePageData() {
   return {
     wallet,
     openWalletModal,
-    // Token price and amount (renamed from VMF to PIZZA but keeping similar interface for easy migration)
-    vmfUsd: pizzaUsdPrice,         // PIZZA price in USD
-    vmfAmount: pizzaAmount,         // PIZZA amount for entry fee display
-    vmfWei: entryFeeWei,           // Entry fee in wei
-    vmfBalance: pizzaBalance,       // User's PIZZA balance
+    // Token price and amount
+    pizzaUsd: pizzaUsdPrice,        // PIZZA price in USD
+    pizzaAmount: pizzaAmount,       // PIZZA amount for entry fee display
+    pizzaWei: entryFeeWei,          // Entry fee in wei
+    pizzaBalance: pizzaBalance,     // User's PIZZA balance
     daily,
     playerInfo,
     playerWeekly,
@@ -1105,13 +1105,10 @@ export function useGamePageData() {
     referralInfo,
     priceOracleWorking,
     pacificCountdown: { msRemaining, hours, minutes, seconds, nextResetPacific },
-    hasEnoughVMF: hasEnoughPizza,  // Has enough PIZZA to play
+    hasEnoughPizza: hasEnoughPizza, // Has enough PIZZA to play
     isEntryInProgress: isPending,
     handleEnterGame,
     handleClaimToppings,
-    // No longer needed with permit:
-    // handleApproveVMF - removed, permit handles approval in single tx
-    // needsApproval - removed, always false with permit
     hasEnteredToday,
     claimableToppings,
   }

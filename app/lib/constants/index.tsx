@@ -5,7 +5,7 @@ import type { Abi } from 'viem'
 // Contract addresses (Base mainnet)
 // ==============================
 // PizzaParty contract address - UPDATE THIS after deploying new contract with PIZZA token
-export const PIZZA_PARTY_ADDRESS = "0x0000000000000000000000000000000000000000" // TODO: Deploy and update
+export const PIZZA_PARTY_ADDRESS = "0xA1C31c3eF1448351da0b1D430148660982B6f3dD" // PizzaParty v2 Proxy (deployed Dec 15, 2024)
 
 // PIZZA Token (proxy with EIP-2612 permit support)
 export const PIZZA_TOKEN_ADDRESS = "0xbD0e3768B9A7C3d53e7b92EDC4C38728E2fA9b69"
@@ -241,7 +241,7 @@ export const PIZZA_PARTY_ABI = [
       components: [
         { type: 'uint256', name: 'totalDailyWins' },
         { type: 'uint256', name: 'totalWeeklyWins' },
-        { type: 'uint256', name: 'totalVmfWon' },
+        { type: 'uint256', name: 'totalPizzaWon' },
         { type: 'uint256', name: 'lifetimeToppings' },
         { type: 'uint256', name: 'lifetimeReferrals' }
       ]

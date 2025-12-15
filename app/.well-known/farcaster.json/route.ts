@@ -15,14 +15,13 @@ const manifest = {
     splashBackgroundColor: "#dc2626",
     webhookUrl: "https://pizza-party-game.vmfcoin.com/api/farcaster/webhook",
     subtitle: "Daily Cheesy Winners",
-    description: "Join the daily Pizza Party on Base. Spend VMF to enter, collect toppings, and win gooey jackpots with friends.",
+    description: "Join the daily Pizza Party on Base. Spend PIZZA to enter, collect toppings, and win gooey jackpots with friends.",
     screenshotUrls: [
       sharedImage
     ],
     primaryCategory: "games",
     tags: [
       "pizza",
-      "vmf",
       "jackpot",
       "game",
       "base"
@@ -30,7 +29,7 @@ const manifest = {
     heroImageUrl: heroImage,
     tagline: "The Cheesiest Way to Win.",
     ogTitle: "Pizza Party - Daily Jackpots",
-    ogDescription: "Enter the Base Pizza Party with VMF, collect toppings, and win one of eight daily slices.",
+    ogDescription: "Enter the Base Pizza Party with PIZZA, collect toppings, and win one of eight daily slices.",
     ogImageUrl: sharedImage,
     castShareUrl: "https://pizza-party-game.vmfcoin.com/share"
   },

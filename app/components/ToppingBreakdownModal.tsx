@@ -98,7 +98,7 @@ export default function ToppingBreakdownModal({
             <div className="flex items-center gap-2 min-w-0">
               <span className={`${isMobile ? 'text-lg' : 'text-2xl'}`}>🍅</span>
               <span className={`text-black font-bold truncate ${isMobile ? 'text-sm' : ''}`} style={customFontStyle}>
-                VMF Holdings
+                PIZZA Holdings
               </span>
             </div>
             <span className={`text-black font-black flex-shrink-0 ${isMobile ? 'text-base' : 'text-lg'}`}>{holdingsToppings}</span>
