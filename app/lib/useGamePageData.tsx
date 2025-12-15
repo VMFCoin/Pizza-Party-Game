@@ -18,7 +18,7 @@ import { wagmiConfig } from '../components/config/wagmiConfig'
 const PACIFIC_TZ = 'America/Los_Angeles'
 const BASE_CHAIN_ID = 8453
 const WEI_PER_PIZZA = 10n ** 18n
-const DEFAULT_PIZZA_USD_PRICE = 0.0126  // ~$0.0126 VMF price as of Dec 2025
+const DEFAULT_PIZZA_USD_PRICE = 0.01
 const TOPPINGS_EARNED_EVENT = parseAbiItem(
   'event ToppingsEarned(uint256 indexed weekId, address indexed player, uint256 amount, string reason)',
 )
@@ -131,7 +131,7 @@ interface WeeklyData {
   error: Error | null
 }
 
-const _isRecord = (value: unknown): value is Record<string, unknown> =>
+const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null
 
 const getErrorMessage = (error: unknown): string => {
@@ -235,11 +235,13 @@ export function useGamePageData() {
 
   // ================= Entry Fee (Dynamic based on PIZZA price) =================
   const entryFeeWei = useMemo(() => {
-    // Use current price or default - always calculate $1 worth of VMF
-    const priceToUse = pizzaUsdPrice && pizzaUsdPrice > 0 ? pizzaUsdPrice : DEFAULT_PIZZA_USD_PRICE
+    if (!pizzaUsdPrice || pizzaUsdPrice <= 0) {
+      // Fallback to default if price not available
+      return 100n * WEI_PER_PIZZA
+    }
 
     // Calculate PIZZA needed for $1: 1 / price
-    const pizzaPerDollar = 1 / priceToUse
+    const pizzaPerDollar = 1 / pizzaUsdPrice
 
     // Convert to wei with proper rounding
     const amountWei = BigInt(Math.floor(pizzaPerDollar * Number(WEI_PER_PIZZA)))
@@ -270,11 +272,7 @@ export function useGamePageData() {
   // ================= PIZZA Balance =================
   const [pizzaBalance, setPizzaBalance] = useState<bigint>(0n)
   const fetchPizzaBalance = useCallback(async () => {
-    if (!wallet.address) {
-      console.debug('fetchPizzaBalance: No wallet address yet')
-      return
-    }
-    console.debug('fetchPizzaBalance: Fetching for', wallet.address, 'from token', PIZZA_TOKEN_ADDRESS)
+    if (!wallet.address) return
     try {
       const balanceData = await readContract(wagmiConfig, {
         address: PIZZA_TOKEN_ADDRESS as `0x${string}`,
@@ -288,11 +286,10 @@ export function useGamePageData() {
         : BigInt(String(balanceData ?? '0'))
 
       setPizzaBalance(balanceBigInt)
-      const balanceVMF = Number(balanceBigInt) / 1e18
-      console.debug('✅ VMF balance fetched:', balanceBigInt.toString(), `(${balanceVMF.toFixed(2)} VMF)`)
+      console.debug('PIZZA balance fetched:', balanceBigInt.toString())
 
     } catch (err) {
-      console.error('❌ Failed to fetch VMF balance:', err)
+      console.error('Failed to fetch PIZZA balance', err)
       setPizzaBalance(0n)
     }
   }, [wallet.address])
@@ -1089,11 +1086,8 @@ export function useGamePageData() {
   const openWalletModal = useCallback(() => open(), [open])
 
   useEffect(() => {
-    const balanceVMF = Number(pizzaBalance) / 1e18
-    const entryFeeVMF = Number(entryFeeWei) / 1e18
-    console.debug(`💰 Balance Check: ${balanceVMF.toFixed(2)} VMF, Entry Fee: ${entryFeeVMF.toFixed(2)} VMF, Has Enough: ${hasEnoughPizza}`)
-    console.debug(`   Price: $${pizzaUsdPrice.toFixed(4)}/VMF, Raw balance: ${pizzaBalance.toString()}, Raw fee: ${entryFeeWei.toString()}`)
-  }, [pizzaBalance, entryFeeWei, hasEnoughPizza, pizzaUsdPrice])
+    console.debug('pizzaBalance, entryFeeWei, hasEnoughPizza', pizzaBalance.toString(), entryFeeWei.toString(), hasEnoughPizza)
+  }, [pizzaBalance, entryFeeWei, hasEnoughPizza])
 
   return {
     wallet,
