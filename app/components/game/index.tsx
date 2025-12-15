@@ -230,6 +230,13 @@ function GamePageContent({ onNavigateToWeekly, onNavigateToLeaderboard }: GamePa
     window.history.replaceState({}, '', window.location.pathname)
   }, [isFirstEntry])
 
+  // Hide referral input modal when entry is successful
+  useEffect(() => {
+    if (hasEnteredToday) {
+      setShowReferralInput(false)
+    }
+  }, [hasEnteredToday])
+
   // Determine main action button state
   // Note: No approval step needed - we use EIP-2612 permit for single-transaction entry!
   const buttonConfig = useMemo(() => {
@@ -261,10 +268,17 @@ function GamePageContent({ onNavigateToWeekly, onNavigateToLeaderboard }: GamePa
   const { hours, minutes, seconds } = pacificCountdown
 
   // Handle referral code submission
-  const handleEnterWithReferral = () => {
+  const handleEnterWithReferral = async () => {
     const code = referralCodeInput.trim()
-    handleEnterGame(code.length > 0 ? code : undefined)
-    setShowReferralInput(false)
+    // Don't hide modal until transaction is initiated
+    // The handleEnterGame function will set hasEnteredToday=true on success
+    // which will hide this modal via the conditional render
+    try {
+      await handleEnterGame(code.length > 0 ? code : '')
+    } catch (err) {
+      console.error('Entry failed:', err)
+    }
+    // Only clear the input after attempting entry
     setReferralCodeInput('')
   }
 
