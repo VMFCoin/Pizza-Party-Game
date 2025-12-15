@@ -357,14 +357,11 @@ function GamePageContent({ onNavigateToWeekly, onNavigateToLeaderboard }: GamePa
           <p className="text-blue-600 text-sm mt-1">
             {daily.loading
               ? 'Loading entries...'
-              : `Total entries: ${daily.totalEntries} • Game #${daily.dailyGameId - 3}`}
+              : `Total entries: ${daily.totalEntries} • Game #${daily.dailyGameId > 0 ? daily.dailyGameId - 3 : 21}`}
           </p>
 
           {daily.isCompleted && !daily.loading && (
             <p className="text-xs text-blue-700 mt-1">This game has been finalized.</p>
-          )}
-          {daily.error && (
-            <p className="text-xs text-red-600 mt-1">Error loading daily data</p>
           )}
         </div>
 
