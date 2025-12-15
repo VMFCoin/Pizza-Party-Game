@@ -299,6 +299,7 @@ export function useGamePageData() {
   const [playerWeekly, setPlayerWeekly] = useState<PlayerWeeklyInfo | null>(null)
   const [playerLifetimeStats, setPlayerLifetimeStats] = useState<PlayerLifetimeStats | null>(null)
   const [referralInfo, setReferralInfo] = useState<ReferralInfo | null>(null)
+  const [hasUsedReferral, setHasUsedReferral] = useState<boolean>(true) // Default true to hide modal until we know
 
   const [weekly, setWeekly] = useState<WeeklyData>({
     claimStart: 0,
@@ -389,6 +390,21 @@ export function useGamePageData() {
         referralCode = ''
       }
 
+      // Check if player has already used a referral code
+      try {
+        const usedReferral = await readContract(wagmiConfig, {
+          address: PIZZA_PARTY_ADDRESS as `0x${string}`,
+          abi: PIZZA_PARTY_ABI,
+          functionName: 'hasUsedReferral',
+          args: [wallet.address as `0x${string}`],
+        })
+        setHasUsedReferral(Boolean(usedReferral))
+        console.debug('Has used referral:', Boolean(usedReferral))
+      } catch (refErr) {
+        console.error('Failed to check hasUsedReferral:', refErr)
+        setHasUsedReferral(true) // Default to true (hide modal) on error
+      }
+
       const refInfo: ReferralInfo = {
         referralCode: referralCode || '', // Keep empty string - UI will handle display
         referrer: '0x0000000000000000000000000000000000000000',
@@ -401,6 +417,7 @@ export function useGamePageData() {
       console.error('Failed to fetch player info', err)
       setPlayerInfo(null)
       setPlayerWeekly(null)
+      setHasUsedReferral(true) // Default to true (hide modal) on error
       // Set referralInfo with empty code instead of null so UI doesn't show "Loading..."
       setReferralInfo({
         referralCode: '',
@@ -1091,5 +1108,6 @@ export function useGamePageData() {
     handleClaimToppings,
     hasEnteredToday,
     claimableToppings,
+    hasUsedReferral, // Whether player has already used a referral code (can only use once)
   }
 }

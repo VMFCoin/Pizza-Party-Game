@@ -199,6 +199,7 @@ function GamePageContent({ onNavigateToWeekly, onNavigateToLeaderboard }: GamePa
     isEntryInProgress,
     hasEnteredToday,
     hasEnoughPizza,
+    hasUsedReferral,
   } = useGamePageData()
 
   useEffect(() => {
@@ -213,10 +214,11 @@ function GamePageContent({ onNavigateToWeekly, onNavigateToLeaderboard }: GamePa
   }
 
   // Debug render
-  console.debug('GamePageContent render — hasEnteredToday:', hasEnteredToday)
+  console.debug('GamePageContent render — hasEnteredToday:', hasEnteredToday, 'hasUsedReferral:', hasUsedReferral)
 
-  // Check if this is user's first entry ever
-  const isFirstEntry = playerInfo?.dailyEntries === 0n
+  // Check if player can use a referral code (only once ever)
+  // This replaces the old "canUseReferral" check which used lifetime toppings
+  const canUseReferral = !hasUsedReferral
 
   useEffect(() => {
     if (typeof window === 'undefined') return
@@ -224,11 +226,11 @@ function GamePageContent({ onNavigateToWeekly, onNavigateToLeaderboard }: GamePa
     const refCode = params.get('ref')
     if (!refCode) return
     setReferralCodeInput(refCode.toUpperCase())
-    if (isFirstEntry) {
+    if (canUseReferral) {
       setShowReferralInput(true)
     }
     window.history.replaceState({}, '', window.location.pathname)
-  }, [isFirstEntry])
+  }, [canUseReferral])
 
   // Hide referral input modal when entry is successful
   useEffect(() => {
@@ -254,7 +256,7 @@ function GamePageContent({ onNavigateToWeekly, onNavigateToLeaderboard }: GamePa
       text: '🍕 ENTER GAME 🍕',
       onClick: () => {
         // If first entry, show referral input modal
-        if (isFirstEntry) {
+        if (canUseReferral) {
           setShowReferralInput(true)
         } else {
           // Not first entry - enter without referral code (pass empty string)
@@ -263,7 +265,7 @@ function GamePageContent({ onNavigateToWeekly, onNavigateToLeaderboard }: GamePa
       },
       disabled: isEntryInProgress
     }
-  }, [wallet, hasEnteredToday, hasEnoughPizza, openWalletModal, handleEnterGame, isEntryInProgress, isFirstEntry])
+  }, [wallet, hasEnteredToday, hasEnoughPizza, openWalletModal, handleEnterGame, isEntryInProgress, canUseReferral])
 
   const { hours, minutes, seconds } = pacificCountdown
 
@@ -443,7 +445,7 @@ function GamePageContent({ onNavigateToWeekly, onNavigateToLeaderboard }: GamePa
           )}
 
           {/* Referral Code Input (First Entry Only) */}
-          {showReferralInput && isFirstEntry && (
+          {showReferralInput && canUseReferral && (
             <div className="bg-white/95 backdrop-blur-md rounded-xl border-2 border-purple-300 p-4 w-full">
               <p className="text-red-700 font-bold mb-2 text-center" style={customFontStyle}>
                 🎁 Have a Referral Code?
@@ -478,7 +480,7 @@ function GamePageContent({ onNavigateToWeekly, onNavigateToLeaderboard }: GamePa
 
 
           {/* Main Action Button (Approve / Enter) - hidden during first-entry referral prompt */}
-          {!(showReferralInput && isFirstEntry) && (
+          {!(showReferralInput && canUseReferral) && (
             <Button
               className={`!bg-green-600 hover:!bg-green-700 text-white font-bold py-2 rounded-xl border-4 border-green-800 w-full ${buttonConfig.disabled ? 'opacity-50 cursor-not-allowed' : ''}`}
               style={{ ...customFontStyle, fontSize: isMobile ? 18 : 20 }}
