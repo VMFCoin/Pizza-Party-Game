@@ -370,7 +370,7 @@ function GamePageContent({ onNavigateToWeekly, onNavigateToLeaderboard }: GamePa
 
         {/* Daily Jackpot */}
         <div className="bg-blue-100/90 backdrop-blur-sm p-3 rounded-xl border-4 border-black w-full text-center">
-          <p className="text-blue-600 text-xl font-bold" style={customFontStyle}>Daily Jackpot</p>
+          <p className="text-blue-600 text-xl font-bold" style={{ fontFamily: 'var(--font-luckiest-guy)' }}>Daily Jackpot</p>
           <p className="text-blue-800 text-3xl font-bold" style={customFontStyle}>
             {daily.loading ? '⏳' : `$${(Number(daily.jackpot) * pizzaUsd).toFixed(2)}`}
           </p>
@@ -592,7 +592,7 @@ function GamePageContent({ onNavigateToWeekly, onNavigateToLeaderboard }: GamePa
         <div className="bg-blue-50 p-4 rounded-xl border-4 border-black w-full text-center">
           <div className="flex items-center justify-center mb-2">
             <Image src="/images/alarm-clock-icon.png" alt="Alarm Clock" width={20} height={20} className="mr-2" />
-            <p className="font-semibold text-blue-800" style={customFontStyle}>Next Draw In:</p>
+            <p className="font-semibold text-blue-800" style={{ fontFamily: 'var(--font-luckiest-guy)' }}>Next Draw In:</p>
           </div>
           <div className="grid grid-cols-3 gap-2 text-center">
             <div className="bg-white p-2 rounded border-2 border-black">
