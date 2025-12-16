@@ -24,12 +24,12 @@ export async function POST(request: NextRequest) {
 
     // Use SCAN to iterate through all notification keys (handles large datasets)
     const tokens: Array<{ token: string; url: string }> = [];
-    let cursor = 0;
+    let cursor: string | number = 0;
     let totalKeys = 0;
 
     do {
       const result = await redis.scan(cursor, { match: 'notification:*', count: 100 });
-      cursor = result[0];
+      cursor = result[0] as string | number;
       const keys = result[1];
       totalKeys += keys.length;
 
@@ -45,7 +45,7 @@ export async function POST(request: NextRequest) {
           console.error(`Error processing ${key}:`, e);
         }
       }
-    } while (cursor !== 0);
+    } while (cursor !== 0 && cursor !== '0');
 
     console.log(`Scanned ${totalKeys} notification keys, found ${tokens.length} enabled`);
 
@@ -63,7 +63,7 @@ export async function POST(request: NextRequest) {
     if (tokens.length === 0) {
       return NextResponse.json({
         message: 'No enabled tokens found',
-        keysFound: keys.length,
+        keysFound: totalKeys,
         count: 0
       });
     }
