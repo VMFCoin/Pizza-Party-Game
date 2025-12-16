@@ -583,7 +583,7 @@ export default function LeaderboardPage({
             </Button>
 
             <Card className="border-4 border-red-500 rounded-2xl bg-white/95">
-              <div className="p-3">
+              <div className="px-3 pb-3 pt-1.5">
                 <p
                   className="text-red-600 font-bold mb-2"
                   style={{ fontFamily: 'var(--font-luckiest-guy)', textAlign: 'center', fontSize: '32px' }}
