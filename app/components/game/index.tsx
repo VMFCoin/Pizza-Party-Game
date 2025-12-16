@@ -508,7 +508,7 @@ function GamePageContent({ onNavigateToWeekly, onNavigateToLeaderboard }: GamePa
           {wallet?.isAuthenticated && (
             <div className="bg-white/95 backdrop-blur-md rounded-xl border-2 border-red-300 p-3 w-full" style={{ borderColor: '#000000' }}>
               <div className="flex items-center justify-between mb-2">
-                <p className="text-red-800 font-bold text-sm" style={customFontStyle}>
+                <p className="text-red-800 text-sm" style={{ fontFamily: 'var(--font-luckiest-guy)' }}>
                   <Users className="inline mr-1 h-4 w-4" /> Your Referral Code
                 </p>
                 {referralInfo?.referralCode && (
@@ -523,17 +523,17 @@ function GamePageContent({ onNavigateToWeekly, onNavigateToLeaderboard }: GamePa
               </div>
               
     <div>
-      <p className="text-red-900 font-bold text-xl text-center mb-1 tracking-wider">
-        {referralInfo?.referralCode 
-          ? referralInfo.referralCode 
-          : referralInfo === null 
-            ? 'Loading...' 
+      <p className="text-red-900 text-xl text-center mb-1 tracking-wider" style={{ fontFamily: 'var(--font-luckiest-guy)' }}>
+        {referralInfo?.referralCode
+          ? referralInfo.referralCode
+          : referralInfo === null
+            ? 'Loading...'
             : 'Code not available'}
       </p>
-      <p className="text-xs text-red-600 text-center">
+      <p className="text-xs text-red-600 text-center" style={{ fontFamily: 'var(--font-luckiest-guy)' }}>
         Referrals: {Number(referralInfo?.totalReferrals ?? 0n)}/3 this week • {Number(referralInfo?.lifetimeReferrals ?? 0n)} lifetime
       </p>
-      <p className="text-xs text-red-500 text-center mt-1">
+      <p className="text-xs text-red-500 text-center mt-1" style={{ fontFamily: 'var(--font-luckiest-guy)' }}>
         Invite friends to earn 2 toppings each! (Max 3/week)
       </p>
     </div>
