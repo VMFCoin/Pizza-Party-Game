@@ -497,7 +497,7 @@ export default function LeaderboardPage({
                 <div className="flex items-center justify-center mb-1 text-center">
                   <h2
                     className="text-2xl font-bold text-center"
-                    style={{ fontFamily: 'var(--font-luckiest-guy)', fontSize: 'clamp(25px, 10.1vw, 36px)', color: '#FFA500' }}
+                    style={{ fontFamily: 'var(--font-luckiest-guy)', fontSize: 'clamp(28px, 11.1vw, 40px)', color: '#FFA500' }}
                 >
                   DAILY WINNERS
                   </h2>
