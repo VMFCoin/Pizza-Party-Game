@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getAllEnabledTokens } from '../../../lib/kv-notifications';
+import { Redis } from '@upstash/redis';
 import { sendNotifications } from '../../../lib/notifications';
 
 export async function POST(request: NextRequest) {
@@ -19,11 +19,42 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Missing title or message' }, { status: 400 });
     }
 
-    // Get all enabled notification tokens
-    const tokens = await getAllEnabledTokens();
+    // Direct Redis connection for debugging
+    const redis = Redis.fromEnv();
+
+    // Get all notification keys
+    const keys = await redis.keys('notification:*');
+    console.log(`Found ${keys.length} notification keys`);
+
+    if (keys.length === 0) {
+      return NextResponse.json({
+        message: 'No notification keys found in Redis',
+        count: 0,
+        debug: {
+          hasUrl: !!process.env.UPSTASH_REDIS_REST_URL,
+          hasToken: !!process.env.UPSTASH_REDIS_REST_TOKEN,
+        }
+      });
+    }
+
+    // Fetch all tokens
+    const tokens: Array<{ token: string; url: string }> = [];
+    for (const key of keys) {
+      try {
+        const data = await redis.get(key);
+        const parsed = typeof data === 'string' ? JSON.parse(data) : data;
+        if (parsed && parsed.enabled && parsed.token && parsed.url) {
+          tokens.push({ token: parsed.token, url: parsed.url });
+        }
+      } catch (e) {
+        console.error(`Error processing ${key}:`, e);
+      }
+    }
+
     if (tokens.length === 0) {
       return NextResponse.json({
         message: 'No enabled tokens found',
+        keysFound: keys.length,
         count: 0
       });
     }
