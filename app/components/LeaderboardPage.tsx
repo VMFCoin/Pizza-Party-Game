@@ -586,9 +586,9 @@ export default function LeaderboardPage({
               <div className="p-3">
                 <p
                   className="text-red-600 text-xl font-bold mb-2"
-                  style={{ ...customFontStyle, textAlign: 'center' }}
+                  style={{ fontFamily: 'var(--font-luckiest-guy)', textAlign: 'center' }}
                 >
-                  📊 How It Works
+                  How It Works
                 </p>
                 <ul className="space-y-1.5 text-red-700 text-sm font-semibold">
                   <li className="flex items-start gap-2">
