@@ -297,8 +297,8 @@ export default function WeeklyJackpotPage({
           </Button>
 
           <Card className="border-4 border-red-500 rounded-2xl bg-white/95">
-            <div className="p-3">
-              <p className="text-red-600 text-xl font-bold text-center mb-2" style={customFontStyle}>
+            <div className="px-3 pb-3 pt-1.5">
+              <p className="text-red-600 text-center mb-2" style={{ fontFamily: 'var(--font-luckiest-guy)', fontSize: '24px' }}>
                 How to Win Toppings
               </p>
               <ul className="space-y-1.5 text-red-700 text-sm font-semibold">
@@ -313,8 +313,8 @@ export default function WeeklyJackpotPage({
           </Card>
 
           <Card className="border-4 border-yellow-600 rounded-2xl bg-white/95">
-            <div className="p-3">
-              <p className="text-yellow-600 text-xl font-bold text-center mb-3" style={customFontStyle}>
+            <div className="px-3 pb-3 pt-1.5">
+              <p className="text-yellow-600 text-center mb-3" style={{ fontFamily: 'var(--font-luckiest-guy)', fontSize: '24px' }}>
                 {TERMS.title}
               </p>
               
