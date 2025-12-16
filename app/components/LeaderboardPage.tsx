@@ -48,6 +48,17 @@ function formatAddress(address: string): string {
   return `${address.slice(0, 6)}...${address.slice(-4)}`
 }
 
+// Format settlement date as "Dec. 16, 2025"
+function formatSettlementDate(timestamp: bigint | number | undefined): string {
+  if (!timestamp) return ''
+  const date = new Date(Number(timestamp) * 1000)
+  const months = ['Jan.', 'Feb.', 'Mar.', 'Apr.', 'May', 'Jun.', 'Jul.', 'Aug.', 'Sep.', 'Oct.', 'Nov.', 'Dec.']
+  const month = months[date.getMonth()]
+  const day = date.getDate()
+  const year = date.getFullYear()
+  return `${month} ${day}, ${year}`
+}
+
 
 function getPositionStyle(position: number) {
   if (position === 1) {
@@ -483,18 +494,18 @@ export default function LeaderboardPage({
 
             <Card className="border-4 border-black rounded-2xl bg-blue-50/95 shadow-lg">
               <div className="px-4" style={{ paddingTop: '12px', paddingBottom: '12px' }}>
-                <div className="flex items-center justify-center gap-1 mb-1 text-center">
-                  <span className="text-2xl">🎯</span>
+                <div className="flex items-center justify-center mb-1 text-center">
                   <h2
                     className="text-2xl font-bold text-center"
-                    style={{ ...customFontStyle, fontSize: 'clamp(20px, 8vw, 28px)', color: '#16a34a' }}
+                    style={{ fontFamily: 'var(--font-luckiest-guy)', fontSize: 'clamp(20px, 8vw, 28px)', color: '#FFA500' }}
                 >
                   DAILY WINNERS
                   </h2>
-                  <span className="text-2xl">🎯</span>
                 </div>
-                <p className="text-base font-semibold mb-2 text-center" style={{ ...customFontStyle, color: '#16a34a' }}>
-                  Today&apos;s 8 lucky winners
+                <p className="text-base font-semibold mb-2 text-center" style={{ ...customFontStyle, color: '#000000' }}>
+                  {previousDailyGame && (previousDailyGame as { endTime: bigint }).endTime
+                    ? `${formatSettlementDate((previousDailyGame as { endTime: bigint }).endTime)} lucky winners`
+                    : "Today's 8 lucky winners"}
                 </p>
                 {loading ? (
                   <p className="text-center text-gray-600 py-8" style={customFontStyle}>
@@ -518,18 +529,18 @@ export default function LeaderboardPage({
 
             <Card className="border-4 border-black rounded-2xl bg-purple-50/95 shadow-lg">
               <div className="px-4" style={{ paddingTop: '12px', paddingBottom: '12px' }}>
-                <div className="flex items-center justify-center gap-2 mb-2 text-center">
-                  <span className="text-2xl">🍕</span>
+                <div className="flex items-center justify-center mb-2 text-center">
                   <h2
                     className="text-2xl font-bold text-center"
-                    style={{ ...customFontStyle, fontSize: 'clamp(20px, 8vw, 28px)', color: '#16a34a' }}
+                    style={{ fontFamily: 'var(--font-luckiest-guy)', fontSize: 'clamp(20px, 8vw, 28px)', color: '#FFA500' }}
                 >
                   WEEKLY WINNERS
                   </h2>
-                  <span className="text-2xl">🍕</span>
                 </div>
-                <p className="text-base font-semibold mb-4 text-center" style={{ ...customFontStyle, color: '#16a34a' }}>
-                  This week&apos;s top 10 champions
+                <p className="text-base font-semibold mb-4 text-center" style={{ ...customFontStyle, color: '#000000' }}>
+                  {previousWeeklyGame && (previousWeeklyGame as { claimWindowEnd: bigint }).claimWindowEnd
+                    ? `${formatSettlementDate((previousWeeklyGame as { claimWindowEnd: bigint }).claimWindowEnd)} top 10 champions`
+                    : "This week's top 10 champions"}
                 </p>
                 {loading ? (
                   <p className="text-center text-gray-600 py-8" style={customFontStyle}>

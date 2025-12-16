@@ -1,11 +1,12 @@
 import type { Metadata } from "next";
-import { Inter } from "next/font/google";
+import { Inter, Luckiest_Guy } from "next/font/google";
 import { headers } from 'next/headers';
 import ContextProvider from './context';
 import './globals.css';
 import AutoEnableNotifications from './components/AutoEnableNotifications';
 
 const inter = Inter({ subsets: ['latin'] });
+const luckiestGuy = Luckiest_Guy({ weight: '400', subsets: ['latin'], variable: '--font-luckiest-guy' });
 
 export async function generateMetadata(): Promise<Metadata> {
   // Serve OG imagery from our own host to avoid third-party outages.
@@ -96,7 +97,7 @@ export default async function RootLayout({
         <head>
           <meta name="base:app_id" content="69254ad0547fca5d081313c0" />
         </head>
-        <body className={inter.className}>
+        <body className={`${inter.className} ${luckiestGuy.variable}`}>
           <AutoEnableNotifications />
           {children}
         </body>

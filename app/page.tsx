@@ -47,14 +47,14 @@ export default function HomePage() {
   }, [updateViewParam])
 
   useEffect(() => {
-    const viewParam = searchParams?.get('view') as 'home' | 'game' | 'weekly' | 'leaderboard' | null
-    if (viewParam && viewParam !== currentView && ['home', 'game', 'weekly', 'leaderboard'].includes(viewParam)) {
+    const viewParam = searchParams?.get('view') as ViewType | null
+
+    if (viewParam && ['home', 'game', 'weekly', 'leaderboard'].includes(viewParam)) {
       setCurrentView(viewParam)
-    }
-    if (!viewParam && currentView !== 'home') {
+    } else if (!viewParam) {
       setCurrentView('home')
     }
-  }, [searchParams, currentView])
+  }, [searchParams])
 
   // Device detection
   useEffect(() => {
