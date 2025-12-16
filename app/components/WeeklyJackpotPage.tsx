@@ -225,14 +225,14 @@ export default function WeeklyJackpotPage({
             </div>
           </div>
 
-          <div className="bg-gradient-to-r from-yellow-400 to-orange-500 rounded-2xl p-3 text-center border-4 border-yellow-600" style={{ borderColor: '#000000' }}>
-            <p className="text-white text-xl font-bold" style={customFontStyle}>
+          <div className="bg-gradient-to-r from-yellow-400 to-orange-500 rounded-2xl px-3 py-1.5 text-center border-4 border-yellow-600" style={{ borderColor: '#000000' }}>
+            <p className="text-white font-bold" style={{ fontFamily: 'var(--font-luckiest-guy)', fontSize: '28px', lineHeight: '1', marginBottom: '-4px' }}>
               Weekly Jackpot
             </p>
-            <p className="text-white text-4xl font-black" style={customFontStyle}>
+            <p className="text-white text-4xl font-black" style={{ ...customFontStyle, lineHeight: '1.1' }}>
               ${jackpotDisplay}
             </p>
-            <p className="text-white text-sm font-semibold mt-2" style={customFontStyle}>
+            <p className="text-white text-sm mt-2" style={{ fontFamily: 'var(--font-luckiest-guy)' }}>
               Weekly Players {weeklyPlayersDisplay}
             </p>
           </div>
