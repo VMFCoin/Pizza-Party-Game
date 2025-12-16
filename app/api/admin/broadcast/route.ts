@@ -22,11 +22,34 @@ export async function POST(request: NextRequest) {
     // Direct Redis connection for debugging
     const redis = Redis.fromEnv();
 
-    // Get all notification keys
-    const keys = await redis.keys('notification:*');
-    console.log(`Found ${keys.length} notification keys`);
+    // Use SCAN to iterate through all notification keys (handles large datasets)
+    const tokens: Array<{ token: string; url: string }> = [];
+    let cursor = 0;
+    let totalKeys = 0;
 
-    if (keys.length === 0) {
+    do {
+      const result = await redis.scan(cursor, { match: 'notification:*', count: 100 });
+      cursor = result[0];
+      const keys = result[1];
+      totalKeys += keys.length;
+
+      // Fetch data for each key in this batch
+      for (const key of keys) {
+        try {
+          const data = await redis.get(key);
+          const parsed = typeof data === 'string' ? JSON.parse(data) : data;
+          if (parsed && parsed.enabled && parsed.token && parsed.url) {
+            tokens.push({ token: parsed.token, url: parsed.url });
+          }
+        } catch (e) {
+          console.error(`Error processing ${key}:`, e);
+        }
+      }
+    } while (cursor !== 0);
+
+    console.log(`Scanned ${totalKeys} notification keys, found ${tokens.length} enabled`);
+
+    if (totalKeys === 0) {
       return NextResponse.json({
         message: 'No notification keys found in Redis',
         count: 0,
@@ -35,20 +58,6 @@ export async function POST(request: NextRequest) {
           hasToken: !!process.env.UPSTASH_REDIS_REST_TOKEN,
         }
       });
-    }
-
-    // Fetch all tokens
-    const tokens: Array<{ token: string; url: string }> = [];
-    for (const key of keys) {
-      try {
-        const data = await redis.get(key);
-        const parsed = typeof data === 'string' ? JSON.parse(data) : data;
-        if (parsed && parsed.enabled && parsed.token && parsed.url) {
-          tokens.push({ token: parsed.token, url: parsed.url });
-        }
-      } catch (e) {
-        console.error(`Error processing ${key}:`, e);
-      }
     }
 
     if (tokens.length === 0) {
