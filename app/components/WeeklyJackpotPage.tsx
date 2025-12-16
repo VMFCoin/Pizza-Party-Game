@@ -237,10 +237,9 @@ export default function WeeklyJackpotPage({
             </p>
           </div>
 
-          <div className="bg-blue-50 border-4 border-blue-200 rounded-2xl p-3 text-center" style={{ borderColor: '#000000' }}>
-            <div className="flex justify-center items-center gap-2 mb-2">
-              <Image src="/images/alarm-clock-icon.png" alt="Clock" width={20} height={20} />
-              <span className="text-blue-700 font-bold text-lg" style={customFontStyle}>
+          <div className="bg-blue-50 border-4 border-blue-200 rounded-2xl px-3 py-2 text-center" style={{ borderColor: '#000000' }}>
+            <div className="flex justify-center items-center mb-1">
+              <span className="text-blue-700 text-lg" style={{ fontFamily: 'var(--font-luckiest-guy)', fontSize: '22px' }}>
                 Next Draw In:
               </span>
             </div>
@@ -259,7 +258,7 @@ export default function WeeklyJackpotPage({
                 </div>
               ))}
             </div>
-            <p className="text-blue-600 text-xs mt-2" style={customFontStyle}>
+            <p className="text-blue-600 text-xs mt-2" style={{ fontFamily: 'var(--font-luckiest-guy)' }}>
               Draw happens every Monday at 12pm PST
             </p>
           </div>
