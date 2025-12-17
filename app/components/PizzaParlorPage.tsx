@@ -1,6 +1,5 @@
 'use client'
 
-import { useEffect, useState } from 'react'
 import Image from 'next/image'
 import { Button } from './ui/button'
 import { Card } from './ui/card'
@@ -29,15 +28,6 @@ export default function PizzaParlorPage({
   onNavigateToLeaderboard,
   onNavigateToHome,
 }: PizzaParlorPageProps) {
-  const [isMobile, setIsMobile] = useState(false)
-
-  useEffect(() => {
-    const handleResize = () => setIsMobile(window.innerWidth < 960)
-    handleResize()
-    window.addEventListener('resize', handleResize)
-    return () => window.removeEventListener('resize', handleResize)
-  }, [])
-
   const navigateToDaily = () => {
     if (onNavigateToDaily) onNavigateToDaily()
   }
