@@ -362,6 +362,9 @@ export const PARLOR_MANAGER_ABI = [
   { type: 'function', name: 'pendingFees', stateMutability: 'view', inputs: [], outputs: [{ type: 'uint256' }] },
   { type: 'function', name: 'parlorOwnersCount', stateMutability: 'view', inputs: [], outputs: [{ type: 'uint256' }] },
   { type: 'function', name: 'isParlorOwner', stateMutability: 'view', inputs: [{ type: 'address', name: '' }], outputs: [{ type: 'bool' }] },
+  { type: 'function', name: 'claimableBalance', stateMutability: 'view', inputs: [{ type: 'address', name: 'owner' }], outputs: [{ type: 'uint256' }] },
+  { type: 'function', name: 'totalUnclaimedOwnerFees', stateMutability: 'view', inputs: [], outputs: [{ type: 'uint256' }] },
+  { type: 'function', name: 'estimatedPendingShare', stateMutability: 'view', inputs: [{ type: 'address', name: 'owner' }], outputs: [{ type: 'uint256' }] },
   // --- Constants ---
   { type: 'function', name: 'MAX_PARLORS', stateMutability: 'view', inputs: [], outputs: [{ type: 'uint256' }] },
   { type: 'function', name: 'MAX_PARLORS_PER_WALLET', stateMutability: 'view', inputs: [], outputs: [{ type: 'uint256' }] },
@@ -370,6 +373,8 @@ export const PARLOR_MANAGER_ABI = [
   { type: 'function', name: 'MAX_PARLOR_PRICE', stateMutability: 'view', inputs: [], outputs: [{ type: 'uint256' }] },
   // --- Write Functions ---
   { type: 'function', name: 'purchaseParlor', stateMutability: 'nonpayable', inputs: [{ type: 'uint256', name: 'amountPaid' }], outputs: [] },
+  { type: 'function', name: 'allocateFees', stateMutability: 'nonpayable', inputs: [], outputs: [] },
+  { type: 'function', name: 'claimMyFees', stateMutability: 'nonpayable', inputs: [], outputs: [] },
   { type: 'function', name: 'distributeFranchiseFees', stateMutability: 'nonpayable', inputs: [], outputs: [] },
   { type: 'function', name: 'tipSlice', stateMutability: 'nonpayable', inputs: [{ type: 'address', name: 'recipient' }], outputs: [] },
   // --- Events ---
@@ -394,12 +399,20 @@ export const PARLOR_MANAGER_ABI = [
   },
   {
     type: 'event',
-    name: 'FranchiseFeesDistributed',
+    name: 'FranchiseFeesAllocated',
     inputs: [
-      { indexed: false, name: 'totalFees', type: 'uint256' },
+      { indexed: false, name: 'newFees', type: 'uint256' },
       { indexed: false, name: 'treasuryAmount', type: 'uint256' },
-      { indexed: false, name: 'ownersAmount', type: 'uint256' },
-      { indexed: false, name: 'opsAmount', type: 'uint256' }
+      { indexed: false, name: 'opsAmount', type: 'uint256' },
+      { indexed: false, name: 'ownersAmount', type: 'uint256' }
+    ]
+  },
+  {
+    type: 'event',
+    name: 'OwnerFeesClaimed',
+    inputs: [
+      { indexed: true, name: 'owner', type: 'address' },
+      { indexed: false, name: 'amount', type: 'uint256' }
     ]
   }
 ] as const

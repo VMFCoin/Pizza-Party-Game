@@ -92,8 +92,12 @@ contract PizzaParlorManagerUpgradeable is
     // Nonce tracking for signed vouchers (one-time use)
     mapping(address => mapping(uint256 => bool)) public usedSliceNonce;  // sponsor => nonce => used?
 
+    // Individual fee claiming - tracks claimable balance per owner
+    mapping(address => uint256) public claimableBalance;  // owner => unclaimed PIZZA
+    uint256 public lastProcessedBalance;  // Track fees already allocated
+
     // Upgrade safety gap - reserves storage slots for future upgrades
-    uint256[50] private __gap;
+    uint256[48] private __gap;  // Reduced by 2 for new storage vars
 
     // ============ Events ============
 
@@ -101,6 +105,8 @@ contract PizzaParlorManagerUpgradeable is
     event SliceTipped(address indexed sponsor, address indexed recipient, uint256 indexed dailyGameId);
     event SliceRedeemed(address indexed sponsor, address indexed recipient, uint256 indexed dailyGameId, uint256 nonce);
     event FranchiseFeesDistributed(uint256 totalFees, uint256 treasuryAmount, uint256 ownersAmount, uint256 opsAmount);
+    event FranchiseFeesAllocated(uint256 newFees, uint256 treasuryAmount, uint256 opsAmount, uint256 ownersAmount);
+    event OwnerFeesClaimed(address indexed owner, uint256 amount);
     event ParlorPriceUpdated(uint256 oldPrice, uint256 newPrice);
     event TreasuryWalletUpdated(address oldWallet, address newWallet);
     event OpsWalletUpdated(address oldWallet, address newWallet);
@@ -119,6 +125,7 @@ contract PizzaParlorManagerUpgradeable is
     error SliceAlreadyUsed();
     error InvalidSignature();
     error NoFeesToDistribute();
+    error NoFeesClaimed();
     error NoSelfSlice();
     error PriceTooLow();
     error PriceTooHigh();
@@ -353,45 +360,51 @@ contract PizzaParlorManagerUpgradeable is
     // ============ Franchise Fee Distribution ============
 
     /**
-     * @dev Distribute franchise fees (reads current PIZZA balance)
+     * @dev Allocate new fees to treasury, ops, and owner claimable balances
      * Split: 30% treasury, 50% parlor owners (proportional), 20% ops
-     * Anyone can call this - uses balanceOf(address(this)) instead of accumulator
+     * Anyone can call this to process new incoming fees
+     * Treasury and ops are paid immediately, owner shares are stored for claiming
      */
-    function distributeFranchiseFees() external nonReentrant {
+    function allocateFees() external nonReentrant {
         IERC20 token = pizzaToken;
 
-        // Read current balance (no accumulator needed)
-        uint256 fees = token.balanceOf(address(this));
-        if (fees == 0) revert NoFeesToDistribute();
+        // Calculate new fees since last allocation
+        uint256 currentBalance = token.balanceOf(address(this));
+
+        // Account for unclaimed owner balances still in contract
+        uint256 totalUnclaimed = _getTotalUnclaimedBalance();
+        uint256 availableForAllocation = currentBalance > totalUnclaimed ? currentBalance - totalUnclaimed : 0;
+
+        if (availableForAllocation == 0) revert NoFeesToDistribute();
 
         // Calculate splits
-        uint256 treasuryAmount = (fees * FRANCHISE_TREASURY_BPS) / BPS_DENOMINATOR;
-        uint256 ownersAmount = (fees * FRANCHISE_OWNERS_BPS) / BPS_DENOMINATOR;
-        uint256 opsAmount = fees - treasuryAmount - ownersAmount;
+        uint256 treasuryAmount = (availableForAllocation * FRANCHISE_TREASURY_BPS) / BPS_DENOMINATOR;
+        uint256 ownersAmount = (availableForAllocation * FRANCHISE_OWNERS_BPS) / BPS_DENOMINATOR;
+        uint256 opsAmount = availableForAllocation - treasuryAmount - ownersAmount;
 
-        // Pay treasury
+        // Pay treasury immediately
         token.safeTransfer(treasuryWallet, treasuryAmount);
 
-        // Pay ops
+        // Pay ops immediately
         token.safeTransfer(opsWallet, opsAmount);
 
-        // Distribute to parlor owners proportionally
+        // Allocate owner shares to claimable balances (proportional to parlors owned)
         if (ownersAmount > 0 && totalParlors > 0) {
             uint256 amountPerParlor = ownersAmount / totalParlors;
-            uint256 distributed = 0;
+            uint256 allocated = 0;
 
             for (uint256 i = 0; i < parlorOwners.length; i++) {
                 address ownerAddr = parlorOwners[i];
                 uint256 ownerParlors = parlorCount[ownerAddr];
                 if (ownerParlors > 0) {
                     uint256 ownerShare = amountPerParlor * ownerParlors;
-                    token.safeTransfer(ownerAddr, ownerShare);
-                    distributed += ownerShare;
+                    claimableBalance[ownerAddr] += ownerShare;
+                    allocated += ownerShare;
                 }
             }
 
             // Send remainder dust to treasury
-            uint256 dust = ownersAmount - distributed;
+            uint256 dust = ownersAmount - allocated;
             if (dust > 0) {
                 token.safeTransfer(treasuryWallet, dust);
             }
@@ -400,7 +413,79 @@ contract PizzaParlorManagerUpgradeable is
             token.safeTransfer(treasuryWallet, ownersAmount);
         }
 
-        emit FranchiseFeesDistributed(fees, treasuryAmount, ownersAmount, opsAmount);
+        emit FranchiseFeesAllocated(availableForAllocation, treasuryAmount, opsAmount, ownersAmount);
+    }
+
+    /**
+     * @dev Claim your own accumulated fees
+     * Only parlor owners can claim their own share
+     */
+    function claimMyFees() external nonReentrant {
+        uint256 amount = claimableBalance[msg.sender];
+        if (amount == 0) revert NoFeesClaimed();
+
+        // Clear balance before transfer (reentrancy protection)
+        claimableBalance[msg.sender] = 0;
+
+        // Transfer to owner
+        pizzaToken.safeTransfer(msg.sender, amount);
+
+        emit OwnerFeesClaimed(msg.sender, amount);
+    }
+
+    /**
+     * @dev Get total unclaimed balance across all owners
+     */
+    function _getTotalUnclaimedBalance() internal view returns (uint256 total) {
+        for (uint256 i = 0; i < parlorOwners.length; i++) {
+            total += claimableBalance[parlorOwners[i]];
+        }
+    }
+
+    /**
+     * @dev Legacy function - now just calls allocateFees()
+     * @notice Deprecated: Use allocateFees() instead
+     */
+    function distributeFranchiseFees() external nonReentrant {
+        // For backwards compatibility, redirect to allocateFees logic
+        IERC20 token = pizzaToken;
+
+        uint256 currentBalance = token.balanceOf(address(this));
+        uint256 totalUnclaimed = _getTotalUnclaimedBalance();
+        uint256 availableForAllocation = currentBalance > totalUnclaimed ? currentBalance - totalUnclaimed : 0;
+
+        if (availableForAllocation == 0) revert NoFeesToDistribute();
+
+        uint256 treasuryAmount = (availableForAllocation * FRANCHISE_TREASURY_BPS) / BPS_DENOMINATOR;
+        uint256 ownersAmount = (availableForAllocation * FRANCHISE_OWNERS_BPS) / BPS_DENOMINATOR;
+        uint256 opsAmount = availableForAllocation - treasuryAmount - ownersAmount;
+
+        token.safeTransfer(treasuryWallet, treasuryAmount);
+        token.safeTransfer(opsWallet, opsAmount);
+
+        if (ownersAmount > 0 && totalParlors > 0) {
+            uint256 amountPerParlor = ownersAmount / totalParlors;
+            uint256 allocated = 0;
+
+            for (uint256 i = 0; i < parlorOwners.length; i++) {
+                address ownerAddr = parlorOwners[i];
+                uint256 ownerParlors = parlorCount[ownerAddr];
+                if (ownerParlors > 0) {
+                    uint256 ownerShare = amountPerParlor * ownerParlors;
+                    claimableBalance[ownerAddr] += ownerShare;
+                    allocated += ownerShare;
+                }
+            }
+
+            uint256 dust = ownersAmount - allocated;
+            if (dust > 0) {
+                token.safeTransfer(treasuryWallet, dust);
+            }
+        } else if (ownersAmount > 0) {
+            token.safeTransfer(treasuryWallet, ownersAmount);
+        }
+
+        emit FranchiseFeesAllocated(availableForAllocation, treasuryAmount, opsAmount, ownersAmount);
     }
 
     // ============ View Functions ============
@@ -435,10 +520,37 @@ contract PizzaParlorManagerUpgradeable is
     }
 
     /**
-     * @dev Get pending fees ready for distribution (current PIZZA balance)
+     * @dev Get pending fees ready for allocation (excludes already-allocated owner balances)
      */
     function pendingFees() external view returns (uint256) {
-        return pizzaToken.balanceOf(address(this));
+        uint256 currentBalance = pizzaToken.balanceOf(address(this));
+        uint256 totalUnclaimed = _getTotalUnclaimedBalance();
+        return currentBalance > totalUnclaimed ? currentBalance - totalUnclaimed : 0;
+    }
+
+    /**
+     * @dev Get total unclaimed owner balances (read-only version)
+     */
+    function totalUnclaimedOwnerFees() external view returns (uint256) {
+        return _getTotalUnclaimedBalance();
+    }
+
+    /**
+     * @dev Get your estimated share of pending fees (before allocation)
+     * @param owner Address to check
+     */
+    function estimatedPendingShare(address owner) external view returns (uint256) {
+        if (totalParlors == 0 || parlorCount[owner] == 0) return 0;
+
+        uint256 currentBalance = pizzaToken.balanceOf(address(this));
+        uint256 totalUnclaimed = _getTotalUnclaimedBalance();
+        uint256 availableForAllocation = currentBalance > totalUnclaimed ? currentBalance - totalUnclaimed : 0;
+
+        if (availableForAllocation == 0) return 0;
+
+        uint256 ownersAmount = (availableForAllocation * FRANCHISE_OWNERS_BPS) / BPS_DENOMINATOR;
+        uint256 amountPerParlor = ownersAmount / totalParlors;
+        return amountPerParlor * parlorCount[owner];
     }
 
     /**
