@@ -1,5 +1,6 @@
 'use client'
 
+import { useEffect, useState } from 'react'
 import Image from 'next/image'
 import { Button } from './ui/button'
 import { Card } from './ui/card'
@@ -28,6 +29,15 @@ export default function PizzaParlorPage({
   onNavigateToLeaderboard,
   onNavigateToHome,
 }: PizzaParlorPageProps) {
+  const [isMobile, setIsMobile] = useState(false)
+
+  useEffect(() => {
+    const handleResize = () => setIsMobile(window.innerWidth < 960)
+    handleResize()
+    window.addEventListener('resize', handleResize)
+    return () => window.removeEventListener('resize', handleResize)
+  }, [])
+
   const navigateToDaily = () => {
     if (onNavigateToDaily) onNavigateToDaily()
   }
@@ -98,21 +108,21 @@ export default function PizzaParlorPage({
             {/* Action Buttons */}
             <Button
               className="w-full !bg-orange-500 hover:!bg-orange-600 text-white font-bold py-2.5 rounded-xl border-4 border-orange-800 uppercase"
-              style={{ fontFamily: 'var(--font-luckiest-guy)', fontSize: 18 }}
+              style={{ fontFamily: 'var(--font-luckiest-guy)', fontSize: isMobile ? 16 : 18 }}
             >
               🏪 BUY A PARLOR
             </Button>
 
             <Button
               className="w-full !bg-yellow-500 hover:!bg-yellow-600 text-white font-bold py-2.5 rounded-xl border-4 border-yellow-800 uppercase"
-              style={{ fontFamily: 'var(--font-luckiest-guy)', fontSize: 18 }}
+              style={{ fontFamily: 'var(--font-luckiest-guy)', fontSize: isMobile ? 16 : 18 }}
             >
               💰 COLLECT OWNER FEES
             </Button>
 
             <Button
               className="w-full !bg-blue-500 hover:!bg-blue-600 text-white font-bold py-2.5 rounded-xl border-4 border-blue-800 uppercase"
-              style={{ fontFamily: 'var(--font-luckiest-guy)', fontSize: 18 }}
+              style={{ fontFamily: 'var(--font-luckiest-guy)', fontSize: isMobile ? 16 : 18 }}
             >
               🍕 SEND A SLICE
             </Button>
@@ -120,7 +130,7 @@ export default function PizzaParlorPage({
             <Button
               onClick={navigateToDaily}
               className="w-full !bg-green-600 hover:!bg-green-700 text-white font-bold py-2.5 rounded-xl border-4 border-green-800 uppercase"
-              style={{ fontFamily: 'var(--font-luckiest-guy)', fontSize: 18 }}
+              style={{ fontFamily: 'var(--font-luckiest-guy)', fontSize: isMobile ? 16 : 18 }}
             >
               🍕 GRAB A SLICE 🍕
             </Button>
@@ -128,7 +138,7 @@ export default function PizzaParlorPage({
             <Button
               onClick={navigateToWeekly}
               className="w-full !bg-yellow-500 hover:!bg-yellow-600 text-white font-bold py-2.5 rounded-xl border-4 border-yellow-800 uppercase"
-              style={{ fontFamily: 'var(--font-luckiest-guy)', fontSize: 18 }}
+              style={{ fontFamily: 'var(--font-luckiest-guy)', fontSize: isMobile ? 16 : 18 }}
             >
               <Image src="/images/pepperoni-art.png" alt="Pepperoni" width={20} height={20} className="inline mr-1" />
               WEEKLY JACKPOT
@@ -138,7 +148,7 @@ export default function PizzaParlorPage({
             <Button
               onClick={navigateToLeaderboard}
               className="w-full !bg-red-700 hover:!bg-red-800 text-white font-bold py-2.5 rounded-xl border-4 border-red-900 uppercase"
-              style={{ fontFamily: 'var(--font-luckiest-guy)', fontSize: 18 }}
+              style={{ fontFamily: 'var(--font-luckiest-guy)', fontSize: isMobile ? 16 : 18 }}
             >
               <Image src="/images/mushroom-icon2.png" alt="Mushroom" width={20} height={20} className="inline mr-1" style={{ backgroundColor: 'transparent', border: 'none' }} />
               LEADERBOARD
