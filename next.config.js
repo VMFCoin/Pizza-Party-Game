@@ -51,6 +51,15 @@ const nextConfig = {
         protocol: 'https',
         hostname: '*.warpcast.com',
       },
+      // Pinata IPFS gateway (used by many Farcaster PFPs)
+      {
+        protocol: 'https',
+        hostname: '*.mypinata.cloud',
+      },
+      {
+        protocol: 'https',
+        hostname: 'gateway.pinata.cloud',
+      },
     ],
   },
   async headers() {

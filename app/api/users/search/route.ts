@@ -47,24 +47,31 @@ export async function GET(request: NextRequest) {
       })
     }
 
-    // Step 2: Get user data (pfp, display name, bio)
-    const [pfpRes, displayNameRes, verificationRes] = await Promise.all([
-      fetch(`${HUB_URL}/userDataByFid?fid=${fid}&user_data_type=1`, { cache: 'no-store' }), // PFP
-      fetch(`${HUB_URL}/userDataByFid?fid=${fid}&user_data_type=2`, { cache: 'no-store' }), // Display name
+    // Step 2: Get all user data and verifications
+    // The Hub API returns all user data types in a messages array
+    const [userDataRes, verificationRes] = await Promise.all([
+      fetch(`${HUB_URL}/userDataByFid?fid=${fid}`, { cache: 'no-store' }), // All user data
       fetch(`${HUB_URL}/verificationsByFid?fid=${fid}`, { cache: 'no-store' }), // Verifications (wallets)
     ])
 
     let pfpUrl = ''
     let displayName = query
 
-    if (pfpRes.ok) {
-      const pfpData = await pfpRes.json()
-      pfpUrl = pfpData.data?.userDataBody?.value || ''
-    }
+    if (userDataRes.ok) {
+      const userData = await userDataRes.json()
+      const messages = userData.messages || []
 
-    if (displayNameRes.ok) {
-      const displayData = await displayNameRes.json()
-      displayName = displayData.data?.userDataBody?.value || query
+      // Find PFP and display name from the messages array
+      for (const msg of messages) {
+        const dataType = msg.data?.userDataBody?.type
+        const value = msg.data?.userDataBody?.value
+
+        if (dataType === 'USER_DATA_TYPE_PFP' && value) {
+          pfpUrl = value
+        } else if (dataType === 'USER_DATA_TYPE_DISPLAY' && value) {
+          displayName = value
+        }
+      }
     }
 
     // Get verified ETH address
