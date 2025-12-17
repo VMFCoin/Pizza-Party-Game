@@ -36,11 +36,15 @@ export default function PizzaParlorPage({
 
   const [isMobile, setIsMobile] = useState(false)
   const [buyParlorOpen, setBuyParlorOpen] = useState(false)
+  const [collectFeesOpen, setCollectFeesOpen] = useState(false)
+  const [sendSliceOpen, setSendSliceOpen] = useState(false)
 
   // Mock data - replace with actual contract data later
   const parlorsOwned = 0
   const maxParlors = 5
   const totalEarned = 0.00
+  const pendingFees = 0.00
+  const slicesRemaining = 0
 
   useEffect(() => {
     const handleResize = () => setIsMobile(window.innerWidth < 960)
@@ -56,10 +60,16 @@ export default function PizzaParlorPage({
       if (buyParlorOpen && !target.closest('.buy-parlor-dropdown')) {
         setBuyParlorOpen(false)
       }
+      if (collectFeesOpen && !target.closest('.collect-fees-dropdown')) {
+        setCollectFeesOpen(false)
+      }
+      if (sendSliceOpen && !target.closest('.send-slice-dropdown')) {
+        setSendSliceOpen(false)
+      }
     }
     document.addEventListener('mousedown', handleClickOutside)
     return () => document.removeEventListener('mousedown', handleClickOutside)
-  }, [buyParlorOpen])
+  }, [buyParlorOpen, collectFeesOpen, sendSliceOpen])
 
   const navigateToDaily = () => {
     if (onNavigateToDaily) onNavigateToDaily()
@@ -167,19 +177,77 @@ export default function PizzaParlorPage({
               )}
             </div>
 
-            <Button
-              className="w-full !bg-yellow-500 hover:!bg-yellow-600 text-white font-bold py-2.5 rounded-xl border-4 border-yellow-800 uppercase"
-            style={{ ...customFontStyle, fontSize: isMobile ? 18 : 20 }}
-            >
-              💰 COLLECT OWNER FEES 💰
-            </Button>
+            {/* COLLECT OWNER FEES - Expandable */}
+            <div className="collect-fees-dropdown">
+              <Button
+                onClick={() => setCollectFeesOpen(!collectFeesOpen)}
+                className={`w-full !bg-yellow-500 hover:!bg-yellow-600 text-white font-bold py-2.5 border-4 border-yellow-800 uppercase flex items-center justify-between ${collectFeesOpen ? 'rounded-t-xl rounded-b-none' : 'rounded-xl'}`}
+                style={{ ...customFontStyle, fontSize: isMobile ? 18 : 20 }}
+              >
+                <span className="flex-1 text-center">💰 COLLECT OWNER FEES 💰</span>
+                {collectFeesOpen ? <ChevronUp size={24} /> : <ChevronDown size={24} />}
+              </Button>
+              {collectFeesOpen && (
+                <div className="bg-yellow-100 border-4 border-t-0 border-yellow-800 rounded-b-xl p-4">
+                  <div className="space-y-3">
+                    {/* Pending Fees */}
+                    <div className="flex justify-between items-center">
+                      <span className="text-yellow-800" style={{ ...customFontStyle, fontSize: 16 }}>Pending Fees:</span>
+                      <span className="text-green-600" style={{ ...customFontStyle, fontSize: 16 }}>${pendingFees.toFixed(2)}</span>
+                    </div>
 
-            <Button
-              className="w-full !bg-blue-500 hover:!bg-blue-600 text-white font-bold py-2.5 rounded-xl border-4 border-blue-800 uppercase"
-            style={{ ...customFontStyle, fontSize: isMobile ? 18 : 20 }}
-            >
-              🍕 SEND A SLICE 🍕
-            </Button>
+                    {/* Collect Button */}
+                    <Button
+                      className="w-full !bg-green-600 hover:!bg-green-700 text-white font-bold py-2 rounded-xl border-4 border-green-800 uppercase"
+                      style={{ ...customFontStyle, fontSize: isMobile ? 16 : 18 }}
+                      disabled={pendingFees <= 0}
+                    >
+                      {pendingFees <= 0 ? '💰 NO FEES TO COLLECT 💰' : '💰 COLLECT FEES 💰'}
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* SEND A SLICE - Expandable */}
+            <div className="send-slice-dropdown">
+              <Button
+                onClick={() => setSendSliceOpen(!sendSliceOpen)}
+                className={`w-full !bg-blue-500 hover:!bg-blue-600 text-white font-bold py-2.5 border-4 border-blue-800 uppercase flex items-center justify-between ${sendSliceOpen ? 'rounded-t-xl rounded-b-none' : 'rounded-xl'}`}
+                style={{ ...customFontStyle, fontSize: isMobile ? 18 : 20 }}
+              >
+                <span className="flex-1 text-center">🍕 SEND A SLICE 🍕</span>
+                {sendSliceOpen ? <ChevronUp size={24} /> : <ChevronDown size={24} />}
+              </Button>
+              {sendSliceOpen && (
+                <div className="bg-blue-100 border-4 border-t-0 border-blue-800 rounded-b-xl p-4">
+                  <div className="space-y-3">
+                    {/* Slices Remaining */}
+                    <div className="flex justify-between items-center">
+                      <span className="text-blue-800" style={{ ...customFontStyle, fontSize: 16 }}>Slices Remaining Today:</span>
+                      <span className="text-blue-900" style={{ ...customFontStyle, fontSize: 16 }}>{slicesRemaining}</span>
+                    </div>
+
+                    {/* Recipient Address Input */}
+                    <input
+                      type="text"
+                      placeholder="Enter wallet address or username"
+                      className="w-full p-2 rounded-xl border-2 border-blue-400 text-blue-900"
+                      style={{ ...customFontStyle, fontSize: 14 }}
+                    />
+
+                    {/* Send Button */}
+                    <Button
+                      className="w-full !bg-green-600 hover:!bg-green-700 text-white font-bold py-2 rounded-xl border-4 border-green-800 uppercase"
+                      style={{ ...customFontStyle, fontSize: isMobile ? 16 : 18 }}
+                      disabled={slicesRemaining <= 0}
+                    >
+                      {slicesRemaining <= 0 ? '🍕 NO SLICES LEFT 🍕' : '🍕 SEND SLICE 🍕'}
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </div>
 
             <Button
               onClick={navigateToDaily}
