@@ -6,8 +6,11 @@ import { Button } from './ui/button'
 import { Card } from './ui/card'
 import { ArrowLeft, ChevronDown, ChevronUp } from 'lucide-react'
 import { useAccount, useReadContracts, useWriteContract, useWaitForTransactionReceipt } from 'wagmi'
-import { formatUnits, isAddress } from 'viem'
+import { formatUnits, parseUnits, isAddress } from 'viem'
 import { PARLOR_MANAGER_ADDRESS, PARLOR_MANAGER_ABI, PIZZA_TOKEN_ADDRESS, PIZZA_TOKEN_ABI } from '../lib/constants'
+
+// Parlor price in USD - this is the fixed dollar amount
+const PARLOR_PRICE_USD = 50
 
 interface PizzaParlorPageProps {
   onBack?: () => void
@@ -18,7 +21,7 @@ interface PizzaParlorPageProps {
 }
 
 const PARLORS_EXPLAINED = [
-  'Own a Pizza Parlor franchise (price set by contract)',
+  'Own a Pizza Parlor franchise for $50 of PIZZA tokens',
   'Each parlor gives you 1 free daily slice to share with friends',
   'Earn 50% of owner fees distributed to all parlor owners',
   'Max 5 parlors per wallet, 100 total parlors available',
@@ -77,11 +80,6 @@ export default function PizzaParlorPage({
       {
         address: PARLOR_MANAGER_ADDRESS as `0x${string}`,
         abi: PARLOR_MANAGER_ABI,
-        functionName: 'parlorPrice',
-      },
-      {
-        address: PARLOR_MANAGER_ADDRESS as `0x${string}`,
-        abi: PARLOR_MANAGER_ABI,
         functionName: 'totalParlors',
       },
       {
@@ -120,13 +118,23 @@ export default function PizzaParlorPage({
   })
 
   // Extract values
-  const parlorPriceWei = contractData?.[0]?.result as bigint | undefined
-  const totalParlors = contractData?.[1]?.result as bigint | undefined
-  const pendingFeesRaw = contractData?.[2]?.result as bigint | undefined
+  const totalParlors = contractData?.[0]?.result as bigint | undefined
+  const pendingFeesRaw = contractData?.[1]?.result as bigint | undefined
 
   const userParlorCount = userData?.[0]?.result as bigint | undefined
   const slicesRemaining = userData?.[1]?.result as bigint | undefined
   const currentAllowance = userData?.[2]?.result as bigint | undefined
+
+  // Calculate $50 worth of PIZZA based on live DEX price
+  // $50 USD / price per PIZZA = number of PIZZA tokens needed
+  const parlorPriceInPizza = pizzaPrice && pizzaPrice > 0
+    ? PARLOR_PRICE_USD / pizzaPrice
+    : null
+
+  // Convert to wei (bigint with 18 decimals) - round up to ensure enough
+  const parlorPriceWei = parlorPriceInPizza
+    ? parseUnits(Math.ceil(parlorPriceInPizza).toString(), 18)
+    : null
 
   // Formatted values
   const parlorsOwned = userParlorCount ? Number(userParlorCount) : 0
@@ -136,12 +144,7 @@ export default function PizzaParlorPage({
   const parlorsRemaining = maxTotalParlors - totalParlorsSold
   const slicesRemainingNum = slicesRemaining ? Number(slicesRemaining) : 0
   const pendingFeesFormatted = pendingFeesRaw ? Number(formatUnits(pendingFeesRaw, 18)) : 0
-  const parlorPriceFormatted = parlorPriceWei ? Number(formatUnits(parlorPriceWei, 18)) : null
-
-  // Calculate USD value of the parlor price based on live DEX price
-  const parlorPriceUsd = parlorPriceFormatted && pizzaPrice
-    ? parlorPriceFormatted * pizzaPrice
-    : null
+  const parlorPriceFormatted = parlorPriceInPizza ? Math.ceil(parlorPriceInPizza) : null
 
   // Check if approval is needed
   const needsApproval = parlorPriceWei && currentAllowance !== undefined && currentAllowance < parlorPriceWei
@@ -193,12 +196,14 @@ export default function PizzaParlorPage({
   }
 
   const handlePurchaseParlor = async () => {
+    if (!parlorPriceWei) return
     setIsPurchasing(true)
     try {
       writeContract({
         address: PARLOR_MANAGER_ADDRESS as `0x${string}`,
         abi: PARLOR_MANAGER_ABI,
         functionName: 'purchaseParlor',
+        args: [parlorPriceWei],
       })
     } catch (error) {
       console.error('Purchase error:', error)
@@ -390,20 +395,19 @@ export default function PizzaParlorPage({
 
   // ============ Computed States ============
 
-  const canBuyParlor = isConnected && parlorsOwned < maxParlorsPerWallet && totalParlorsSold < maxTotalParlors && parlorPriceWei !== undefined
+  const canBuyParlor = isConnected && parlorsOwned < maxParlorsPerWallet && totalParlorsSold < maxTotalParlors && parlorPriceWei !== null && !priceLoading
   const canDistribute = pendingFeesRaw && pendingFeesRaw > 0n
   const canSendSlice = isConnected && parlorsOwned > 0 && slicesRemainingNum > 0 && resolveRecipient(recipientInput) !== null
 
   const buyButtonText = () => {
     if (!isConnected) return '🍍 CONNECT WALLET 🍍'
-    if (!parlorPriceWei) return '🍍 LOADING... 🍍'
+    if (priceLoading || !parlorPriceWei) return '🍍 LOADING PRICE... 🍍'
     if (parlorsOwned >= maxParlorsPerWallet) return '🍍 MAX OWNED 🍍'
     if (totalParlorsSold >= maxTotalParlors) return '🍍 SOLD OUT 🍍'
     if (isApproving || (isConfirming && isApproving)) return '🍍 APPROVING... 🍍'
     if (isPurchasing || (isConfirming && isPurchasing)) return '🍍 BUYING... 🍍'
     if (needsApproval) return `🍍 APPROVE PIZZA 🍍`
-    const priceDisplay = parlorPriceUsd ? `$${parlorPriceUsd.toFixed(0)}` : `${parlorPriceFormatted?.toLocaleString()} PIZZA`
-    return `🍍 BUY A PARLOR - ${priceDisplay} 🍍`
+    return `🍍 BUY A PARLOR - $${PARLOR_PRICE_USD} 🍍`
   }
 
   return (
@@ -492,10 +496,9 @@ export default function PizzaParlorPage({
                     {/* Price Info */}
                     <div className="bg-orange-200 rounded-lg p-2 text-center">
                       <p className="text-orange-800" style={{ ...customFontStyle, fontSize: 12 }}>
-                        Price: {parlorPriceFormatted?.toLocaleString() || '...'} PIZZA
-                        {parlorPriceUsd && ` (~$${parlorPriceUsd.toFixed(2)})`}
+                        Price: ${PARLOR_PRICE_USD} = {priceLoading ? '...' : parlorPriceFormatted?.toLocaleString() || '...'} PIZZA
                       </p>
-                      {pizzaPrice && (
+                      {pizzaPrice && !priceLoading && (
                         <p className="text-orange-600" style={{ ...customFontStyle, fontSize: 10 }}>
                           (1 PIZZA = ${pizzaPrice.toFixed(6)})
                         </p>

@@ -47,6 +47,12 @@ contract PizzaParlorManagerUpgradeable is
     uint256 public constant MAX_PARLORS_PER_WALLET = 5;
     uint256 public constant DAILY_FREE_ENTRIES_PER_PARLOR = 1;
 
+    // ✅ Dynamic parlor price: Always $50 USD, but PIZZA amount varies with price
+    // At $0.001/PIZZA: need 50,000 PIZZA for $50
+    // Safety bounds prevent extreme prices
+    uint256 public constant MIN_PARLOR_PRICE = 500e18;      // 500 PIZZA minimum (~$50 at $0.10/PIZZA)
+    uint256 public constant MAX_PARLOR_PRICE = 500_000e18;  // 500,000 PIZZA maximum (~$50 at $0.0001/PIZZA)
+
     // Parlor purchase split (basis points)
     uint256 public constant BURN_BPS = 5000;      // 50% burned
     uint256 public constant TREASURY_BPS = 3000;  // 30% to treasury
@@ -114,6 +120,8 @@ contract PizzaParlorManagerUpgradeable is
     error InvalidSignature();
     error NoFeesToDistribute();
     error NoSelfSlice();
+    error PriceTooLow();
+    error PriceTooHigh();
 
     // ============ Initializer ============
 
@@ -152,10 +160,56 @@ contract PizzaParlorManagerUpgradeable is
     // ============ Parlor Purchase ============
 
     /**
-     * @dev Purchase a new parlor
+     * @dev Purchase a new parlor with dynamic pricing
+     * Frontend calculates $50 USD worth of PIZZA at current DEX price
      * Split: 50% burn, 30% treasury, 20% ops
+     * @param amountPaid The amount of PIZZA tokens to pay (should equal $50 USD worth)
      */
-    function purchaseParlor() external nonReentrant {
+    function purchaseParlor(uint256 amountPaid) external nonReentrant {
+        // Check global supply limit
+        if (totalParlors >= MAX_PARLORS) revert MaxParlorsReached();
+
+        // Check per-wallet limit
+        if (parlorCount[msg.sender] >= MAX_PARLORS_PER_WALLET) revert MaxParlorsPerWalletReached();
+
+        // Validate price bounds (prevents manipulation)
+        if (amountPaid < MIN_PARLOR_PRICE) revert PriceTooLow();
+        if (amountPaid > MAX_PARLOR_PRICE) revert PriceTooHigh();
+
+        IERC20 token = pizzaToken;
+
+        // Transfer tokens from buyer
+        token.safeTransferFrom(msg.sender, address(this), amountPaid);
+
+        // Calculate splits
+        uint256 burnAmount = (amountPaid * BURN_BPS) / BPS_DENOMINATOR;
+        uint256 treasuryAmount = (amountPaid * TREASURY_BPS) / BPS_DENOMINATOR;
+        uint256 opsAmount = amountPaid - burnAmount - treasuryAmount;  // Remainder to ops
+
+        // Execute splits
+        IBurnable(address(token)).burn(burnAmount);
+        token.safeTransfer(treasuryWallet, treasuryAmount);
+        token.safeTransfer(opsWallet, opsAmount);
+
+        // Update ownership
+        totalParlors += 1;
+        parlorCount[msg.sender] += 1;
+
+        // Track as parlor owner if first parlor
+        if (!isParlorOwner[msg.sender]) {
+            isParlorOwner[msg.sender] = true;
+            parlorOwners.push(msg.sender);
+        }
+
+        // Emit with both global serial and buyer's total owned
+        emit ParlorPurchased(msg.sender, totalParlors, parlorCount[msg.sender], amountPaid);
+    }
+
+    /**
+     * @dev Legacy function for backwards compatibility - uses stored parlorPrice
+     * @notice Prefer purchaseParlor(uint256) for dynamic pricing
+     */
+    function purchaseParlorLegacy() external nonReentrant {
         // Check global supply limit
         if (totalParlors >= MAX_PARLORS) revert MaxParlorsReached();
 

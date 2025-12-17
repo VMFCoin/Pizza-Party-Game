@@ -347,31 +347,6 @@ type ContractRegistryEntry = {
   chainId: number
 }
 
-export const CONTRACT_REGISTRY = {
-  pizzaParty: {
-    address: PIZZA_PARTY_ADDRESS as `0x${string}`,
-    abi: PIZZA_PARTY_ABI as Abi,
-    chainId: BASE_CHAIN_ID,
-  },
-  pizzaToken: {
-    address: PIZZA_TOKEN_ADDRESS as `0x${string}`,
-    abi: PIZZA_TOKEN_ABI as unknown as Abi,
-    chainId: BASE_CHAIN_ID,
-  },
-  parlorManager: {
-    address: PARLOR_MANAGER_ADDRESS as `0x${string}`,
-    abi: PARLOR_MANAGER_ABI as unknown as Abi,
-    chainId: BASE_CHAIN_ID,
-  },
-} as const satisfies Record<string, ContractRegistryEntry>
-
-export type ContractRegistryKey = keyof typeof CONTRACT_REGISTRY
-
-// ==============================
-// Game Constants (from contract)
-// ==============================
-const ONE_ETHER = 10n ** 18n
-
 // ==============================
 // ParlorManager Contract (Pizza Parlors)
 // ==============================
@@ -391,8 +366,10 @@ export const PARLOR_MANAGER_ABI = [
   { type: 'function', name: 'MAX_PARLORS', stateMutability: 'view', inputs: [], outputs: [{ type: 'uint256' }] },
   { type: 'function', name: 'MAX_PARLORS_PER_WALLET', stateMutability: 'view', inputs: [], outputs: [{ type: 'uint256' }] },
   { type: 'function', name: 'DAILY_FREE_ENTRIES_PER_PARLOR', stateMutability: 'view', inputs: [], outputs: [{ type: 'uint256' }] },
+  { type: 'function', name: 'MIN_PARLOR_PRICE', stateMutability: 'view', inputs: [], outputs: [{ type: 'uint256' }] },
+  { type: 'function', name: 'MAX_PARLOR_PRICE', stateMutability: 'view', inputs: [], outputs: [{ type: 'uint256' }] },
   // --- Write Functions ---
-  { type: 'function', name: 'purchaseParlor', stateMutability: 'nonpayable', inputs: [], outputs: [] },
+  { type: 'function', name: 'purchaseParlor', stateMutability: 'nonpayable', inputs: [{ type: 'uint256', name: 'amountPaid' }], outputs: [] },
   { type: 'function', name: 'distributeFranchiseFees', stateMutability: 'nonpayable', inputs: [], outputs: [] },
   { type: 'function', name: 'tipSlice', stateMutability: 'nonpayable', inputs: [{ type: 'address', name: 'recipient' }], outputs: [] },
   // --- Events ---
@@ -426,6 +403,31 @@ export const PARLOR_MANAGER_ABI = [
     ]
   }
 ] as const
+
+export const CONTRACT_REGISTRY = {
+  pizzaParty: {
+    address: PIZZA_PARTY_ADDRESS as `0x${string}`,
+    abi: PIZZA_PARTY_ABI as Abi,
+    chainId: BASE_CHAIN_ID,
+  },
+  pizzaToken: {
+    address: PIZZA_TOKEN_ADDRESS as `0x${string}`,
+    abi: PIZZA_TOKEN_ABI as unknown as Abi,
+    chainId: BASE_CHAIN_ID,
+  },
+  parlorManager: {
+    address: PARLOR_MANAGER_ADDRESS as `0x${string}`,
+    abi: PARLOR_MANAGER_ABI as unknown as Abi,
+    chainId: BASE_CHAIN_ID,
+  },
+} as const satisfies Record<string, ContractRegistryEntry>
+
+export type ContractRegistryKey = keyof typeof CONTRACT_REGISTRY
+
+// ==============================
+// Game Constants (from contract)
+// ==============================
+const ONE_ETHER = 10n ** 18n
 
 export const GAME_CONSTANTS = {
   MIN_ENTRY_FEE_WEI: 1n * (ONE_ETHER / 100n),  // 0.01 PIZZA minimum (when PIZZA = $100, entry = 0.01 PIZZA for $1)
