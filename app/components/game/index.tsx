@@ -249,7 +249,7 @@ function GamePageContent({ onNavigateToWeekly, onNavigateToLeaderboard }: GamePa
       return { text: '✅ ALREADY ENTERED TODAY', onClick: () => {}, disabled: true }
     }
     if (!hasEnoughPizza) {
-      return { text: 'NEED $1 PIZZA TO PLAY', onClick: () => window.open('https://app.uniswap.org/explore/pools/base/0xafd0d83ed4bdff9343d625822bd8ce09828336b4b487dec8b60fb83dcdc385d9', '_blank'), disabled: false }
+      return { text: 'NEED $1 PIZZA TO PLAY', onClick: () => window.open('https://base.app/coin/base-mainnet/0xbd0e3768b9a7c3d53e7b92edc4c38728e2fa9b69', '_blank'), disabled: false }
     }
     // Single transaction entry with permit - no separate approval needed!
     return {
