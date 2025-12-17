@@ -2,10 +2,11 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createPublicClient, createWalletClient, http, formatUnits } from 'viem';
 import { base } from 'viem/chains';
 import { privateKeyToAccount } from 'viem/accounts';
-import { PIZZA_PARTY_ADDRESS, PIZZA_TOKEN_ADDRESS } from '@/app/lib/constants';
+import { PIZZA_PARTY_ADDRESS, PIZZA_TOKEN_ADDRESS, PARLOR_MANAGER_ADDRESS } from '@/app/lib/constants';
 
 // Contract address from constants (PIZZA Party v2)
 const CONTRACT_ADDRESS = PIZZA_PARTY_ADDRESS as `0x${string}`;
+const PARLOR_CONTRACT = PARLOR_MANAGER_ADDRESS as `0x${string}`;
 
 // Dexscreener API for PIZZA price
 const DEXSCREENER_API = `https://api.dexscreener.com/latest/dex/tokens/${PIZZA_TOKEN_ADDRESS}`;
@@ -82,6 +83,24 @@ const SETTLE_ABI = [
   },
 ] as const;
 
+// ParlorManager ABI for allocateFees
+const PARLOR_ABI = [
+  {
+    inputs: [],
+    name: 'allocateFees',
+    outputs: [],
+    stateMutability: 'nonpayable',
+    type: 'function',
+  },
+  {
+    inputs: [],
+    name: 'pendingFees',
+    outputs: [{ type: 'uint256' }],
+    stateMutability: 'view',
+    type: 'function',
+  },
+] as const;
+
 // Fetch PIZZA price from Dexscreener
 async function getPizzaPrice(): Promise<number> {
   try {
@@ -137,9 +156,11 @@ export async function GET(request: NextRequest) {
   const results: {
     daily: { success: boolean; txHash?: string; error?: string; gameId?: string; reason?: string } | null;
     weekly: { success: boolean; txHash?: string; error?: string; gameId?: string; reason?: string } | null;
+    parlorFees: { success: boolean; txHash?: string; error?: string; reason?: string } | null;
   } = {
     daily: null,
     weekly: null,
+    parlorFees: null,
   };
 
   try {
@@ -300,6 +321,46 @@ export async function GET(request: NextRequest) {
       }
     } else {
       console.log(`[Settle Bot] Not Monday (${pstTime.toDateString()}), skipping weekly settlement`);
+    }
+
+    // --- PARLOR FEE ALLOCATION ---
+    // Allocate parlor fees after successful settlements so owners can claim
+    if (results.daily?.success || results.weekly?.success) {
+      try {
+        // Check if there are pending fees to allocate
+        const pendingFees = await publicClient.readContract({
+          address: PARLOR_CONTRACT,
+          abi: PARLOR_ABI,
+          functionName: 'pendingFees',
+        });
+
+        if (pendingFees > 0n) {
+          console.log(`[Settle Bot] Allocating parlor fees: ${formatUnits(pendingFees, 18)} PIZZA`);
+
+          const hash = await walletClient.writeContract({
+            address: PARLOR_CONTRACT,
+            abi: PARLOR_ABI,
+            functionName: 'allocateFees',
+            gas: 500_000n,
+          });
+
+          const receipt = await publicClient.waitForTransactionReceipt({ hash });
+
+          if (receipt.status === 'success') {
+            results.parlorFees = { success: true, txHash: hash };
+            console.log(`[Settle Bot] Parlor fees allocated! TX: ${hash}`);
+          } else {
+            results.parlorFees = { success: false, error: 'Transaction failed' };
+          }
+        } else {
+          results.parlorFees = { success: false, reason: 'no_pending_fees' };
+          console.log(`[Settle Bot] No pending parlor fees to allocate`);
+        }
+      } catch (e) {
+        const error = e instanceof Error ? e.message : 'Unknown error';
+        results.parlorFees = { success: false, error };
+        console.error(`[Settle Bot] Parlor fee allocation error:`, error);
+      }
     }
 
     return NextResponse.json({
