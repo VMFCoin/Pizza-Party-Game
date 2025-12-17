@@ -229,7 +229,7 @@ export default function WeeklyJackpotPage({
             <p className="text-white font-bold" style={{ fontFamily: 'var(--font-luckiest-guy)', fontSize: '28px', lineHeight: '1', marginBottom: '-4px' }}>
               Weekly Jackpot
             </p>
-            <p className="text-white text-4xl font-black" style={{ ...customFontStyle, lineHeight: '1.1' }}>
+            <p className="text-white text-4xl font-black" style={{ fontFamily: 'var(--font-luckiest-guy)', lineHeight: '1.1' }}>
               ${jackpotDisplay}
             </p>
             <p className="text-white text-sm mt-2" style={{ fontFamily: 'var(--font-luckiest-guy)' }}>
