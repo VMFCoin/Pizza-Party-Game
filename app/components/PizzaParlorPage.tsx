@@ -440,13 +440,13 @@ export default function PizzaParlorPage({
         >
           <div className="space-y-3">
             {/* Own Your Pizza Parlor Header Image */}
-            <div className="relative border-4 border-black rounded-2xl overflow-hidden">
+            <div className="relative rounded-2xl overflow-hidden">
                 <Image
                 src="/images/Pizza-Parlor2.png"
                   alt="Own Your Pizza Parlor"
                 width={500}
                 height={500}
-                className="w-full h-auto block"
+                className="w-full h-auto block transform scale-[1.08]"
                   priority
                 />
               {/* Game ID overlay at bottom - inside the image */}
