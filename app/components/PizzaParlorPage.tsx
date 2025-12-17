@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react'
 import Image from 'next/image'
 import { Button } from './ui/button'
 import { Card } from './ui/card'
-import { ArrowLeft } from 'lucide-react'
+import { ArrowLeft, ChevronDown, ChevronUp } from 'lucide-react'
 
 interface PizzaParlorPageProps {
   onBack?: () => void
@@ -35,6 +35,12 @@ export default function PizzaParlorPage({
   }
 
   const [isMobile, setIsMobile] = useState(false)
+  const [buyParlorOpen, setBuyParlorOpen] = useState(false)
+
+  // Mock data - replace with actual contract data later
+  const parlorsOwned = 0
+  const maxParlors = 5
+  const totalEarned = 0.00
 
   useEffect(() => {
     const handleResize = () => setIsMobile(window.innerWidth < 960)
@@ -42,6 +48,18 @@ export default function PizzaParlorPage({
     window.addEventListener('resize', handleResize)
     return () => window.removeEventListener('resize', handleResize)
   }, [])
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as HTMLElement
+      if (buyParlorOpen && !target.closest('.buy-parlor-dropdown')) {
+        setBuyParlorOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [buyParlorOpen])
 
   const navigateToDaily = () => {
     if (onNavigateToDaily) onNavigateToDaily()
@@ -94,30 +112,62 @@ export default function PizzaParlorPage({
           <div className="space-y-3">
             {/* Own Your Pizza Parlor Header Image */}
             <div className="border-4 border-black rounded-2xl overflow-hidden relative">
-              <div className="relative w-full" style={{ aspectRatio: '1/1' }}>
+              <div className="relative">
                 <Image
                   src="/images/Parlor-Owner.png"
                   alt="Own Your Pizza Parlor"
-                  fill
-                  className="object-cover"
+                  width={500}
+                  height={500}
+                  className="w-full h-auto block"
                   priority
                 />
-              </div>
-              {/* Game ID overlay at bottom */}
-              <div className="absolute bottom-2 left-0 right-0">
-                <p className="text-center text-white drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]" style={{ fontFamily: 'var(--font-luckiest-guy)', fontSize: '14px' }}>
-                  Game ID #2
-                </p>
+                {/* Game ID overlay at bottom - inside the image */}
+                <div className="absolute bottom-3 left-0 right-0">
+                  <p className="text-center text-white drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]" style={{ fontFamily: 'var(--font-luckiest-guy)', fontSize: '14px' }}>
+                    Game ID #2
+                  </p>
+                </div>
               </div>
             </div>
 
             {/* Action Buttons */}
-            <Button
-              className="w-full !bg-orange-500 hover:!bg-orange-600 text-white font-bold py-2.5 rounded-xl border-4 border-orange-800 uppercase"
-            style={{ ...customFontStyle, fontSize: isMobile ? 18 : 20 }}
-            >
-              🏪 BUY A PARLOR 🏪
-            </Button>
+            {/* BUY A PARLOR - Expandable */}
+            <div className="buy-parlor-dropdown">
+              <Button
+                onClick={() => setBuyParlorOpen(!buyParlorOpen)}
+                className={`w-full !bg-orange-500 hover:!bg-orange-600 text-white font-bold py-2.5 border-4 border-orange-800 uppercase flex items-center justify-between ${buyParlorOpen ? 'rounded-t-xl rounded-b-none' : 'rounded-xl'}`}
+                style={{ ...customFontStyle, fontSize: isMobile ? 18 : 20 }}
+              >
+                <span className="flex-1 text-center">🏪 BUY A PARLOR 🏪</span>
+                {buyParlorOpen ? <ChevronUp size={24} /> : <ChevronDown size={24} />}
+              </Button>
+              {buyParlorOpen && (
+                <div className="bg-orange-100 border-4 border-t-0 border-orange-800 rounded-b-xl p-4">
+                  <div className="space-y-3">
+                    {/* Parlors Owned */}
+                    <div className="flex justify-between items-center">
+                      <span className="text-orange-800" style={{ ...customFontStyle, fontSize: 16 }}>Parlors Owned:</span>
+                      <span className="text-orange-900" style={{ ...customFontStyle, fontSize: 16 }}>{parlorsOwned} / {maxParlors}</span>
+                    </div>
+
+                    {/* Total Earned */}
+                    <div className="flex justify-between items-center">
+                      <span className="text-orange-800" style={{ ...customFontStyle, fontSize: 16 }}>Total Earned:</span>
+                      <span className="text-green-600" style={{ ...customFontStyle, fontSize: 16 }}>${totalEarned.toFixed(2)}</span>
+                    </div>
+
+                    {/* Buy Button */}
+                    <Button
+                      className="w-full !bg-green-600 hover:!bg-green-700 text-white font-bold py-2 rounded-xl border-4 border-green-800 uppercase"
+                      style={{ ...customFontStyle, fontSize: isMobile ? 16 : 18 }}
+                      disabled={parlorsOwned >= maxParlors}
+                    >
+                      {parlorsOwned >= maxParlors ? '🏪 MAX OWNED 🏪' : '🏪 BUY PARLOR - $50 🏪'}
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </div>
 
             <Button
               className="w-full !bg-yellow-500 hover:!bg-yellow-600 text-white font-bold py-2.5 rounded-xl border-4 border-yellow-800 uppercase"
