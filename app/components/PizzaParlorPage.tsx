@@ -29,6 +29,11 @@ export default function PizzaParlorPage({
   onNavigateToLeaderboard,
   onNavigateToHome,
 }: PizzaParlorPageProps) {
+  const customFontStyle = {
+    fontFamily: '"Comic Sans MS", "Marker Felt", "Chalkduster", "Kalam", "Caveat"',
+    fontWeight: "bold" as const,
+  }
+
   const [isMobile, setIsMobile] = useState(false)
 
   useEffect(() => {
@@ -99,8 +104,8 @@ export default function PizzaParlorPage({
                 />
               </div>
               {/* Game ID overlay at bottom */}
-              <div className="absolute bottom-0 left-0 right-0 bg-black/60 py-1">
-                <p className="text-center text-white" style={{ fontFamily: 'var(--font-luckiest-guy)', fontSize: '14px' }}>
+              <div className="absolute bottom-2 left-0 right-0">
+                <p className="text-center text-white drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]" style={{ fontFamily: 'var(--font-luckiest-guy)', fontSize: '14px' }}>
                   Game ID #2
                 </p>
               </div>
@@ -109,29 +114,29 @@ export default function PizzaParlorPage({
             {/* Action Buttons */}
             <Button
               className="w-full !bg-orange-500 hover:!bg-orange-600 text-white font-bold py-2.5 rounded-xl border-4 border-orange-800 uppercase"
-              style={{ fontFamily: 'var(--font-luckiest-guy)', fontSize: isMobile ? 16 : 18 }}
+              style={{ ...customFontStyle, fontSize: isMobile ? 16 : 18 }}
             >
-              🏪 BUY A PARLOR
+              🏪 BUY A PARLOR 🏪
             </Button>
 
             <Button
               className="w-full !bg-yellow-500 hover:!bg-yellow-600 text-white font-bold py-2.5 rounded-xl border-4 border-yellow-800 uppercase"
-              style={{ fontFamily: 'var(--font-luckiest-guy)', fontSize: isMobile ? 16 : 18 }}
+              style={{ ...customFontStyle, fontSize: isMobile ? 16 : 18 }}
             >
-              💰 COLLECT OWNER FEES
+              💰 COLLECT OWNER FEES 💰
             </Button>
 
             <Button
               className="w-full !bg-blue-500 hover:!bg-blue-600 text-white font-bold py-2.5 rounded-xl border-4 border-blue-800 uppercase"
-              style={{ fontFamily: 'var(--font-luckiest-guy)', fontSize: isMobile ? 16 : 18 }}
+              style={{ ...customFontStyle, fontSize: isMobile ? 16 : 18 }}
             >
-              🍕 SEND A SLICE
+              🍕 SEND A SLICE 🍕
             </Button>
 
             <Button
               onClick={navigateToDaily}
               className="w-full !bg-green-600 hover:!bg-green-700 text-white font-bold py-2.5 rounded-xl border-4 border-green-800 uppercase"
-              style={{ fontFamily: 'var(--font-luckiest-guy)', fontSize: isMobile ? 16 : 18 }}
+              style={{ ...customFontStyle, fontSize: isMobile ? 16 : 18 }}
             >
               🍕 GRAB A SLICE 🍕
             </Button>
@@ -139,7 +144,7 @@ export default function PizzaParlorPage({
             <Button
               onClick={navigateToWeekly}
               className="w-full !bg-yellow-500 hover:!bg-yellow-600 text-white font-bold py-2.5 rounded-xl border-4 border-yellow-800 uppercase"
-              style={{ fontFamily: 'var(--font-luckiest-guy)', fontSize: isMobile ? 16 : 18 }}
+              style={{ ...customFontStyle, fontSize: isMobile ? 16 : 18 }}
             >
               <Image src="/images/pepperoni-art.png" alt="Pepperoni" width={20} height={20} className="inline mr-1" />
               WEEKLY JACKPOT
@@ -149,7 +154,7 @@ export default function PizzaParlorPage({
             <Button
               onClick={navigateToLeaderboard}
               className="w-full !bg-red-700 hover:!bg-red-800 text-white font-bold py-2.5 rounded-xl border-4 border-red-900 uppercase"
-              style={{ fontFamily: 'var(--font-luckiest-guy)', fontSize: isMobile ? 16 : 18 }}
+              style={{ ...customFontStyle, fontSize: isMobile ? 16 : 18 }}
             >
               <Image src="/images/mushroom-icon2.png" alt="Mushroom" width={20} height={20} className="inline mr-1" style={{ backgroundColor: 'transparent', border: 'none' }} />
               LEADERBOARD
