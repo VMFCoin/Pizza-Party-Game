@@ -146,7 +146,7 @@ export default function PizzaParlorPage({
                 className={`w-full !bg-orange-500 hover:!bg-orange-600 text-white font-bold py-2.5 border-4 border-orange-800 uppercase flex items-center justify-between ${buyParlorOpen ? 'rounded-t-xl rounded-b-none' : 'rounded-xl'}`}
                 style={{ ...customFontStyle, fontSize: isMobile ? 18 : 20 }}
               >
-                <span className="flex-1 text-center">🏪 BUY A PARLOR 🏪</span>
+                <span className="flex-1 text-center">🍍 BUY A PARLOR 🍍</span>
                 {buyParlorOpen ? <ChevronUp size={24} /> : <ChevronDown size={24} />}
               </Button>
               {buyParlorOpen && (

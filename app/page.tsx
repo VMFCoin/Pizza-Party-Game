@@ -315,7 +315,7 @@ export default function HomePage() {
                   fontSize: isMobile ? 18 : 20
                 }}
               >
-                🍍 OWN A PIZZA PARLOR 🍍
+                🍍 OWN A PARLOR 🍍
               </Button>
 
             </div>
