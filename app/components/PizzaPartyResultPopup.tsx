@@ -350,63 +350,70 @@ export function PizzaPartyResultPopup() {
           /* WINNER CARD - FULLY RESPONSIVE */
           <div
             className="relative w-full bg-gradient-to-br from-red-600 to-red-700 rounded-3xl border-4 border-black shadow-2xl overflow-hidden"
-            style={{ aspectRatio: '360/240' }}
+            style={{ aspectRatio: '360/260' }}
           >
             <div className="absolute inset-3 sm:inset-4 border-4 border-black rounded-2xl" />
 
-            <div className="relative z-10 h-full w-full px-5 sm:px-7 py-8 sm:py-10 flex flex-col justify-between items-center text-center gap-4">
-              <div style={customFontStyle} className="w-full">
+            <div className="relative z-10 h-full w-full px-5 sm:px-7 py-5 sm:py-6 flex flex-col justify-center items-center text-center">
+              <div className="w-full">
                 <h1
                   className="font-black"
                   style={{
+                    fontFamily: 'var(--font-luckiest-guy)',
                     color: '#FFA500',
                     textShadow: '1px 1px 0px #000, -1px -1px 0px #000, 1px -1px 0px #000, -1px 1px 0px #000',
                     WebkitTextStroke: '1.5px black',
                     fontWeight: 900,
                     letterSpacing: '0.035em',
                     fontSize: winType === 'both' ? 'clamp(1.5rem, 5.5vw, 2.5rem)' : 'clamp(1.9rem, 6.5vw, 3rem)',
+                    lineHeight: '1',
+                    margin: '0',
                   }}
                 >
                   {getWinnerTitle()}
                 </h1>
               </div>
 
-              <div className="space-y-2 leading-tight" style={customFontStyle}>
+              <div className="leading-tight" style={{ fontFamily: 'var(--font-luckiest-guy)' }}>
                 <p
-                  className="font-bold text-black"
-                  style={{ fontSize: 'clamp(0.9rem, 3vw, 1.2rem)' }}
+                  className="text-black"
+                  style={{ fontSize: 'clamp(0.9rem, 3vw, 1.2rem)', lineHeight: '1.2', margin: '0' }}
                 >
                   Won Big? Share The Dough!
                 </p>
                 <p
-                  className="font-bold text-white"
-                  style={{ fontSize: 'clamp(0.95rem, 3.2vw, 1.4rem)' }}
+                  className="text-white"
+                  style={{ fontSize: 'clamp(0.95rem, 3.2vw, 1.4rem)', lineHeight: '1.2', margin: '0' }}
                 >
                   You Won
                 </p>
                 <p
-                  className="font-bold text-white whitespace-nowrap"
+                  className="text-white whitespace-nowrap"
                   style={{
-                    ...customFontStyle,
+                    fontFamily: 'var(--font-luckiest-guy)',
                     textShadow: '2px 2px 0px #000, -1px -1px 0px #000, 1px -1px 0px #000, -1px 1px 0px #000',
                     fontSize: 'clamp(1.9rem, 6.8vw, 3rem)',
+                    lineHeight: '1.1',
+                    margin: '0',
                   }}
                 >
                   ${(totalPizzaWon * pizzaUsd).toFixed(2)} of $PIZZA
                 </p>
               </div>
 
-              <div className="w-full flex justify-center">
+              <div className="w-full flex justify-center mt-2">
                 <button
                   onClick={handleShare}
-                  className="bg-gradient-to-b from-yellow-400 to-yellow-500 hover:from-yellow-300 hover:to-yellow-400 active:scale-95 transition-all rounded-full border-4 border-black shadow-xl px-6 py-2 w-full max-w-[240px]"
+                  className="bg-gradient-to-b from-yellow-400 to-yellow-500 hover:from-yellow-300 hover:to-yellow-400 active:scale-95 transition-all rounded-full border-4 border-black shadow-xl px-6 py-1.5 w-full max-w-[200px]"
                 >
                   <p
-                    className="font-bold text-white whitespace-nowrap"
+                    className="text-white whitespace-nowrap"
                     style={{
-                      ...customFontStyle,
+                      fontFamily: 'var(--font-luckiest-guy)',
                       textShadow: '2px 2px 0px #000, -1px -1px 0px #000',
                       fontSize: 'clamp(0.95rem, 3.2vw, 1.4rem)',
+                      lineHeight: '1',
+                      margin: '0',
                     }}
                   >
                     SHARE
@@ -423,39 +430,42 @@ export function PizzaPartyResultPopup() {
           >
             <div className="absolute inset-3 sm:inset-4 border-4 border-black rounded-2xl" />
 
-            <div className="relative z-10 h-full w-full px-4 sm:px-6 py-6 sm:py-8 flex flex-col items-center justify-center gap-5 sm:gap-6 text-center">
-              <div style={customFontStyle}>
+            <div className="relative z-10 h-full w-full px-4 sm:px-6 py-5 sm:py-6 flex flex-col items-center justify-center text-center">
+              <div>
                 <h1
                   className="font-black"
                   style={{
+                    fontFamily: 'var(--font-luckiest-guy)',
                     color: '#FFA500',
                     textShadow: '2px 2px 0px #000, -2px -2px 0px #000, 2px -2px 0px #000, -2px 2px 0px #000',
                     WebkitTextStroke: '2px black',
                     fontWeight: 900,
                     letterSpacing: '0.04em',
                     fontSize: 'clamp(1.8rem, 7vw, 3.5rem)',
+                    lineHeight: '1',
+                    margin: '0',
                   }}
                 >
                   NOT A WINNER
                 </h1>
               </div>
 
-              <div className="space-y-2" style={customFontStyle}>
+              <div style={{ fontFamily: 'var(--font-luckiest-guy)' }}>
                 <p
-                  className="font-bold text-black"
-                  style={{ fontSize: 'clamp(1rem, 4vw, 1.75rem)' }}
+                  className="text-black"
+                  style={{ fontSize: 'clamp(1rem, 4vw, 1.75rem)', lineHeight: '1.3', margin: '0' }}
                 >
                   Keep Playing To Claim
                 </p>
                 <p
-                  className="font-bold text-black"
-                  style={{ fontSize: 'clamp(1rem, 4vw, 1.75rem)' }}
+                  className="text-black"
+                  style={{ fontSize: 'clamp(1rem, 4vw, 1.75rem)', lineHeight: '1.3', margin: '0' }}
                 >
                   More Toppings.
                 </p>
                 <p
-                  className="font-bold text-black"
-                  style={{ fontSize: 'clamp(1rem, 4vw, 1.75rem)' }}
+                  className="text-black"
+                  style={{ fontSize: 'clamp(1rem, 4vw, 1.75rem)', lineHeight: '1.3', margin: '0' }}
                 >
                   Grow The Weekly Jackpot.
                 </p>
