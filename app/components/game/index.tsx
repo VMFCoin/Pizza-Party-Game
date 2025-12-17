@@ -372,7 +372,7 @@ function GamePageContent({ onNavigateToWeekly, onNavigateToLeaderboard }: GamePa
         <div className="bg-blue-100/90 backdrop-blur-sm px-3 py-1.5 rounded-xl border-4 border-black w-full text-center">
           <p className="text-blue-600 font-bold text-center" style={{ fontFamily: 'var(--font-luckiest-guy)', fontSize: '28px', lineHeight: '1', marginBottom: '0' }}>Daily Jackpot</p>
           <p className="text-blue-800 text-3xl font-bold text-center" style={{ fontFamily: 'var(--font-luckiest-guy)', lineHeight: '1', margin: '0', padding: '0' }}>
-            {daily.loading ? '⏳' : `$${(Number(daily.jackpot) * pizzaUsd).toFixed(2)}`}
+            {daily.loading ? 'Loading...' : `$${(Number(daily.jackpot) * pizzaUsd).toFixed(2)}`}
           </p>
 
           <p className="text-blue-600 text-sm text-center" style={{ fontFamily: 'var(--font-luckiest-guy)', marginTop: '0' }}>
