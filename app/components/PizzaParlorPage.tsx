@@ -450,7 +450,7 @@ export default function PizzaParlorPage({
                   priority
                 />
               {/* Game ID overlay at bottom - inside the image */}
-              <div className="absolute bottom-0 left-0 right-0">
+              <div className="absolute bottom-4 left-0 right-0">
                 <p className="text-center text-white drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]" style={{ fontFamily: 'var(--font-luckiest-guy)', fontSize: '14px' }}>
                   Game ID #2
                 </p>
