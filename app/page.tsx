@@ -9,11 +9,16 @@ import { ArrowLeft } from "lucide-react";
 import GamePage from "./components/game";
 import WeeklyJackpotPage from "./components/WeeklyJackpotPage";
 import LeaderboardPage from "./components/LeaderboardPage";
+import PizzaParlorPage from "./components/PizzaParlorPage";
 import { sdk } from "@farcaster/miniapp-sdk";
 import { useRouter, useSearchParams } from "next/navigation";
+
 import { PizzaPartyResultPopup } from "./components/PizzaPartyResultPopup";
 
-type ViewType = 'home' | 'game' | 'weekly' | 'leaderboard'
+// FID allowed to access Pizza Parlor page
+const PARLOR_ALLOWED_FID = 1013491;
+
+type ViewType = 'home' | 'game' | 'weekly' | 'leaderboard' | 'parlor'
 
 export default function HomePage() {
   const customFontStyle = {
@@ -25,6 +30,7 @@ export default function HomePage() {
   const searchParams = useSearchParams();
   const [isMobile, setIsMobile] = useState(false);
   const [currentView, setCurrentView] = useState<ViewType>('home');
+  const [userFid, setUserFid] = useState<number | null>(null);
 
   const updateViewParam = React.useCallback((view: ViewType) => {
     const params = new URLSearchParams(searchParams?.toString() || '')
@@ -49,7 +55,7 @@ export default function HomePage() {
   useEffect(() => {
     const viewParam = searchParams?.get('view') as ViewType | null
 
-    if (viewParam && ['home', 'game', 'weekly', 'leaderboard'].includes(viewParam)) {
+    if (viewParam && ['home', 'game', 'weekly', 'leaderboard', 'parlor'].includes(viewParam)) {
       setCurrentView(viewParam)
     } else if (!viewParam) {
       setCurrentView('home')
@@ -64,9 +70,22 @@ export default function HomePage() {
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
-  // Farcaster SDK ready
+  // Farcaster SDK ready and get user FID
   useEffect(() => {
     sdk.actions.ready();
+
+    // Get user's FID from SDK context
+    const getUserFid = async () => {
+      try {
+        const context = await sdk.context;
+        if (context?.user?.fid) {
+          setUserFid(context.user.fid);
+        }
+      } catch (error) {
+        console.error('Error getting user FID:', error);
+      }
+    };
+    getUserFid();
   }, []);
 
   const handleStartPlaying = () => goToView('game')
@@ -76,6 +95,8 @@ export default function HomePage() {
   const handleNavigateToWeekly = () => goToView('weekly')
 
   const handleNavigateToLeaderboard = () => goToView('leaderboard')
+
+  const handleNavigateToParlor = () => goToView('parlor')
 
   // GAME VIEW
   if (currentView === 'game') {
@@ -129,6 +150,20 @@ export default function HomePage() {
           onBack={() => goToView('game')}
           onNavigateToDaily={() => goToView('game')}
           onNavigateToWeekly={handleNavigateToWeekly}
+          onNavigateToHome={handleBackToHome}
+        />
+      </>
+    );
+  }
+
+  if (currentView === 'parlor') {
+    return (
+      <>
+        <PizzaParlorPage
+          onBack={handleBackToHome}
+          onNavigateToDaily={() => goToView('game')}
+          onNavigateToWeekly={handleNavigateToWeekly}
+          onNavigateToLeaderboard={handleNavigateToLeaderboard}
           onNavigateToHome={handleBackToHome}
         />
       </>
@@ -272,14 +307,15 @@ export default function HomePage() {
               </Button>
 
               <Button
-                className="w-full !bg-green-600 text-white font-bold py-3 px-6 rounded-xl border-4 border-green-900 shadow-lg uppercase cursor-default"
+                onClick={userFid === PARLOR_ALLOWED_FID ? handleNavigateToParlor : undefined}
+                className={`w-full !bg-green-600 text-white font-bold py-3 px-6 rounded-xl border-4 border-green-900 shadow-lg uppercase ${userFid === PARLOR_ALLOWED_FID ? 'hover:!bg-green-700 transform hover:scale-105 transition-all touch-manipulation cursor-pointer' : 'cursor-default opacity-80'}`}
                 style={{
                   ...customFontStyle,
                   letterSpacing: "1px",
                   fontSize: isMobile ? 18 : 20
                 }}
               >
-                🍍 OWN A FRANCHISE 🍍
+                🍍 OWN A PIZZA PARLOR 🍍
               </Button>
 
             </div>
