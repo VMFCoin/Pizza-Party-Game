@@ -358,6 +358,11 @@ export const CONTRACT_REGISTRY = {
     abi: PIZZA_TOKEN_ABI as unknown as Abi,
     chainId: BASE_CHAIN_ID,
   },
+  parlorManager: {
+    address: PARLOR_MANAGER_ADDRESS as `0x${string}`,
+    abi: PARLOR_MANAGER_ABI as unknown as Abi,
+    chainId: BASE_CHAIN_ID,
+  },
 } as const satisfies Record<string, ContractRegistryEntry>
 
 export type ContractRegistryKey = keyof typeof CONTRACT_REGISTRY
@@ -366,6 +371,61 @@ export type ContractRegistryKey = keyof typeof CONTRACT_REGISTRY
 // Game Constants (from contract)
 // ==============================
 const ONE_ETHER = 10n ** 18n
+
+// ==============================
+// ParlorManager Contract (Pizza Parlors)
+// ==============================
+export const PARLOR_MANAGER_ADDRESS = "0x7acfaa1dadd836404a8d90b49581758c4fdc889b" // ParlorManager Proxy
+
+export const PARLOR_MANAGER_ABI = [
+  // --- View Functions ---
+  { type: 'function', name: 'parlorPrice', stateMutability: 'view', inputs: [], outputs: [{ type: 'uint256' }] },
+  { type: 'function', name: 'totalParlors', stateMutability: 'view', inputs: [], outputs: [{ type: 'uint256' }] },
+  { type: 'function', name: 'parlorsRemaining', stateMutability: 'view', inputs: [], outputs: [{ type: 'uint256' }] },
+  { type: 'function', name: 'parlorCount', stateMutability: 'view', inputs: [{ type: 'address', name: 'owner' }], outputs: [{ type: 'uint256' }] },
+  { type: 'function', name: 'slicesRemainingToday', stateMutability: 'view', inputs: [{ type: 'address', name: 'sponsor' }], outputs: [{ type: 'uint256' }] },
+  { type: 'function', name: 'pendingFees', stateMutability: 'view', inputs: [], outputs: [{ type: 'uint256' }] },
+  { type: 'function', name: 'parlorOwnersCount', stateMutability: 'view', inputs: [], outputs: [{ type: 'uint256' }] },
+  { type: 'function', name: 'isParlorOwner', stateMutability: 'view', inputs: [{ type: 'address', name: '' }], outputs: [{ type: 'bool' }] },
+  // --- Constants ---
+  { type: 'function', name: 'MAX_PARLORS', stateMutability: 'view', inputs: [], outputs: [{ type: 'uint256' }] },
+  { type: 'function', name: 'MAX_PARLORS_PER_WALLET', stateMutability: 'view', inputs: [], outputs: [{ type: 'uint256' }] },
+  { type: 'function', name: 'DAILY_FREE_ENTRIES_PER_PARLOR', stateMutability: 'view', inputs: [], outputs: [{ type: 'uint256' }] },
+  // --- Write Functions ---
+  { type: 'function', name: 'purchaseParlor', stateMutability: 'nonpayable', inputs: [], outputs: [] },
+  { type: 'function', name: 'distributeFranchiseFees', stateMutability: 'nonpayable', inputs: [], outputs: [] },
+  { type: 'function', name: 'tipSlice', stateMutability: 'nonpayable', inputs: [{ type: 'address', name: 'recipient' }], outputs: [] },
+  // --- Events ---
+  {
+    type: 'event',
+    name: 'ParlorPurchased',
+    inputs: [
+      { indexed: true, name: 'buyer', type: 'address' },
+      { indexed: true, name: 'globalSerial', type: 'uint256' },
+      { indexed: false, name: 'buyerTotalOwned', type: 'uint256' },
+      { indexed: false, name: 'price', type: 'uint256' }
+    ]
+  },
+  {
+    type: 'event',
+    name: 'SliceTipped',
+    inputs: [
+      { indexed: true, name: 'sponsor', type: 'address' },
+      { indexed: true, name: 'recipient', type: 'address' },
+      { indexed: true, name: 'dailyGameId', type: 'uint256' }
+    ]
+  },
+  {
+    type: 'event',
+    name: 'FranchiseFeesDistributed',
+    inputs: [
+      { indexed: false, name: 'totalFees', type: 'uint256' },
+      { indexed: false, name: 'treasuryAmount', type: 'uint256' },
+      { indexed: false, name: 'ownersAmount', type: 'uint256' },
+      { indexed: false, name: 'opsAmount', type: 'uint256' }
+    ]
+  }
+] as const
 
 export const GAME_CONSTANTS = {
   MIN_ENTRY_FEE_WEI: 1n * (ONE_ETHER / 100n),  // 0.01 PIZZA minimum (when PIZZA = $100, entry = 0.01 PIZZA for $1)
