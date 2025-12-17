@@ -114,21 +114,21 @@ export default function PizzaParlorPage({
             {/* Action Buttons */}
             <Button
               className="w-full !bg-orange-500 hover:!bg-orange-600 text-white font-bold py-2.5 rounded-xl border-4 border-orange-800 uppercase"
-              style={{ ...customFontStyle, fontSize: isMobile ? 16 : 18 }}
+            style={{ ...customFontStyle, fontSize: isMobile ? 18 : 20 }}
             >
               🏪 BUY A PARLOR 🏪
             </Button>
 
             <Button
               className="w-full !bg-yellow-500 hover:!bg-yellow-600 text-white font-bold py-2.5 rounded-xl border-4 border-yellow-800 uppercase"
-              style={{ ...customFontStyle, fontSize: isMobile ? 16 : 18 }}
+            style={{ ...customFontStyle, fontSize: isMobile ? 18 : 20 }}
             >
               💰 COLLECT OWNER FEES 💰
             </Button>
 
             <Button
               className="w-full !bg-blue-500 hover:!bg-blue-600 text-white font-bold py-2.5 rounded-xl border-4 border-blue-800 uppercase"
-              style={{ ...customFontStyle, fontSize: isMobile ? 16 : 18 }}
+            style={{ ...customFontStyle, fontSize: isMobile ? 18 : 20 }}
             >
               🍕 SEND A SLICE 🍕
             </Button>
@@ -136,7 +136,7 @@ export default function PizzaParlorPage({
             <Button
               onClick={navigateToDaily}
               className="w-full !bg-green-600 hover:!bg-green-700 text-white font-bold py-2.5 rounded-xl border-4 border-green-800 uppercase"
-              style={{ ...customFontStyle, fontSize: isMobile ? 16 : 18 }}
+            style={{ ...customFontStyle, fontSize: isMobile ? 18 : 20 }}
             >
               🍕 GRAB A SLICE 🍕
             </Button>
@@ -144,7 +144,7 @@ export default function PizzaParlorPage({
             <Button
               onClick={navigateToWeekly}
               className="w-full !bg-yellow-500 hover:!bg-yellow-600 text-white font-bold py-2.5 rounded-xl border-4 border-yellow-800 uppercase"
-              style={{ ...customFontStyle, fontSize: isMobile ? 16 : 18 }}
+            style={{ ...customFontStyle, fontSize: isMobile ? 18 : 20 }}
             >
               <Image src="/images/pepperoni-art.png" alt="Pepperoni" width={20} height={20} className="inline mr-1" />
               WEEKLY JACKPOT
@@ -154,7 +154,7 @@ export default function PizzaParlorPage({
             <Button
               onClick={navigateToLeaderboard}
               className="w-full !bg-red-700 hover:!bg-red-800 text-white font-bold py-2.5 rounded-xl border-4 border-red-900 uppercase"
-              style={{ ...customFontStyle, fontSize: isMobile ? 16 : 18 }}
+            style={{ ...customFontStyle, fontSize: isMobile ? 18 : 20 }}
             >
               <Image src="/images/mushroom-icon2.png" alt="Mushroom" width={20} height={20} className="inline mr-1" style={{ backgroundColor: 'transparent', border: 'none' }} />
               LEADERBOARD
