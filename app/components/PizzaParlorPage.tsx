@@ -406,7 +406,7 @@ export default function PizzaParlorPage({
     if (totalParlorsSold >= maxTotalParlors) return '🍍 SOLD OUT 🍍'
     if (isApproving || (isConfirming && isApproving)) return '🍍 APPROVING... 🍍'
     if (isPurchasing || (isConfirming && isPurchasing)) return '🍍 BUYING... 🍍'
-    if (needsApproval) return `🍍 APPROVE PIZZA 🍍`
+    if (needsApproval) return `🍍 BUY A PARLOR 🍍`
     return `🍍 BUY A PARLOR - $${PARLOR_PRICE_USD} 🍍`
   }
 
