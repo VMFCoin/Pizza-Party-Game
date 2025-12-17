@@ -111,22 +111,20 @@ export default function PizzaParlorPage({
         >
           <div className="space-y-3">
             {/* Own Your Pizza Parlor Header Image */}
-            <div className="border-4 border-black rounded-2xl overflow-hidden relative">
-              <div className="relative">
-                <Image
-                  src="/images/Parlor-Owner.png"
-                  alt="Own Your Pizza Parlor"
-                  width={500}
-                  height={500}
-                  className="w-full h-auto block"
-                  priority
-                />
-                {/* Game ID overlay at bottom - inside the image */}
-                <div className="absolute bottom-3 left-0 right-0">
-                  <p className="text-center text-white drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]" style={{ fontFamily: 'var(--font-luckiest-guy)', fontSize: '14px' }}>
-                    Game ID #2
-                  </p>
-                </div>
+            <div className="relative">
+              <Image
+                src="/images/Parlor-Owner.png"
+                alt="Own Your Pizza Parlor"
+                width={500}
+                height={500}
+                className="w-full h-auto block rounded-2xl"
+                priority
+              />
+              {/* Game ID overlay at bottom - inside the image */}
+              <div className="absolute bottom-3 left-0 right-0">
+                <p className="text-center text-white drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]" style={{ fontFamily: 'var(--font-luckiest-guy)', fontSize: '14px' }}>
+                  Game ID #2
+                </p>
               </div>
             </div>
 
