@@ -18,6 +18,39 @@ const nextConfig = {
         protocol: 'https',
         hostname: 'u.cubeupload.com',
       },
+      // Farcaster profile images
+      {
+        protocol: 'https',
+        hostname: 'res.cloudinary.com',
+      },
+      {
+        protocol: 'https',
+        hostname: 'i.seadn.io',
+      },
+      {
+        protocol: 'https',
+        hostname: 'openseauserdata.com',
+      },
+      {
+        protocol: 'https',
+        hostname: 'lh3.googleusercontent.com',
+      },
+      {
+        protocol: 'https',
+        hostname: 'ipfs.io',
+      },
+      {
+        protocol: 'https',
+        hostname: '*.ipfs.dweb.link',
+      },
+      {
+        protocol: 'https',
+        hostname: 'warpcast.com',
+      },
+      {
+        protocol: 'https',
+        hostname: '*.warpcast.com',
+      },
     ],
   },
   async headers() {

@@ -38,6 +38,15 @@ interface RecentRecipient {
   lastUsed: number
 }
 
+// Farcaster user search result
+interface FarcasterUser {
+  fid: number
+  username: string
+  displayName: string
+  pfpUrl: string
+  walletAddress: string
+}
+
 export default function PizzaParlorPage({
   onBack,
   onNavigateToDaily,
@@ -61,6 +70,9 @@ export default function PizzaParlorPage({
   const [recipientInput, setRecipientInput] = useState('')
   const [recentRecipients, setRecentRecipients] = useState<RecentRecipient[]>([])
   const [showSuggestions, setShowSuggestions] = useState(false)
+  const [farcasterResults, setFarcasterResults] = useState<FarcasterUser[]>([])
+  const [isSearching, setIsSearching] = useState(false)
+  const [selectedUser, setSelectedUser] = useState<FarcasterUser | null>(null)
 
   // Transaction states
   const [isPurchasing, setIsPurchasing] = useState(false)
@@ -172,10 +184,15 @@ export default function PizzaParlorPage({
       setIsPurchasing(false)
       setIsApproving(false)
       setIsDistributing(false)
+      // Clear slice input on success
+      if (isSendingSlice) {
+        setRecipientInput('')
+        setSelectedUser(null)
+      }
       setIsSendingSlice(false)
       resetWrite()
     }
-  }, [isConfirmed, refetchContractData, refetchUserData, resetWrite])
+  }, [isConfirmed, refetchContractData, refetchUserData, resetWrite, isSendingSlice])
 
   // ============ Action Handlers ============
 
@@ -238,11 +255,9 @@ export default function PizzaParlorPage({
         args: [resolvedAddress],
       })
 
-      // Update local storage on success (will happen in useEffect when confirmed)
-      if (isConfirmed) {
-        saveRecipient(recipientInput, resolvedAddress)
-        setRecipientInput('')
-      }
+      // Save recipient with username label if from Farcaster
+      const label = selectedUser ? `@${selectedUser.username}` : recipientInput
+      saveRecipient(label, resolvedAddress)
     } catch (error) {
       console.error('Send slice error:', error)
       setIsSendingSlice(false)
@@ -252,6 +267,11 @@ export default function PizzaParlorPage({
   // ============ Recipient Management ============
 
   const resolveRecipient = (input: string): `0x${string}` | null => {
+    // If a user was selected from Farcaster search, use their wallet
+    if (selectedUser?.walletAddress && isAddress(selectedUser.walletAddress)) {
+      return selectedUser.walletAddress as `0x${string}`
+    }
+
     const trimmed = input.trim()
     if (isAddress(trimmed)) {
       return trimmed as `0x${string}`
@@ -263,6 +283,51 @@ export default function PizzaParlorPage({
     )
     return match?.address || null
   }
+
+  // Search Farcaster users via Neynar API
+  const searchFarcasterUsers = useCallback(async (query: string) => {
+    if (!query || query.length < 1 || query.startsWith('0x')) {
+      setFarcasterResults([])
+      return
+    }
+
+    setIsSearching(true)
+    try {
+      const response = await fetch(`/api/users/search?q=${encodeURIComponent(query)}`)
+      const data = await response.json()
+      if (data.success && data.users) {
+        setFarcasterResults(data.users)
+      } else {
+        setFarcasterResults([])
+      }
+    } catch (error) {
+      console.error('Farcaster search error:', error)
+      setFarcasterResults([])
+    } finally {
+      setIsSearching(false)
+    }
+  }, [])
+
+  // Debounce search
+  useEffect(() => {
+    const trimmed = recipientInput.trim()
+    // Don't search if it's a wallet address or empty
+    if (!trimmed || trimmed.startsWith('0x') || isAddress(trimmed)) {
+      setFarcasterResults([])
+      return
+    }
+
+    // Clear selected user if input changed manually
+    if (selectedUser && recipientInput !== `@${selectedUser.username}`) {
+      setSelectedUser(null)
+    }
+
+    const timer = setTimeout(() => {
+      searchFarcasterUsers(trimmed)
+    }, 300) // 300ms debounce
+
+    return () => clearTimeout(timer)
+  }, [recipientInput, searchFarcasterUsers, selectedUser])
 
   const loadRecentRecipients = useCallback(() => {
     try {
@@ -622,19 +687,86 @@ export default function PizzaParlorPage({
                     <div className="relative recipient-suggestions">
                       <input
                         type="text"
-                        placeholder="Enter wallet address"
+                        placeholder="Search @username or enter 0x..."
                         value={recipientInput}
                         onChange={(e) => {
                           setRecipientInput(e.target.value)
                           setShowSuggestions(true)
+                          if (selectedUser) setSelectedUser(null)
                         }}
                         onFocus={() => setShowSuggestions(true)}
                         className="w-full p-2 rounded-xl border-2 border-blue-400 text-blue-900"
                         style={{ ...customFontStyle, fontSize: 14 }}
                       />
-                      {/* Suggestions Dropdown */}
-                      {showSuggestions && getSuggestions(recipientInput).length > 0 && (
+
+                      {/* Selected User Display */}
+                      {selectedUser && (
+                        <div className="mt-2 p-2 bg-blue-200 rounded-lg flex items-center gap-2">
+                          {selectedUser.pfpUrl && (
+                            <Image
+                              src={selectedUser.pfpUrl}
+                              alt={selectedUser.username}
+                              width={24}
+                              height={24}
+                              className="rounded-full"
+                            />
+                          )}
+                          <span className="text-blue-900" style={{ ...customFontStyle, fontSize: 12 }}>
+                            @{selectedUser.username}
+                          </span>
+                          <span className="text-blue-600 text-xs truncate flex-1">
+                            {selectedUser.walletAddress.slice(0, 6)}...{selectedUser.walletAddress.slice(-4)}
+                          </span>
+                        </div>
+                      )}
+
+                      {/* Search Loading Indicator */}
+                      {isSearching && (
+                        <div className="absolute top-full left-0 right-0 bg-white border-2 border-blue-400 rounded-b-xl shadow-lg z-10 p-2 text-center">
+                          <span className="text-blue-600" style={{ ...customFontStyle, fontSize: 12 }}>Searching...</span>
+                        </div>
+                      )}
+
+                      {/* Farcaster Search Results */}
+                      {showSuggestions && !isSearching && farcasterResults.length > 0 && !selectedUser && (
+                        <div className="absolute top-full left-0 right-0 bg-white border-2 border-blue-400 rounded-b-xl shadow-lg z-10 max-h-48 overflow-y-auto">
+                          {farcasterResults.map((user) => (
+                            <button
+                              key={user.fid}
+                              onClick={() => {
+                                setSelectedUser(user)
+                                setRecipientInput(`@${user.username}`)
+                                setShowSuggestions(false)
+                                setFarcasterResults([])
+                              }}
+                              className="w-full p-2 text-left hover:bg-blue-100 flex items-center gap-2"
+                            >
+                              {user.pfpUrl && (
+                                <Image
+                                  src={user.pfpUrl}
+                                  alt={user.username}
+                                  width={32}
+                                  height={32}
+                                  className="rounded-full"
+                                />
+                              )}
+                              <div className="flex-1 min-w-0">
+                                <p className="text-blue-900 font-bold truncate" style={{ ...customFontStyle, fontSize: 13 }}>
+                                  @{user.username}
+                                </p>
+                                <p className="text-blue-600 text-xs truncate">
+                                  {user.displayName}
+                                </p>
+                              </div>
+                            </button>
+                          ))}
+                        </div>
+                      )}
+
+                      {/* Recent Recipients (only when no Farcaster results and not searching) */}
+                      {showSuggestions && !isSearching && farcasterResults.length === 0 && !selectedUser && getSuggestions(recipientInput).length > 0 && (
                         <div className="absolute top-full left-0 right-0 bg-white border-2 border-blue-400 rounded-b-xl shadow-lg z-10 max-h-40 overflow-y-auto">
+                          <p className="px-2 pt-1 text-blue-500" style={{ ...customFontStyle, fontSize: 10 }}>Recent:</p>
                           {getSuggestions(recipientInput).map((recipient, idx) => (
                             <button
                               key={idx}
