@@ -3,30 +3,22 @@ import { NextRequest, NextResponse } from 'next/server'
 export const runtime = 'edge'
 export const dynamic = 'force-dynamic'
 
-// Neynar API for Farcaster user search
-const NEYNAR_API_URL = 'https://api.neynar.com/v2/farcaster/user/search'
+// Farcaster Hub API - free, no API key required
+// Using Neynar's public hub or official hubs
+const HUB_URL = 'https://hub.pinata.cloud/v1'
 
-interface NeynarUser {
-  fid: number
-  username: string
-  display_name: string
-  pfp_url: string
-  custody_address: string
-  verified_addresses: {
-    eth_addresses: string[]
-    sol_addresses: string[]
-  }
+interface HubUserData {
+  type: string
+  value: string
 }
 
-interface NeynarSearchResponse {
-  result: {
-    users: NeynarUser[]
-  }
+interface HubVerification {
+  address: string
 }
 
 export async function GET(request: NextRequest) {
   const searchParams = request.nextUrl.searchParams
-  const query = searchParams.get('q')
+  const query = searchParams.get('q')?.toLowerCase().trim()
 
   if (!query || query.length < 1) {
     return NextResponse.json({
@@ -36,51 +28,93 @@ export async function GET(request: NextRequest) {
     }, { status: 400 })
   }
 
-  const apiKey = process.env.NEXT_PUBLIC_NEYNAR_API_KEY
-
-  if (!apiKey) {
-    console.error('NEYNAR_API_KEY not configured')
-    return NextResponse.json({
-      success: false,
-      error: 'Search service not configured',
-      users: [],
-    }, { status: 500 })
-  }
-
   try {
-    const response = await fetch(`${NEYNAR_API_URL}?q=${encodeURIComponent(query)}&limit=10`, {
-      headers: {
-        'accept': 'application/json',
-        'api_key': apiKey,
-      },
-      cache: 'no-store',
-    })
+    // Step 1: Look up username to get FID
+    const usernameRes = await fetch(
+      `${HUB_URL}/userNameProofByName?name=${encodeURIComponent(query)}`,
+      { cache: 'no-store' }
+    )
 
-    if (!response.ok) {
-      const errorText = await response.text()
-      console.error('Neynar API error:', response.status, errorText)
-      throw new Error(`Neynar API error: ${response.status}`)
+    if (!usernameRes.ok) {
+      // Username not found - return empty (not an error)
+      return NextResponse.json({
+        success: true,
+        users: [],
+        query,
+        message: 'No exact match found. Try the full username.',
+      })
     }
 
-    const data: NeynarSearchResponse = await response.json()
+    const usernameData = await usernameRes.json()
+    const fid = usernameData.fid
 
-    // Transform to simpler format with resolved wallet address
-    const users = data.result.users.map(user => {
-      // Prefer verified ETH address, fallback to custody address
-      const walletAddress = user.verified_addresses?.eth_addresses?.[0] || user.custody_address
+    if (!fid) {
+      return NextResponse.json({
+        success: true,
+        users: [],
+        query,
+      })
+    }
 
-      return {
-        fid: user.fid,
-        username: user.username,
-        displayName: user.display_name,
-        pfpUrl: user.pfp_url,
-        walletAddress,
+    // Step 2: Get user data (pfp, display name, bio)
+    const [pfpRes, displayNameRes, verificationRes] = await Promise.all([
+      fetch(`${HUB_URL}/userDataByFid?fid=${fid}&user_data_type=1`, { cache: 'no-store' }), // PFP
+      fetch(`${HUB_URL}/userDataByFid?fid=${fid}&user_data_type=2`, { cache: 'no-store' }), // Display name
+      fetch(`${HUB_URL}/verificationsByFid?fid=${fid}`, { cache: 'no-store' }), // Verifications (wallets)
+    ])
+
+    let pfpUrl = ''
+    let displayName = query
+
+    if (pfpRes.ok) {
+      const pfpData = await pfpRes.json()
+      pfpUrl = pfpData.data?.userDataBody?.value || ''
+    }
+
+    if (displayNameRes.ok) {
+      const displayData = await displayNameRes.json()
+      displayName = displayData.data?.userDataBody?.value || query
+    }
+
+    // Get verified ETH address
+    let walletAddress = ''
+    if (verificationRes.ok) {
+      const verificationData = await verificationRes.json()
+      const verifications = verificationData.messages || []
+
+      // Find first ETH verification
+      for (const v of verifications) {
+        const addr = v.data?.verificationAddAddressBody?.address
+        if (addr && addr.startsWith('0x') && addr.length === 42) {
+          walletAddress = addr
+          break
+        }
       }
-    }).filter(user => user.walletAddress) // Only return users with valid addresses
+    }
+
+    // If no verified address, try to get custody address from the username proof
+    if (!walletAddress && usernameData.owner) {
+      walletAddress = usernameData.owner
+    }
+
+    if (!walletAddress) {
+      return NextResponse.json({
+        success: true,
+        users: [],
+        query,
+        message: 'User found but no wallet address linked.',
+      })
+    }
 
     return NextResponse.json({
       success: true,
-      users,
+      users: [{
+        fid,
+        username: query,
+        displayName,
+        pfpUrl,
+        walletAddress,
+      }],
       query,
     })
 
