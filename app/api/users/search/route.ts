@@ -7,15 +7,6 @@ export const dynamic = 'force-dynamic'
 // Using Neynar's public hub or official hubs
 const HUB_URL = 'https://hub.pinata.cloud/v1'
 
-interface HubUserData {
-  type: string
-  value: string
-}
-
-interface HubVerification {
-  address: string
-}
-
 export async function GET(request: NextRequest) {
   const searchParams = request.nextUrl.searchParams
   const query = searchParams.get('q')?.toLowerCase().trim()
