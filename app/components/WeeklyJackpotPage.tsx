@@ -301,7 +301,7 @@ export default function WeeklyJackpotPage({
               <p className="text-red-600 text-center mb-2" style={{ fontFamily: 'var(--font-luckiest-guy)', fontSize: '24px' }}>
                 How to Win Toppings
               </p>
-              <ul className="space-y-1.5 text-red-700 text-sm font-semibold">
+              <ul className="space-y-1.5 text-red-700 text-sm" style={{ fontFamily: 'var(--font-luckiest-guy)' }}>
                 {HOW_TO_WIN.map(item => (
                   <li key={item} className="flex items-start gap-2">
                     <span>🍅</span>
@@ -319,10 +319,10 @@ export default function WeeklyJackpotPage({
               </p>
               
               <div className="mb-4">
-                <p className="text-yellow-700 text-base font-bold mb-2" style={customFontStyle}>
+                <p className="text-yellow-700 text-base mb-2" style={{ fontFamily: 'var(--font-luckiest-guy)' }}>
                   Daily Game
                 </p>
-                <ul className="space-y-1.5 text-yellow-800 text-sm font-semibold">
+                <ul className="space-y-1.5 text-yellow-800 text-sm" style={{ fontFamily: 'var(--font-luckiest-guy)' }}>
                   {TERMS.dailyGame.map((item, idx) => (
                     <li key={idx} className="flex items-start gap-2">
                       <span>🍅</span>
@@ -333,10 +333,10 @@ export default function WeeklyJackpotPage({
               </div>
 
               <div>
-                <p className="text-yellow-700 text-base font-bold mb-2" style={customFontStyle}>
+                <p className="text-yellow-700 text-base mb-2" style={{ fontFamily: 'var(--font-luckiest-guy)' }}>
                   Weekly Jackpot
                 </p>
-                <ul className="space-y-1.5 text-yellow-800 text-sm font-semibold">
+                <ul className="space-y-1.5 text-yellow-800 text-sm" style={{ fontFamily: 'var(--font-luckiest-guy)' }}>
                   {TERMS.weeklyJackpot.map((item, idx) => (
                     <li key={idx} className="flex items-start gap-2">
                       <span>🍅</span>

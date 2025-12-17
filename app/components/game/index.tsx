@@ -371,11 +371,11 @@ function GamePageContent({ onNavigateToWeekly, onNavigateToLeaderboard }: GamePa
         {/* Daily Jackpot */}
         <div className="bg-blue-100/90 backdrop-blur-sm px-3 py-1.5 rounded-xl border-4 border-black w-full text-center">
           <p className="text-blue-600 font-bold" style={{ fontFamily: 'var(--font-luckiest-guy)', fontSize: '28px', lineHeight: '1', marginBottom: '-4px' }}>Daily Jackpot</p>
-          <p className="text-blue-800 text-3xl font-bold" style={{ ...customFontStyle, lineHeight: '1.1' }}>
+          <p className="text-blue-800 text-3xl font-bold" style={{ fontFamily: 'var(--font-luckiest-guy)', lineHeight: '1.1' }}>
             {daily.loading ? '⏳' : `$${(Number(daily.jackpot) * pizzaUsd).toFixed(2)}`}
           </p>
 
-          <p className="text-blue-600 text-sm mt-1">
+          <p className="text-blue-600 text-sm mt-1" style={{ fontFamily: 'var(--font-luckiest-guy)' }}>
             {daily.loading
               ? 'Loading entries...'
               : `Total entries: ${daily.totalEntries} • Game #${daily.dailyGameId}`}

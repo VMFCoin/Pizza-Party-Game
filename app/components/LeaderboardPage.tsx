@@ -547,7 +547,7 @@ export default function LeaderboardPage({
                     Loading...
                   </p>
                 ) : weeklyWinners.length === 0 ? (
-                  <p className="text-center text-gray-600 py-8" style={customFontStyle}>
+                  <p className="text-center text-gray-600 py-8" style={{ fontFamily: 'var(--font-luckiest-guy)' }}>
                     🎮 Weekly game in progress... Winners will appear when the game settles on Monday at 12pm PST
                   </p>
                 ) : (
@@ -590,7 +590,7 @@ export default function LeaderboardPage({
                 >
                   How It Works
                 </p>
-                <ul className="space-y-1.5 text-red-700 text-sm font-semibold">
+                <ul className="space-y-1.5 text-red-700 text-sm" style={{ fontFamily: 'var(--font-luckiest-guy)' }}>
                   <li className="flex items-start gap-2">
                     <span>🍅</span>
                     <span><strong>DAILY WINNERS:</strong> Today&apos;s 8 lucky winners</span>
