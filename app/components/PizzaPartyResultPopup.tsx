@@ -310,11 +310,6 @@ export function PizzaPartyResultPopup() {
 
   if (!showPopup) return null
 
-  const customFontStyle = {
-    fontFamily: '"Comic Sans MS", "Marker Felt", "Chalkduster", "Kalam", "Caveat"',
-    fontWeight: 'bold' as const,
-  }
-
   // Get the title based on win type
   const getWinnerTitle = () => {
     switch (winType) {
