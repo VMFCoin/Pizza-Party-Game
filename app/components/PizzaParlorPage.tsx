@@ -15,7 +15,7 @@ interface PizzaParlorPageProps {
 }
 
 const PARLORS_EXPLAINED = [
-  'Own a Pizza Parlor franchise for 50,000 PIZZA tokens',
+  'Own a Pizza Parlor franchise for $50 PIZZA tokens',
   'Each parlor gives you 1 free daily slice to share with friends',
   'Earn 50% of owner fees distributed to all parlor owners',
   'Max 5 parlors per wallet, 100 total parlors available',
