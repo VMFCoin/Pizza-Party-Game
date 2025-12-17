@@ -96,7 +96,7 @@ export default function PizzaParlorPage({
             <div className="border-4 border-black rounded-2xl overflow-hidden relative">
               <div className="relative w-full" style={{ aspectRatio: '1/1' }}>
                 <Image
-                  src="/images/Pizza-Parlor.png"
+                  src="/images/Parlor-Owner.png"
                   alt="Own Your Pizza Parlor"
                   fill
                   className="object-cover"
