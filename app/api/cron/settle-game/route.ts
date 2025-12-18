@@ -269,43 +269,41 @@ export async function GET(request: NextRequest) {
     }
 
     // --- PARLOR FEE ALLOCATION ---
-    // Allocate parlor fees after successful settlements so owners can claim
-    if (results.daily?.success || results.weekly?.success) {
-      try {
-        // Check if there are pending fees to allocate
-        const pendingFees = await publicClient.readContract({
+    // Always check for pending parlor fees so owners can claim even if someone else settled the game
+    try {
+      const pendingFees = await publicClient.readContract({
+        address: PARLOR_CONTRACT,
+        abi: PARLOR_ABI,
+        functionName: 'pendingFees',
+      });
+
+      if (pendingFees > 0n) {
+        const triggeredBy = results.daily?.success || results.weekly?.success ? 'recent settlement' : 'existing pending fees';
+        console.log(`[Settle Bot] Allocating parlor fees (${triggeredBy}): ${formatUnits(pendingFees, 18)} PIZZA`);
+
+        const hash = await walletClient.writeContract({
           address: PARLOR_CONTRACT,
           abi: PARLOR_ABI,
-          functionName: 'pendingFees',
+          functionName: 'allocateFees',
+          gas: 500_000n,
         });
 
-        if (pendingFees > 0n) {
-          console.log(`[Settle Bot] Allocating parlor fees: ${formatUnits(pendingFees, 18)} PIZZA`);
+        const receipt = await publicClient.waitForTransactionReceipt({ hash });
 
-          const hash = await walletClient.writeContract({
-            address: PARLOR_CONTRACT,
-            abi: PARLOR_ABI,
-            functionName: 'allocateFees',
-            gas: 500_000n,
-          });
-
-          const receipt = await publicClient.waitForTransactionReceipt({ hash });
-
-          if (receipt.status === 'success') {
-            results.parlorFees = { success: true, txHash: hash };
-            console.log(`[Settle Bot] Parlor fees allocated! TX: ${hash}`);
-          } else {
-            results.parlorFees = { success: false, error: 'Transaction failed' };
-          }
+        if (receipt.status === 'success') {
+          results.parlorFees = { success: true, txHash: hash };
+          console.log(`[Settle Bot] Parlor fees allocated! TX: ${hash}`);
         } else {
-          results.parlorFees = { success: false, reason: 'no_pending_fees' };
-          console.log(`[Settle Bot] No pending parlor fees to allocate`);
+          results.parlorFees = { success: false, error: 'Transaction failed' };
         }
-      } catch (e) {
-        const error = e instanceof Error ? e.message : 'Unknown error';
-        results.parlorFees = { success: false, error };
-        console.error(`[Settle Bot] Parlor fee allocation error:`, error);
+      } else {
+        results.parlorFees = { success: false, reason: 'no_pending_fees' };
+        console.log(`[Settle Bot] No pending parlor fees to allocate`);
       }
+    } catch (e) {
+      const error = e instanceof Error ? e.message : 'Unknown error';
+      results.parlorFees = { success: false, error };
+      console.error(`[Settle Bot] Parlor fee allocation error:`, error);
     }
 
     return NextResponse.json({

@@ -168,16 +168,18 @@ export default function LeaderboardPage({
   const [weeklyWinnersAddresses, setWeeklyWinnersAddresses] = useState<string[]>([])
   const [previousDailyGame, setPreviousDailyGame] = useState<{ startTime: bigint; endTime: bigint; potAmount: bigint; settled: boolean } | null>(null)
   const [previousWeeklyGame, setPreviousWeeklyGame] = useState<{ claimWindowEnd: bigint; potAmount: bigint; settled: boolean } | null>(null)
-  const [dailyDataReady, setDailyDataReady] = useState(false)
-  const [weeklyDataReady, setWeeklyDataReady] = useState(false)
 
   // Find the most recent SETTLED game with winners
   // Search backwards from current game to find settled games with winners
   useEffect(() => {
     async function findLatestGameWithWinners() {
-      if (!dailyGameId || Number(dailyGameId) < 2) return
+      if (!dailyGameId || Number(dailyGameId) < 2) {
+        console.log('[Leaderboard] dailyGameId not ready:', dailyGameId)
+        return
+      }
 
       const currentId = Number(dailyGameId)
+      console.log('[Leaderboard] Searching for settled games, currentId:', currentId)
 
       // Search backwards from current game - 1 (current game is likely in progress)
       for (let gameId = currentId - 1; gameId >= 1; gameId--) {
@@ -191,6 +193,8 @@ export default function LeaderboardPage({
           }) as unknown as [bigint, bigint, string, bigint, boolean]
 
           const isSettled = gameData[4]
+          console.log(`[Leaderboard] Game ${gameId}: settled=${isSettled}, pot=${gameData[3]}`)
+
           if (!isSettled) continue // Skip unsettled games
 
           const winners = await publicClient.readContract({
@@ -200,8 +204,11 @@ export default function LeaderboardPage({
             args: [BigInt(gameId)],
           }) as string[]
 
+          console.log(`[Leaderboard] Game ${gameId} winners:`, winners?.length || 0)
+
           if (winners && winners.length > 0) {
             // Found a settled game with winners!
+            console.log(`[Leaderboard] Found! Game ${gameId} with ${winners.length} winners`)
             setDisplayDailyGameId(gameId)
             setDailyWinnersAddresses(winners)
             setPreviousDailyGame({
@@ -210,7 +217,6 @@ export default function LeaderboardPage({
               potAmount: gameData[3],
               settled: gameData[4],
             })
-            setDailyDataReady(true)
             break
           }
         } catch (err) {
@@ -258,7 +264,6 @@ export default function LeaderboardPage({
               potAmount: weekData[3],
               settled: weekData[4],
             })
-            setWeeklyDataReady(true)
             break
           }
         } catch (err) {
@@ -410,12 +415,15 @@ export default function LeaderboardPage({
       }
     }
 
-    // Only fetch when data is ready (prevent race condition)
-    if (dailyDataReady || weeklyDataReady) {
+    // Fetch when we have winner addresses to display
+    if (dailyWinnersAddresses.length > 0 || weeklyWinnersAddresses.length > 0) {
       fetchLeaderboardData()
+    } else if (dailyGameId && weeklyGameId) {
+      // No winners found, stop loading
+      setLoading(false)
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [address, dailyWinnersAddresses, weeklyWinnersAddresses, previousDailyGame, previousWeeklyGame, previousDailyGameId, previousWeeklyGameId, dailyDataReady, weeklyDataReady])
+  }, [address, dailyWinnersAddresses, weeklyWinnersAddresses, previousDailyGame, previousWeeklyGame, previousDailyGameId, previousWeeklyGameId, dailyGameId, weeklyGameId])
 
   const ProfilePicture = ({ 
     pfpUrl, 

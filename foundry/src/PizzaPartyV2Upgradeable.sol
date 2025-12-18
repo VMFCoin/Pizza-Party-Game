@@ -8,6 +8,9 @@ import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/extensions/IERC20Permit.sol";
 
+interface IPizzaParlorManager {
+    function allocateFees() external;
+}
 
 /**
  * @title PizzaPartyV2Upgradeable
@@ -176,6 +179,8 @@ contract PizzaPartyV2Upgradeable is OwnableUpgradeable, UUPSUpgradeable, Reentra
     event SponsoredWeeklyPayout(uint256 indexed weekId, address indexed player, address indexed sponsor, uint256 playerAmount, uint256 sponsorAmount);
     event ParlorManagerUpdated(address oldManager, address newManager);
     event HoldingsUnitPizzaUpdated(uint256 oldUnit, uint256 newUnit);
+    event ParlorFeesAllocated(uint256 indexed gameId);
+    event ParlorFeesAllocationFailed(uint256 indexed gameId);
 
     // ============ Initializer ============
 
@@ -437,6 +442,15 @@ contract PizzaPartyV2Upgradeable is OwnableUpgradeable, UUPSUpgradeable, Reentra
             address feeRecipient = ownerFeeRecipient != address(0) ? ownerFeeRecipient : owner();
             pizzaToken.safeTransfer(feeRecipient, ownerFee);
             emit OwnerFeePayout(gameId, feeRecipient, ownerFee);
+
+            // Auto-allocate fees for parlor owners when funds land in the manager
+            if (feeRecipient == parlorManager && parlorManager != address(0)) {
+                try IPizzaParlorManager(parlorManager).allocateFees() {
+                    emit ParlorFeesAllocated(gameId);
+                } catch {
+                    emit ParlorFeesAllocationFailed(gameId);
+                }
+            }
         }
 
         // 2. Pay charities equally (first charity gets remainder)
