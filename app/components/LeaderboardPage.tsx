@@ -353,10 +353,10 @@ export default function LeaderboardPage({
 
     return (
       <div
-        className={`flex items-center justify-between p-2 rounded-xl border-2 ${style.bg} ${style.border} shadow-md`}
+        className={`flex items-center justify-between p-2 rounded-xl border-2 ${style.bg} ${style.border} shadow-md overflow-hidden`}
       >
-        <div className="flex items-center gap-3 flex-1">
-          <div className="flex items-center gap-2 min-w-[60px]">
+        <div className="flex items-center gap-2 flex-1 min-w-0">
+          <div className="flex items-center gap-2 flex-shrink-0">
             <span className={`text-lg font-bold ${style.textColor}`} style={customFontStyle}>
               {position}.
             </span>
@@ -367,9 +367,9 @@ export default function LeaderboardPage({
               isPlaceholder={isPlaceholder}
             />
           </div>
-          <div className="flex flex-col">
+          <div className="flex flex-col min-w-0 flex-1">
             <span
-              className={`font-bold text-base ${isPlaceholder ? 'text-gray-500' : isCurrentUser ? 'text-red-600' : style.textColor}`}
+              className={`font-bold text-sm ${isPlaceholder ? 'text-gray-500' : isCurrentUser ? 'text-red-600' : style.textColor} truncate`}
               style={customFontStyle}
             >
               {isPlaceholder
@@ -389,19 +389,19 @@ export default function LeaderboardPage({
                 </span>
                 {/* ✅ LIFETIME TOTAL (gray) - Sum of ALL games ever */}
                 <span className="text-xs text-gray-600" style={{ ...customFontStyle, whiteSpace: 'nowrap' }}>
-                  {winner.lifetimePizzaWon} PIZZA
+                  {Number(winner.lifetimePizzaWon).toFixed(1)} PIZZA
                 </span>
               </>
             )}
           </div>
         </div>
-        <div className="text-right leading-tight">
+        <div className="text-right leading-tight flex-shrink-0 ml-2">
           {/* ✅ THIS GAME'S PAYOUT (green) - USD value won in THIS specific game */}
           <span className="block text-lg font-bold text-green-600" style={customFontStyle}>
             {getUsdValue()}
           </span>
           <span className="block text-sm font-bold text-green-600" style={customFontStyle}>
-            {winner.thisGamePayout} PIZZA
+            {Number(winner.thisGamePayout).toFixed(1)} PIZZA
           </span>
         </div>
       </div>
