@@ -214,7 +214,7 @@ export default function PizzaParlorPage({
 
   // ============ Action Handlers ============
 
-  const handleApprove = async () => {
+  const _handleApprove = async () => {
     if (!parlorPriceWei) return
     setIsApproving(true)
     try {
@@ -230,7 +230,7 @@ export default function PizzaParlorPage({
     }
   }
 
-  const handlePurchaseParlor = async () => {
+  const _handlePurchaseParlor = async () => {
     if (!parlorPriceWei) return
     setIsPurchasing(true)
     try {
@@ -485,11 +485,11 @@ export default function PizzaParlorPage({
 
   // ============ Computed States ============
 
-  const canBuyParlor = isConnected && parlorsOwned < maxParlorsPerWallet && totalParlorsSold < maxTotalParlors && parlorPriceWei !== null && !priceLoading
+  const _canBuyParlor = isConnected && parlorsOwned < maxParlorsPerWallet && totalParlorsSold < maxTotalParlors && parlorPriceWei !== null && !priceLoading
   const canDistribute = pendingFeesRaw && pendingFeesRaw > 0n
   const canSendSlice = isConnected && parlorsOwned > 0 && slicesRemainingNum > 0 && resolveRecipient(recipientInput) !== null
 
-  const buyButtonText = () => {
+  const _buyButtonText = () => {
     if (!isConnected) return '🍍 CONNECT WALLET 🍍'
     if (priceLoading || !parlorPriceWei) return '🍍 LOADING PRICE... 🍍'
     if (parlorsOwned >= maxParlorsPerWallet) return '🍍 MAX OWNED 🍍'
@@ -598,14 +598,13 @@ export default function PizzaParlorPage({
                       </p>
                     </div>
 
-                    {/* Buy Button */}
+                    {/* Buy Button - TEMPORARILY DISABLED */}
                     <Button
-                      onClick={needsApproval ? handleApprove : handlePurchaseParlor}
-                      className="w-full !bg-green-600 hover:!bg-green-700 text-white font-bold py-2 rounded-xl border-4 border-green-800 uppercase"
+                      className="w-full !bg-gray-400 text-white font-bold py-2 rounded-xl border-4 border-gray-600 uppercase cursor-not-allowed"
                       style={{ ...customFontStyle, fontSize: isMobile ? 14 : 16 }}
-                      disabled={!canBuyParlor || isPurchasing || isApproving || isConfirming}
+                      disabled={true}
                     >
-                      {buyButtonText()}
+                      🍍 COMING SOON 🍍
                     </Button>
                   </div>
                 </div>

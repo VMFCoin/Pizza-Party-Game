@@ -22,7 +22,7 @@ const publicClient = createPublicClient({
 // No need to read from old contracts anymore
 
 // FID allowed to access parlor functionality
-const PARLOR_ALLOWED_FID = 1013491
+const PARLOR_ALLOWED_FIDS = [1013491, 963422]
 
 interface LeaderboardPageProps {
   onBack?: () => void
@@ -591,8 +591,8 @@ export default function LeaderboardPage({
 
             {/* Own a Parlor Button */}
             <Button
-              onClick={userFid === PARLOR_ALLOWED_FID ? onNavigateToParlor : undefined}
-              className={`w-full !bg-orange-500 text-white font-bold py-2.5 rounded-xl border-4 border-orange-800 uppercase ${userFid === PARLOR_ALLOWED_FID ? 'hover:!bg-orange-600 cursor-pointer' : 'cursor-default opacity-80'}`}
+              onClick={PARLOR_ALLOWED_FIDS.includes(userFid ?? -1) ? onNavigateToParlor : undefined}
+              className={`w-full !bg-orange-500 text-white font-bold py-2.5 rounded-xl border-4 border-orange-800 uppercase ${PARLOR_ALLOWED_FIDS.includes(userFid ?? -1) ? 'hover:!bg-orange-600 cursor-pointer' : 'cursor-default opacity-80'}`}
               style={{ ...customFontStyle, fontSize: 20 }}
             >
               🍍 OWN A PARLOR 🍍
