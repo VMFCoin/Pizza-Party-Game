@@ -297,8 +297,8 @@ function GamePageContent({ onNavigateToWeekly, onNavigateToLeaderboard, onNaviga
   const referralCode = referralInfo?.referralCode ?? ''
   const referralShareUrl = referralCode ? `${SHARE_BASE_URL}${referralCode}` : ''
   const shareText = referralCode
-    ? `🍕 Join Pizza Party to win some cheesy Jackpots of $PIZZA!\n\nCome grab a slice with us. Daily and Weekly Jackpots, use my referral code: ${referralCode}.\n\nEarn toppings and the jackpot grows! We all win together!! 🍕`
-    : '🍕 Join Pizza Party to win some cheesy Jackpots of $PIZZA!\n\nCome grab a slice with us. Daily and Weekly Jackpots.\n\nEarn toppings and the jackpot grows! We all win together!! 🍕'
+    ? `🔥🍕 No leftovers. No stale odds. Just fresh pie every day.\nJoin Pizza Party to chase daily and weekly jackpots paid in $PIZZA.\n\nEarn toppings, boost the jackpot, and use my referral ${referralCode} to get in the oven.\nPlay together. Win together. Eat together.\n\nCome grab your slice 🍕🔥`
+    : '🔥🍕 No leftovers. No stale odds. Just fresh pie every day.\nJoin Pizza Party to chase daily and weekly jackpots paid in $PIZZA.\n\nEarn toppings, boost the jackpot, and get in the oven.\nPlay together. Win together. Eat together.\n\nCome grab your slice 🍕🔥'
 
   const tryFarcasterShare = useCallback(async (url: string, text: string) => {
     const actions = sdk.actions as {
