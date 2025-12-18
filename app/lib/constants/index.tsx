@@ -365,6 +365,9 @@ export const PARLOR_MANAGER_ABI = [
   { type: 'function', name: 'claimableBalance', stateMutability: 'view', inputs: [{ type: 'address', name: 'owner' }], outputs: [{ type: 'uint256' }] },
   { type: 'function', name: 'totalUnclaimedOwnerFees', stateMutability: 'view', inputs: [], outputs: [{ type: 'uint256' }] },
   { type: 'function', name: 'estimatedPendingShare', stateMutability: 'view', inputs: [{ type: 'address', name: 'owner' }], outputs: [{ type: 'uint256' }] },
+  // --- Parlor Naming ---
+  { type: 'function', name: 'parlorName', stateMutability: 'view', inputs: [{ type: 'address', name: 'owner' }], outputs: [{ type: 'string' }] },
+  { type: 'function', name: 'hasParlorName', stateMutability: 'view', inputs: [{ type: 'address', name: 'owner' }], outputs: [{ type: 'bool' }] },
   // --- Constants ---
   { type: 'function', name: 'MAX_PARLORS', stateMutability: 'view', inputs: [], outputs: [{ type: 'uint256' }] },
   { type: 'function', name: 'MAX_PARLORS_PER_WALLET', stateMutability: 'view', inputs: [], outputs: [{ type: 'uint256' }] },
@@ -377,6 +380,7 @@ export const PARLOR_MANAGER_ABI = [
   { type: 'function', name: 'claimMyFees', stateMutability: 'nonpayable', inputs: [], outputs: [] },
   { type: 'function', name: 'distributeFranchiseFees', stateMutability: 'nonpayable', inputs: [], outputs: [] },
   { type: 'function', name: 'tipSlice', stateMutability: 'nonpayable', inputs: [{ type: 'address', name: 'recipient' }], outputs: [] },
+  { type: 'function', name: 'setParlorName', stateMutability: 'nonpayable', inputs: [{ type: 'string', name: 'name' }], outputs: [] },
   // --- Events ---
   {
     type: 'event',
@@ -413,6 +417,14 @@ export const PARLOR_MANAGER_ABI = [
     inputs: [
       { indexed: true, name: 'owner', type: 'address' },
       { indexed: false, name: 'amount', type: 'uint256' }
+    ]
+  },
+  {
+    type: 'event',
+    name: 'ParlorNamed',
+    inputs: [
+      { indexed: true, name: 'owner', type: 'address' },
+      { indexed: false, name: 'name', type: 'string' }
     ]
   }
 ] as const

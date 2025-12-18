@@ -96,8 +96,11 @@ contract PizzaParlorManagerUpgradeable is
     mapping(address => uint256) public claimableBalance;  // owner => unclaimed PIZZA
     uint256 public lastProcessedBalance;  // Track fees already allocated
 
+    // Parlor naming - franchise brand name (one name per owner, set once)
+    mapping(address => string) public parlorName;  // owner => franchise name
+
     // Upgrade safety gap - reserves storage slots for future upgrades
-    uint256[48] private __gap;  // Reduced by 2 for new storage vars
+    uint256[47] private __gap;  // Reduced by 1 for parlorName mapping
 
     // ============ Events ============
 
@@ -111,6 +114,7 @@ contract PizzaParlorManagerUpgradeable is
     event TreasuryWalletUpdated(address oldWallet, address newWallet);
     event OpsWalletUpdated(address oldWallet, address newWallet);
     event EmergencyParlorTransfer(address indexed from, address indexed to, uint256 amount);
+    event ParlorNamed(address indexed owner, string name);
 
     // ============ Errors ============
 
@@ -129,6 +133,9 @@ contract PizzaParlorManagerUpgradeable is
     error NoSelfSlice();
     error PriceTooLow();
     error PriceTooHigh();
+    error ParlorAlreadyNamed();
+    error NameTooLong();
+    error NameEmpty();
 
     // ============ Initializer ============
 
@@ -486,6 +493,54 @@ contract PizzaParlorManagerUpgradeable is
         }
 
         emit FranchiseFeesAllocated(availableForAllocation, treasuryAmount, opsAmount, ownersAmount);
+    }
+
+    // ============ Parlor Naming ============
+
+    /**
+     * @dev Set your franchise name (can only be set once, max 20 characters)
+     * @param name The franchise name to set
+     */
+    function setParlorName(string calldata name) external {
+        // Must own a parlor
+        if (parlorCount[msg.sender] == 0) revert NoParlorOwned();
+
+        // Can only set name once
+        if (bytes(parlorName[msg.sender]).length > 0) revert ParlorAlreadyNamed();
+
+        // Validate name length
+        if (bytes(name).length == 0) revert NameEmpty();
+        if (bytes(name).length > 20) revert NameTooLong();
+
+        parlorName[msg.sender] = name;
+
+        emit ParlorNamed(msg.sender, name);
+    }
+
+    /**
+     * @dev Check if an owner has named their parlor
+     * @param owner Address to check
+     */
+    function hasParlorName(address owner) external view returns (bool) {
+        return bytes(parlorName[owner]).length > 0;
+    }
+
+    /**
+     * @dev Admin function to set or change a parlor name (owner only)
+     * @param owner The parlor owner's address
+     * @param name The franchise name to set
+     */
+    function adminSetParlorName(address owner, string calldata name) external onlyOwner {
+        // Must own a parlor
+        if (parlorCount[owner] == 0) revert NoParlorOwned();
+
+        // Validate name length
+        if (bytes(name).length == 0) revert NameEmpty();
+        if (bytes(name).length > 20) revert NameTooLong();
+
+        parlorName[owner] = name;
+
+        emit ParlorNamed(owner, name);
     }
 
     // ============ View Functions ============

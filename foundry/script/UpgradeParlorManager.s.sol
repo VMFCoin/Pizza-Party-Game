@@ -65,8 +65,16 @@ contract UpgradeParlorManager is Script {
         console.log("MIN_PARLOR_PRICE:", upgraded.MIN_PARLOR_PRICE());
         console.log("MAX_PARLOR_PRICE:", upgraded.MAX_PARLOR_PRICE());
 
+        // Verify new naming functions exist
         console.log("");
-        console.log("New purchaseParlor(uint256) function is now available!");
-        console.log("Frontend can now pass $50 worth of PIZZA dynamically");
+        console.log("--- Parlor Naming Feature ---");
+        console.log("hasParlorName(deployer):", upgraded.hasParlorName(deployer));
+        console.log("parlorName(deployer):", upgraded.parlorName(deployer));
+
+        console.log("");
+        console.log("Upgrade successful! New features available:");
+        console.log("- setParlorName(string): Set franchise name (one-time, max 20 chars)");
+        console.log("- parlorName(address): Read franchise name");
+        console.log("- hasParlorName(address): Check if name is set");
     }
 }

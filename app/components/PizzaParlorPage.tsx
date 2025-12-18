@@ -34,7 +34,7 @@ const PARLORS_EXPLAINED = [
   'Half the PIZZA used to buy parlors is burned forever',
 ]
 
-// Local storage key for recent recipients
+// Local storage keys
 const RECENT_RECIPIENTS_KEY = 'pizzaParlor_recentRecipients'
 
 interface RecentRecipient {
@@ -89,6 +89,11 @@ export default function PizzaParlorPage({
   const [isApproving, setIsApproving] = useState(false)
   const [isDistributing, setIsDistributing] = useState(false)
   const [isSendingSlice, setIsSendingSlice] = useState(false)
+  const [isSettingName, setIsSettingName] = useState(false)
+
+  // Parlor naming state
+  const [showNamingModal, setShowNamingModal] = useState(false)
+  const [parlorNameInput, setParlorNameInput] = useState('')
 
   // Price state - fetched from DEX
   const [pizzaPrice, setPizzaPrice] = useState<number | null>(null)
@@ -139,6 +144,18 @@ export default function PizzaParlorPage({
         functionName: 'claimableBalance',
         args: userAddress ? [userAddress] : undefined,
       },
+      {
+        address: PARLOR_MANAGER_ADDRESS as `0x${string}`,
+        abi: PARLOR_MANAGER_ABI,
+        functionName: 'parlorName',
+        args: userAddress ? [userAddress] : undefined,
+      },
+      {
+        address: PARLOR_MANAGER_ADDRESS as `0x${string}`,
+        abi: PARLOR_MANAGER_ABI,
+        functionName: 'hasParlorName',
+        args: userAddress ? [userAddress] : undefined,
+      },
     ],
     query: {
       enabled: !!userAddress,
@@ -153,6 +170,8 @@ export default function PizzaParlorPage({
   const slicesRemaining = userData?.[1]?.result as bigint | undefined
   const currentAllowance = userData?.[2]?.result as bigint | undefined
   const claimableBalanceRaw = userData?.[3]?.result as bigint | undefined
+  const userParlorName = userData?.[4]?.result as string | undefined
+  const userHasParlorName = userData?.[5]?.result as boolean | undefined
 
   // Calculate $50 worth of PIZZA based on live DEX price
   // $50 USD / price per PIZZA = number of PIZZA tokens needed
@@ -195,9 +214,19 @@ export default function PizzaParlorPage({
       // Refetch data after successful transaction
       refetchContractData()
       refetchUserData()
+
+      // Show naming modal after purchase if user doesn't have a name yet
+      if (isPurchasing && !userHasParlorName) {
+        // Small delay to let contract data refetch, then show modal
+        setTimeout(() => {
+          setShowNamingModal(true)
+        }, 500)
+      }
+
       setIsPurchasing(false)
       setIsApproving(false)
       setIsDistributing(false)
+      setIsSettingName(false)
 
       // Handle successful slice send - open Warpcast compose
       if (isSendingSlice && sliceSentToUser) {
@@ -215,7 +244,7 @@ export default function PizzaParlorPage({
       setIsSendingSlice(false)
       resetWrite()
     }
-  }, [isConfirmed, refetchContractData, refetchUserData, resetWrite, isSendingSlice, sliceSentToUser])
+  }, [isConfirmed, refetchContractData, refetchUserData, resetWrite, isSendingSlice, sliceSentToUser, isPurchasing, userHasParlorName])
 
   // ============ Action Handlers ============
 
@@ -262,6 +291,24 @@ export default function PizzaParlorPage({
     } catch (error) {
       console.error('Claim error:', error)
       setIsDistributing(false)
+    }
+  }
+
+  const handleSetParlorName = async () => {
+    if (!parlorNameInput.trim() || parlorNameInput.length > 20) return
+    setIsSettingName(true)
+    try {
+      writeContract({
+        address: PARLOR_MANAGER_ADDRESS as `0x${string}`,
+        abi: PARLOR_MANAGER_ABI,
+        functionName: 'setParlorName',
+        args: [parlorNameInput.trim()],
+      })
+      // Close modal after transaction is sent (will be confirmed by effect)
+      setShowNamingModal(false)
+    } catch (error) {
+      console.error('Set name error:', error)
+      setIsSettingName(false)
     }
   }
 
@@ -582,9 +629,22 @@ export default function PizzaParlorPage({
 
                     {/* Your Stats */}
                     <div className="flex justify-between items-center">
-                      <span className="text-orange-800" style={{ ...customFontStyle, fontSize: 16 }}>Your Parlors:</span>
+                      <span className="text-orange-800" style={{ ...customFontStyle, fontSize: 16 }}>
+                        {userHasParlorName && userParlorName ? userParlorName : 'Your Parlors'}:
+                      </span>
                       <span className="text-orange-900" style={{ ...customFontStyle, fontSize: 16 }}>{parlorsOwned} / {maxParlorsPerWallet}</span>
                     </div>
+
+                    {/* Set Name Button - only if owns parlors but hasn't set name */}
+                    {parlorsOwned > 0 && !userHasParlorName && (
+                      <Button
+                        onClick={() => setShowNamingModal(true)}
+                        className="w-full !bg-purple-500 hover:!bg-purple-600 text-white font-bold py-1.5 rounded-lg border-2 border-purple-700"
+                        style={{ ...customFontStyle, fontSize: 12 }}
+                      >
+                        ✨ Name Your Franchise ✨
+                      </Button>
+                    )}
                     <div className="flex justify-between items-center">
                       <span className="text-orange-800" style={{ ...customFontStyle, fontSize: 14 }}>Slices Today:</span>
                       <span className="text-orange-900" style={{ ...customFontStyle, fontSize: 14 }}>{slicesRemainingNum}</span>
@@ -882,6 +942,89 @@ export default function PizzaParlorPage({
           </div>
         </Card>
       </div>
+
+      {/* ============ NAMING MODAL - Shows after purchase ============ */}
+      {showNamingModal && (
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
+          <div
+            className="bg-white border-4 border-orange-600 rounded-3xl p-6 max-w-sm w-full shadow-2xl"
+            style={{
+              backgroundImage: "url('/images/Pepperoni game modal background.JPG')",
+              backgroundSize: 'cover',
+              backgroundPosition: 'center',
+            }}
+          >
+            <div className="text-center space-y-4">
+              {/* Celebration Header */}
+              <div className="text-4xl mb-2">🎉🍕🎉</div>
+              <h2
+                className="text-orange-600 text-2xl"
+                style={{ fontFamily: 'var(--font-luckiest-guy)' }}
+              >
+                Congratulations!
+              </h2>
+              <p
+                className="text-orange-800"
+                style={{ ...customFontStyle, fontSize: 14 }}
+              >
+                You now own a Pizza Parlor! Give your franchise a name:
+              </p>
+
+              {/* Name Input */}
+              <div className="space-y-2">
+                <input
+                  type="text"
+                  placeholder="Enter franchise name..."
+                  value={parlorNameInput}
+                  onChange={(e) => setParlorNameInput(e.target.value.slice(0, 20))}
+                  className="w-full p-3 rounded-xl border-3 border-orange-400 text-orange-900 text-center"
+                  style={{ ...customFontStyle, fontSize: 16 }}
+                  maxLength={20}
+                  autoFocus
+                />
+                <p
+                  className="text-orange-500"
+                  style={{ ...customFontStyle, fontSize: 10 }}
+                >
+                  {parlorNameInput.length}/20 characters • Cannot be changed later!
+                </p>
+              </div>
+
+              {/* Action Buttons */}
+              <div className="flex flex-col gap-3 pt-2">
+                <Button
+                  onClick={handleSetParlorName}
+                  className="w-full !bg-green-600 hover:!bg-green-700 text-white font-bold py-3 rounded-xl border-4 border-green-800 uppercase"
+                  style={{ ...customFontStyle, fontSize: 16 }}
+                  disabled={!parlorNameInput.trim() || isSettingName || isConfirming}
+                >
+                  {isSettingName || isConfirming
+                    ? '🍕 SAVING... 🍕'
+                    : '🍕 SET NAME 🍕'}
+                </Button>
+                <Button
+                  onClick={() => {
+                    setShowNamingModal(false)
+                    setParlorNameInput('')
+                  }}
+                  className="w-full !bg-gray-400 hover:!bg-gray-500 text-white font-bold py-2 rounded-xl border-4 border-gray-600"
+                  style={{ ...customFontStyle, fontSize: 14 }}
+                  disabled={isSettingName || isConfirming}
+                >
+                  Skip for Now
+                </Button>
+              </div>
+
+              <p
+                className="text-orange-600"
+                style={{ ...customFontStyle, fontSize: 10 }}
+              >
+                Tip: You can set your name later from the parlor page
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
