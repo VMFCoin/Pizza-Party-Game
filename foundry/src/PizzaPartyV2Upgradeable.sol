@@ -337,9 +337,9 @@ contract PizzaPartyV2Upgradeable is OwnableUpgradeable, UUPSUpgradeable, Reentra
         uint256 gameId = dailyGameId;
         DailyGame storage game = dailyGames[gameId];
 
-        // Auto-settle previous game if needed (pass 0 for usdCents - should be set via explicit settleDailyGame call)
+        // Auto-settle previous game if needed
         if (block.timestamp >= game.endTime && !game.settled) {
-            _settleDailyGame(gameId, 0);
+            _settleDailyGame(gameId);
             gameId = dailyGameId;
             game = dailyGames[gameId];
         }
@@ -387,34 +387,23 @@ contract PizzaPartyV2Upgradeable is OwnableUpgradeable, UUPSUpgradeable, Reentra
 
     /**
      * @dev Settle daily game (anyone can call after end time)
-     * @param usdCentsPerWinner USD value per winner in cents (e.g., 324 = $3.24). Pass 0 to skip storing.
+     * No parameters needed - USD value is calculated on frontend from pot and PIZZA price
      */
-    function settleDailyGame(uint256 usdCentsPerWinner) external nonReentrant {
+    function settleDailyGame() external nonReentrant {
         uint256 gameId = dailyGameId;
         DailyGame storage game = dailyGames[gameId];
 
         require(block.timestamp >= game.endTime, "Game not ended");
         require(!game.settled, "Already settled");
 
-        _settleDailyGame(gameId, usdCentsPerWinner);
+        _settleDailyGame(gameId);
     }
 
-    function _settleDailyGame(uint256 gameId, uint256 usdCentsPerWinner) internal {
+    function _settleDailyGame(uint256 gameId) internal {
         DailyGame storage game = dailyGames[gameId];
 
-        // No players: skip this game, move to next day
-        if (game.players.length == 0) {
-            game.settled = true;
-            dailyGameId++;
-            _initializeDailyGame(dailyGameId);
-            emit DailyGameSettled(gameId, new address[](0), 0);
-            return;
-        }
-
-        // Store USD value per winner if provided (locked at settlement time)
-        if (usdCentsPerWinner > 0) {
-            dailyGameUsdValue[gameId] = usdCentsPerWinner;
-        }
+        // Require at least one player to settle (prevents accidental empty game settlements)
+        require(game.players.length > 0, "No players in game");
 
         // Auto-initialize charities on first settlement if not set
         if (charityWallets.length == 0) {
@@ -580,35 +569,24 @@ contract PizzaPartyV2Upgradeable is OwnableUpgradeable, UUPSUpgradeable, Reentra
     }
 
     /**
-     * @dev Settle weekly game (owner or after claim window)
-     * @param usdCentsPerWinner USD value per winner in cents (e.g., 652 = $6.52). Pass 0 to skip storing.
+     * @dev Settle weekly game (anyone can call after claim window ends)
+     * No parameters needed - USD value is calculated on frontend from jackpot and PIZZA price
      */
-    function settleWeeklyGame(uint256 usdCentsPerWinner) external nonReentrant {
+    function settleWeeklyGame() external nonReentrant {
         uint256 weekId = weeklyGameId;
         WeeklyGame storage week = weeklyGames[weekId];
 
         require(block.timestamp >= week.claimWindowEnd, "Window not closed");
         require(!week.settled, "Already settled");
 
-        _settleWeeklyGame(weekId, usdCentsPerWinner);
+        _settleWeeklyGame(weekId);
     }
 
-    function _settleWeeklyGame(uint256 weekId, uint256 usdCentsPerWinner) internal {
+    function _settleWeeklyGame(uint256 weekId) internal {
         WeeklyGame storage week = weeklyGames[weekId];
 
-        // No claimers: no jackpot
-        if (week.claimers.length == 0 || week.totalClaimedToppings == 0) {
-            week.settled = true;
-            weeklyGameId++;
-            _initializeWeeklyGame(weeklyGameId);
-            emit WeeklyGameSettled(weekId, new address[](0), 0);
-            return;
-        }
-
-        // Store USD value per winner if provided (locked at settlement time)
-        if (usdCentsPerWinner > 0) {
-            weeklyGameUsdValue[weekId] = usdCentsPerWinner;
-        }
+        // Require at least one claimer to settle
+        require(week.claimers.length > 0 && week.totalClaimedToppings > 0, "No claimers");
 
         // Jackpot = total claimed toppings × 100 PIZZA
         uint256 jackpot = week.totalClaimedToppings * TOPPING_TO_PIZZA;
@@ -1109,24 +1087,6 @@ contract PizzaPartyV2Upgradeable is OwnableUpgradeable, UUPSUpgradeable, Reentra
         emit HoldingsUnitPizzaUpdated(old, newUnit);
     }
 
-    /**
-     * @dev Set USD value per winner for a daily game (for leaderboard display)
-     * @param gameId The daily game ID
-     * @param usdCents USD value in cents (e.g., 188 = $1.88)
-     */
-    function setDailyGameUsdValue(uint256 gameId, uint256 usdCents) external onlyOwner {
-        dailyGameUsdValue[gameId] = usdCents;
-    }
-
-    /**
-     * @dev Set USD value per winner for a weekly game (for leaderboard display)
-     * @param gameId The weekly game ID
-     * @param usdCents USD value in cents (e.g., 652 = $6.52)
-     */
-    function setWeeklyGameUsdValue(uint256 gameId, uint256 usdCents) external onlyOwner {
-        weeklyGameUsdValue[gameId] = usdCents;
-    }
-
     function setCharityWallets(address[] memory _charities) external onlyOwner {
         require(_charities.length <= MAX_CHARITIES, "Too many charities");
 
@@ -1181,15 +1141,38 @@ contract PizzaPartyV2Upgradeable is OwnableUpgradeable, UUPSUpgradeable, Reentra
         pizzaToken.safeTransfer(owner(), balance);
     }
 
-    function emergencySettleDaily(uint256 usdCentsPerWinner) external onlyOwner {
+    function emergencySettleDaily() external onlyOwner {
         uint256 gameId = dailyGameId;
         require(!dailyGames[gameId].settled, "Already settled");
-        _settleDailyGame(gameId, usdCentsPerWinner);
+        _settleDailyGame(gameId);
     }
 
-    function emergencySettleWeekly(uint256 usdCentsPerWinner) external onlyOwner {
+    function emergencySettleWeekly() external onlyOwner {
         uint256 weekId = weeklyGameId;
         require(!weeklyGames[weekId].settled, "Already settled");
-        _settleWeeklyGame(weekId, usdCentsPerWinner);
+        _settleWeeklyGame(weekId);
+    }
+
+    /**
+     * @dev Admin function to correct game ID after skipped empty games
+     * Use this to reset the game counter to the correct value
+     * @param newDailyGameId The correct daily game ID to set
+     */
+    function adminSetDailyGameId(uint256 newDailyGameId) external onlyOwner {
+        require(newDailyGameId > 0, "Invalid game ID");
+        dailyGameId = newDailyGameId;
+        // Re-initialize the game with correct times
+        _initializeDailyGame(newDailyGameId);
+    }
+
+    /**
+     * @dev Admin function to correct weekly game ID after skipped empty weeks
+     * @param newWeeklyGameId The correct weekly game ID to set
+     */
+    function adminSetWeeklyGameId(uint256 newWeeklyGameId) external onlyOwner {
+        require(newWeeklyGameId > 0, "Invalid week ID");
+        weeklyGameId = newWeeklyGameId;
+        // Re-initialize the week with correct times
+        _initializeWeeklyGame(newWeeklyGameId);
     }
 }

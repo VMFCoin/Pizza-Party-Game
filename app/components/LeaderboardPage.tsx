@@ -161,44 +161,107 @@ export default function LeaderboardPage({
     functionName: 'weeklyGameId',
   })
 
-  // Determine which game we're showing (most recently settled game)
-  // Contract's dailyGameId is 1 ahead of settled game (e.g., dailyGameId = 2, settled game = 1)
-  // V2 Contract: Fresh start at Game #1, Week #1
-  const previousDailyGameId = dailyGameId ? Number(dailyGameId) - 1 : 0  // Last settled daily game
-  const previousWeeklyGameId = weeklyGameId ? Number(weeklyGameId) - 1 : 0 // Last settled weekly game
+  // State for the most recent game WITH winners (not just previous game which might be empty)
+  const [displayDailyGameId, setDisplayDailyGameId] = useState<number>(0)
+  const [displayWeeklyGameId, setDisplayWeeklyGameId] = useState<number>(0)
+  const [dailyWinnersAddresses, setDailyWinnersAddresses] = useState<string[]>([])
+  const [weeklyWinnersAddresses, setWeeklyWinnersAddresses] = useState<string[]>([])
+  const [previousDailyGame, setPreviousDailyGame] = useState<{ startTime: bigint; endTime: bigint; potAmount: bigint; settled: boolean } | null>(null)
+  const [previousWeeklyGame, setPreviousWeeklyGame] = useState<{ claimWindowEnd: bigint; potAmount: bigint; settled: boolean } | null>(null)
 
-  // Read winners from V2 contract (only if a game has settled)
-  const { data: dailyWinnersAddresses } = useReadContract({
-    address: PIZZA_PARTY_ADDRESS as `0x${string}`,
-    abi: PIZZA_PARTY_ABI,
-    functionName: 'getDailyGameWinners',
-    args: [BigInt(Math.max(previousDailyGameId, 1))],
-    query: { enabled: previousDailyGameId >= 1 },
-  })
+  // Find the most recent game with winners (search backwards from current game)
+  useEffect(() => {
+    async function findLatestGameWithWinners() {
+      if (!dailyGameId || Number(dailyGameId) < 2) return
 
-  const { data: weeklyWinnersAddresses } = useReadContract({
-    address: PIZZA_PARTY_ADDRESS as `0x${string}`,
-    abi: PIZZA_PARTY_ABI,
-    functionName: 'getWeeklyGameWinners',
-    args: [BigInt(Math.max(previousWeeklyGameId, 1))],
-    query: { enabled: previousWeeklyGameId >= 1 },
-  })
+      const currentId = Number(dailyGameId)
 
-  const { data: previousDailyGame } = useReadContract({
-    address: PIZZA_PARTY_ADDRESS as `0x${string}`,
-    abi: PIZZA_PARTY_ABI,
-    functionName: 'dailyGames',
-    args: [BigInt(Math.max(previousDailyGameId, 1))],
-    query: { enabled: previousDailyGameId >= 1 },
-  })
+      // Search backwards from current game - 1 to find a game with winners
+      for (let gameId = currentId - 1; gameId >= 1; gameId--) {
+        try {
+          const winners = await publicClient.readContract({
+            address: PIZZA_PARTY_ADDRESS as `0x${string}`,
+            abi: PIZZA_PARTY_ABI,
+            functionName: 'getDailyGameWinners',
+            args: [BigInt(gameId)],
+          }) as string[]
 
-  const { data: previousWeeklyGame } = useReadContract({
-    address: PIZZA_PARTY_ADDRESS as `0x${string}`,
-    abi: PIZZA_PARTY_ABI,
-    functionName: 'weeklyGames',
-    args: [BigInt(Math.max(previousWeeklyGameId, 1))],
-    query: { enabled: previousWeeklyGameId >= 1 },
-  })
+          if (winners && winners.length > 0) {
+            // Found a game with winners!
+            setDisplayDailyGameId(gameId)
+            setDailyWinnersAddresses(winners)
+
+            // Also fetch the game data for pot info
+            const gameData = await publicClient.readContract({
+              address: PIZZA_PARTY_ADDRESS as `0x${string}`,
+              abi: PIZZA_PARTY_ABI,
+              functionName: 'dailyGames',
+              args: [BigInt(gameId)],
+            }) as unknown as [bigint, bigint, string, bigint, boolean]
+
+            setPreviousDailyGame({
+              startTime: gameData[0],
+              endTime: gameData[1],
+              potAmount: gameData[3],
+              settled: gameData[4],
+            })
+            break
+          }
+        } catch (err) {
+          console.error(`Error checking game ${gameId}:`, err)
+        }
+      }
+    }
+
+    findLatestGameWithWinners()
+  }, [dailyGameId])
+
+  // Find the most recent weekly game with winners
+  useEffect(() => {
+    async function findLatestWeeklyWithWinners() {
+      if (!weeklyGameId || Number(weeklyGameId) < 2) return
+
+      const currentId = Number(weeklyGameId)
+
+      for (let weekId = currentId - 1; weekId >= 1; weekId--) {
+        try {
+          const winners = await publicClient.readContract({
+            address: PIZZA_PARTY_ADDRESS as `0x${string}`,
+            abi: PIZZA_PARTY_ABI,
+            functionName: 'getWeeklyGameWinners',
+            args: [BigInt(weekId)],
+          }) as string[]
+
+          if (winners && winners.length > 0) {
+            setDisplayWeeklyGameId(weekId)
+            setWeeklyWinnersAddresses(winners)
+
+            const weekData = await publicClient.readContract({
+              address: PIZZA_PARTY_ADDRESS as `0x${string}`,
+              abi: PIZZA_PARTY_ABI,
+              functionName: 'weeklyGames',
+              args: [BigInt(weekId)],
+            }) as unknown as [bigint, bigint, bigint, bigint, boolean]
+
+            setPreviousWeeklyGame({
+              claimWindowEnd: weekData[1],
+              potAmount: weekData[3],
+              settled: weekData[4],
+            })
+            break
+          }
+        } catch (err) {
+          console.error(`Error checking week ${weekId}:`, err)
+        }
+      }
+    }
+
+    findLatestWeeklyWithWinners()
+  }, [weeklyGameId])
+
+  // Use displayGameIds for rendering instead of simple previousGameId
+  const previousDailyGameId = displayDailyGameId
+  const previousWeeklyGameId = displayWeeklyGameId
 
   useEffect(() => {
     async function fetchLeaderboardData() {
@@ -209,11 +272,11 @@ export default function LeaderboardPage({
         let weeklyPlayersData: WinnerDisplay[] = []
 
         // V2 Contract - Fresh start! Only read from new contract.
-        const dailyAddresses = (dailyWinnersAddresses as string[]) || []
+        const dailyAddresses = dailyWinnersAddresses || []
 
         if (dailyAddresses.length > 0 && previousDailyGameId >= 1) {
           // We have winners from the V2 contract
-          const dailyPot = previousDailyGame ? (previousDailyGame as { potAmount: bigint }).potAmount : 0n
+          const dailyPot = previousDailyGame ? previousDailyGame.potAmount : 0n
           const dailyPayoutPerWinner = dailyAddresses.length > 0 && dailyPot > 0n
             ? Number(formatUnits(BigInt(dailyPot) * 94n / 100n / BigInt(dailyAddresses.length), 18)).toFixed(1)
             : '0'
@@ -230,9 +293,9 @@ export default function LeaderboardPage({
 
         // Weekly winners from V2 contract
         if (previousWeeklyGameId >= 1) {
-          const weeklyAddresses = (weeklyWinnersAddresses as string[]) || []
+          const weeklyAddresses = weeklyWinnersAddresses || []
           if (weeklyAddresses.length > 0) {
-            const weeklyPot = previousWeeklyGame ? (previousWeeklyGame as { potAmount: bigint }).potAmount : 0n
+            const weeklyPot = previousWeeklyGame ? previousWeeklyGame.potAmount : 0n
             const weeklyPayoutPerWinner = weeklyAddresses.length > 0 && weeklyPot > 0n
               ? Number(formatUnits(BigInt(weeklyPot) / BigInt(weeklyAddresses.length), 18)).toFixed(1)
               : '0'
@@ -508,8 +571,8 @@ export default function LeaderboardPage({
                   </h2>
                 </div>
                 <p className="text-base font-semibold mb-2 text-center" style={{ ...customFontStyle, color: '#000000' }}>
-                  {previousDailyGame && (previousDailyGame as { endTime: bigint }).endTime
-                    ? `${formatSettlementDate((previousDailyGame as { endTime: bigint }).endTime)} lucky winners`
+                  {previousDailyGame && previousDailyGame.endTime
+                    ? `${formatSettlementDate(previousDailyGame.endTime)} lucky winners`
                     : "Today's 8 lucky winners"}
                 </p>
                 {loading ? (
@@ -543,8 +606,8 @@ export default function LeaderboardPage({
                   </h2>
                 </div>
                 <p className="text-base font-semibold mb-4 text-center" style={{ ...customFontStyle, color: '#000000' }}>
-                  {previousWeeklyGame && (previousWeeklyGame as { claimWindowEnd: bigint }).claimWindowEnd
-                    ? `${formatSettlementDate((previousWeeklyGame as { claimWindowEnd: bigint }).claimWindowEnd)} top 10 champions`
+                  {previousWeeklyGame && previousWeeklyGame.claimWindowEnd
+                    ? `${formatSettlementDate(previousWeeklyGame.claimWindowEnd)} top 10 champions`
                     : "This week's top 10 champions"}
                 </p>
                 {loading ? (
