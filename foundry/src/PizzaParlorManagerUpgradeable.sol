@@ -43,7 +43,7 @@ contract PizzaParlorManagerUpgradeable is
 
     // ============ Constants ============
 
-    uint256 public constant MAX_PARLORS = 100;
+    uint256 public constant MAX_PARLORS = 333;
     uint256 public constant MAX_PARLORS_PER_WALLET = 5;
     uint256 public constant DAILY_FREE_ENTRIES_PER_PARLOR = 1;
 

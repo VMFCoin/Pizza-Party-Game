@@ -24,7 +24,7 @@ const PARLORS_EXPLAINED = [
   'Own a Pizza Parlor franchise for $50 of PIZZA tokens',
   'Each parlor gives you 1 free daily slice to share with friends',
   'Earn 50% of owner fees distributed to all parlor owners',
-  'Max 5 parlors per wallet, 100 total parlors available',
+  'Max 5 parlors per wallet, 333 total parlors available',
   'Send slices via direct tip or shareable links',
 ]
 
@@ -157,7 +157,7 @@ export default function PizzaParlorPage({
   // Formatted values
   const parlorsOwned = userParlorCount ? Number(userParlorCount) : 0
   const maxParlorsPerWallet = 5
-  const maxTotalParlors = 100
+  const maxTotalParlors = 333
   const totalParlorsSold = totalParlors ? Number(totalParlors) : 0
   const parlorsRemaining = maxTotalParlors - totalParlorsSold
   const slicesRemainingNum = slicesRemaining ? Number(slicesRemaining) : 0
