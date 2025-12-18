@@ -47,11 +47,11 @@ contract PizzaParlorManagerUpgradeable is
     uint256 public constant MAX_PARLORS_PER_WALLET = 5;
     uint256 public constant DAILY_FREE_ENTRIES_PER_PARLOR = 1;
 
-    // ✅ Dynamic parlor price: Always $50 USD, but PIZZA amount varies with price
-    // At $0.001/PIZZA: need 50,000 PIZZA for $50
-    // Safety bounds prevent extreme prices
-    uint256 public constant MIN_PARLOR_PRICE = 500e18;      // 500 PIZZA minimum (~$50 at $0.10/PIZZA)
-    uint256 public constant MAX_PARLOR_PRICE = 500_000e18;  // 500,000 PIZZA maximum (~$50 at $0.0001/PIZZA)
+    // ✅ Dynamic parlor price: Always $50 USD worth of PIZZA
+    // Frontend calculates: $50 / currentPizzaPrice = PIZZA amount needed
+    // Safety bounds prevent manipulation at extreme price levels
+    uint256 public constant MIN_PARLOR_PRICE = 500e18;      // 500 PIZZA minimum (safety floor)
+    uint256 public constant MAX_PARLOR_PRICE = 500_000e18;  // 500,000 PIZZA maximum (safety ceiling)
 
     // Parlor purchase split (basis points)
     uint256 public constant BURN_BPS = 5000;      // 50% burned
@@ -76,8 +76,8 @@ contract PizzaParlorManagerUpgradeable is
     address public treasuryWallet;
     address public opsWallet;
 
-    // Parlor pricing
-    uint256 public parlorPrice;  // Price in PIZZA tokens (default: 50,000 PIZZA)
+    // Parlor pricing (LEGACY - not used by purchaseParlor, only purchaseParlorLegacy)
+    uint256 public parlorPrice;  // Legacy fixed price - actual pricing is $50 USD calculated dynamically
 
     // Parlor ownership
     uint256 public totalParlors;
@@ -161,7 +161,7 @@ contract PizzaParlorManagerUpgradeable is
 
         treasuryWallet = _treasuryWallet;
         opsWallet = _opsWallet;
-        parlorPrice = 50_000e18;  // 50,000 PIZZA (~$50 at $0.001/PIZZA)
+        parlorPrice = 50_000e18;  // Legacy fallback only - purchaseParlor() uses dynamic $50 USD pricing
     }
 
     // ============ Parlor Purchase ============
