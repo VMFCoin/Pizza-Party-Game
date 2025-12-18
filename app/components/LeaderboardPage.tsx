@@ -5,18 +5,8 @@ import Image from 'next/image'
 import { Button } from './ui/button'
 import { Card } from './ui/card'
 import { ArrowLeft } from 'lucide-react'
-import { useAccount, useReadContract } from 'wagmi'
+import { useAccount } from 'wagmi'
 import { enrichLeaderboardWithProfiles, FarcasterProfile } from '../lib/farcasterProfiles'
-import { PIZZA_PARTY_ADDRESS, PIZZA_PARTY_ABI } from '../lib/constants'
-import { formatUnits } from 'viem'
-import { createPublicClient, http } from 'viem'
-import { base } from 'viem/chains'
-
-// Create a client for direct RPC calls - use BlastAPI to avoid rate limits
-const publicClient = createPublicClient({
-  chain: base,
-  transport: http('https://base-mainnet.public.blastapi.io'),
-})
 
 // All historical stats have been migrated to the current contract
 // No need to read from old contracts anymore
@@ -146,252 +136,131 @@ export default function LeaderboardPage({
     }
   }, [onNavigateToWeekly])
 
-  // V2 Contract - Fresh start! No historical data from old contracts.
-
-  // Get current game IDs from new contract
-  const { data: dailyGameId } = useReadContract({
-    address: PIZZA_PARTY_ADDRESS as `0x${string}`,
-    abi: PIZZA_PARTY_ABI,
-    functionName: 'dailyGameId',
-  })
-
-  const { data: weeklyGameId } = useReadContract({
-    address: PIZZA_PARTY_ADDRESS as `0x${string}`,
-    abi: PIZZA_PARTY_ABI,
-    functionName: 'weeklyGameId',
-  })
-
-  // State for the most recent game WITH winners (not just previous game which might be empty)
+  // State for game data from API
   const [displayDailyGameId, setDisplayDailyGameId] = useState<number>(0)
   const [displayWeeklyGameId, setDisplayWeeklyGameId] = useState<number>(0)
   const [dailyWinnersAddresses, setDailyWinnersAddresses] = useState<string[]>([])
   const [weeklyWinnersAddresses, setWeeklyWinnersAddresses] = useState<string[]>([])
   const [previousDailyGame, setPreviousDailyGame] = useState<{ startTime: bigint; endTime: bigint; potAmount: bigint; settled: boolean } | null>(null)
   const [previousWeeklyGame, setPreviousWeeklyGame] = useState<{ claimWindowEnd: bigint; potAmount: bigint; settled: boolean } | null>(null)
+  const [playerStatsMap, setPlayerStatsMap] = useState<Record<string, { totalWins: number; totalPizzaWon: string }>>({})
+  const [dataLoaded, setDataLoaded] = useState(false)
 
-  // Find the most recent SETTLED game with winners
-  // Search backwards from current game to find settled games with winners
+  // Fetch all leaderboard data from server-side API (bypasses Farcaster CSP)
   useEffect(() => {
-    async function findLatestGameWithWinners() {
-      if (!dailyGameId || Number(dailyGameId) < 2) {
-        console.log('[Leaderboard] dailyGameId not ready:', dailyGameId)
-        return
-      }
+    async function fetchLeaderboardFromAPI() {
+      try {
+        console.log('[Leaderboard] Fetching data from API...')
+        const response = await fetch('/api/leaderboard')
+        const data = await response.json()
 
-      const currentId = Number(dailyGameId)
-      console.log('[Leaderboard] Searching for settled games, currentId:', currentId)
+        console.log('[Leaderboard] API response:', data)
 
-      // Search backwards from current game - 1 (current game is likely in progress)
-      for (let gameId = currentId - 1; gameId >= 1; gameId--) {
-        try {
-          // First check if the game is settled
-          const gameData = await publicClient.readContract({
-            address: PIZZA_PARTY_ADDRESS as `0x${string}`,
-            abi: PIZZA_PARTY_ABI,
-            functionName: 'dailyGames',
-            args: [BigInt(gameId)],
-          }) as unknown as [bigint, bigint, string, bigint, boolean]
-
-          const isSettled = gameData[4]
-          console.log(`[Leaderboard] Game ${gameId}: settled=${isSettled}, pot=${gameData[3]}`)
-
-          if (!isSettled) continue // Skip unsettled games
-
-          const winners = await publicClient.readContract({
-            address: PIZZA_PARTY_ADDRESS as `0x${string}`,
-            abi: PIZZA_PARTY_ABI,
-            functionName: 'getDailyGameWinners',
-            args: [BigInt(gameId)],
-          }) as string[]
-
-          console.log(`[Leaderboard] Game ${gameId} winners:`, winners?.length || 0)
-
-          if (winners && winners.length > 0) {
-            // Found a settled game with winners!
-            console.log(`[Leaderboard] Found! Game ${gameId} with ${winners.length} winners`)
-            setDisplayDailyGameId(gameId)
-            setDailyWinnersAddresses(winners)
-            setPreviousDailyGame({
-              startTime: gameData[0],
-              endTime: gameData[1],
-              potAmount: gameData[3],
-              settled: gameData[4],
-            })
-            break
-          }
-        } catch (err) {
-          console.error(`Error checking game ${gameId}:`, err)
+        if (!data.success) {
+          console.error('[Leaderboard] API error:', data.error)
+          setDataLoaded(true)
+          return
         }
+
+        // Set daily game data
+        if (data.latestDailyGame) {
+          setDisplayDailyGameId(data.latestDailyGame.gameId)
+          setDailyWinnersAddresses(data.latestDailyGame.winners)
+          setPreviousDailyGame({
+            startTime: BigInt(data.latestDailyGame.startTime),
+            endTime: BigInt(data.latestDailyGame.endTime),
+            potAmount: BigInt(Math.floor(parseFloat(data.latestDailyGame.potAmount) * 1e18)),
+            settled: data.latestDailyGame.settled,
+          })
+          console.log(`[Leaderboard] Daily game ${data.latestDailyGame.gameId} with ${data.latestDailyGame.winners.length} winners`)
+        }
+
+        // Set weekly game data
+        if (data.latestWeeklyGame) {
+          setDisplayWeeklyGameId(data.latestWeeklyGame.gameId)
+          setWeeklyWinnersAddresses(data.latestWeeklyGame.winners)
+          setPreviousWeeklyGame({
+            claimWindowEnd: BigInt(data.latestWeeklyGame.endTime),
+            potAmount: BigInt(Math.floor(parseFloat(data.latestWeeklyGame.potAmount) * 1e18)),
+            settled: data.latestWeeklyGame.settled,
+          })
+          console.log(`[Leaderboard] Weekly game ${data.latestWeeklyGame.gameId} with ${data.latestWeeklyGame.winners.length} winners`)
+        }
+
+        // Set player stats
+        if (data.playerStats) {
+          setPlayerStatsMap(data.playerStats)
+        }
+
+        setDataLoaded(true)
+      } catch (err) {
+        console.error('[Leaderboard] Failed to fetch from API:', err)
+        setDataLoaded(true)
       }
     }
 
-    findLatestGameWithWinners()
-  }, [dailyGameId])
+    fetchLeaderboardFromAPI()
+  }, [])
 
-  // Find the most recent SETTLED weekly game with winners
-  useEffect(() => {
-    async function findLatestWeeklyWithWinners() {
-      if (!weeklyGameId || Number(weeklyGameId) < 1) return
-
-      const currentId = Number(weeklyGameId)
-
-      // Search from current week down to 1
-      for (let weekId = currentId; weekId >= 1; weekId--) {
-        try {
-          // First check if the game is settled
-          const weekData = await publicClient.readContract({
-            address: PIZZA_PARTY_ADDRESS as `0x${string}`,
-            abi: PIZZA_PARTY_ABI,
-            functionName: 'weeklyGames',
-            args: [BigInt(weekId)],
-          }) as unknown as [bigint, bigint, bigint, bigint, boolean]
-
-          const isSettled = weekData[4]
-          if (!isSettled) continue // Skip unsettled games
-
-          const winners = await publicClient.readContract({
-            address: PIZZA_PARTY_ADDRESS as `0x${string}`,
-            abi: PIZZA_PARTY_ABI,
-            functionName: 'getWeeklyGameWinners',
-            args: [BigInt(weekId)],
-          }) as string[]
-
-          if (winners && winners.length > 0) {
-            setDisplayWeeklyGameId(weekId)
-            setWeeklyWinnersAddresses(winners)
-            setPreviousWeeklyGame({
-              claimWindowEnd: weekData[1],
-              potAmount: weekData[3],
-              settled: weekData[4],
-            })
-            break
-          }
-        } catch (err) {
-          console.error(`Error checking week ${weekId}:`, err)
-        }
-      }
-    }
-
-    findLatestWeeklyWithWinners()
-  }, [weeklyGameId])
-
-  // Use displayGameIds for rendering instead of simple previousGameId
+  // Use displayGameIds for rendering
   const previousDailyGameId = displayDailyGameId
   const previousWeeklyGameId = displayWeeklyGameId
 
   useEffect(() => {
-    async function fetchLeaderboardData() {
+    async function processWinnersData() {
       try {
         setLoading(true)
 
         let dailyPlayersData: WinnerDisplay[] = []
         let weeklyPlayersData: WinnerDisplay[] = []
 
-        // V2 Contract - Fresh start! Only read from new contract.
         const dailyAddresses = dailyWinnersAddresses || []
 
         if (dailyAddresses.length > 0 && previousDailyGameId >= 1) {
-          // We have winners from the V2 contract
           const dailyPot = previousDailyGame ? previousDailyGame.potAmount : 0n
           const dailyPayoutPerWinner = dailyAddresses.length > 0 && dailyPot > 0n
-            ? Number(formatUnits(BigInt(dailyPot) * 94n / 100n / BigInt(dailyAddresses.length), 18)).toFixed(1)
+            ? Number(Number(dailyPot) * 0.94 / dailyAddresses.length / 1e18).toFixed(1)
             : '0'
 
-          dailyPlayersData = dailyAddresses.map((addr: string) => ({
-            address: addr,
-            displayName: formatAddress(addr),
-            thisGamePayout: dailyPayoutPerWinner,
-            lifetimeWins: 0,
-            lifetimePizzaWon: '0',
-          }))
+          dailyPlayersData = dailyAddresses.map((addr: string) => {
+            const stats = playerStatsMap[addr.toLowerCase()]
+            return {
+              address: addr,
+              displayName: formatAddress(addr),
+              thisGamePayout: dailyPayoutPerWinner,
+              lifetimeWins: stats?.totalWins || 0,
+              lifetimePizzaWon: stats?.totalPizzaWon || '0',
+            }
+          })
         }
-        // No fallback - if no winners yet, show empty state
 
-        // Weekly winners from V2 contract
+        // Weekly winners
         if (previousWeeklyGameId >= 1) {
           const weeklyAddresses = weeklyWinnersAddresses || []
           if (weeklyAddresses.length > 0) {
             const weeklyPot = previousWeeklyGame ? previousWeeklyGame.potAmount : 0n
             const weeklyPayoutPerWinner = weeklyAddresses.length > 0 && weeklyPot > 0n
-              ? Number(formatUnits(BigInt(weeklyPot) / BigInt(weeklyAddresses.length), 18)).toFixed(1)
+              ? Number(Number(weeklyPot) / weeklyAddresses.length / 1e18).toFixed(1)
               : '0'
 
-            weeklyPlayersData = weeklyAddresses.map((addr: string) => ({
-              address: addr,
-              displayName: formatAddress(addr),
-              thisGamePayout: weeklyPayoutPerWinner,
-              lifetimeWins: 0,
-              lifetimePizzaWon: '0',
-            }))
+            weeklyPlayersData = weeklyAddresses.map((addr: string) => {
+              const stats = playerStatsMap[addr.toLowerCase()]
+              return {
+                address: addr,
+                displayName: formatAddress(addr),
+                thisGamePayout: weeklyPayoutPerWinner,
+                lifetimeWins: stats?.totalWins || 0,
+                lifetimePizzaWon: stats?.totalPizzaWon || '0',
+              }
+            })
           }
         }
-        // No fallback - if no weekly winners yet, show empty state
-
-        // Fetch lifetime stats for all players using multicall for efficiency
-        const allAddresses = [...new Set([
-          ...dailyPlayersData.map(p => p.address),
-          ...weeklyPlayersData.map(p => p.address),
-        ])]
-
-        const statsMap = new Map<string, { wins: number; pizzaWon: string }>()
-
-        // Use multicall to batch all requests - all stats are now in current contract
-        try {
-          const contractCalls = allAddresses.map(addr => ({
-            address: PIZZA_PARTY_ADDRESS as `0x${string}`,
-            abi: PIZZA_PARTY_ABI,
-            functionName: 'getPlayerLifetimeStats',
-            args: [addr as `0x${string}`],
-          } as const))
-
-          const results = await publicClient.multicall({ contracts: contractCalls, allowFailure: true })
-
-          // Process results
-          allAddresses.forEach((addr, i) => {
-            const result = results[i]
-            if (result.status === 'success' && result.result) {
-              const stats = result.result as unknown as { totalDailyWins: bigint; totalWeeklyWins: bigint; totalPizzaWon: bigint }
-              statsMap.set(addr.toLowerCase(), {
-                wins: Number(stats.totalDailyWins) + Number(stats.totalWeeklyWins),
-                pizzaWon: Number(formatUnits(stats.totalPizzaWon, 18)).toFixed(1),
-              })
-            } else {
-              statsMap.set(addr.toLowerCase(), { wins: 0, pizzaWon: '0' })
-            }
-          })
-        } catch (err) {
-          console.error('Error fetching lifetime stats via multicall:', err)
-          allAddresses.forEach(addr => {
-            statsMap.set(addr.toLowerCase(), { wins: 0, pizzaWon: '0' })
-          })
-        }
-
-        // Update players with lifetime stats
-        dailyPlayersData = dailyPlayersData.map(player => {
-          const stats = statsMap.get(player.address.toLowerCase())
-          return {
-            ...player,
-            lifetimeWins: stats?.wins || 0,
-            lifetimePizzaWon: stats?.pizzaWon || '0',
-          }
-        })
-
-        weeklyPlayersData = weeklyPlayersData.map(player => {
-          const stats = statsMap.get(player.address.toLowerCase())
-          return {
-            ...player,
-            lifetimeWins: stats?.wins || 0,
-            lifetimePizzaWon: stats?.pizzaWon || '0',
-          }
-        })
 
         // Sort by lifetime wins (descending), then by PIZZA won (descending) as tiebreaker
         const sortByLifetimeStats = (a: WinnerDisplay, b: WinnerDisplay) => {
-          // First sort by wins (more wins = higher rank)
           if (b.lifetimeWins !== a.lifetimeWins) {
             return b.lifetimeWins - a.lifetimeWins
           }
-          // Tiebreaker: sort by PIZZA won (more PIZZA = higher rank)
           return parseFloat(b.lifetimePizzaWon) - parseFloat(a.lifetimePizzaWon)
         }
 
@@ -407,7 +276,7 @@ export default function LeaderboardPage({
         setDailyWinners(enrichedDaily)
         setWeeklyWinners(enrichedWeekly)
       } catch (error) {
-        console.error('Failed to fetch leaderboard data:', error)
+        console.error('Failed to process leaderboard data:', error)
         setDailyWinners([])
         setWeeklyWinners([])
       } finally {
@@ -415,15 +284,16 @@ export default function LeaderboardPage({
       }
     }
 
-    // Fetch when we have winner addresses to display
-    if (dailyWinnersAddresses.length > 0 || weeklyWinnersAddresses.length > 0) {
-      fetchLeaderboardData()
-    } else if (dailyGameId && weeklyGameId) {
-      // No winners found, stop loading
-      setLoading(false)
+    // Process data once API has loaded
+    if (dataLoaded) {
+      if (dailyWinnersAddresses.length > 0 || weeklyWinnersAddresses.length > 0) {
+        processWinnersData()
+      } else {
+        // No winners found, stop loading
+        setLoading(false)
+      }
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [address, dailyWinnersAddresses, weeklyWinnersAddresses, previousDailyGame, previousWeeklyGame, previousDailyGameId, previousWeeklyGameId, dailyGameId, weeklyGameId])
+  }, [address, dataLoaded, dailyWinnersAddresses, weeklyWinnersAddresses, previousDailyGame, previousWeeklyGame, previousDailyGameId, previousWeeklyGameId, playerStatsMap])
 
   const ProfilePicture = ({ 
     pfpUrl, 
