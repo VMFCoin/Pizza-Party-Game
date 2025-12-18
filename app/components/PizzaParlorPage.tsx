@@ -7,7 +7,7 @@ import { Card } from './ui/card'
 import { ArrowLeft, ChevronDown, ChevronUp } from 'lucide-react'
 import { useAccount, useReadContracts, useWriteContract, useWaitForTransactionReceipt } from 'wagmi'
 import { formatUnits, parseUnits, isAddress } from 'viem'
-import { PARLOR_MANAGER_ADDRESS, PARLOR_MANAGER_ABI, PIZZA_TOKEN_ADDRESS, PIZZA_TOKEN_ABI } from '../lib/constants'
+import { PARLOR_MANAGER_ADDRESS, PARLOR_MANAGER_ABI, PIZZA_TOKEN_ADDRESS, PIZZA_TOKEN_ABI, PIZZA_PARTY_ADDRESS, PIZZA_PARTY_ABI } from '../lib/constants'
 
 // Parlor price in USD - this is the fixed dollar amount
 const PARLOR_PRICE_USD = 50
@@ -99,6 +99,11 @@ export default function PizzaParlorPage({
         abi: PARLOR_MANAGER_ABI,
         functionName: 'pendingFees',
       },
+      {
+        address: PIZZA_PARTY_ADDRESS as `0x${string}`,
+        abi: PIZZA_PARTY_ABI,
+        functionName: 'dailyGameId',
+      },
     ],
   })
 
@@ -132,6 +137,7 @@ export default function PizzaParlorPage({
   // Extract values
   const totalParlors = contractData?.[0]?.result as bigint | undefined
   const pendingFeesRaw = contractData?.[1]?.result as bigint | undefined
+  const dailyGameId = contractData?.[2]?.result as bigint | undefined
 
   const userParlorCount = userData?.[0]?.result as bigint | undefined
   const slicesRemaining = userData?.[1]?.result as bigint | undefined
@@ -517,7 +523,7 @@ export default function PizzaParlorPage({
               {/* Game ID overlay at bottom - inside the image */}
               <div className="absolute bottom-4 left-0 right-0">
                 <p className="text-center text-white drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]" style={{ fontFamily: 'var(--font-luckiest-guy)', fontSize: '14px' }}>
-                  Game ID #2
+                  Game ID #{dailyGameId ? dailyGameId.toString() : '...'}
                 </p>
               </div>
             </div>
