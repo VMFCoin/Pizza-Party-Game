@@ -15,8 +15,6 @@ import { useRouter, useSearchParams } from "next/navigation";
 
 import { PizzaPartyResultPopup } from "./components/PizzaPartyResultPopup";
 
-// FID allowed to access Pizza Parlor page
-const PARLOR_ALLOWED_FIDS = [1013491, 963422];
 
 type ViewType = 'home' | 'game' | 'weekly' | 'leaderboard' | 'parlor'
 
@@ -311,8 +309,8 @@ export default function HomePage() {
               </Button>
 
               <Button
-                onClick={PARLOR_ALLOWED_FIDS.includes(userFid ?? -1) ? handleNavigateToParlor : undefined}
-                className={`w-full !bg-orange-500 text-white font-bold py-3 px-6 rounded-xl border-4 border-orange-800 shadow-lg uppercase ${PARLOR_ALLOWED_FIDS.includes(userFid ?? -1) ? 'hover:!bg-orange-600 transform hover:scale-105 transition-all touch-manipulation cursor-pointer' : 'cursor-default opacity-80'}`}
+                onClick={handleNavigateToParlor}
+                className="w-full !bg-orange-500 hover:!bg-orange-600 text-white font-bold py-3 px-6 rounded-xl border-4 border-orange-800 shadow-lg uppercase transform hover:scale-105 transition-all touch-manipulation cursor-pointer"
                 style={{
                   ...customFontStyle,
                   letterSpacing: "1px",

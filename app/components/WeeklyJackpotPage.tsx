@@ -9,8 +9,6 @@ import { ArrowLeft } from 'lucide-react'
 import { useGamePageData } from '../lib/useGamePageData'
 import ToppingBreakdownModal from './ToppingBreakdownModal'
 
-// FID allowed to access parlor functionality
-const PARLOR_ALLOWED_FIDS = [1013491, 963422]
 
 interface WeeklyJackpotPageProps {
   onBack?: () => void
@@ -104,7 +102,7 @@ export default function WeeklyJackpotPage({
   onNavigateToDaily,
   onNavigateToLeaderboard,
   onNavigateToParlor,
-  userFid,
+  userFid: _userFid,
 }: WeeklyJackpotPageProps) {
   const {
     wallet,
@@ -305,8 +303,8 @@ export default function WeeklyJackpotPage({
 
           {/* Own a Parlor Button */}
           <Button
-            onClick={PARLOR_ALLOWED_FIDS.includes(userFid ?? -1) ? onNavigateToParlor : undefined}
-            className={`w-full !bg-orange-500 text-white font-bold py-2.5 rounded-xl border-4 border-orange-800 uppercase ${PARLOR_ALLOWED_FIDS.includes(userFid ?? -1) ? 'hover:!bg-orange-600 cursor-pointer' : 'cursor-default opacity-80'}`}
+            onClick={onNavigateToParlor}
+            className="w-full !bg-orange-500 hover:!bg-orange-600 text-white font-bold py-2.5 rounded-xl border-4 border-orange-800 uppercase cursor-pointer"
             style={{ ...customFontStyle, fontSize: 20 }}
           >
             🍍 OWN A PARLOR 🍍

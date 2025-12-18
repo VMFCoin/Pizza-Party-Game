@@ -21,11 +21,16 @@ interface PizzaParlorPageProps {
 }
 
 const PARLORS_EXPLAINED = [
-  'Own a Pizza Parlor franchise for $50 of PIZZA tokens',
-  'Each parlor gives you 1 free daily slice to share with friends',
-  'Earn 50% of owner fees distributed to all parlor owners',
-  'Max 5 parlors per wallet, 333 total parlors available',
-  'Send slices via direct tip or shareable links',
+  'Buy a Pizza Parlor for $50 worth of PIZZA',
+  'Each parlor gives you 1 free slice every day',
+  'Free slices let friends enter the daily game for free',
+  'If a sliced player wins, you earn 50% of their prize',
+  'Parlor owners earn 50% of all owner fees',
+  'The more parlors you own, the more you earn',
+  'Max 5 parlors per wallet',
+  'Only 333 total parlors will ever exist',
+  'Send slices directly or with shareable links',
+  'Half the PIZZA used to buy parlors is burned forever',
 ]
 
 // Local storage key for recent recipients

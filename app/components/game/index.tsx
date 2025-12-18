@@ -127,8 +127,6 @@ type SharePlatform = {
   action?: 'copy'
 }
 
-// FID allowed to access parlor functionality
-const PARLOR_ALLOWED_FIDS = [1013491, 963422]
 
 interface GamePageProps {
   onNavigateToWeekly?: () => void
@@ -145,7 +143,7 @@ export default function GamePage({ onNavigateToWeekly, onNavigateToLeaderboard, 
   )
 }
 
-function GamePageContent({ onNavigateToWeekly, onNavigateToLeaderboard, onNavigateToParlor, userFid }: GamePageProps) {
+function GamePageContent({ onNavigateToWeekly, onNavigateToLeaderboard, onNavigateToParlor, userFid: _userFid }: GamePageProps) {
   const [isMobile, setIsMobile] = useState(false)
   const [referralCodeInput, setReferralCodeInput] = useState('')
   const [showReferralInput, setShowReferralInput] = useState(false)
@@ -584,8 +582,8 @@ function GamePageContent({ onNavigateToWeekly, onNavigateToLeaderboard, onNaviga
 
           {/* Own a Parlor Button */}
           <Button
-            onClick={PARLOR_ALLOWED_FIDS.includes(userFid ?? -1) ? onNavigateToParlor : undefined}
-            className={`w-full !bg-orange-500 text-white font-bold py-2 rounded-xl border-4 border-orange-800 uppercase ${PARLOR_ALLOWED_FIDS.includes(userFid ?? -1) ? 'hover:!bg-orange-600 cursor-pointer' : 'cursor-default opacity-80'}`}
+            onClick={onNavigateToParlor}
+            className="w-full !bg-orange-500 hover:!bg-orange-600 text-white font-bold py-2 rounded-xl border-4 border-orange-800 uppercase cursor-pointer"
             style={{ ...customFontStyle, fontSize: isMobile ? 18 : 20 }}
           >
             🍍 OWN A PARLOR 🍍
