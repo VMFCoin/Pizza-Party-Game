@@ -196,9 +196,9 @@ export default function PizzaParlorPage({
 
       // Handle successful slice send - open Warpcast compose
       if (isSendingSlice && sliceSentToUser) {
-        const castText = `🍕 Hey @${sliceSentToUser.username}! I just sent you a FREE slice of Pizza Party!\n\nClaim your free game entry:\nhttps://warpcast.com/~/channel/pizzaparty`
+        const castText = `🍕 Hey @${sliceSentToUser.username}! I just sent you a FREE slice of Pizza Party!\n\nClaim your free game entry:\nhttps://farcaster.xyz/miniapps/wgY6OPqYoIkz/pizza-party`
         const composeUrl = `https://warpcast.com/~/compose?text=${encodeURIComponent(castText)}`
-        window.open(composeUrl, '_blank')
+        window.open(composeUrl, '_self')
         setSliceSentToUser(null)
       }
 
