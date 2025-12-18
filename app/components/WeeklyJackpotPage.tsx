@@ -9,11 +9,16 @@ import { ArrowLeft } from 'lucide-react'
 import { useGamePageData } from '../lib/useGamePageData'
 import ToppingBreakdownModal from './ToppingBreakdownModal'
 
+// FID allowed to access parlor functionality
+const PARLOR_ALLOWED_FID = 1013491
+
 interface WeeklyJackpotPageProps {
   onBack?: () => void
   onNavigateToHome?: () => void
   onNavigateToDaily?: () => void
   onNavigateToLeaderboard?: () => void
+  onNavigateToParlor?: () => void
+  userFid?: number | null
 }
 
 const customFontStyle = {
@@ -98,6 +103,8 @@ export default function WeeklyJackpotPage({
   onNavigateToHome,
   onNavigateToDaily,
   onNavigateToLeaderboard,
+  onNavigateToParlor,
+  userFid,
 }: WeeklyJackpotPageProps) {
   const {
     wallet,
@@ -294,6 +301,15 @@ export default function WeeklyJackpotPage({
             <Image src="/images/mushroom-icon2.png" alt="Mushroom" width={20} height={20} className="inline mr-1" style={{ backgroundColor: 'transparent', border: 'none' }} />
             LEADERBOARD
             <Image src="/images/mushroom-icon2.png" alt="Mushroom" width={20} height={20} className="inline ml-1" style={{ backgroundColor: 'transparent', border: 'none' }} />
+          </Button>
+
+          {/* Buy a Parlor Button */}
+          <Button
+            onClick={userFid === PARLOR_ALLOWED_FID ? onNavigateToParlor : undefined}
+            className={`w-full !bg-green-600 text-white font-bold py-2.5 rounded-xl border-4 border-green-900 uppercase ${userFid === PARLOR_ALLOWED_FID ? 'hover:!bg-green-700 cursor-pointer' : 'cursor-default opacity-80'}`}
+            style={{ ...customFontStyle, fontSize: 20 }}
+          >
+            🍍 BUY A PARLOR 🍍
           </Button>
 
           <Card className="border-4 border-red-500 rounded-2xl bg-white/95">

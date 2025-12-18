@@ -127,20 +127,25 @@ type SharePlatform = {
   action?: 'copy'
 }
 
+// FID allowed to access parlor functionality
+const PARLOR_ALLOWED_FID = 1013491
+
 interface GamePageProps {
   onNavigateToWeekly?: () => void
   onNavigateToLeaderboard?: () => void
+  onNavigateToParlor?: () => void
+  userFid?: number | null
 }
 
-export default function GamePage({ onNavigateToWeekly, onNavigateToLeaderboard }: GamePageProps) {
+export default function GamePage({ onNavigateToWeekly, onNavigateToLeaderboard, onNavigateToParlor, userFid }: GamePageProps) {
   return (
     <Suspense fallback={<div>Loading...</div>}>
-      <GamePageContent onNavigateToWeekly={onNavigateToWeekly} onNavigateToLeaderboard={onNavigateToLeaderboard} />
+      <GamePageContent onNavigateToWeekly={onNavigateToWeekly} onNavigateToLeaderboard={onNavigateToLeaderboard} onNavigateToParlor={onNavigateToParlor} userFid={userFid} />
     </Suspense>
   )
 }
 
-function GamePageContent({ onNavigateToWeekly, onNavigateToLeaderboard }: GamePageProps) {
+function GamePageContent({ onNavigateToWeekly, onNavigateToLeaderboard, onNavigateToParlor, userFid }: GamePageProps) {
   const [isMobile, setIsMobile] = useState(false)
   const [referralCodeInput, setReferralCodeInput] = useState('')
   const [showReferralInput, setShowReferralInput] = useState(false)
@@ -572,6 +577,15 @@ function GamePageContent({ onNavigateToWeekly, onNavigateToLeaderboard }: GamePa
             <Image src="/images/mushroom-icon2.png" alt="Mushroom" width={20} height={20} className="inline mr-1" style={{ backgroundColor: 'transparent', border: 'none' }} />
             Leaderboard
             <Image src="/images/mushroom-icon2.png" alt="Mushroom" width={20} height={20} className="inline ml-1" style={{ backgroundColor: 'transparent', border: 'none' }} />
+          </Button>
+
+          {/* Buy a Parlor Button */}
+          <Button
+            onClick={userFid === PARLOR_ALLOWED_FID ? onNavigateToParlor : undefined}
+            className={`w-full !bg-green-600 text-white font-bold py-2 rounded-xl border-4 border-green-900 uppercase ${userFid === PARLOR_ALLOWED_FID ? 'hover:!bg-green-700 cursor-pointer' : 'cursor-default opacity-80'}`}
+            style={{ ...customFontStyle, fontSize: isMobile ? 18 : 20 }}
+          >
+            🍍 BUY A PARLOR 🍍
           </Button>
 
           {/* Manage Wallet Button (when connected) */}

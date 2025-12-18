@@ -122,7 +122,7 @@ export default function HomePage() {
             </Button>
 
             <Card className="border-4 border-red-800 rounded-3xl shadow-2xl p-0 !px-0 !py-0 !bg-transparent">
-              <GamePage onNavigateToWeekly={handleNavigateToWeekly} onNavigateToLeaderboard={handleNavigateToLeaderboard} />
+              <GamePage onNavigateToWeekly={handleNavigateToWeekly} onNavigateToLeaderboard={handleNavigateToLeaderboard} onNavigateToParlor={handleNavigateToParlor} userFid={userFid} />
             </Card>
           </div>
         </div>
@@ -138,6 +138,8 @@ export default function HomePage() {
           onNavigateToDaily={() => goToView('game')}
           onNavigateToHome={handleBackToHome}
           onNavigateToLeaderboard={handleNavigateToLeaderboard}
+          onNavigateToParlor={handleNavigateToParlor}
+          userFid={userFid}
         />
       </>
     );
@@ -151,6 +153,8 @@ export default function HomePage() {
           onNavigateToDaily={() => goToView('game')}
           onNavigateToWeekly={handleNavigateToWeekly}
           onNavigateToHome={handleBackToHome}
+          onNavigateToParlor={handleNavigateToParlor}
+          userFid={userFid}
         />
       </>
     );

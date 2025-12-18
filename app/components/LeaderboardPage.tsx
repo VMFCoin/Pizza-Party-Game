@@ -21,11 +21,16 @@ const publicClient = createPublicClient({
 // All historical stats have been migrated to the current contract
 // No need to read from old contracts anymore
 
+// FID allowed to access parlor functionality
+const PARLOR_ALLOWED_FID = 1013491
+
 interface LeaderboardPageProps {
   onBack?: () => void
   onNavigateToDaily?: () => void
   onNavigateToWeekly?: () => void
   onNavigateToHome?: () => void
+  onNavigateToParlor?: () => void
+  userFid?: number | null
 }
 
 interface WinnerDisplay {
@@ -94,6 +99,8 @@ export default function LeaderboardPage({
   onNavigateToDaily,
   onNavigateToWeekly,
   onNavigateToHome,
+  onNavigateToParlor,
+  userFid,
 }: LeaderboardPageProps) {
   const { address } = useAccount()
   const [dailyWinners, setDailyWinners] = useState<WinnerDisplay[]>([])
@@ -580,6 +587,15 @@ export default function LeaderboardPage({
               <Image src="/images/pepperoni-art.png" alt="Pepperoni" width={20} height={20} className="inline mr-1" />
               Weekly Jackpot
               <Image src="/images/pepperoni-art.png" alt="Pepperoni" width={20} height={20} className="inline ml-1" />
+            </Button>
+
+            {/* Buy a Parlor Button */}
+            <Button
+              onClick={userFid === PARLOR_ALLOWED_FID ? onNavigateToParlor : undefined}
+              className={`w-full !bg-green-600 text-white font-bold py-2.5 rounded-xl border-4 border-green-900 uppercase ${userFid === PARLOR_ALLOWED_FID ? 'hover:!bg-green-700 cursor-pointer' : 'cursor-default opacity-80'}`}
+              style={{ ...customFontStyle, fontSize: 20 }}
+            >
+              🍍 BUY A PARLOR 🍍
             </Button>
 
             <Card className="border-4 border-red-500 rounded-2xl bg-white/95">
