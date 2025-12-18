@@ -181,6 +181,9 @@ export default function PizzaParlorPage({
     hash: txHash,
   })
 
+  // Store user for cast after tx confirms
+  const [sliceSentToUser, setSliceSentToUser] = useState<FarcasterUser | null>(null)
+
   // Handle transaction success
   useEffect(() => {
     if (isConfirmed) {
@@ -190,6 +193,15 @@ export default function PizzaParlorPage({
       setIsPurchasing(false)
       setIsApproving(false)
       setIsDistributing(false)
+
+      // Handle successful slice send - open Warpcast compose
+      if (isSendingSlice && sliceSentToUser) {
+        const castText = `🍕 Hey @${sliceSentToUser.username}! I just sent you a FREE slice of Pizza Party!\n\nClaim your free game entry:\nhttps://warpcast.com/~/channel/pizzaparty`
+        const composeUrl = `https://warpcast.com/~/compose?text=${encodeURIComponent(castText)}`
+        window.open(composeUrl, '_blank')
+        setSliceSentToUser(null)
+      }
+
       // Clear slice input on success
       if (isSendingSlice) {
         setRecipientInput('')
@@ -198,7 +210,7 @@ export default function PizzaParlorPage({
       setIsSendingSlice(false)
       resetWrite()
     }
-  }, [isConfirmed, refetchContractData, refetchUserData, resetWrite, isSendingSlice])
+  }, [isConfirmed, refetchContractData, refetchUserData, resetWrite, isSendingSlice, sliceSentToUser])
 
   // ============ Action Handlers ============
 
@@ -253,6 +265,12 @@ export default function PizzaParlorPage({
     if (!resolvedAddress) return
 
     setIsSendingSlice(true)
+
+    // Store selected user for cast notification after tx confirms
+    if (selectedUser) {
+      setSliceSentToUser(selectedUser)
+    }
+
     try {
       writeContract({
         address: PARLOR_MANAGER_ADDRESS as `0x${string}`,
@@ -267,6 +285,7 @@ export default function PizzaParlorPage({
     } catch (error) {
       console.error('Send slice error:', error)
       setIsSendingSlice(false)
+      setSliceSentToUser(null)
     }
   }
 
