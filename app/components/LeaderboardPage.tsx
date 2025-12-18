@@ -463,7 +463,7 @@ export default function LeaderboardPage({
           <Button
             onClick={onNavigateToHome}
             className="mb-4 !bg-red-700 hover:!bg-red-800 text-white font-bold py-2 px-4 rounded-xl border-2 border-red-900 shadow-lg flex items-center gap-2"
-            style={customFontStyle}
+            style={{ ...customFontStyle, fontFamily: 'var(--font-luckiest-guy)' }}
           >
             <ArrowLeft size={20} />
             Back to Home
