@@ -205,6 +205,7 @@ function GamePageContent({ onNavigateToWeekly, onNavigateToLeaderboard, onNaviga
     hasEnteredToday,
     hasEnoughPizza,
     hasUsedReferral,
+    isFirstTimePlayer,
   } = useGamePageData()
 
   useEffect(() => {
@@ -219,11 +220,13 @@ function GamePageContent({ onNavigateToWeekly, onNavigateToLeaderboard, onNaviga
   }
 
   // Debug render
-  console.debug('GamePageContent render — hasEnteredToday:', hasEnteredToday, 'hasUsedReferral:', hasUsedReferral)
+  console.debug('GamePageContent render — hasEnteredToday:', hasEnteredToday, 'isFirstTimePlayer:', isFirstTimePlayer, 'hasUsedReferral:', hasUsedReferral)
 
-  // Check if player can use a referral code (only once ever)
-  // This replaces the old "canUseReferral" check which used lifetime toppings
-  const canUseReferral = !hasUsedReferral
+  // Check if player can use a referral code (only on their FIRST EVER game entry)
+  // isFirstTimePlayer = true means lifetimeToppings = 0 (they've never played before)
+  // hasUsedReferral tracks if they've submitted a referral code already (they can only do this once)
+  // The modal should ONLY show for first-time players who haven't used a referral yet
+  const canUseReferral = isFirstTimePlayer && !hasUsedReferral
 
   useEffect(() => {
     if (typeof window === 'undefined') return

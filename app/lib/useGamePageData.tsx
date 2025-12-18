@@ -301,6 +301,7 @@ export function useGamePageData() {
   const [playerLifetimeStats, setPlayerLifetimeStats] = useState<PlayerLifetimeStats | null>(null)
   const [referralInfo, setReferralInfo] = useState<ReferralInfo | null>(null)
   const [hasUsedReferral, setHasUsedReferral] = useState<boolean>(true) // Default true to hide modal until we know
+  const [isFirstTimePlayer, setIsFirstTimePlayer] = useState<boolean>(false) // Default false to hide modal until we confirm it's first time
 
   const [weekly, setWeekly] = useState<WeeklyData>({
     claimStart: 0,
@@ -365,6 +366,11 @@ export function useGamePageData() {
         lifetimeReferrals = statsObj.lifetimeReferrals
       }
 
+      // Check if this is the player's first time ever playing
+      // lifetimeToppings = 0 means they've never entered any game before
+      setIsFirstTimePlayer(lifetimeToppings === 0n)
+      console.debug('Is first time player:', lifetimeToppings === 0n, 'lifetimeToppings:', lifetimeToppings)
+
       // ✅ Use lifetime toppings instead of weekly plays
       // This ensures isFirstEntry only triggers for truly new players
       const normalized: PlayerInfo = {
@@ -419,6 +425,7 @@ export function useGamePageData() {
       setPlayerInfo(null)
       setPlayerWeekly(null)
       setHasUsedReferral(true) // Default to true (hide modal) on error
+      setIsFirstTimePlayer(false) // Default to false (hide modal) on error
       // Set referralInfo with empty code instead of null so UI doesn't show "Loading..."
       setReferralInfo({
         referralCode: '',
@@ -1184,5 +1191,6 @@ export function useGamePageData() {
     hasEnteredToday,
     claimableToppings,
     hasUsedReferral, // Whether player has already used a referral code (can only use once)
+    isFirstTimePlayer, // Whether player has never played before (lifetimeToppings = 0)
   }
 }
