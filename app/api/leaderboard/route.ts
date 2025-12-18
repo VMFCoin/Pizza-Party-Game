@@ -64,10 +64,10 @@ export async function GET(): Promise<NextResponse<LeaderboardResponse>> {
           abi: PIZZA_PARTY_ABI,
           functionName: 'dailyGames',
           args: [BigInt(gameId)],
-        }) as unknown as [bigint, bigint, string, bigint, boolean]
+        }) as unknown as { startTime: bigint; endTime: bigint; firstPlayer: string; potAmount: bigint; settled: boolean }
 
-        const isSettled = gameData[4]
-        console.log(`[Leaderboard API] Daily Game ${gameId}: settled=${isSettled}, pot=${gameData[3]}`)
+        const isSettled = gameData.settled
+        console.log(`[Leaderboard API] Daily Game ${gameId}: settled=${isSettled}, pot=${gameData.potAmount}`)
 
         if (!isSettled) continue
 
@@ -83,10 +83,10 @@ export async function GET(): Promise<NextResponse<LeaderboardResponse>> {
         if (winners && winners.length > 0) {
           latestDailyGame = {
             gameId,
-            startTime: gameData[0].toString(),
-            endTime: gameData[1].toString(),
-            potAmount: formatUnits(gameData[3], 18),
-            settled: gameData[4],
+            startTime: gameData.startTime.toString(),
+            endTime: gameData.endTime.toString(),
+            potAmount: formatUnits(gameData.potAmount, 18),
+            settled: gameData.settled,
             winners,
           }
           allWinnerAddresses.push(...winners)
@@ -106,9 +106,9 @@ export async function GET(): Promise<NextResponse<LeaderboardResponse>> {
           abi: PIZZA_PARTY_ABI,
           functionName: 'weeklyGames',
           args: [BigInt(weekId)],
-        }) as unknown as [bigint, bigint, bigint, bigint, boolean]
+        }) as unknown as { claimWindowStart: bigint; claimWindowEnd: bigint; totalClaimedToppings: bigint; potAmount: bigint; settled: boolean }
 
-        const isSettled = weekData[4]
+        const isSettled = weekData.settled
         if (!isSettled) continue
 
         const winners = await publicClient.readContract({
@@ -121,10 +121,10 @@ export async function GET(): Promise<NextResponse<LeaderboardResponse>> {
         if (winners && winners.length > 0) {
           latestWeeklyGame = {
             gameId: weekId,
-            startTime: weekData[0].toString(),
-            endTime: weekData[1].toString(),
-            potAmount: formatUnits(weekData[3], 18),
-            settled: weekData[4],
+            startTime: weekData.claimWindowStart.toString(),
+            endTime: weekData.claimWindowEnd.toString(),
+            potAmount: formatUnits(weekData.potAmount, 18),
+            settled: weekData.settled,
             winners,
           }
           allWinnerAddresses.push(...winners)
