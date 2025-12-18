@@ -6,10 +6,12 @@ import { PIZZA_PARTY_ADDRESS, PIZZA_PARTY_ABI } from '@/app/lib/constants'
 export const runtime = 'edge'
 export const dynamic = 'force-dynamic'
 
-// Create server-side RPC client (not subject to browser CSP)
+// Create server-side RPC client
+// Using Ankr public RPC which is more permissive from edge functions
+// (mainnet.base.org blocks Vercel edge requests via Cloudflare)
 const publicClient = createPublicClient({
   chain: base,
-  transport: http('https://mainnet.base.org'),
+  transport: http('https://rpc.ankr.com/base'),
 })
 
 interface GameData {
