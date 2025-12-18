@@ -589,13 +589,13 @@ export default function LeaderboardPage({
               <Image src="/images/pepperoni-art.png" alt="Pepperoni" width={20} height={20} className="inline ml-1" />
             </Button>
 
-            {/* Buy a Parlor Button */}
+            {/* Own a Parlor Button */}
             <Button
               onClick={userFid === PARLOR_ALLOWED_FID ? onNavigateToParlor : undefined}
-              className={`w-full !bg-green-600 text-white font-bold py-2.5 rounded-xl border-4 border-green-900 uppercase ${userFid === PARLOR_ALLOWED_FID ? 'hover:!bg-green-700 cursor-pointer' : 'cursor-default opacity-80'}`}
+              className={`w-full !bg-orange-500 text-white font-bold py-2.5 rounded-xl border-4 border-orange-800 uppercase ${userFid === PARLOR_ALLOWED_FID ? 'hover:!bg-orange-600 cursor-pointer' : 'cursor-default opacity-80'}`}
               style={{ ...customFontStyle, fontSize: 20 }}
             >
-              🍍 BUY A PARLOR 🍍
+              🍍 OWN A PARLOR 🍍
             </Button>
 
             <Card className="border-4 border-red-500 rounded-2xl bg-white/95">

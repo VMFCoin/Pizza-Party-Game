@@ -312,14 +312,14 @@ export default function HomePage() {
 
               <Button
                 onClick={userFid === PARLOR_ALLOWED_FID ? handleNavigateToParlor : undefined}
-                className={`w-full !bg-green-600 text-white font-bold py-3 px-6 rounded-xl border-4 border-green-900 shadow-lg uppercase ${userFid === PARLOR_ALLOWED_FID ? 'hover:!bg-green-700 transform hover:scale-105 transition-all touch-manipulation cursor-pointer' : 'cursor-default opacity-80'}`}
+                className={`w-full !bg-orange-500 text-white font-bold py-3 px-6 rounded-xl border-4 border-orange-800 shadow-lg uppercase ${userFid === PARLOR_ALLOWED_FID ? 'hover:!bg-orange-600 transform hover:scale-105 transition-all touch-manipulation cursor-pointer' : 'cursor-default opacity-80'}`}
                 style={{
                   ...customFontStyle,
                   letterSpacing: "1px",
                   fontSize: isMobile ? 18 : 20
                 }}
               >
-                🍍 BUY A PARLOR 🍍
+                🍍 OWN A PARLOR 🍍
               </Button>
 
             </div>
