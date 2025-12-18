@@ -7,11 +7,11 @@ export const runtime = 'edge'
 export const dynamic = 'force-dynamic'
 
 // Create server-side RPC client
-// Using Ankr public RPC which is more permissive from edge functions
-// (mainnet.base.org blocks Vercel edge requests via Cloudflare)
+// Using Publicnode RPC which is fully public and works from edge functions
+// (mainnet.base.org blocks Vercel, Ankr requires API key)
 const publicClient = createPublicClient({
   chain: base,
-  transport: http('https://rpc.ankr.com/base'),
+  transport: http('https://base-rpc.publicnode.com'),
 })
 
 interface GameData {
