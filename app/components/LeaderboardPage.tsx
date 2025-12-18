@@ -168,17 +168,31 @@ export default function LeaderboardPage({
   const [weeklyWinnersAddresses, setWeeklyWinnersAddresses] = useState<string[]>([])
   const [previousDailyGame, setPreviousDailyGame] = useState<{ startTime: bigint; endTime: bigint; potAmount: bigint; settled: boolean } | null>(null)
   const [previousWeeklyGame, setPreviousWeeklyGame] = useState<{ claimWindowEnd: bigint; potAmount: bigint; settled: boolean } | null>(null)
+  const [dailyDataReady, setDailyDataReady] = useState(false)
+  const [weeklyDataReady, setWeeklyDataReady] = useState(false)
 
-  // Find the most recent game with winners (search backwards from current game)
+  // Find the most recent SETTLED game with winners
+  // Search backwards from current game to find settled games with winners
   useEffect(() => {
     async function findLatestGameWithWinners() {
       if (!dailyGameId || Number(dailyGameId) < 2) return
 
       const currentId = Number(dailyGameId)
 
-      // Search backwards from current game - 1 to find a game with winners
+      // Search backwards from current game - 1 (current game is likely in progress)
       for (let gameId = currentId - 1; gameId >= 1; gameId--) {
         try {
+          // First check if the game is settled
+          const gameData = await publicClient.readContract({
+            address: PIZZA_PARTY_ADDRESS as `0x${string}`,
+            abi: PIZZA_PARTY_ABI,
+            functionName: 'dailyGames',
+            args: [BigInt(gameId)],
+          }) as unknown as [bigint, bigint, string, bigint, boolean]
+
+          const isSettled = gameData[4]
+          if (!isSettled) continue // Skip unsettled games
+
           const winners = await publicClient.readContract({
             address: PIZZA_PARTY_ADDRESS as `0x${string}`,
             abi: PIZZA_PARTY_ABI,
@@ -187,24 +201,16 @@ export default function LeaderboardPage({
           }) as string[]
 
           if (winners && winners.length > 0) {
-            // Found a game with winners!
+            // Found a settled game with winners!
             setDisplayDailyGameId(gameId)
             setDailyWinnersAddresses(winners)
-
-            // Also fetch the game data for pot info
-            const gameData = await publicClient.readContract({
-              address: PIZZA_PARTY_ADDRESS as `0x${string}`,
-              abi: PIZZA_PARTY_ABI,
-              functionName: 'dailyGames',
-              args: [BigInt(gameId)],
-            }) as unknown as [bigint, bigint, string, bigint, boolean]
-
             setPreviousDailyGame({
               startTime: gameData[0],
               endTime: gameData[1],
               potAmount: gameData[3],
               settled: gameData[4],
             })
+            setDailyDataReady(true)
             break
           }
         } catch (err) {
@@ -216,15 +222,27 @@ export default function LeaderboardPage({
     findLatestGameWithWinners()
   }, [dailyGameId])
 
-  // Find the most recent weekly game with winners
+  // Find the most recent SETTLED weekly game with winners
   useEffect(() => {
     async function findLatestWeeklyWithWinners() {
-      if (!weeklyGameId || Number(weeklyGameId) < 2) return
+      if (!weeklyGameId || Number(weeklyGameId) < 1) return
 
       const currentId = Number(weeklyGameId)
 
-      for (let weekId = currentId - 1; weekId >= 1; weekId--) {
+      // Search from current week down to 1
+      for (let weekId = currentId; weekId >= 1; weekId--) {
         try {
+          // First check if the game is settled
+          const weekData = await publicClient.readContract({
+            address: PIZZA_PARTY_ADDRESS as `0x${string}`,
+            abi: PIZZA_PARTY_ABI,
+            functionName: 'weeklyGames',
+            args: [BigInt(weekId)],
+          }) as unknown as [bigint, bigint, bigint, bigint, boolean]
+
+          const isSettled = weekData[4]
+          if (!isSettled) continue // Skip unsettled games
+
           const winners = await publicClient.readContract({
             address: PIZZA_PARTY_ADDRESS as `0x${string}`,
             abi: PIZZA_PARTY_ABI,
@@ -235,19 +253,12 @@ export default function LeaderboardPage({
           if (winners && winners.length > 0) {
             setDisplayWeeklyGameId(weekId)
             setWeeklyWinnersAddresses(winners)
-
-            const weekData = await publicClient.readContract({
-              address: PIZZA_PARTY_ADDRESS as `0x${string}`,
-              abi: PIZZA_PARTY_ABI,
-              functionName: 'weeklyGames',
-              args: [BigInt(weekId)],
-            }) as unknown as [bigint, bigint, bigint, bigint, boolean]
-
             setPreviousWeeklyGame({
               claimWindowEnd: weekData[1],
               potAmount: weekData[3],
               settled: weekData[4],
             })
+            setWeeklyDataReady(true)
             break
           }
         } catch (err) {
@@ -399,9 +410,12 @@ export default function LeaderboardPage({
       }
     }
 
-    fetchLeaderboardData()
+    // Only fetch when data is ready (prevent race condition)
+    if (dailyDataReady || weeklyDataReady) {
+      fetchLeaderboardData()
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [address, dailyWinnersAddresses, weeklyWinnersAddresses, previousDailyGame, previousWeeklyGame, previousDailyGameId, previousWeeklyGameId])
+  }, [address, dailyWinnersAddresses, weeklyWinnersAddresses, previousDailyGame, previousWeeklyGame, previousDailyGameId, previousWeeklyGameId, dailyDataReady, weeklyDataReady])
 
   const ProfilePicture = ({ 
     pfpUrl, 
@@ -508,8 +522,8 @@ export default function LeaderboardPage({
           <span className="block text-lg font-bold text-green-600" style={customFontStyle}>
             {getUsdValue()}
           </span>
-          <span className="block text-lg font-bold text-green-600" style={customFontStyle}>
-            PIZZA
+          <span className="block text-sm font-bold text-green-600" style={customFontStyle}>
+            {winner.thisGamePayout} PIZZA
           </span>
         </div>
       </div>

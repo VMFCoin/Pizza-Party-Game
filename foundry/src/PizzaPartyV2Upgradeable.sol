@@ -1161,8 +1161,9 @@ contract PizzaPartyV2Upgradeable is OwnableUpgradeable, UUPSUpgradeable, Reentra
     function adminSetDailyGameId(uint256 newDailyGameId) external onlyOwner {
         require(newDailyGameId > 0, "Invalid game ID");
         dailyGameId = newDailyGameId;
-        // Re-initialize the game with correct times
+        // Re-initialize the game with correct times and reset settled flag
         _initializeDailyGame(newDailyGameId);
+        dailyGames[newDailyGameId].settled = false;
     }
 
     /**
@@ -1172,7 +1173,18 @@ contract PizzaPartyV2Upgradeable is OwnableUpgradeable, UUPSUpgradeable, Reentra
     function adminSetWeeklyGameId(uint256 newWeeklyGameId) external onlyOwner {
         require(newWeeklyGameId > 0, "Invalid week ID");
         weeklyGameId = newWeeklyGameId;
-        // Re-initialize the week with correct times
+        // Re-initialize the week with correct times and reset settled flag
         _initializeWeeklyGame(newWeeklyGameId);
+        weeklyGames[newWeeklyGameId].settled = false;
+    }
+
+    /**
+     * @dev Admin function to reset a daily game to unsettled state
+     * Use this to make a game the active current game
+     * @param gameId The game ID to reset
+     */
+    function adminResetDailyGameSettled(uint256 gameId) external onlyOwner {
+        require(gameId > 0, "Invalid game ID");
+        dailyGames[gameId].settled = false;
     }
 }
