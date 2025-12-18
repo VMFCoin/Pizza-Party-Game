@@ -18,13 +18,14 @@ interface PizzaParlorPageProps {
   onNavigateToWeekly?: () => void
   onNavigateToLeaderboard?: () => void
   onNavigateToHome?: () => void
+  userFid?: number | null
 }
 
 const PARLORS_EXPLAINED = [
   'Buy a Pizza Parlor for $50 worth of PIZZA',
   'Each parlor gives you 1 free slice every day',
-  'Free slices let friends enter the daily game for free',
-  'If a sliced player wins, you earn 50% of their prize',
+  'Free slices let NEW players enter the daily game for free',
+  'If a NEW sliced player wins, you earn 50% of their prize',
   'Parlor owners earn 50% of all owner fees',
   'The more parlors you own, the more you earn',
   'Max 5 parlors per wallet',
@@ -52,12 +53,16 @@ interface FarcasterUser {
   walletAddress: string
 }
 
+// FID allowed to test buying parlors (admin/testing only)
+const ALLOWED_BUY_FID = 1013491
+
 export default function PizzaParlorPage({
   onBack,
   onNavigateToDaily,
   onNavigateToWeekly,
   onNavigateToLeaderboard,
   onNavigateToHome,
+  userFid,
 }: PizzaParlorPageProps) {
   const customFontStyle = {
     fontFamily: '"Comic Sans MS", "Marker Felt", "Chalkduster", "Kalam", "Caveat"',
@@ -100,11 +105,6 @@ export default function PizzaParlorPage({
         functionName: 'totalParlors',
       },
       {
-        address: PARLOR_MANAGER_ADDRESS as `0x${string}`,
-        abi: PARLOR_MANAGER_ABI,
-        functionName: 'pendingFees',
-      },
-      {
         address: PIZZA_PARTY_ADDRESS as `0x${string}`,
         abi: PIZZA_PARTY_ABI,
         functionName: 'dailyGameId',
@@ -133,6 +133,12 @@ export default function PizzaParlorPage({
         functionName: 'allowance',
         args: userAddress ? [userAddress, PARLOR_MANAGER_ADDRESS as `0x${string}`] : undefined,
       },
+      {
+        address: PARLOR_MANAGER_ADDRESS as `0x${string}`,
+        abi: PARLOR_MANAGER_ABI,
+        functionName: 'claimableBalance',
+        args: userAddress ? [userAddress] : undefined,
+      },
     ],
     query: {
       enabled: !!userAddress,
@@ -141,12 +147,12 @@ export default function PizzaParlorPage({
 
   // Extract values
   const totalParlors = contractData?.[0]?.result as bigint | undefined
-  const pendingFeesRaw = contractData?.[1]?.result as bigint | undefined
-  const dailyGameId = contractData?.[2]?.result as bigint | undefined
+  const dailyGameId = contractData?.[1]?.result as bigint | undefined
 
   const userParlorCount = userData?.[0]?.result as bigint | undefined
   const slicesRemaining = userData?.[1]?.result as bigint | undefined
   const currentAllowance = userData?.[2]?.result as bigint | undefined
+  const claimableBalanceRaw = userData?.[3]?.result as bigint | undefined
 
   // Calculate $50 worth of PIZZA based on live DEX price
   // $50 USD / price per PIZZA = number of PIZZA tokens needed
@@ -166,17 +172,11 @@ export default function PizzaParlorPage({
   const totalParlorsSold = totalParlors ? Number(totalParlors) : 0
   const parlorsRemaining = maxTotalParlors - totalParlorsSold
   const slicesRemainingNum = slicesRemaining ? Number(slicesRemaining) : 0
-  const pendingFeesFormatted = pendingFeesRaw ? Number(formatUnits(pendingFeesRaw, 18)) : 0
+  const claimableFeesFormatted = claimableBalanceRaw ? Number(formatUnits(claimableBalanceRaw, 18)) : 0
   const parlorPriceFormatted = parlorPriceInPizza ? Math.ceil(parlorPriceInPizza) : null
 
   // Check if approval is needed
   const needsApproval = parlorPriceWei && currentAllowance !== undefined && currentAllowance < parlorPriceWei
-
-  // Calculate estimated payout for user (50% to owners, split by parlor count)
-  const estimatedPayout = pendingFeesRaw && totalParlors && userParlorCount && totalParlors > 0n
-    ? (pendingFeesRaw * 5000n / 10000n / totalParlors) * userParlorCount
-    : 0n
-  const estimatedPayoutFormatted = estimatedPayout ? Number(formatUnits(estimatedPayout, 18)) : 0
 
   // ============ Contract Writes ============
 
@@ -219,7 +219,7 @@ export default function PizzaParlorPage({
 
   // ============ Action Handlers ============
 
-  const _handleApprove = async () => {
+  const handleApprove = async () => {
     if (!parlorPriceWei) return
     setIsApproving(true)
     try {
@@ -235,7 +235,7 @@ export default function PizzaParlorPage({
     }
   }
 
-  const _handlePurchaseParlor = async () => {
+  const handlePurchaseParlor = async () => {
     if (!parlorPriceWei) return
     setIsPurchasing(true)
     try {
@@ -251,16 +251,16 @@ export default function PizzaParlorPage({
     }
   }
 
-  const handleDistributeFees = async () => {
+  const handleClaimFees = async () => {
     setIsDistributing(true)
     try {
       writeContract({
         address: PARLOR_MANAGER_ADDRESS as `0x${string}`,
         abi: PARLOR_MANAGER_ABI,
-        functionName: 'distributeFranchiseFees',
+        functionName: 'claimMyFees',
       })
     } catch (error) {
-      console.error('Distribute error:', error)
+      console.error('Claim error:', error)
       setIsDistributing(false)
     }
   }
@@ -490,11 +490,13 @@ export default function PizzaParlorPage({
 
   // ============ Computed States ============
 
-  const _canBuyParlor = isConnected && parlorsOwned < maxParlorsPerWallet && totalParlorsSold < maxTotalParlors && parlorPriceWei !== null && !priceLoading
-  const canDistribute = pendingFeesRaw && pendingFeesRaw > 0n
+  // Only allow FID 1013491 to buy parlors for testing
+  const isAllowedToBuy = userFid === ALLOWED_BUY_FID
+  const canBuyParlor = isAllowedToBuy && isConnected && parlorsOwned < maxParlorsPerWallet && totalParlorsSold < maxTotalParlors && parlorPriceWei !== null && !priceLoading
+  const canClaimFees = claimableBalanceRaw && claimableBalanceRaw > 0n
   const canSendSlice = isConnected && parlorsOwned > 0 && slicesRemainingNum > 0 && resolveRecipient(recipientInput) !== null
 
-  const _buyButtonText = () => {
+  const buyButtonText = () => {
     if (!isConnected) return '🍍 CONNECT WALLET 🍍'
     if (priceLoading || !parlorPriceWei) return '🍍 LOADING PRICE... 🍍'
     if (parlorsOwned >= maxParlorsPerWallet) return '🍍 MAX OWNED 🍍'
@@ -603,14 +605,25 @@ export default function PizzaParlorPage({
                       </p>
                     </div>
 
-                    {/* Buy Button - TEMPORARILY DISABLED */}
-                    <Button
-                      className="w-full !bg-gray-400 text-white font-bold py-2 rounded-xl border-4 border-gray-600 uppercase cursor-not-allowed"
-                      style={{ ...customFontStyle, fontSize: isMobile ? 14 : 16 }}
-                      disabled={true}
-                    >
-                      🍍 COMING SOON 🍍
-                    </Button>
+                    {/* Buy Button - Only enabled for FID 1013491 */}
+                    {isAllowedToBuy ? (
+                      <Button
+                        onClick={needsApproval ? handleApprove : handlePurchaseParlor}
+                        className="w-full !bg-orange-600 hover:!bg-orange-700 text-white font-bold py-2 rounded-xl border-4 border-orange-800 uppercase"
+                        style={{ ...customFontStyle, fontSize: isMobile ? 14 : 16 }}
+                        disabled={!canBuyParlor || isPurchasing || isApproving || isConfirming}
+                      >
+                        {buyButtonText()}
+                      </Button>
+                    ) : (
+                      <Button
+                        className="w-full !bg-gray-400 text-white font-bold py-2 rounded-xl border-4 border-gray-600 uppercase cursor-not-allowed"
+                        style={{ ...customFontStyle, fontSize: isMobile ? 14 : 16 }}
+                        disabled={true}
+                      >
+                        🍍 COMING SOON 🍍
+                      </Button>
+                    )}
                   </div>
                 </div>
               )}
@@ -629,10 +642,10 @@ export default function PizzaParlorPage({
               {collectFeesOpen && (
                 <div className="bg-yellow-100 border-4 border-t-0 border-yellow-800 rounded-b-xl p-4">
                   <div className="space-y-3">
-                    {/* Pool Info */}
+                    {/* Claimable Balance */}
                     <div className="flex justify-between items-center">
-                      <span className="text-yellow-800" style={{ ...customFontStyle, fontSize: 14 }}>Pending Fees:</span>
-                      <span className="text-green-600" style={{ ...customFontStyle, fontSize: 14 }}>{pendingFeesFormatted.toLocaleString()} PIZZA</span>
+                      <span className="text-yellow-800" style={{ ...customFontStyle, fontSize: 14 }}>Your Claimable Fees:</span>
+                      <span className="text-green-600" style={{ ...customFontStyle, fontSize: 14 }}>{claimableFeesFormatted.toLocaleString()} PIZZA</span>
                     </div>
 
                     {/* Your Stats */}
@@ -645,38 +658,26 @@ export default function PizzaParlorPage({
                       <span className="text-yellow-900" style={{ ...customFontStyle, fontSize: 14 }}>{totalParlorsSold}</span>
                     </div>
 
-                    {/* Estimated Payout */}
-                    {parlorsOwned > 0 && (
-                      <div className="bg-yellow-200 rounded-lg p-2">
-                        <p className="text-yellow-800 text-center" style={{ ...customFontStyle, fontSize: 12 }}>
-                          Your Est. Payout: ~{estimatedPayoutFormatted.toFixed(2)} PIZZA
-                        </p>
-                        <p className="text-yellow-700 text-center" style={{ ...customFontStyle, fontSize: 10 }}>
-                          (50% owners pool / {totalParlorsSold} parlors) x {parlorsOwned}
-                        </p>
-                      </div>
-                    )}
-
                     {/* Distribution Info */}
                     <div className="bg-yellow-200 rounded-lg p-2 text-center">
                       <p className="text-yellow-700" style={{ ...customFontStyle, fontSize: 10 }}>
-                        Distribution: 50% owners | 30% treasury | 20% ops
+                        Fees distributed: 50% owners | 30% treasury | 20% ops
                       </p>
                     </div>
 
                     {/* Collect Button */}
-            <Button
-                      onClick={handleDistributeFees}
+                    <Button
+                      onClick={handleClaimFees}
                       className="w-full !bg-green-600 hover:!bg-green-700 text-white font-bold py-2 rounded-xl border-4 border-green-800 uppercase"
                       style={{ ...customFontStyle, fontSize: isMobile ? 14 : 16 }}
-                      disabled={!canDistribute || isDistributing || isConfirming}
+                      disabled={!canClaimFees || isDistributing || isConfirming}
                     >
                       {isDistributing || (isConfirming && isDistributing)
-                        ? '💰 DISTRIBUTING... 💰'
-                        : pendingFeesFormatted <= 0
+                        ? '💰 COLLECTING... 💰'
+                        : claimableFeesFormatted <= 0
                           ? '💰 NO FEES TO COLLECT 💰'
-                          : '💰 DISTRIBUTE FEES 💰'}
-            </Button>
+                          : '💰 COLLECT FEES 💰'}
+                    </Button>
                   </div>
                 </div>
               )}

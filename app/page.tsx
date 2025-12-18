@@ -167,6 +167,7 @@ export default function HomePage() {
           onNavigateToWeekly={handleNavigateToWeekly}
           onNavigateToLeaderboard={handleNavigateToLeaderboard}
           onNavigateToHome={handleBackToHome}
+          userFid={userFid}
         />
       </>
     );
