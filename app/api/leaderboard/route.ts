@@ -55,22 +55,12 @@ export async function GET(): Promise<NextResponse<LeaderboardResponse>> {
     let latestWeeklyGame: GameData | null = null
     const allWinnerAddresses: string[] = []
 
-    // Find the most recent SETTLED daily game with winners
+    // Find the most recent daily game with winners
+    // Note: We check for winners regardless of settled flag because the settlement
+    // might have processed (winners paid) but the flag not updated due to a bug
     const currentDailyId = Number(dailyGameId)
-    for (let gameId = currentDailyId - 1; gameId >= 1; gameId--) {
+    for (let gameId = currentDailyId; gameId >= 1; gameId--) {
       try {
-        const gameData = await publicClient.readContract({
-          address: PIZZA_PARTY_ADDRESS as `0x${string}`,
-          abi: PIZZA_PARTY_ABI,
-          functionName: 'dailyGames',
-          args: [BigInt(gameId)],
-        }) as unknown as { startTime: bigint; endTime: bigint; firstPlayer: string; potAmount: bigint; settled: boolean }
-
-        const isSettled = gameData.settled
-        console.log(`[Leaderboard API] Daily Game ${gameId}: settled=${isSettled}, pot=${gameData.potAmount}`)
-
-        if (!isSettled) continue
-
         const winners = await publicClient.readContract({
           address: PIZZA_PARTY_ADDRESS as `0x${string}`,
           abi: PIZZA_PARTY_ABI,
@@ -81,6 +71,15 @@ export async function GET(): Promise<NextResponse<LeaderboardResponse>> {
         console.log(`[Leaderboard API] Daily Game ${gameId} winners:`, winners?.length || 0)
 
         if (winners && winners.length > 0) {
+          const gameData = await publicClient.readContract({
+            address: PIZZA_PARTY_ADDRESS as `0x${string}`,
+            abi: PIZZA_PARTY_ABI,
+            functionName: 'dailyGames',
+            args: [BigInt(gameId)],
+          }) as unknown as { startTime: bigint; endTime: bigint; firstPlayer: string; potAmount: bigint; settled: boolean }
+
+          console.log(`[Leaderboard API] Daily Game ${gameId}: settled=${gameData.settled}, pot=${gameData.potAmount}`)
+
           latestDailyGame = {
             gameId,
             startTime: gameData.startTime.toString(),
