@@ -401,7 +401,7 @@ export default function LeaderboardPage({
             {getUsdValue()}
           </span>
           <span className="block text-sm font-bold text-green-600" style={customFontStyle}>
-            {Number(winner.thisGamePayout).toFixed(1)} PIZZA
+            PIZZA
           </span>
         </div>
       </div>
