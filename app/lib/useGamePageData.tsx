@@ -18,17 +18,18 @@ import { wagmiConfig } from '../components/config/wagmiConfig'
 const PACIFIC_TZ = 'America/Los_Angeles'
 const BASE_CHAIN_ID = 8453
 const WEI_PER_PIZZA = 10n ** 18n
-// Get last known price from localStorage, fallback to 0.01 if not available
+const DEFAULT_PIZZA_USD_PRICE = 0.01
+
+// Get last known price from localStorage, fallback to default if not available
 const getLastKnownPrice = (): number => {
-  if (typeof window === 'undefined') return 0.01
+  if (typeof window === 'undefined') return DEFAULT_PIZZA_USD_PRICE
   const stored = localStorage.getItem('pizzaUsdPrice')
   if (stored) {
     const price = parseFloat(stored)
     if (!isNaN(price) && price > 0) return price
   }
-  return 0.01
+  return DEFAULT_PIZZA_USD_PRICE
 }
-const DEFAULT_PIZZA_USD_PRICE = 0.01
 const TOPPINGS_EARNED_EVENT = parseAbiItem(
   'event ToppingsEarned(uint256 indexed weekId, address indexed player, uint256 amount, string reason)',
 )
