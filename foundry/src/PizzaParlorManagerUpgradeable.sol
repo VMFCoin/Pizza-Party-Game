@@ -382,7 +382,8 @@ contract PizzaParlorManagerUpgradeable is
         uint256 totalUnclaimed = _getTotalUnclaimedBalance();
         uint256 availableForAllocation = currentBalance > totalUnclaimed ? currentBalance - totalUnclaimed : 0;
 
-        if (availableForAllocation == 0) revert NoFeesToDistribute();
+        // Early return if no fees to distribute (don't revert - allows safe calling from settlement)
+        if (availableForAllocation == 0) return;
 
         // Calculate splits
         uint256 treasuryAmount = (availableForAllocation * FRANCHISE_TREASURY_BPS) / BPS_DENOMINATOR;
@@ -461,7 +462,8 @@ contract PizzaParlorManagerUpgradeable is
         uint256 totalUnclaimed = _getTotalUnclaimedBalance();
         uint256 availableForAllocation = currentBalance > totalUnclaimed ? currentBalance - totalUnclaimed : 0;
 
-        if (availableForAllocation == 0) revert NoFeesToDistribute();
+        // Early return if no fees to distribute (don't revert - allows safe calling)
+        if (availableForAllocation == 0) return;
 
         uint256 treasuryAmount = (availableForAllocation * FRANCHISE_TREASURY_BPS) / BPS_DENOMINATOR;
         uint256 ownersAmount = (availableForAllocation * FRANCHISE_OWNERS_BPS) / BPS_DENOMINATOR;
