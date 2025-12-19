@@ -8,7 +8,6 @@ import { ArrowLeft, ChevronDown, ChevronUp } from 'lucide-react'
 import { useAccount, useReadContracts, useWriteContract, useWaitForTransactionReceipt } from 'wagmi'
 import { formatUnits, parseUnits, isAddress } from 'viem'
 import { PARLOR_MANAGER_ADDRESS, PARLOR_MANAGER_ABI, PIZZA_TOKEN_ADDRESS, PIZZA_TOKEN_ABI, PIZZA_PARTY_ADDRESS, PIZZA_PARTY_ABI } from '../lib/constants'
-import { sdk } from '@farcaster/miniapp-sdk'
 
 // Parlor price in USD - this is the fixed dollar amount
 const PARLOR_PRICE_USD = 50
@@ -229,40 +228,11 @@ export default function PizzaParlorPage({
       setIsDistributing(false)
       setIsSettingName(false)
 
-      // Handle successful slice send - use Farcaster SDK composeCast
+      // Handle successful slice send - open Warpcast compose
       if (isSendingSlice && sliceSentToUser) {
-        const franchiseName = userParlorName || 'A Pizza Parlor'
-        const castText = `Hey @${sliceSentToUser.username}!!! 🍕🔥\n${franchiseName} just hooked you up with a free hot slice. Come grab it and jump into Pizza Party – you're automatically entered for the Daily Jackpot the second you open the app!\n\nDon't let this slice get cold... dive in and let's get saucy! 😏\nOpen your free slice here:`
-        const embedUrl = 'https://farcaster.xyz/miniapps/wgY6OPqYoIkz/pizza-party'
-
-        // Try to use Farcaster SDK composeCast (works in-app on mobile)
-        const tryComposeCast = async () => {
-          const actions = sdk.actions as {
-            composeCast?: (opts?: { text?: string; embeds?: string[] }) => Promise<void>
-          }
-          if (typeof actions.composeCast === 'function') {
-            try {
-              await actions.composeCast({
-                text: castText,
-                embeds: [embedUrl],
-              })
-              return true
-            } catch (err) {
-              console.error('composeCast failed:', err)
-              return false
-            }
-          }
-          return false
-        }
-
-        tryComposeCast().then((success) => {
-          if (!success) {
-            // Fallback for desktop/non-miniapp: open in same window
-            const composeUrl = `https://warpcast.com/~/compose?text=${encodeURIComponent(castText)}&embeds[]=${encodeURIComponent(embedUrl)}`
-            window.location.href = composeUrl
-          }
-        })
-
+        const castText = `🍕 Hey @${sliceSentToUser.username}! I just sent you a FREE slice of Pizza Party!\n\nClaim your free game entry:\nhttps://farcaster.xyz/miniapps/wgY6OPqYoIkz/pizza-party`
+        const composeUrl = `https://warpcast.com/~/compose?text=${encodeURIComponent(castText)}`
+        window.open(composeUrl, '_self')
         setSliceSentToUser(null)
       }
 
@@ -274,7 +244,7 @@ export default function PizzaParlorPage({
       setIsSendingSlice(false)
       resetWrite()
     }
-  }, [isConfirmed, refetchContractData, refetchUserData, resetWrite, isSendingSlice, sliceSentToUser, isPurchasing, userHasParlorName, userParlorName])
+  }, [isConfirmed, refetchContractData, refetchUserData, resetWrite, isSendingSlice, sliceSentToUser, isPurchasing, userHasParlorName])
 
   // ============ Action Handlers ============
 
