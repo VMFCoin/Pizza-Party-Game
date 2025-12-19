@@ -350,10 +350,15 @@ export default function LeaderboardPage({
     const isPlaceholder = !!winner.isPlaceholder
     const isCurrentUser = !isPlaceholder && address?.toLowerCase() === winner.address.toLowerCase()
 
-    // Calculate USD value - weekly game 4 and earlier uses hardcoded, all else calculates dynamically
+    // Calculate USD value - hardcode for historical games, dynamic for new ones
+    // TODO: Remove Game 3 daily hardcode after Game 4 settles
     const getUsdValue = () => {
       if (isWeekly && gameId <= 4) {
         return '$6.52'
+      }
+      // Daily Game 3: winners got $5.91 each (664.22 PIZZA at settlement price)
+      if (!isWeekly && gameId === 3) {
+        return '$5.91'
       }
       return `$${(Number(winner.thisGamePayout) * pizzaUsd).toFixed(2)}`
     }
@@ -486,7 +491,7 @@ export default function LeaderboardPage({
                   <div className="space-y-3">
                     {dailyWinners.map((winner, index) => (
                       <div key={`daily-${winner.address}-${index}`}>
-                        {renderWinnerRow(winner, index + 1)}
+                        {renderWinnerRow(winner, index + 1, false, previousDailyGameId)}
                       </div>
                     ))}
                   </div>
