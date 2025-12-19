@@ -155,8 +155,17 @@ contract PizzaPartyV2Upgradeable is OwnableUpgradeable, UUPSUpgradeable, Reentra
     mapping(uint256 => mapping(address => address)) public dailySliceSponsor; // gameId => player => sponsor
 
     // First-week sponsor tracking: only applies for the first claim week
-    mapping(address => address) public firstSliceSponsor;   // player => sponsor (set once if brand-new and sliced)
-    mapping(address => uint256) public firstClaimWeekId;    // player => first weekId they ever claimed toppings (set once)
+    mapping(address => address) public firstSliceSponsor;   // player => sponsor (set once if brand-new and sliced) - DEPRECATED
+    mapping(address => uint256) public firstClaimWeekId;    // player => first weekId they ever claimed toppings (set once) - DEPRECATED
+
+    // NEW: Track if a sponsor has ever sliced a player (sponsor => player => hasSliced)
+    // Each sponsor can only get 50% reward from a player ONCE (first slice ever)
+    mapping(address => mapping(address => bool)) public hasSlicedPlayer;
+
+    // NEW: Track which sponsor gets 50% of a player's weekly win for a given week
+    // When sponsor first slices a player, they get 50% of that player's weekly win for that week only
+    // weekId => player => sponsor (the sponsor who first sliced them in that week)
+    mapping(uint256 => mapping(address => address)) public weeklySliceSponsor;
 
     // ============ Events ============
 
@@ -319,21 +328,31 @@ contract PizzaPartyV2Upgradeable is OwnableUpgradeable, UUPSUpgradeable, Reentra
         require(player != address(0) && sponsor != address(0), "Invalid addr");
         require(player != sponsor, "No self slice");
 
-        // Anti-abuse guard: ONLY record sponsor if player is brand-new
-        if (_isNewPlayer(player)) {
-            // Record daily sponsor for THIS gameId
+        // First, do the entry (which may auto-settle and update gameIds)
+        // This ensures we're recording sponsor for the CORRECT gameId
+        _enterDaily(player, 0);
+
+        // Now check if this sponsor has EVER sliced this player before
+        // Sponsor only gets 50% reward on their FIRST slice to this player
+        if (!hasSlicedPlayer[sponsor][player]) {
+            // First time this sponsor is slicing this player
+            hasSlicedPlayer[sponsor][player] = true;
+
+            // Record daily sponsor for THIS gameId (for daily 50% split)
+            // Use the current dailyGameId (which is correct after auto-settlement)
             dailySliceSponsor[dailyGameId][player] = sponsor;
 
-            // Record first sponsor once (used later for first weekly claim split)
-            if (firstSliceSponsor[player] == address(0)) {
-                firstSliceSponsor[player] = sponsor;
+            // Record weekly sponsor for THIS weekId (for weekly 50% split)
+            // Only record if no sponsor already recorded for this player this week
+            // (first sponsor to slice them this week gets the weekly 50%)
+            if (weeklySliceSponsor[weeklyGameId][player] == address(0)) {
+                weeklySliceSponsor[weeklyGameId][player] = sponsor;
             }
 
             emit SliceSponsored(dailyGameId, player, sponsor);
         }
-
-        // Free entry – no transferFrom, no pot increase
-        _enterDaily(player, 0);
+        // If sponsor has sliced this player before, no sponsor is recorded
+        // Player still gets free entry, but sponsor gets no 50% reward
 
         emit SliceEntryGranted(dailyGameId, player, msg.sender);
     }
@@ -647,8 +666,11 @@ contract PizzaPartyV2Upgradeable is OwnableUpgradeable, UUPSUpgradeable, Reentra
         pizzaToken.safeTransferFrom(treasuryWallet, address(this), jackpot);
 
         // Select winners weighted by claimed toppings
-        uint256 winnerCount = week.claimers.length < WEEKLY_WINNERS ? week.claimers.length : WEEKLY_WINNERS;
-        address[] memory winners = _selectWeightedWinners(week.claimers, weekId, winnerCount);
+        uint256 requestedWinners = week.claimers.length < WEEKLY_WINNERS ? week.claimers.length : WEEKLY_WINNERS;
+        address[] memory winners = _selectWeightedWinners(week.claimers, weekId, requestedWinners);
+
+        // Use actual winner count (may be less if weighted selection couldn't find enough unique winners)
+        uint256 winnerCount = winners.length;
 
         // Pay winners equally
         uint256 basePayoutEach = jackpot / winnerCount;
@@ -659,11 +681,12 @@ contract PizzaPartyV2Upgradeable is OwnableUpgradeable, UUPSUpgradeable, Reentra
             uint256 payout = basePayoutEach;
 
             address winner = winners[i];
-            address sponsor = firstSliceSponsor[winner];
-            bool isFirstClaimWeek = (firstClaimWeekId[winner] == weekId);
+            // Use the new per-week sponsor mapping
+            // This is the sponsor who first-sliced this player during this specific week
+            address sponsor = weeklySliceSponsor[weekId][winner];
 
-            if (sponsor != address(0) && isFirstClaimWeek) {
-                // 50/50 split
+            if (sponsor != address(0)) {
+                // 50/50 split - sponsor gets 50% of this player's weekly win
                 uint256 sponsorCut = payout / 2;
                 uint256 playerCut = payout - sponsorCut;
 
