@@ -231,7 +231,8 @@ export default function PizzaParlorPage({
 
       // Handle successful slice send - use Farcaster SDK composeCast
       if (isSendingSlice && sliceSentToUser) {
-        const castText = `🍕 Hey @${sliceSentToUser.username}! I just sent you a FREE slice of Pizza Party!\n\nClaim your free game entry:`
+        const franchiseName = userParlorName || 'A Pizza Parlor'
+        const castText = `Hey @${sliceSentToUser.username}!!! 🍕🔥\n${franchiseName} just hooked you up with a free hot slice. Come grab it and jump into Pizza Party – you're automatically entered for the Daily Jackpot the second you open the app!\n\nDon't let this slice get cold... dive in and let's get saucy! 😏\nOpen your free slice here:`
         const embedUrl = 'https://farcaster.xyz/miniapps/wgY6OPqYoIkz/pizza-party'
 
         // Try to use Farcaster SDK composeCast (works in-app on mobile)
@@ -273,7 +274,7 @@ export default function PizzaParlorPage({
       setIsSendingSlice(false)
       resetWrite()
     }
-  }, [isConfirmed, refetchContractData, refetchUserData, resetWrite, isSendingSlice, sliceSentToUser, isPurchasing, userHasParlorName])
+  }, [isConfirmed, refetchContractData, refetchUserData, resetWrite, isSendingSlice, sliceSentToUser, isPurchasing, userHasParlorName, userParlorName])
 
   // ============ Action Handlers ============
 
