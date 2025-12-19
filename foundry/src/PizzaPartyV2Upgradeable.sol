@@ -1201,4 +1201,90 @@ contract PizzaPartyV2Upgradeable is OwnableUpgradeable, UUPSUpgradeable, Reentra
         require(gameId > 0, "Invalid game ID");
         dailyGames[gameId].settled = false;
     }
+
+    /**
+     * @dev Admin function to mark a daily game as settled WITHOUT re-processing
+     * Use this when winners are already stored but settled flag is wrong
+     * @param gameId The game ID to mark as settled
+     */
+    function adminMarkDailyGameSettled(uint256 gameId) external onlyOwner {
+        require(gameId > 0, "Invalid game ID");
+        dailyGames[gameId].settled = true;
+    }
+
+    /**
+     * @dev Admin function to ONLY change the dailyGameId counter without re-initializing
+     * Use this when players have already entered a game but the ID counter is wrong
+     * This preserves all existing game data and players
+     * @param newDailyGameId The correct daily game ID to set
+     */
+    function adminSetDailyGameIdOnly(uint256 newDailyGameId) external onlyOwner {
+        require(newDailyGameId > 0, "Invalid game ID");
+        dailyGameId = newDailyGameId;
+    }
+
+    /**
+     * @dev Admin function to migrate specific players from one game to another
+     * Used to fix state when players entered the wrong game due to settlement bugs
+     * @param fromGameId The source game ID
+     * @param toGameId The destination game ID
+     * @param playersToMigrate Array of player addresses to move
+     * @param pizzaPerPlayer Amount of PIZZA each player contributed (for pot calculation)
+     */
+    function adminMigratePlayers(
+        uint256 fromGameId,
+        uint256 toGameId,
+        address[] calldata playersToMigrate,
+        uint256 pizzaPerPlayer
+    ) external onlyOwner {
+        require(fromGameId > 0 && toGameId > 0, "Invalid game IDs");
+        require(playersToMigrate.length > 0, "No players to migrate");
+
+        DailyGame storage fromGame = dailyGames[fromGameId];
+        DailyGame storage toGame = dailyGames[toGameId];
+
+        // Calculate total PIZZA to move
+        uint256 totalPizzaToMove = pizzaPerPlayer * playersToMigrate.length;
+
+        // Move pot amount
+        require(fromGame.potAmount >= totalPizzaToMove, "Insufficient pot in source game");
+        fromGame.potAmount -= totalPizzaToMove;
+        toGame.potAmount += totalPizzaToMove;
+
+        // Add players to destination game
+        for (uint256 i = 0; i < playersToMigrate.length; i++) {
+            address player = playersToMigrate[i];
+
+            // Add to destination game players array
+            toGame.players.push(player);
+            hasPlayedDaily[toGameId][player] = true;
+
+            // Mark as first player if destination is empty
+            if (toGame.players.length == 1) {
+                toGame.firstPlayer = player;
+            }
+
+            // Remove from source game's hasPlayedDaily mapping
+            // (we can't easily remove from array, but hasPlayedDaily is what matters for re-entry check)
+            hasPlayedDaily[fromGameId][player] = false;
+        }
+    }
+
+    /**
+     * @dev Admin function to initialize a new daily game with specific times
+     * @param gameId The game ID to initialize
+     * @param startTime The start timestamp
+     * @param endTime The end timestamp
+     */
+    function adminInitializeDailyGame(
+        uint256 gameId,
+        uint256 startTime,
+        uint256 endTime
+    ) external onlyOwner {
+        require(gameId > 0, "Invalid game ID");
+        DailyGame storage game = dailyGames[gameId];
+        game.startTime = startTime;
+        game.endTime = endTime;
+        game.settled = false;
+    }
 }

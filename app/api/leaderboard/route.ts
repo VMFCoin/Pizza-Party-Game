@@ -56,8 +56,7 @@ export async function GET(): Promise<NextResponse<LeaderboardResponse>> {
     const allWinnerAddresses: string[] = []
 
     // Find the most recent daily game with winners
-    // Note: We check for winners regardless of settled flag because the settlement
-    // might have processed (winners paid) but the flag not updated due to a bug
+    // Game 3 has winners but settled=false due to a bug, so we check winners first
     const currentDailyId = Number(dailyGameId)
     for (let gameId = currentDailyId; gameId >= 1; gameId--) {
       try {
@@ -80,10 +79,12 @@ export async function GET(): Promise<NextResponse<LeaderboardResponse>> {
 
           console.log(`[Leaderboard API] Daily Game ${gameId}: settled=${gameData.settled}, pot=${gameData.potAmount}`)
 
+          // For display, we show the start time as the "settlement date"
+          // since that's the day the game was played (endTime is when it ends, startTime is when it started)
           latestDailyGame = {
             gameId,
             startTime: gameData.startTime.toString(),
-            endTime: gameData.endTime.toString(),
+            endTime: gameData.startTime.toString(), // Use startTime for display (the day the game was played)
             potAmount: formatUnits(gameData.potAmount, 18),
             settled: gameData.settled,
             winners,
