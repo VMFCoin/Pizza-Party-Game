@@ -217,10 +217,17 @@ export default function LeaderboardPage({
         const dailyAddresses = dailyWinnersAddresses || []
 
         if (dailyAddresses.length > 0 && previousDailyGameId >= 1) {
-          const dailyPot = previousDailyGame ? previousDailyGame.potAmount : 0n
-          const dailyPayoutPerWinner = dailyAddresses.length > 0 && dailyPot > 0n
-            ? Number(Number(dailyPot) * 0.94 / dailyAddresses.length / 1e18).toFixed(1)
-            : '0'
+          // TODO: Remove Game 3 hardcode after Game 4 settles
+          // Game 3 pot was modified during player migration, so hardcode actual payout
+          let dailyPayoutPerWinner: string
+          if (previousDailyGameId === 3) {
+            dailyPayoutPerWinner = '664.2' // Actual payout: 664.22 PIZZA each
+          } else {
+            const dailyPot = previousDailyGame ? previousDailyGame.potAmount : 0n
+            dailyPayoutPerWinner = dailyAddresses.length > 0 && dailyPot > 0n
+              ? Number(Number(dailyPot) * 0.94 / dailyAddresses.length / 1e18).toFixed(1)
+              : '0'
+          }
 
           dailyPlayersData = dailyAddresses.map((addr: string) => {
             const stats = playerStatsMap[addr.toLowerCase()]
