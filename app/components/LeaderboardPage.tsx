@@ -141,8 +141,8 @@ export default function LeaderboardPage({
   const [displayWeeklyGameId, setDisplayWeeklyGameId] = useState<number>(0)
   const [dailyWinnersAddresses, setDailyWinnersAddresses] = useState<string[]>([])
   const [weeklyWinnersAddresses, setWeeklyWinnersAddresses] = useState<string[]>([])
-  const [previousDailyGame, setPreviousDailyGame] = useState<{ startTime: bigint; endTime: bigint; potAmount: bigint; settled: boolean } | null>(null)
-  const [previousWeeklyGame, setPreviousWeeklyGame] = useState<{ claimWindowEnd: bigint; potAmount: bigint; settled: boolean } | null>(null)
+  const [previousDailyGame, setPreviousDailyGame] = useState<{ startTime: bigint; endTime: bigint; potAmount: bigint; settled: boolean; usdCentsPerWinner: number } | null>(null)
+  const [previousWeeklyGame, setPreviousWeeklyGame] = useState<{ claimWindowEnd: bigint; potAmount: bigint; settled: boolean; usdCentsPerWinner: number } | null>(null)
   const [playerStatsMap, setPlayerStatsMap] = useState<Record<string, { totalWins: number; totalPizzaWon: string }>>({})
   const [dataLoaded, setDataLoaded] = useState(false)
 
@@ -171,8 +171,9 @@ export default function LeaderboardPage({
             endTime: BigInt(data.latestDailyGame.endTime),
             potAmount: BigInt(Math.floor(parseFloat(data.latestDailyGame.potAmount) * 1e18)),
             settled: data.latestDailyGame.settled,
+            usdCentsPerWinner: data.latestDailyGame.usdCentsPerWinner || 0,
           })
-          console.log(`[Leaderboard] Daily game ${data.latestDailyGame.gameId} with ${data.latestDailyGame.winners.length} winners`)
+          console.log(`[Leaderboard] Daily game ${data.latestDailyGame.gameId} with ${data.latestDailyGame.winners.length} winners, usdCents=${data.latestDailyGame.usdCentsPerWinner}`)
         }
 
         // Set weekly game data
@@ -183,8 +184,9 @@ export default function LeaderboardPage({
             claimWindowEnd: BigInt(data.latestWeeklyGame.endTime),
             potAmount: BigInt(Math.floor(parseFloat(data.latestWeeklyGame.potAmount) * 1e18)),
             settled: data.latestWeeklyGame.settled,
+            usdCentsPerWinner: data.latestWeeklyGame.usdCentsPerWinner || 0,
           })
-          console.log(`[Leaderboard] Weekly game ${data.latestWeeklyGame.gameId} with ${data.latestWeeklyGame.winners.length} winners`)
+          console.log(`[Leaderboard] Weekly game ${data.latestWeeklyGame.gameId} with ${data.latestWeeklyGame.winners.length} winners, usdCents=${data.latestWeeklyGame.usdCentsPerWinner}`)
         }
 
         // Set player stats
@@ -350,9 +352,17 @@ export default function LeaderboardPage({
     const isPlaceholder = !!winner.isPlaceholder
     const isCurrentUser = !isPlaceholder && address?.toLowerCase() === winner.address.toLowerCase()
 
-    // Calculate USD value - hardcode for historical games, dynamic for new ones
-    // TODO: Remove Game 3 daily hardcode after Game 4 settles
+    // Get USD value - use stored value from contract if available, fall back to hardcodes or dynamic
     const getUsdValue = () => {
+      // Check if we have a stored USD value from the contract
+      if (isWeekly && previousWeeklyGame?.usdCentsPerWinner && previousWeeklyGame.usdCentsPerWinner > 0) {
+        return `$${(previousWeeklyGame.usdCentsPerWinner / 100).toFixed(2)}`
+      }
+      if (!isWeekly && previousDailyGame?.usdCentsPerWinner && previousDailyGame.usdCentsPerWinner > 0) {
+        return `$${(previousDailyGame.usdCentsPerWinner / 100).toFixed(2)}`
+      }
+
+      // Fall back to hardcodes for historical games (before USD snapshot feature)
       if (isWeekly && gameId <= 4) {
         return '$6.52'
       }
@@ -360,6 +370,8 @@ export default function LeaderboardPage({
       if (!isWeekly && gameId === 3) {
         return '$5.91'
       }
+
+      // Dynamic calculation for games without stored USD (shouldn't happen after upgrade)
       return `$${(Number(winner.thisGamePayout) * pizzaUsd).toFixed(2)}`
     }
 

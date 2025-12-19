@@ -72,13 +72,45 @@ const SETTLE_ABI = [
     type: 'function',
   },
   {
+    inputs: [{ type: 'uint256', name: 'usdCentsPerWinner' }],
+    name: 'settleDailyGameWithUsd',
+    outputs: [],
+    stateMutability: 'nonpayable',
+    type: 'function',
+  },
+  {
     inputs: [],
     name: 'settleWeeklyGame',
     outputs: [],
     stateMutability: 'nonpayable',
     type: 'function',
   },
+  {
+    inputs: [{ type: 'uint256', name: 'usdCentsPerWinner' }],
+    name: 'settleWeeklyGameWithUsd',
+    outputs: [],
+    stateMutability: 'nonpayable',
+    type: 'function',
+  },
 ] as const;
+
+// Fetch PIZZA price from Dexscreener to calculate USD value at settlement
+async function getPizzaPrice(): Promise<number> {
+  try {
+    const response = await fetch(
+      'https://api.dexscreener.com/latest/dex/tokens/0xbD0e3768B9A7C3d53e7b92EDC4C38728E2fA9b69'
+    );
+    const data = await response.json();
+    if (data.pairs && data.pairs.length > 0) {
+      const price = parseFloat(data.pairs[0].priceUsd);
+      console.log(`[Settle Bot] PIZZA price: $${price}`);
+      return price;
+    }
+  } catch (e) {
+    console.error('[Settle Bot] Failed to fetch PIZZA price:', e);
+  }
+  return 0;
+}
 
 // ParlorManager ABI for allocateFees
 const PARLOR_ABI = [
@@ -97,9 +129,6 @@ const PARLOR_ABI = [
     type: 'function',
   },
 ] as const;
-
-// USD value is now calculated on frontend from pot amount and live PIZZA price
-// No need to store it in contract anymore
 
 export async function GET(request: NextRequest) {
   // Verify this is from Vercel Cron or authorized
@@ -167,7 +196,7 @@ export async function GET(request: NextRequest) {
 
       if (isDailyReady) {
         // Check player count and pot for logging
-        const [players, currentPot] = await Promise.all([
+        const [players, currentPot, pizzaPrice] = await Promise.all([
           publicClient.readContract({
             address: CONTRACT_ADDRESS,
             abi: SETTLE_ABI,
@@ -179,16 +208,38 @@ export async function GET(request: NextRequest) {
             abi: SETTLE_ABI,
             functionName: 'currentDailyPot',
           }),
+          getPizzaPrice(),
         ]);
 
-        console.log(`[Settle Bot] Settling daily game ${dailyGameId} with ${players.length} players, pot: ${formatUnits(currentPot, 18)} PIZZA`);
+        const potFloat = parseFloat(formatUnits(currentPot, 18));
+        const winnerCount = Math.min(players.length, 8); // Max 8 winners
+        const pizzaPerWinner = winnerCount > 0 ? (potFloat * 0.94) / winnerCount : 0;
+        const usdPerWinner = pizzaPerWinner * pizzaPrice;
+        const usdCentsPerWinner = Math.round(usdPerWinner * 100); // Convert to cents
 
-        const hash = await walletClient.writeContract({
-          address: CONTRACT_ADDRESS,
-          abi: SETTLE_ABI,
-          functionName: 'settleDailyGame',
-          gas: 2_000_000n, // Increased gas limit for settlement with many players/charities
-        });
+        console.log(`[Settle Bot] Settling daily game ${dailyGameId} with ${players.length} players, pot: ${potFloat.toFixed(2)} PIZZA`);
+        console.log(`[Settle Bot] PIZZA price: $${pizzaPrice}, USD per winner: $${usdPerWinner.toFixed(2)} (${usdCentsPerWinner} cents)`);
+
+        let hash: `0x${string}`;
+        if (usdCentsPerWinner > 0) {
+          // Use new function that locks USD value
+          hash = await walletClient.writeContract({
+            address: CONTRACT_ADDRESS,
+            abi: SETTLE_ABI,
+            functionName: 'settleDailyGameWithUsd',
+            args: [BigInt(usdCentsPerWinner)],
+            gas: 2_000_000n,
+          });
+        } else {
+          // Fallback to old function if price fetch failed
+          console.log(`[Settle Bot] Warning: Using fallback settlement (no USD snapshot)`);
+          hash = await walletClient.writeContract({
+            address: CONTRACT_ADDRESS,
+            abi: SETTLE_ABI,
+            functionName: 'settleDailyGame',
+            gas: 2_000_000n,
+          });
+        }
 
         // Wait for confirmation
         const receipt = await publicClient.waitForTransactionReceipt({ hash });
@@ -227,25 +278,49 @@ export async function GET(request: NextRequest) {
         console.log(`[Settle Bot] Weekly game ${weeklyGameId}, ready: ${isWeeklyReady}`);
 
         if (isWeeklyReady) {
-          // Get weekly game data for logging
-          const weeklyGame = await publicClient.readContract({
-            address: CONTRACT_ADDRESS,
-            abi: SETTLE_ABI,
-            functionName: 'weeklyGames',
-            args: [weeklyGameId],
-          });
+          // Get weekly game data and PIZZA price for USD calculation
+          const [weeklyGame, pizzaPrice] = await Promise.all([
+            publicClient.readContract({
+              address: CONTRACT_ADDRESS,
+              abi: SETTLE_ABI,
+              functionName: 'weeklyGames',
+              args: [weeklyGameId],
+            }),
+            getPizzaPrice(),
+          ]);
 
           // weeklyGame returns: [claimWindowStart, claimWindowEnd, totalClaimedToppings, potAmount, settled]
           const totalClaimedToppings = weeklyGame[2];
+          // Weekly jackpot = totalClaimedToppings * 100 PIZZA (TOPPING_TO_PIZZA constant)
+          const jackpotPizza = Number(totalClaimedToppings) * 100;
+          const winnerCount = 10; // WEEKLY_WINNERS constant
+          const pizzaPerWinner = jackpotPizza / winnerCount;
+          const usdPerWinner = pizzaPerWinner * pizzaPrice;
+          const usdCentsPerWinner = Math.round(usdPerWinner * 100); // Convert to cents
 
-          console.log(`[Settle Bot] Settling weekly game ${weeklyGameId}, totalToppings: ${totalClaimedToppings}`);
+          console.log(`[Settle Bot] Settling weekly game ${weeklyGameId}, totalToppings: ${totalClaimedToppings}, jackpot: ${jackpotPizza} PIZZA`);
+          console.log(`[Settle Bot] PIZZA price: $${pizzaPrice}, USD per winner: $${usdPerWinner.toFixed(2)} (${usdCentsPerWinner} cents)`);
 
-          const hash = await walletClient.writeContract({
-            address: CONTRACT_ADDRESS,
-            abi: SETTLE_ABI,
-            functionName: 'settleWeeklyGame',
-            gas: 2_000_000n, // Increased gas limit for settlement with many players
-          });
+          let hash: `0x${string}`;
+          if (usdCentsPerWinner > 0) {
+            // Use new function that locks USD value
+            hash = await walletClient.writeContract({
+              address: CONTRACT_ADDRESS,
+              abi: SETTLE_ABI,
+              functionName: 'settleWeeklyGameWithUsd',
+              args: [BigInt(usdCentsPerWinner)],
+              gas: 2_000_000n,
+            });
+          } else {
+            // Fallback to old function if price fetch failed
+            console.log(`[Settle Bot] Warning: Using fallback settlement (no USD snapshot)`);
+            hash = await walletClient.writeContract({
+              address: CONTRACT_ADDRESS,
+              abi: SETTLE_ABI,
+              functionName: 'settleWeeklyGame',
+              gas: 2_000_000n,
+            });
+          }
 
           const receipt = await publicClient.waitForTransactionReceipt({ hash });
 

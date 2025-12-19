@@ -21,6 +21,7 @@ interface GameData {
   potAmount: string
   settled: boolean
   winners: string[]
+  usdCentsPerWinner: number // USD value locked at settlement (0 if not set)
 }
 
 interface LeaderboardResponse {
@@ -70,14 +71,23 @@ export async function GET(): Promise<NextResponse<LeaderboardResponse>> {
         console.log(`[Leaderboard API] Daily Game ${gameId} winners:`, winners?.length || 0)
 
         if (winners && winners.length > 0) {
-          const gameData = await publicClient.readContract({
-            address: PIZZA_PARTY_ADDRESS as `0x${string}`,
-            abi: PIZZA_PARTY_ABI,
-            functionName: 'dailyGames',
-            args: [BigInt(gameId)],
-          }) as unknown as { startTime: bigint; endTime: bigint; firstPlayer: string; potAmount: bigint; settled: boolean }
+          // Fetch game data and USD value in parallel
+          const [gameData, usdCentsRaw] = await Promise.all([
+            publicClient.readContract({
+              address: PIZZA_PARTY_ADDRESS as `0x${string}`,
+              abi: PIZZA_PARTY_ABI,
+              functionName: 'dailyGames',
+              args: [BigInt(gameId)],
+            }) as Promise<{ startTime: bigint; endTime: bigint; firstPlayer: string; potAmount: bigint; settled: boolean }>,
+            publicClient.readContract({
+              address: PIZZA_PARTY_ADDRESS as `0x${string}`,
+              abi: PIZZA_PARTY_ABI,
+              functionName: 'getDailyGameUsdValue',
+              args: [BigInt(gameId)],
+            }).catch(() => 0n) as Promise<bigint>, // Returns 0 if function doesn't exist yet
+          ])
 
-          console.log(`[Leaderboard API] Daily Game ${gameId}: settled=${gameData.settled}, pot=${gameData.potAmount}`)
+          console.log(`[Leaderboard API] Daily Game ${gameId}: settled=${gameData.settled}, pot=${gameData.potAmount}, usdCents=${usdCentsRaw}`)
 
           // For display, we show the start time as the "settlement date"
           // since that's the day the game was played (endTime is when it ends, startTime is when it started)
@@ -88,6 +98,7 @@ export async function GET(): Promise<NextResponse<LeaderboardResponse>> {
             potAmount: formatUnits(gameData.potAmount, 18),
             settled: gameData.settled,
             winners,
+            usdCentsPerWinner: Number(usdCentsRaw),
           }
           allWinnerAddresses.push(...winners)
           break
@@ -111,12 +122,21 @@ export async function GET(): Promise<NextResponse<LeaderboardResponse>> {
         const isSettled = weekData.settled
         if (!isSettled) continue
 
-        const winners = await publicClient.readContract({
-          address: PIZZA_PARTY_ADDRESS as `0x${string}`,
-          abi: PIZZA_PARTY_ABI,
-          functionName: 'getWeeklyGameWinners',
-          args: [BigInt(weekId)],
-        }) as string[]
+        // Fetch winners and USD value in parallel
+        const [winners, weeklyUsdCentsRaw] = await Promise.all([
+          publicClient.readContract({
+            address: PIZZA_PARTY_ADDRESS as `0x${string}`,
+            abi: PIZZA_PARTY_ABI,
+            functionName: 'getWeeklyGameWinners',
+            args: [BigInt(weekId)],
+          }) as Promise<string[]>,
+          publicClient.readContract({
+            address: PIZZA_PARTY_ADDRESS as `0x${string}`,
+            abi: PIZZA_PARTY_ABI,
+            functionName: 'getWeeklyGameUsdValue',
+            args: [BigInt(weekId)],
+          }).catch(() => 0n) as Promise<bigint>, // Returns 0 if function doesn't exist yet
+        ])
 
         if (winners && winners.length > 0) {
           latestWeeklyGame = {
@@ -126,6 +146,7 @@ export async function GET(): Promise<NextResponse<LeaderboardResponse>> {
             potAmount: formatUnits(weekData.potAmount, 18),
             settled: weekData.settled,
             winners,
+            usdCentsPerWinner: Number(weeklyUsdCentsRaw),
           }
           allWinnerAddresses.push(...winners)
           break

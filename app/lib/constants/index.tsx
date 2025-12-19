@@ -251,6 +251,12 @@ export const PIZZA_PARTY_ABI = [
   { type: 'function', name: 'getDailyGameWinners', stateMutability: 'view', inputs: [{ type: 'uint256', name: 'gameId' }], outputs: [{ type: 'address[]' }] },
   { type: 'function', name: 'getWeeklyGameWinners', stateMutability: 'view', inputs: [{ type: 'uint256', name: 'weekId' }], outputs: [{ type: 'address[]' }] },
   { type: 'function', name: 'hasUsedReferral', stateMutability: 'view', inputs: [{ type: 'address', name: 'player' }], outputs: [{ type: 'bool' }] },
+  // USD value per winner (locked at settlement time, in cents)
+  { type: 'function', name: 'getDailyGameUsdValue', stateMutability: 'view', inputs: [{ type: 'uint256', name: 'gameId' }], outputs: [{ type: 'uint256' }] },
+  { type: 'function', name: 'getWeeklyGameUsdValue', stateMutability: 'view', inputs: [{ type: 'uint256', name: 'weekId' }], outputs: [{ type: 'uint256' }] },
+  // Settlement with USD snapshot
+  { type: 'function', name: 'settleDailyGameWithUsd', stateMutability: 'nonpayable', inputs: [{ type: 'uint256', name: 'usdCentsPerWinner' }], outputs: [] },
+  { type: 'function', name: 'settleWeeklyGameWithUsd', stateMutability: 'nonpayable', inputs: [{ type: 'uint256', name: 'usdCentsPerWinner' }], outputs: [] },
 
   // --- Events ---
   {

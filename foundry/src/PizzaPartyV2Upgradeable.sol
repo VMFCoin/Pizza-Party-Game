@@ -404,6 +404,25 @@ contract PizzaPartyV2Upgradeable is OwnableUpgradeable, UUPSUpgradeable, Reentra
         _settleDailyGame(gameId);
     }
 
+    /**
+     * @dev Settle daily game with USD value snapshot (preferred method)
+     * Locks the USD value at settlement time so it doesn't change with price
+     * @param usdCentsPerWinner USD value per winner in cents (e.g., 591 = $5.91)
+     */
+    function settleDailyGameWithUsd(uint256 usdCentsPerWinner) external nonReentrant {
+        uint256 gameId = dailyGameId;
+        DailyGame storage game = dailyGames[gameId];
+
+        require(block.timestamp >= game.endTime, "Game not ended");
+        require(!game.settled, "Already settled");
+        require(usdCentsPerWinner > 0, "USD value required");
+
+        // Store USD value BEFORE settlement
+        dailyGameUsdValue[gameId] = usdCentsPerWinner;
+
+        _settleDailyGame(gameId);
+    }
+
     function _settleDailyGame(uint256 gameId) internal {
         DailyGame storage game = dailyGames[gameId];
 
@@ -592,6 +611,25 @@ contract PizzaPartyV2Upgradeable is OwnableUpgradeable, UUPSUpgradeable, Reentra
 
         require(block.timestamp >= week.claimWindowEnd, "Window not closed");
         require(!week.settled, "Already settled");
+
+        _settleWeeklyGame(weekId);
+    }
+
+    /**
+     * @dev Settle weekly game with USD value snapshot (preferred method)
+     * Locks the USD value at settlement time so it doesn't change with price
+     * @param usdCentsPerWinner USD value per winner in cents (e.g., 652 = $6.52)
+     */
+    function settleWeeklyGameWithUsd(uint256 usdCentsPerWinner) external nonReentrant {
+        uint256 weekId = weeklyGameId;
+        WeeklyGame storage week = weeklyGames[weekId];
+
+        require(block.timestamp >= week.claimWindowEnd, "Window not closed");
+        require(!week.settled, "Already settled");
+        require(usdCentsPerWinner > 0, "USD value required");
+
+        // Store USD value BEFORE settlement
+        weeklyGameUsdValue[weekId] = usdCentsPerWinner;
 
         _settleWeeklyGame(weekId);
     }
@@ -1029,6 +1067,22 @@ contract PizzaPartyV2Upgradeable is OwnableUpgradeable, UUPSUpgradeable, Reentra
         return weeklyGames[weekId].winners;
     }
 
+    /**
+     * @dev Get stored USD value per winner for a daily game (in cents)
+     * Returns 0 if not set (use dynamic calculation for older games)
+     */
+    function getDailyGameUsdValue(uint256 gameId) external view returns (uint256) {
+        return dailyGameUsdValue[gameId];
+    }
+
+    /**
+     * @dev Get stored USD value per winner for a weekly game (in cents)
+     * Returns 0 if not set (use dynamic calculation for older games)
+     */
+    function getWeeklyGameUsdValue(uint256 weekId) external view returns (uint256) {
+        return weeklyGameUsdValue[weekId];
+    }
+
     // ============ Admin Functions ============
 
     /**
@@ -1286,5 +1340,27 @@ contract PizzaPartyV2Upgradeable is OwnableUpgradeable, UUPSUpgradeable, Reentra
         game.startTime = startTime;
         game.endTime = endTime;
         game.settled = false;
+    }
+
+    /**
+     * @dev Admin function to set USD value for a historical daily game
+     * Use this to backfill USD values for games settled before this feature
+     * @param gameId The game ID to set USD for
+     * @param usdCentsPerWinner USD value per winner in cents (e.g., 591 = $5.91)
+     */
+    function adminSetDailyGameUsdValue(uint256 gameId, uint256 usdCentsPerWinner) external onlyOwner {
+        require(gameId > 0, "Invalid game ID");
+        dailyGameUsdValue[gameId] = usdCentsPerWinner;
+    }
+
+    /**
+     * @dev Admin function to set USD value for a historical weekly game
+     * Use this to backfill USD values for games settled before this feature
+     * @param weekId The week ID to set USD for
+     * @param usdCentsPerWinner USD value per winner in cents (e.g., 652 = $6.52)
+     */
+    function adminSetWeeklyGameUsdValue(uint256 weekId, uint256 usdCentsPerWinner) external onlyOwner {
+        require(weekId > 0, "Invalid week ID");
+        weeklyGameUsdValue[weekId] = usdCentsPerWinner;
     }
 }
