@@ -493,7 +493,13 @@ function GamePageContent({ onNavigateToWeekly, onNavigateToLeaderboard, onNaviga
           {/* Main Action Button (Approve / Enter) - hidden during first-entry referral prompt */}
           {!(showReferralInput && canUseReferral) && (
             <Button
-              className={`!bg-green-600 hover:!bg-green-700 text-white font-bold py-2 rounded-xl border-4 border-green-800 w-full ${buttonConfig.disabled ? 'opacity-50 cursor-not-allowed' : ''}`}
+              className={`!bg-green-600 hover:!bg-green-700 text-white font-bold py-2 rounded-xl border-4 border-green-800 w-full ${
+                buttonConfig.disabled
+                  ? buttonConfig.text === '✅ ALREADY ENTERED TODAY'
+                    ? 'cursor-not-allowed'
+                    : 'opacity-50 cursor-not-allowed'
+                  : ''
+              }`}
               style={{ ...customFontStyle, fontSize: isMobile ? 18 : 20 }}
               onClick={buttonConfig.onClick}
               disabled={buttonConfig.disabled}

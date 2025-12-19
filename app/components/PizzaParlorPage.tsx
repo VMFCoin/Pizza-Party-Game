@@ -955,17 +955,15 @@ export default function PizzaParlorPage({
             }}
           >
             <div className="text-center space-y-4">
-              {/* Celebration Header */}
-              <div className="text-4xl mb-2">🎉🍕🎉</div>
               <h2
-                className="text-orange-600 text-2xl"
+                className="text-white text-5xl leading-tight"
                 style={{ fontFamily: 'var(--font-luckiest-guy)' }}
               >
                 Congratulations!
               </h2>
               <p
-                className="text-orange-800"
-                style={{ ...customFontStyle, fontSize: 14 }}
+                className="text-white"
+                style={{ fontFamily: 'var(--font-luckiest-guy)', fontSize: 14 }}
               >
                 You now own a Pizza Parlor! Give your franchise a name:
               </p>
@@ -983,8 +981,8 @@ export default function PizzaParlorPage({
                   autoFocus
                 />
                 <p
-                  className="text-orange-500"
-                  style={{ ...customFontStyle, fontSize: 10 }}
+                  className="text-white"
+                  style={{ fontFamily: 'var(--font-luckiest-guy)', fontSize: 10 }}
                 >
                   {parlorNameInput.length}/20 characters • Cannot be changed later!
                 </p>
@@ -1016,8 +1014,8 @@ export default function PizzaParlorPage({
               </div>
 
               <p
-                className="text-orange-600"
-                style={{ ...customFontStyle, fontSize: 10 }}
+                className="text-white"
+                style={{ fontFamily: 'var(--font-luckiest-guy)', fontSize: 10 }}
               >
                 Tip: You can set your name later from the parlor page
               </p>
