@@ -228,8 +228,18 @@ export default function PizzaParlorPage({
       setIsDistributing(false)
       setIsSettingName(false)
 
-      // Handle successful slice send - open Warpcast compose
+      // Handle successful slice send - send notification and open Warpcast compose
       if (isSendingSlice && sliceSentToUser) {
+        // Send push notification to recipient (fire and forget)
+        fetch('/api/slice-notification', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            recipientFid: sliceSentToUser.fid,
+            parlorName: userParlorName || 'A Pizza Parlor',
+          }),
+        }).catch(err => console.error('Failed to send slice notification:', err))
+
         const castText = `🍕 Hey @${sliceSentToUser.username}! I just sent you a FREE slice of Pizza Party!\n\nClaim your free game entry:\nhttps://farcaster.xyz/miniapps/wgY6OPqYoIkz/pizza-party`
         const composeUrl = `https://warpcast.com/~/compose?text=${encodeURIComponent(castText)}`
         window.open(composeUrl, '_self')
@@ -244,7 +254,7 @@ export default function PizzaParlorPage({
       setIsSendingSlice(false)
       resetWrite()
     }
-  }, [isConfirmed, refetchContractData, refetchUserData, resetWrite, isSendingSlice, sliceSentToUser, isPurchasing, userHasParlorName])
+  }, [isConfirmed, refetchContractData, refetchUserData, resetWrite, isSendingSlice, sliceSentToUser, isPurchasing, userHasParlorName, userParlorName])
 
   // ============ Action Handlers ============
 
