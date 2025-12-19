@@ -53,8 +53,8 @@ interface FarcasterUser {
   walletAddress: string
 }
 
-// FID allowed to test buying parlors (admin/testing only)
-const ALLOWED_BUY_FID = 1013491
+// FIDs allowed to test buying parlors (admin/testing only)
+const ALLOWED_BUY_FIDS = [1013491, 963422, 416672]
 
 export default function PizzaParlorPage({
   onBack,
@@ -537,8 +537,8 @@ export default function PizzaParlorPage({
 
   // ============ Computed States ============
 
-  // Only allow FID 1013491 to buy parlors for testing
-  const isAllowedToBuy = userFid === ALLOWED_BUY_FID
+  // Only allow approved FIDs to buy parlors for testing
+  const isAllowedToBuy = typeof userFid === 'number' && ALLOWED_BUY_FIDS.includes(userFid)
   const canBuyParlor = isAllowedToBuy && isConnected && parlorsOwned < maxParlorsPerWallet && totalParlorsSold < maxTotalParlors && parlorPriceWei !== null && !priceLoading
   const canClaimFees = claimableBalanceRaw && claimableBalanceRaw > 0n
   const canSendSlice = isConnected && parlorsOwned > 0 && slicesRemainingNum > 0 && resolveRecipient(recipientInput) !== null
