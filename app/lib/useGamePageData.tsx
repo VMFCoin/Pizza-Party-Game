@@ -18,6 +18,16 @@ import { wagmiConfig } from '../components/config/wagmiConfig'
 const PACIFIC_TZ = 'America/Los_Angeles'
 const BASE_CHAIN_ID = 8453
 const WEI_PER_PIZZA = 10n ** 18n
+// Get last known price from localStorage, fallback to 0.01 if not available
+const getLastKnownPrice = (): number => {
+  if (typeof window === 'undefined') return 0.01
+  const stored = localStorage.getItem('pizzaUsdPrice')
+  if (stored) {
+    const price = parseFloat(stored)
+    if (!isNaN(price) && price > 0) return price
+  }
+  return 0.01
+}
 const DEFAULT_PIZZA_USD_PRICE = 0.01
 const TOPPINGS_EARNED_EVENT = parseAbiItem(
   'event ToppingsEarned(uint256 indexed weekId, address indexed player, uint256 amount, string reason)',
@@ -201,7 +211,7 @@ export function useGamePageData() {
   }), [address, isConnected])
 
   // ================= Dynamic PIZZA Price from DEXScreener =================
-  const [pizzaUsdPrice, setPizzaUsdPrice] = useState<number>(DEFAULT_PIZZA_USD_PRICE)
+  const [pizzaUsdPrice, setPizzaUsdPrice] = useState<number>(() => getLastKnownPrice())
   const [priceOracleWorking, setPriceOracleWorking] = useState(true)
 
   const fetchPizzaPrice = useCallback(async () => {
@@ -220,6 +230,8 @@ export function useGamePageData() {
 
       if (data.success && typeof data.priceUsd === 'number' && data.priceUsd > 0) {
         setPizzaUsdPrice(data.priceUsd)
+        // Save to localStorage for next session
+        localStorage.setItem('pizzaUsdPrice', data.priceUsd.toString())
         setPriceOracleWorking(true)
         console.debug('✅ PIZZA price updated:', `$${data.priceUsd.toFixed(6)}`)
       } else {
