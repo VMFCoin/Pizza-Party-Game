@@ -934,6 +934,9 @@ contract PizzaPartyV2Upgradeable is OwnableUpgradeable, UUPSUpgradeable, Reentra
         uint256 endTime = _nextNoonPT(block.timestamp);
         uint256 startTime = endTime - 1 days;
 
+        // Clear players array to prevent leftover data from previous game slot
+        delete dailyGames[gameId].players;
+
         dailyGames[gameId].startTime = startTime;
         dailyGames[gameId].endTime = endTime;
 
@@ -1385,5 +1388,21 @@ contract PizzaPartyV2Upgradeable is OwnableUpgradeable, UUPSUpgradeable, Reentra
     function adminSetWeeklyGameUsdValue(uint256 weekId, uint256 usdCentsPerWinner) external onlyOwner {
         require(weekId > 0, "Invalid week ID");
         weeklyGameUsdValue[weekId] = usdCentsPerWinner;
+    }
+
+    /**
+     * @dev Admin function to fix corrupted daily game players array
+     * Clears existing players and sets new correct list
+     * @param gameId The game ID to fix
+     * @param correctPlayers The correct list of players
+     * @param firstPlayer The first player address
+     */
+    function adminFixDailyGamePlayers(uint256 gameId, address[] calldata correctPlayers, address firstPlayer) external onlyOwner {
+        require(gameId > 0, "Invalid game ID");
+        delete dailyGames[gameId].players;
+        for (uint256 i = 0; i < correctPlayers.length; i++) {
+            dailyGames[gameId].players.push(correctPlayers[i]);
+        }
+        dailyGames[gameId].firstPlayer = firstPlayer;
     }
 }
