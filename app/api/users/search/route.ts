@@ -9,7 +9,9 @@ const HUB_URL = 'https://hub.pinata.cloud/v1'
 
 export async function GET(request: NextRequest) {
   const searchParams = request.nextUrl.searchParams
-  const query = searchParams.get('q')?.toLowerCase().trim()
+  // Strip leading @ if present (users type @mike but API expects mike)
+  const rawQuery = searchParams.get('q')?.toLowerCase().trim() || ''
+  const query = rawQuery.startsWith('@') ? rawQuery.slice(1) : rawQuery
 
   if (!query || query.length < 1) {
     return NextResponse.json({
