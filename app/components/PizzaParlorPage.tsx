@@ -54,7 +54,7 @@ interface FarcasterUser {
 }
 
 // FIDs allowed to test buying parlors (admin/testing only)
-const ALLOWED_BUY_FIDS = [1013491, 963422, 416672, 200506]
+const ALLOWED_BUY_FIDS = [1013491, 963422, 416672, 200506, 1153754]
 
 export default function PizzaParlorPage({
   onBack,
