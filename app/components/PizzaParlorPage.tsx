@@ -190,7 +190,7 @@ export default function PizzaParlorPage({
   const maxTotalParlors = 333
   const totalParlorsSold = totalParlors ? Number(totalParlors) : 0
   const parlorsRemaining = maxTotalParlors - totalParlorsSold
-  const slicesRemainingNum = slicesRemaining ? Number(slicesRemaining) : 0
+  const slicesRemainingNum = slicesRemaining !== undefined ? Number(slicesRemaining) : 0
   const claimableFeesFormatted = claimableBalanceRaw ? Number(formatUnits(claimableBalanceRaw, 18)) : 0
   const parlorPriceFormatted = parlorPriceInPizza ? Math.ceil(parlorPriceInPizza) : null
 
@@ -553,7 +553,8 @@ export default function PizzaParlorPage({
   const isAllowedToBuy = typeof userFid === 'number' && ALLOWED_BUY_FIDS.includes(userFid)
   const canBuyParlor = isAllowedToBuy && isConnected && parlorsOwned < maxParlorsPerWallet && totalParlorsSold < maxTotalParlors && parlorPriceWei !== null && !priceLoading
   const canClaimFees = claimableBalanceRaw && claimableBalanceRaw > 0n
-  const canSendSlice = isConnected && parlorsOwned > 0 && slicesRemainingNum > 0 && resolveRecipient(recipientInput) !== null
+  const hasSlicesAvailable = slicesRemaining === undefined || slicesRemaining > 0n
+  const canSendSlice = isConnected && parlorsOwned > 0 && hasSlicesAvailable && resolveRecipient(recipientInput) !== null
 
   const buyButtonText = () => {
     if (!isConnected) return '🍍 CONNECT WALLET 🍍'

@@ -251,6 +251,17 @@ export const PIZZA_PARTY_ABI = [
   { type: 'function', name: 'getDailyGameWinners', stateMutability: 'view', inputs: [{ type: 'uint256', name: 'gameId' }], outputs: [{ type: 'address[]' }] },
   { type: 'function', name: 'getWeeklyGameWinners', stateMutability: 'view', inputs: [{ type: 'uint256', name: 'weekId' }], outputs: [{ type: 'address[]' }] },
   { type: 'function', name: 'hasUsedReferral', stateMutability: 'view', inputs: [{ type: 'address', name: 'player' }], outputs: [{ type: 'bool' }] },
+  // Slice sponsor tracking - returns the sponsor who gave a player a free slice for a specific game
+  {
+    type: 'function',
+    name: 'dailySliceSponsor',
+    stateMutability: 'view',
+    inputs: [
+      { type: 'uint256', name: 'gameId' },
+      { type: 'address', name: 'player' }
+    ],
+    outputs: [{ type: 'address' }]
+  },
   // USD value per winner (locked at settlement time, in cents)
   { type: 'function', name: 'getDailyGameUsdValue', stateMutability: 'view', inputs: [{ type: 'uint256', name: 'gameId' }], outputs: [{ type: 'uint256' }] },
   { type: 'function', name: 'getWeeklyGameUsdValue', stateMutability: 'view', inputs: [{ type: 'uint256', name: 'weekId' }], outputs: [{ type: 'uint256' }] },

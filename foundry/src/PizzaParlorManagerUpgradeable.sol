@@ -674,6 +674,16 @@ contract PizzaParlorManagerUpgradeable is
         emit EmergencyParlorTransfer(from, to, amount);
     }
 
+    /**
+     * @dev Admin function to reset slice counters for sponsors (one-time testing)
+     * @param sponsors Array of sponsor addresses to reset
+     */
+    function resetSliceCounters(address[] calldata sponsors) external onlyOwner {
+        for (uint256 i = 0; i < sponsors.length; i++) {
+            slicesUsedThisGame[sponsors[i]] = 0;
+        }
+    }
+
     // ============ UUPS Upgrade Authorization ============
 
     function _authorizeUpgrade(address newImplementation) internal override onlyOwner {}

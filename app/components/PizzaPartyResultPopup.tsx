@@ -5,24 +5,35 @@ import { X } from 'lucide-react'
 import { useAccount } from 'wagmi'
 import { readContract } from '@wagmi/core'
 import { wagmiConfig as config } from './config/wagmiConfig'
-import { PIZZA_PARTY_ADDRESS, PIZZA_PARTY_ABI } from '../lib/constants'
+import { PIZZA_PARTY_ADDRESS, PIZZA_PARTY_ABI, PARLOR_MANAGER_ADDRESS, PARLOR_MANAGER_ABI } from '../lib/constants'
 import { useGamePageData } from '../lib/useGamePageData'
 import { sdk } from '@farcaster/miniapp-sdk'
 
 const SHARE_BASE_URL = 'https://farcaster.xyz/miniapps/wgY6OPqYoIkz/pizza-party'
 
-type WinType = 'daily' | 'weekly' | 'both' | null
+type PopupType = 'freeSlice' | 'winner' | 'loser'
 
 export function PizzaPartyResultPopup() {
   const { address, isConnected } = useAccount()
   const { referralInfo } = useGamePageData()
-  const [showPopup, setShowPopup] = useState(false)
-  const [isWinner, setIsWinner] = useState(false)
-  const [winType, setWinType] = useState<WinType>(null)
+
+  // Queue of popups to show (in order)
+  const [popupQueue, setPopupQueue] = useState<PopupType[]>([])
+  const [currentPopup, setCurrentPopup] = useState<PopupType | null>(null)
+
+  // Winner/loser state
+  const [winType, setWinType] = useState<'daily' | 'weekly' | 'both' | null>(null)
   const [dailyPizzaWon, setDailyPizzaWon] = useState(0)
   const [weeklyPizzaWon, setWeeklyPizzaWon] = useState(0)
   const [pizzaUsd, setPizzaUsd] = useState(0.01)
+
+  // Free slice state
+  const [sponsorName, setSponsorName] = useState<string | null>(null)
+
   const [hasChecked, setHasChecked] = useState(false)
+  const [currentDailyGameIdRef, setCurrentDailyGameIdRef] = useState<bigint>(0n)
+  const [lastSettledDailyGameIdRef, setLastSettledDailyGameIdRef] = useState<bigint>(0n)
+  const [lastSettledWeeklyGameIdRef, setLastSettledWeeklyGameIdRef] = useState<bigint>(0n)
 
   // Calculate total PIZZA won
   const totalPizzaWon = dailyPizzaWon + weeklyPizzaWon
@@ -43,46 +54,52 @@ export function PizzaPartyResultPopup() {
     fetchPrice()
   }, [])
 
+  // Show next popup in queue
+  useEffect(() => {
+    if (popupQueue.length > 0 && currentPopup === null) {
+      const [next, ...rest] = popupQueue
+      setCurrentPopup(next)
+      setPopupQueue(rest)
+    }
+  }, [popupQueue, currentPopup])
+
   useEffect(() => {
     if (!isConnected || !address || hasChecked) return
 
     const checkGameResults = async () => {
       try {
+        const popupsToShow: PopupType[] = []
         let isDailyWinner = false
         let isWeeklyWinner = false
         let dailyPayout = 0
         let weeklyPayout = 0
-        let lastSettledDailyGameId = 0n
-        let lastSettledWeeklyGameId = 0n
 
-        // Check daily game result
+        // Get current game IDs
         const currentDailyGameId = await readContract(config, {
           address: PIZZA_PARTY_ADDRESS as `0x${string}`,
           abi: PIZZA_PARTY_ABI,
           functionName: 'dailyGameId',
         }) as bigint
 
-        lastSettledDailyGameId = currentDailyGameId - 1n
-
-        // Check if we've already seen this combination of results
         const currentWeeklyGameId = await readContract(config, {
           address: PIZZA_PARTY_ADDRESS as `0x${string}`,
           abi: PIZZA_PARTY_ABI,
           functionName: 'weeklyGameId',
         }) as bigint
 
-        lastSettledWeeklyGameId = currentWeeklyGameId - 1n
+        const lastSettledDailyGameId = currentDailyGameId - 1n
+        const lastSettledWeeklyGameId = currentWeeklyGameId - 1n
 
-        const seenKey = `pizza_party_seen_daily_${lastSettledDailyGameId}_weekly_${lastSettledWeeklyGameId}`
-        const hasSeenResult = typeof window !== 'undefined' ? localStorage.getItem(seenKey) : null
+        // Store for use in handleClose
+        setCurrentDailyGameIdRef(currentDailyGameId)
+        setLastSettledDailyGameIdRef(lastSettledDailyGameId)
+        setLastSettledWeeklyGameIdRef(lastSettledWeeklyGameId)
 
-        if (hasSeenResult) {
-          setHasChecked(true)
-          return
-        }
+        // ===== STEP 1: Check for PREVIOUS game results (winner/loser) =====
+        const resultSeenKey = `pizza_party_seen_daily_${lastSettledDailyGameId}_weekly_${lastSettledWeeklyGameId}`
+        const hasSeenResult = typeof window !== 'undefined' ? localStorage.getItem(resultSeenKey) : null
 
-        // Check daily results
-        if (lastSettledDailyGameId >= 1n) {
+        if (!hasSeenResult && lastSettledDailyGameId >= 1n) {
           const hasPlayed = await readContract(config, {
             address: PIZZA_PARTY_ADDRESS as `0x${string}`,
             abi: PIZZA_PARTY_ABI,
@@ -144,99 +161,98 @@ export function PizzaPartyResultPopup() {
 
                 const totalDailyPayout = userPayout + firstPlayerBonus + dustShare
                 dailyPayout = Number(totalDailyPayout) / 1e18
+              }
 
-                console.log('Daily PIZZA Calculation:', {
-                  pot: (Number(pot) / 1e18).toFixed(2),
-                  playersPool: (Number(playersPool) / 1e18).toFixed(2),
-                  winnerShare: (Number(winnerShare) / 1e18).toFixed(2),
-                  totalPayout: dailyPayout,
-                })
+              // Check weekly results
+              if (lastSettledWeeklyGameId >= 1n) {
+                const weeklyGameData = await readContract(config, {
+                  address: PIZZA_PARTY_ADDRESS as `0x${string}`,
+                  abi: PIZZA_PARTY_ABI,
+                  functionName: 'weeklyGames',
+                  args: [lastSettledWeeklyGameId],
+                }) as {
+                  settled: boolean
+                  potAmount: bigint
+                }
+
+                if (weeklyGameData.settled) {
+                  const weeklyWinners = await readContract(config, {
+                    address: PIZZA_PARTY_ADDRESS as `0x${string}`,
+                    abi: PIZZA_PARTY_ABI,
+                    functionName: 'getWeeklyGameWinners',
+                    args: [lastSettledWeeklyGameId],
+                  }) as `0x${string}`[]
+
+                  const userIsWeeklyWinner = weeklyWinners.some(
+                    (winner) => winner.toLowerCase() === address.toLowerCase()
+                  )
+
+                  if (userIsWeeklyWinner) {
+                    isWeeklyWinner = true
+                    const weeklyPot = weeklyGameData.potAmount as bigint
+                    const numberOfWeeklyWinners = BigInt(weeklyWinners.length || 1)
+                    const weeklyShare = weeklyPot / numberOfWeeklyWinners
+                    weeklyPayout = Number(weeklyShare) / 1e18
+                  }
+                }
+              }
+
+              // Set winner/loser state
+              if (isDailyWinner || isWeeklyWinner) {
+                setDailyPizzaWon(dailyPayout)
+                setWeeklyPizzaWon(weeklyPayout)
+                if (isDailyWinner && isWeeklyWinner) {
+                  setWinType('both')
+                } else if (isWeeklyWinner) {
+                  setWinType('weekly')
+                } else {
+                  setWinType('daily')
+                }
+                popupsToShow.push('winner')
+              } else {
+                popupsToShow.push('loser')
               }
             }
           }
         }
 
-        // Check weekly results (only if there's a settled weekly game)
-        if (lastSettledWeeklyGameId >= 1n) {
-          const weeklyGameData = await readContract(config, {
+        // ===== STEP 2: Check for free slice in CURRENT game =====
+        const freeSliceSeenKey = `pizza_party_seen_freeslice_${currentDailyGameId}`
+        const hasSeenFreeSlice = typeof window !== 'undefined' ? localStorage.getItem(freeSliceSeenKey) : null
+
+        if (!hasSeenFreeSlice) {
+          const sponsor = await readContract(config, {
             address: PIZZA_PARTY_ADDRESS as `0x${string}`,
             abi: PIZZA_PARTY_ABI,
-            functionName: 'weeklyGames',
-            args: [lastSettledWeeklyGameId],
-          }) as {
-            settled: boolean
-            potAmount: bigint
-          }
+            functionName: 'dailySliceSponsor',
+            args: [currentDailyGameId, address as `0x${string}`],
+          }) as `0x${string}`
 
-          if (weeklyGameData.settled) {
-            const weeklyWinners = await readContract(config, {
-              address: PIZZA_PARTY_ADDRESS as `0x${string}`,
-              abi: PIZZA_PARTY_ABI,
-              functionName: 'getWeeklyGameWinners',
-              args: [lastSettledWeeklyGameId],
-            }) as `0x${string}`[]
+          if (sponsor && sponsor !== '0x0000000000000000000000000000000000000000') {
+            // Try to get sponsor's franchise name
+            try {
+              const franchiseName = await readContract(config, {
+                address: PARLOR_MANAGER_ADDRESS as `0x${string}`,
+                abi: PARLOR_MANAGER_ABI,
+                functionName: 'parlorName',
+                args: [sponsor],
+              }) as string
 
-            const userIsWeeklyWinner = weeklyWinners.some(
-              (winner) => winner.toLowerCase() === address.toLowerCase()
-            )
-
-            if (userIsWeeklyWinner) {
-              isWeeklyWinner = true
-              const weeklyPot = weeklyGameData.potAmount as bigint
-              const numberOfWeeklyWinners = BigInt(weeklyWinners.length || 1)
-              // Weekly jackpot is split evenly among winners (no fees like daily)
-              const weeklyShare = weeklyPot / numberOfWeeklyWinners
-              weeklyPayout = Number(weeklyShare) / 1e18
-
-              console.log('Weekly PIZZA Calculation:', {
-                pot: (Number(weeklyPot) / 1e18).toFixed(2),
-                numberOfWinners: weeklyWinners.length,
-                payoutPerWinner: weeklyPayout,
-              })
-            }
-          }
-        }
-
-        // Set state based on results
-        if (isDailyWinner || isWeeklyWinner) {
-          setIsWinner(true)
-          setDailyPizzaWon(dailyPayout)
-          setWeeklyPizzaWon(weeklyPayout)
-
-          if (isDailyWinner && isWeeklyWinner) {
-            setWinType('both')
-          } else if (isWeeklyWinner) {
-            setWinType('weekly')
-          } else {
-            setWinType('daily')
-          }
-          setShowPopup(true)
-        } else {
-          // Check if user played daily but didn't win - show loser card
-          if (lastSettledDailyGameId >= 1n) {
-            const hasPlayed = await readContract(config, {
-              address: PIZZA_PARTY_ADDRESS as `0x${string}`,
-              abi: PIZZA_PARTY_ABI,
-              functionName: 'hasPlayedDaily',
-              args: [lastSettledDailyGameId, address as `0x${string}`],
-            }) as boolean
-
-            if (hasPlayed) {
-              const gameData = await readContract(config, {
-                address: PIZZA_PARTY_ADDRESS as `0x${string}`,
-                abi: PIZZA_PARTY_ABI,
-                functionName: 'dailyGames',
-                args: [lastSettledDailyGameId],
-              }) as { settled: boolean }
-
-              if (gameData.settled) {
-                setIsWinner(false)
-                setShowPopup(true)
+              if (franchiseName && franchiseName.length > 0) {
+                setSponsorName(franchiseName)
               }
+            } catch {
+              // Ignore errors fetching franchise name
             }
+
+            popupsToShow.push('freeSlice')
           }
         }
 
+        // Set the queue and mark as checked
+        if (popupsToShow.length > 0) {
+          setPopupQueue(popupsToShow)
+        }
         setHasChecked(true)
       } catch (error) {
         console.error('Error checking game results:', error)
@@ -248,30 +264,22 @@ export function PizzaPartyResultPopup() {
   }, [isConnected, address, hasChecked])
 
   const handleClose = async () => {
-    if (isConnected && address) {
+    if (isConnected && address && currentPopup) {
       try {
-        const [currentDailyGameId, currentWeeklyGameId] = await Promise.all([
-          readContract(config, {
-            address: PIZZA_PARTY_ADDRESS as `0x${string}`,
-            abi: PIZZA_PARTY_ABI,
-            functionName: 'dailyGameId',
-          }),
-          readContract(config, {
-            address: PIZZA_PARTY_ADDRESS as `0x${string}`,
-            abi: PIZZA_PARTY_ABI,
-            functionName: 'weeklyGameId',
-          }),
-        ])
-
-        const lastSettledDailyGameId = (currentDailyGameId as bigint) - 1n
-        const lastSettledWeeklyGameId = (currentWeeklyGameId as bigint) - 1n
-        const seenKey = `pizza_party_seen_daily_${lastSettledDailyGameId}_weekly_${lastSettledWeeklyGameId}`
-        localStorage.setItem(seenKey, 'true')
+        if (currentPopup === 'freeSlice') {
+          // Mark free slice as seen
+          const freeSliceSeenKey = `pizza_party_seen_freeslice_${currentDailyGameIdRef}`
+          localStorage.setItem(freeSliceSeenKey, 'true')
+        } else {
+          // Mark winner/loser result as seen
+          const seenKey = `pizza_party_seen_daily_${lastSettledDailyGameIdRef}_weekly_${lastSettledWeeklyGameIdRef}`
+          localStorage.setItem(seenKey, 'true')
+        }
       } catch (error) {
         console.error('Error saving seen state:', error)
       }
     }
-    setShowPopup(false)
+    setCurrentPopup(null) // This will trigger the next popup if there's one in the queue
   }
 
   const handleShare = async () => {
@@ -280,8 +288,8 @@ export function PizzaPartyResultPopup() {
     const referralShareUrl = referralCode ? `${SHARE_BASE_URL}${referralCode}` : SHARE_BASE_URL
 
     const shareText = referralCode
-      ? `🍕 Just sliced $${usdValue} of $PIZZA in Pizza Party! Who's next? Come get this dough!\n\nDaily and Weekly Jackpots paying out the cheese, use my referral code: ${referralCode}\n\nWe all win together! 🍕`
-      : `🍕 Just sliced $${usdValue} of $PIZZA in Pizza Party! Who's next? Come get this dough!\n\nDaily and Weekly Jackpots paying out the cheese!\n\nWe all win together! 🍕`
+      ? `Just sliced $${usdValue} of $PIZZA in Pizza Party! Who's next? Come get this dough!\n\nDaily and Weekly Jackpots paying out the cheese, use my referral code: ${referralCode}\n\nWe all win together!`
+      : `Just sliced $${usdValue} of $PIZZA in Pizza Party! Who's next? Come get this dough!\n\nDaily and Weekly Jackpots paying out the cheese!\n\nWe all win together!`
 
     try {
       const actions = sdk.actions as {
@@ -308,7 +316,7 @@ export function PizzaPartyResultPopup() {
     }
   }
 
-  if (!showPopup) return null
+  if (!currentPopup) return null
 
   // Get the title based on win type
   const getWinnerTitle = () => {
@@ -327,7 +335,6 @@ export function PizzaPartyResultPopup() {
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4"
       onClick={handleClose}
     >
-      {/* FIXED: Proper width constraints and centering */}
       <div
         className="relative w-full max-w-[360px] sm:max-w-[420px] md:max-w-[520px]"
         onClick={(e) => e.stopPropagation()}
@@ -341,8 +348,8 @@ export function PizzaPartyResultPopup() {
           <X className="w-6 h-6 md:w-7 md:h-7 text-white" />
         </button>
 
-        {isWinner ? (
-          /* WINNER CARD - FULLY RESPONSIVE */
+        {currentPopup === 'winner' && (
+          /* WINNER CARD */
           <div
             className="relative w-full bg-gradient-to-br from-red-600 to-red-700 rounded-3xl border-4 border-black shadow-2xl overflow-hidden"
             style={{ aspectRatio: '360/260' }}
@@ -417,8 +424,10 @@ export function PizzaPartyResultPopup() {
               </div>
             </div>
           </div>
-        ) : (
-          /* LOSER CARD - FULLY RESPONSIVE */
+        )}
+
+        {currentPopup === 'loser' && (
+          /* LOSER CARD */
           <div
             className="relative w-full bg-gradient-to-br from-red-600 to-red-700 rounded-3xl border-4 border-black shadow-2xl overflow-hidden"
             style={{ aspectRatio: '360/220' }}
@@ -463,6 +472,77 @@ export function PizzaPartyResultPopup() {
                   style={{ fontSize: 'clamp(1rem, 4vw, 1.75rem)', lineHeight: '1.3', margin: '0' }}
                 >
                   Grow The Weekly Jackpot.
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {currentPopup === 'freeSlice' && (
+          /* FREE SLICE CARD */
+          <div
+            className="relative w-full bg-gradient-to-br from-green-500 to-green-600 rounded-3xl border-4 border-black shadow-2xl overflow-hidden"
+            style={{ aspectRatio: '360/260' }}
+          >
+            <div className="absolute inset-3 sm:inset-4 border-4 border-black rounded-2xl" />
+
+            <div className="relative z-10 h-full w-full px-5 sm:px-7 py-5 sm:py-6 flex flex-col justify-center items-center text-center">
+              <div className="w-full">
+                <h1
+                  className="font-black"
+                  style={{
+                    fontFamily: 'var(--font-luckiest-guy)',
+                    color: '#FFA500',
+                    textShadow: '1px 1px 0px #000, -1px -1px 0px #000, 1px -1px 0px #000, -1px 1px 0px #000',
+                    WebkitTextStroke: '1.5px black',
+                    fontWeight: 900,
+                    letterSpacing: '0.035em',
+                    fontSize: 'clamp(1.5rem, 5.5vw, 2.5rem)',
+                    lineHeight: '1',
+                    margin: '0',
+                  }}
+                >
+                  FREE SLICE!
+                </h1>
+              </div>
+
+              <div className="leading-tight mt-2" style={{ fontFamily: 'var(--font-luckiest-guy)' }}>
+                <p
+                  className="text-white"
+                  style={{
+                    fontSize: 'clamp(1rem, 3.5vw, 1.5rem)',
+                    lineHeight: '1.3',
+                    margin: '0',
+                    textShadow: '1px 1px 0px #000',
+                  }}
+                >
+                  {sponsorName ? `${sponsorName} sent you` : 'Someone sent you'}
+                </p>
+                <p
+                  className="text-white"
+                  style={{
+                    fontSize: 'clamp(1rem, 3.5vw, 1.5rem)',
+                    lineHeight: '1.3',
+                    margin: '0',
+                    textShadow: '1px 1px 0px #000',
+                  }}
+                >
+                  a free entry!
+                </p>
+              </div>
+
+              <div className="mt-3" style={{ fontFamily: 'var(--font-luckiest-guy)' }}>
+                <p
+                  className="text-black"
+                  style={{ fontSize: 'clamp(0.9rem, 3vw, 1.2rem)', lineHeight: '1.2', margin: '0' }}
+                >
+                  You&apos;re in today&apos;s game!
+                </p>
+                <p
+                  className="text-black"
+                  style={{ fontSize: 'clamp(0.9rem, 3vw, 1.2rem)', lineHeight: '1.2', margin: '0' }}
+                >
+                  Good luck!
                 </p>
               </div>
             </div>
