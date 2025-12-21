@@ -8,6 +8,7 @@ import { ArrowLeft, ChevronDown, ChevronUp } from 'lucide-react'
 import { useAccount, useReadContracts, useWriteContract, useWaitForTransactionReceipt } from 'wagmi'
 import { formatUnits, parseUnits, isAddress } from 'viem'
 import { PARLOR_MANAGER_ADDRESS, PARLOR_MANAGER_ABI, PIZZA_TOKEN_ADDRESS, PIZZA_TOKEN_ABI, PIZZA_PARTY_ADDRESS, PIZZA_PARTY_ABI } from '../lib/constants'
+import { sdk } from '@farcaster/miniapp-sdk'
 
 // Parlor price in USD - this is the fixed dollar amount
 const PARLOR_PRICE_USD = 50
@@ -228,7 +229,7 @@ export default function PizzaParlorPage({
       setIsDistributing(false)
       setIsSettingName(false)
 
-      // Handle successful slice send - send notification and open Warpcast compose
+      // Handle successful slice send - send notification and open compose
       if (isSendingSlice && sliceSentToUser) {
         // Send push notification to recipient (fire and forget)
         fetch('/api/slice-notification', {
@@ -243,8 +244,13 @@ export default function PizzaParlorPage({
         const franchiseName = userParlorName || 'A Pizza Parlor'
         const castText = `Hey @${sliceSentToUser.username}!!! 🍕🔥\n${franchiseName} just hooked you up with a free hot slice. Come grab it and jump into Pizza Party – you're automatically entered for the Daily Jackpot the second you open the app!\n\nDon't let this slice get cold... dive in and let's get saucy! 😏\nOpen your free slice here:`
         const embedUrl = 'https://farcaster.xyz/miniapps/wgY6OPqYoIkz/pizza-party'
-        const composeUrl = `https://warpcast.com/~/compose?text=${encodeURIComponent(castText)}&embeds[]=${encodeURIComponent(embedUrl)}`
-        window.open(composeUrl, '_self')
+
+        // Use Farcaster SDK composeCast to stay in-app
+        sdk.actions.composeCast({
+          text: castText,
+          embeds: [embedUrl],
+        }).catch(err => console.error('composeCast failed:', err))
+
         setSliceSentToUser(null)
       }
 

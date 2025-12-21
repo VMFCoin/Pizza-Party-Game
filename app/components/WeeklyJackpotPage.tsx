@@ -27,7 +27,7 @@ const customFontStyle = {
 const HOW_TO_WIN = [
   'Play Daily: 1 topping each day you play',
   'Refer new players: 2 toppings per referral (max 3 per week)',
-  'Hold PIZZA tokens: 3 toppings for every $10 of PIZZA you hold',
+  'Hold PIZZA tokens: 3 toppings for every $10 of PIZZA you hold (30 toppings max)',
   'More toppings = more tickets in the weekly draw',
 ]
 
