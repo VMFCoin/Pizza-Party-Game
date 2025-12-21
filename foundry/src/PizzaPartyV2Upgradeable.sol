@@ -26,7 +26,7 @@ interface IPizzaParlorManager {
  * - Claim window: Sunday 12pm PT → Monday 12pm PT (24 hours)
  * - PIZZA balance snapshot taken at claim time
  * - Players claim toppings once per week during window
- * - 1 topping = 100 PIZZA in jackpot
+ * - 1 topping = 10 PIZZA in jackpot (configurable)
  * - 10 winners, weighted by claimed toppings
  * - Paid from treasury wallet
  *
@@ -69,9 +69,6 @@ contract PizzaPartyV2Upgradeable is OwnableUpgradeable, UUPSUpgradeable, Reentra
     // Holdings bonus constants (toppings per unit)
     uint256 public constant HOLDINGS_TOPPINGS = 3;        // 3 toppings per $10 unit
     uint256 public constant HOLDINGS_MAX_TOPPINGS = 30;   // cap at $100 worth (30 toppings)
-
-    // Weekly jackpot: 1 topping = 100 PIZZA (at $0.001/PIZZA = $0.10 per topping)
-    uint256 public constant TOPPING_TO_PIZZA = 100e18;    // 1 topping = 100 PIZZA
 
     // ============ State Variables ============
 
@@ -167,6 +164,10 @@ contract PizzaPartyV2Upgradeable is OwnableUpgradeable, UUPSUpgradeable, Reentra
     // weekId => player => sponsor (the sponsor who first sliced them in that week)
     mapping(uint256 => mapping(address => address)) public weeklySliceSponsor;
 
+    // Weekly jackpot: 1 topping = X PIZZA (configurable, default 10 PIZZA)
+    // IMPORTANT: Added at end of storage to avoid slot collision on upgrade
+    uint256 public toppingToPizza;
+
     // ============ Events ============
 
     event DailyGameStarted(uint256 indexed gameId, uint256 startTime, uint256 endTime);
@@ -188,6 +189,7 @@ contract PizzaPartyV2Upgradeable is OwnableUpgradeable, UUPSUpgradeable, Reentra
     event SponsoredWeeklyPayout(uint256 indexed weekId, address indexed player, address indexed sponsor, uint256 playerAmount, uint256 sponsorAmount);
     event ParlorManagerUpdated(address oldManager, address newManager);
     event HoldingsUnitPizzaUpdated(uint256 oldUnit, uint256 newUnit);
+    event ToppingToPizzaUpdated(uint256 oldAmount, uint256 newAmount);
     event ParlorFeesAllocated(uint256 indexed gameId);
     event ParlorFeesAllocationFailed(uint256 indexed gameId);
 
@@ -660,7 +662,7 @@ contract PizzaPartyV2Upgradeable is OwnableUpgradeable, UUPSUpgradeable, Reentra
         require(week.claimers.length > 0 && week.totalClaimedToppings > 0, "No claimers");
 
         // Jackpot = total claimed toppings × 100 PIZZA
-        uint256 jackpot = week.totalClaimedToppings * TOPPING_TO_PIZZA;
+        uint256 jackpot = week.totalClaimedToppings * toppingToPizza;
 
         // Pull from treasury
         pizzaToken.safeTransferFrom(treasuryWallet, address(this), jackpot);
@@ -1008,7 +1010,7 @@ contract PizzaPartyV2Upgradeable is OwnableUpgradeable, UUPSUpgradeable, Reentra
         bool settled
     ) {
         WeeklyGame storage week = weeklyGames[weeklyGameId];
-        uint256 jackpot = week.totalClaimedToppings * TOPPING_TO_PIZZA;
+        uint256 jackpot = week.totalClaimedToppings * toppingToPizza;
 
         return (
             week.claimWindowStart,
@@ -1179,6 +1181,17 @@ contract PizzaPartyV2Upgradeable is OwnableUpgradeable, UUPSUpgradeable, Reentra
         uint256 old = holdingsUnitPizza;
         holdingsUnitPizza = newUnit;
         emit HoldingsUnitPizzaUpdated(old, newUnit);
+    }
+
+    /**
+     * @notice Set the PIZZA amount per topping for weekly jackpot
+     * @param newAmount Number of PIZZA tokens per topping (18 decimals)
+     */
+    function setToppingToPizza(uint256 newAmount) external onlyOwner {
+        require(newAmount > 0, "toppingToPizza=0");
+        uint256 old = toppingToPizza;
+        toppingToPizza = newAmount;
+        emit ToppingToPizzaUpdated(old, newAmount);
     }
 
     function setCharityWallets(address[] memory _charities) external onlyOwner {

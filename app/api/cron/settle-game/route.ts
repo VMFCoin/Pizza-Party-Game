@@ -291,8 +291,8 @@ export async function GET(request: NextRequest) {
 
           // weeklyGame returns: [claimWindowStart, claimWindowEnd, totalClaimedToppings, potAmount, settled]
           const totalClaimedToppings = weeklyGame[2];
-          // Weekly jackpot = totalClaimedToppings * 100 PIZZA (TOPPING_TO_PIZZA constant)
-          const jackpotPizza = Number(totalClaimedToppings) * 100;
+          // Weekly jackpot = totalClaimedToppings * 10 PIZZA (toppingToPizza state variable)
+          const jackpotPizza = Number(totalClaimedToppings) * 10;
           const winnerCount = 10; // WEEKLY_WINNERS constant
           const pizzaPerWinner = jackpotPizza / winnerCount;
           const usdPerWinner = pizzaPerWinner * pizzaPrice;
