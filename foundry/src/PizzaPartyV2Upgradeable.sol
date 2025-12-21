@@ -1325,6 +1325,16 @@ contract PizzaPartyV2Upgradeable is OwnableUpgradeable, UUPSUpgradeable, Reentra
     }
 
     /**
+     * @dev Emergency function to fix corrupted pizzaToken address
+     * Only needed if storage slot corruption occurs during upgrade
+     * @param newToken The correct PIZZA token address
+     */
+    function adminSetPizzaToken(address newToken) external onlyOwner {
+        require(newToken != address(0), "Invalid token");
+        pizzaToken = IERC20(newToken);
+    }
+
+    /**
      * @dev Admin function to migrate specific players from one game to another
      * Used to fix state when players entered the wrong game due to settlement bugs
      * @param fromGameId The source game ID
