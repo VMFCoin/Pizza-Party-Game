@@ -1317,6 +1317,14 @@ contract PizzaPartyV2Upgradeable is OwnableUpgradeable, UUPSUpgradeable, Reentra
     }
 
     /**
+     * @dev Admin function to reset currentDailyPot (emergency fix for storage corruption)
+     * @param newPot The value to set currentDailyPot to (usually 0)
+     */
+    function adminSetCurrentDailyPot(uint256 newPot) external onlyOwner {
+        currentDailyPot = newPot;
+    }
+
+    /**
      * @dev Admin function to migrate specific players from one game to another
      * Used to fix state when players entered the wrong game due to settlement bugs
      * @param fromGameId The source game ID
