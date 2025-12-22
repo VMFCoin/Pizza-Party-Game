@@ -54,8 +54,7 @@ interface FarcasterUser {
   walletAddress: string
 }
 
-// FIDs allowed to test buying parlors (admin/testing only)
-const ALLOWED_BUY_FIDS = [1013491, 963422, 416672, 200506, 1153754]
+// Parlors are now available to everyone!
 
 export default function PizzaParlorPage({
   onBack,
@@ -63,7 +62,7 @@ export default function PizzaParlorPage({
   onNavigateToWeekly,
   onNavigateToLeaderboard,
   onNavigateToHome,
-  userFid,
+  userFid: _userFid,
 }: PizzaParlorPageProps) {
   const customFontStyle = {
     fontFamily: '"Comic Sans MS", "Marker Felt", "Chalkduster", "Kalam", "Caveat"',
@@ -555,22 +554,19 @@ export default function PizzaParlorPage({
 
   // ============ Computed States ============
 
-  // Only allow approved FIDs to buy parlors for testing
-  const isAllowedToBuy = typeof userFid === 'number' && ALLOWED_BUY_FIDS.includes(userFid)
-  const canBuyParlor = isAllowedToBuy && isConnected && parlorsOwned < maxParlorsPerWallet && totalParlorsSold < maxTotalParlors && parlorPriceWei !== null && !priceLoading
+  // Parlors are now available to everyone!
+  const canBuyParlor = isConnected && parlorsOwned < maxParlorsPerWallet && totalParlorsSold < maxTotalParlors && parlorPriceWei !== null && !priceLoading
   const canClaimFees = claimableBalanceRaw && claimableBalanceRaw > 0n
   const hasSlicesAvailable = slicesRemaining === undefined || slicesRemaining > 0n
   const canSendSlice = isConnected && parlorsOwned > 0 && hasSlicesAvailable && resolveRecipient(recipientInput) !== null
 
   const buyButtonText = () => {
-    if (!isConnected) return '🍍 CONNECT WALLET 🍍'
     if (priceLoading || !parlorPriceWei) return '🍍 LOADING PRICE... 🍍'
     if (parlorsOwned >= maxParlorsPerWallet) return '🍍 MAX OWNED 🍍'
     if (totalParlorsSold >= maxTotalParlors) return '🍍 SOLD OUT 🍍'
     if (isApproving || (isConfirming && isApproving)) return '🍍 APPROVING... 🍍'
     if (isPurchasing || (isConfirming && isPurchasing)) return '🍍 BUYING... 🍍'
-    if (needsApproval) return `🍍 BUY A PARLOR 🍍`
-    return `🍍 BUY A PARLOR - $${PARLOR_PRICE_USD} 🍍`
+    return '🍍 BUY A PARLOR 🍍'
   }
 
   return (
@@ -684,25 +680,15 @@ export default function PizzaParlorPage({
                       </p>
                     </div>
 
-                    {/* Buy Button - Only enabled for FID 1013491 */}
-                    {isAllowedToBuy ? (
-                      <Button
-                        onClick={needsApproval ? handleApprove : handlePurchaseParlor}
-                        className="w-full !bg-orange-600 hover:!bg-orange-700 text-white font-bold py-2 rounded-xl border-4 border-orange-800 uppercase"
-                        style={{ ...customFontStyle, fontSize: isMobile ? 14 : 16 }}
-                        disabled={!canBuyParlor || isPurchasing || isApproving || isConfirming}
-                      >
-                        {buyButtonText()}
-                      </Button>
-                    ) : (
-                      <Button
-                        className="w-full !bg-gray-400 text-white font-bold py-2 rounded-xl border-4 border-gray-600 uppercase cursor-not-allowed"
-                        style={{ ...customFontStyle, fontSize: isMobile ? 14 : 16 }}
-                        disabled={true}
-                      >
-                        🍍 COMING SOON 🍍
-                      </Button>
-                    )}
+                    {/* Buy Button - Available to everyone! */}
+                    <Button
+                      onClick={needsApproval ? handleApprove : handlePurchaseParlor}
+                      className="w-full !bg-orange-600 hover:!bg-orange-700 text-white font-bold py-2 rounded-xl border-4 border-orange-800 uppercase"
+                      style={{ ...customFontStyle, fontSize: isMobile ? 14 : 16 }}
+                      disabled={!canBuyParlor || isPurchasing || isApproving || isConfirming}
+                    >
+                      {buyButtonText()}
+                    </Button>
                   </div>
                 </div>
               )}
