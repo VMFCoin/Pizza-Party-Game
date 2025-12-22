@@ -961,7 +961,7 @@ export default function PizzaParlorPage({
           >
             <div className="text-center space-y-4">
               <h2
-                className="text-white text-5xl leading-tight"
+                className="text-white text-3xl sm:text-4xl leading-tight"
                 style={{ fontFamily: 'var(--font-luckiest-guy)' }}
               >
                 Congratulations!
