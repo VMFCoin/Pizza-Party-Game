@@ -8,6 +8,9 @@ import { PIZZA_PARTY_ADDRESS, PARLOR_MANAGER_ADDRESS } from '@/app/lib/constants
 const CONTRACT_ADDRESS = PIZZA_PARTY_ADDRESS as `0x${string}`;
 const PARLOR_CONTRACT = PARLOR_MANAGER_ADDRESS as `0x${string}`;
 
+// Base mainnet RPC
+const RPC_URL = 'https://mainnet.base.org';
+
 const SETTLE_ABI = [
   {
     inputs: [],
@@ -92,6 +95,13 @@ const SETTLE_ABI = [
     stateMutability: 'nonpayable',
     type: 'function',
   },
+  {
+    inputs: [],
+    name: 'toppingToPizza',
+    outputs: [{ type: 'uint256' }],
+    stateMutability: 'view',
+    type: 'function',
+  },
 ] as const;
 
 // Fetch PIZZA price from Dexscreener to calculate USD value at settlement
@@ -158,17 +168,17 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'AUTO_SETTLE_PRIVATE_KEY not configured' }, { status: 500 });
     }
 
-    // Create clients
+    // Create clients with Base mainnet RPC
     const publicClient = createPublicClient({
       chain: base,
-      transport: http('https://mainnet.base.org'),
+      transport: http(RPC_URL),
     });
 
     const account = privateKeyToAccount(`0x${privateKey.replace('0x', '')}`);
     const walletClient = createWalletClient({
       account,
       chain: base,
-      transport: http('https://mainnet.base.org'),
+      transport: http(RPC_URL),
     });
 
     console.log(`[Settle Bot] Running settlement check from wallet: ${account.address}`);
@@ -261,7 +271,9 @@ export async function GET(request: NextRequest) {
     }
 
     // --- WEEKLY SETTLEMENT (only on Mondays) ---
+    // Add delay between daily and weekly to avoid RPC rate limits
     if (isMonday) {
+      await new Promise(resolve => setTimeout(resolve, 3000)); // 3 second delay
       try {
         const weeklyGameId = await publicClient.readContract({
           address: CONTRACT_ADDRESS,
@@ -278,27 +290,34 @@ export async function GET(request: NextRequest) {
         console.log(`[Settle Bot] Weekly game ${weeklyGameId}, ready: ${isWeeklyReady}`);
 
         if (isWeeklyReady) {
-          // Get weekly game data and PIZZA price for USD calculation
-          const [weeklyGame, pizzaPrice] = await Promise.all([
+          // Get weekly game data, toppingToPizza value, and PIZZA price for USD calculation
+          const [weeklyGame, toppingToPizzaRaw, pizzaPrice] = await Promise.all([
             publicClient.readContract({
               address: CONTRACT_ADDRESS,
               abi: SETTLE_ABI,
               functionName: 'weeklyGames',
               args: [weeklyGameId],
             }),
+            publicClient.readContract({
+              address: CONTRACT_ADDRESS,
+              abi: SETTLE_ABI,
+              functionName: 'toppingToPizza',
+            }),
             getPizzaPrice(),
           ]);
 
           // weeklyGame returns: [claimWindowStart, claimWindowEnd, totalClaimedToppings, potAmount, settled]
           const totalClaimedToppings = weeklyGame[2];
-          // Weekly jackpot = totalClaimedToppings * 10 PIZZA (toppingToPizza state variable)
-          const jackpotPizza = Number(totalClaimedToppings) * 10;
+          // toppingToPizza is in wei (e.g., 10e18 = 10 PIZZA per topping)
+          const toppingToPizza = parseFloat(formatUnits(toppingToPizzaRaw, 18));
+          // Weekly jackpot = totalClaimedToppings * toppingToPizza PIZZA
+          const jackpotPizza = Number(totalClaimedToppings) * toppingToPizza;
           const winnerCount = 10; // WEEKLY_WINNERS constant
           const pizzaPerWinner = jackpotPizza / winnerCount;
           const usdPerWinner = pizzaPerWinner * pizzaPrice;
           const usdCentsPerWinner = Math.round(usdPerWinner * 100); // Convert to cents
 
-          console.log(`[Settle Bot] Settling weekly game ${weeklyGameId}, totalToppings: ${totalClaimedToppings}, jackpot: ${jackpotPizza} PIZZA`);
+          console.log(`[Settle Bot] Settling weekly game ${weeklyGameId}, totalToppings: ${totalClaimedToppings}, toppingToPizza: ${toppingToPizza}, jackpot: ${jackpotPizza} PIZZA`);
           console.log(`[Settle Bot] PIZZA price: $${pizzaPrice}, USD per winner: $${usdPerWinner.toFixed(2)} (${usdCentsPerWinner} cents)`);
 
           let hash: `0x${string}`;

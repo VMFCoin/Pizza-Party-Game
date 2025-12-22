@@ -628,7 +628,7 @@ export function useGamePageData() {
           console.log('Total ToppingsEarned events:', allLogs.length)
           console.log('Unique players (all reasons):', uniquePlayersThisWeek.size)
           console.log('Total toppings earned:', totalEarned.toString())
-          console.log('Projected jackpot:', (Number(totalEarned) * 100).toString(), 'PIZZA')
+          console.log('Projected jackpot:', (Number(totalEarned) * 10).toString(), 'PIZZA')
           console.log('')
           console.log('Breakdown by reason:')
           for (const [reason, amount] of Object.entries(toppingsByReason)) {
