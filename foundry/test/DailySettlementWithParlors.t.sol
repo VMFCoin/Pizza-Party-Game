@@ -106,6 +106,8 @@ contract DailySettlementWithParlorsTest is Test {
         vm.startPrank(owner);
         pizzaParty.setParlorManager(address(parlorManager));
         pizzaParty.setOwnerFeeRecipient(address(parlorManager));
+        // Set toppingToPizza (now a state variable, not a constant)
+        pizzaParty.setToppingToPizza(10e18); // 10 PIZZA per topping
         vm.stopPrank();
 
         // Create player addresses
