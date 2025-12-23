@@ -241,7 +241,7 @@ export default function PizzaParlorPage({
         }).catch(err => console.error('Failed to send slice notification:', err))
 
         const franchiseName = userParlorName || 'A Pizza Parlor'
-        const castText = `Hey @${sliceSentToUser.username}!!! 🍕🔥\n${franchiseName} just hooked you up with a free hot slice. Come grab it and jump into Pizza Party – you're automatically entered for the Daily Jackpot the second you open the app!\n\nDon't let this slice get cold... dive in and let's get saucy! 😏\nOpen your free slice here:`
+        const castText = `Hey @${sliceSentToUser.username}!!! 🍕🔥\n${franchiseName} just hooked you up with a free hot slice. Come grab it and jump into Pizza Party – open the app and claim to be entered for the Daily Jackpot!\n\nDon't let this slice get cold... dive in and let's get saucy! 😏\nOpen your free slice here:`
         const embedUrl = 'https://farcaster.xyz/miniapps/wgY6OPqYoIkz/pizza-party'
 
         // Use Farcaster SDK composeCast to stay in-app
