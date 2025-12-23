@@ -71,10 +71,17 @@ contract UpgradeParlorManager is Script {
         console.log("hasParlorName(deployer):", upgraded.hasParlorName(deployer));
         console.log("parlorName(deployer):", upgraded.parlorName(deployer));
 
+        // Verify pending slice functions exist
+        console.log("");
+        console.log("--- Pending Slice Feature ---");
+        (bool hasPending, address sponsor) = upgraded.hasPendingSlice(deployer);
+        console.log("hasPendingSlice(deployer): hasPending=%s, sponsor=%s", hasPending, sponsor);
+
         console.log("");
         console.log("Upgrade successful! New features available:");
-        console.log("- setParlorName(string): Set franchise name (one-time, max 20 chars)");
-        console.log("- parlorName(address): Read franchise name");
-        console.log("- hasParlorName(address): Check if name is set");
+        console.log("- sendSlice(address): Send a pending slice to recipient");
+        console.log("- claimSlice(): Claim pending slice and enter daily game");
+        console.log("- hasPendingSlice(address): Check if recipient has pending slice");
+        console.log("- getPendingSlice(address): Get full details of pending slice");
     }
 }

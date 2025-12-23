@@ -397,7 +397,31 @@ export const PARLOR_MANAGER_ABI = [
   { type: 'function', name: 'claimMyFees', stateMutability: 'nonpayable', inputs: [], outputs: [] },
   { type: 'function', name: 'distributeFranchiseFees', stateMutability: 'nonpayable', inputs: [], outputs: [] },
   { type: 'function', name: 'tipSlice', stateMutability: 'nonpayable', inputs: [{ type: 'address', name: 'recipient' }], outputs: [] },
+  { type: 'function', name: 'sendSlice', stateMutability: 'nonpayable', inputs: [{ type: 'address', name: 'recipient' }], outputs: [] },
+  { type: 'function', name: 'claimSlice', stateMutability: 'nonpayable', inputs: [], outputs: [] },
   { type: 'function', name: 'setParlorName', stateMutability: 'nonpayable', inputs: [{ type: 'string', name: 'name' }], outputs: [] },
+  // --- Pending Slice View Functions ---
+  {
+    type: 'function',
+    name: 'hasPendingSlice',
+    stateMutability: 'view',
+    inputs: [{ type: 'address', name: 'recipient' }],
+    outputs: [
+      { type: 'bool', name: 'hasPending' },
+      { type: 'address', name: 'sponsor' }
+    ]
+  },
+  {
+    type: 'function',
+    name: 'getPendingSlice',
+    stateMutability: 'view',
+    inputs: [{ type: 'address', name: 'recipient' }],
+    outputs: [
+      { type: 'address', name: 'sponsor' },
+      { type: 'uint256', name: 'dailyGameId' },
+      { type: 'bool', name: 'isValid' }
+    ]
+  },
   // --- Events ---
   {
     type: 'event',
@@ -415,6 +439,24 @@ export const PARLOR_MANAGER_ABI = [
     inputs: [
       { indexed: true, name: 'sponsor', type: 'address' },
       { indexed: true, name: 'recipient', type: 'address' },
+      { indexed: true, name: 'dailyGameId', type: 'uint256' }
+    ]
+  },
+  {
+    type: 'event',
+    name: 'SliceSent',
+    inputs: [
+      { indexed: true, name: 'sponsor', type: 'address' },
+      { indexed: true, name: 'recipient', type: 'address' },
+      { indexed: true, name: 'dailyGameId', type: 'uint256' }
+    ]
+  },
+  {
+    type: 'event',
+    name: 'SliceClaimed',
+    inputs: [
+      { indexed: true, name: 'recipient', type: 'address' },
+      { indexed: true, name: 'sponsor', type: 'address' },
       { indexed: true, name: 'dailyGameId', type: 'uint256' }
     ]
   },

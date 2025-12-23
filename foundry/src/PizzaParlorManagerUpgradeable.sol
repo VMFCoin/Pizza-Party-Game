@@ -99,13 +99,23 @@ contract PizzaParlorManagerUpgradeable is
     // Parlor naming - franchise brand name (one name per owner, set once)
     mapping(address => string) public parlorName;  // owner => franchise name
 
+    // Pending slices - slices that have been sent but not yet claimed
+    // When a parlor owner sends a slice, it's stored here until the recipient opens the app and claims it
+    struct PendingSlice {
+        address sponsor;       // The parlor owner who sent the slice
+        uint256 dailyGameId;   // The game this slice is valid for (expires when game changes)
+    }
+    mapping(address => PendingSlice) public pendingSlices;  // recipient => pending slice info
+
     // Upgrade safety gap - reserves storage slots for future upgrades
-    uint256[47] private __gap;  // Reduced by 1 for parlorName mapping
+    uint256[46] private __gap;  // Reduced by 2 for parlorName and pendingSlices
 
     // ============ Events ============
 
     event ParlorPurchased(address indexed buyer, uint256 indexed globalSerial, uint256 buyerTotalOwned, uint256 price);
-    event SliceTipped(address indexed sponsor, address indexed recipient, uint256 indexed dailyGameId);
+    event SliceSent(address indexed sponsor, address indexed recipient, uint256 indexed dailyGameId);
+    event SliceClaimed(address indexed recipient, address indexed sponsor, uint256 indexed dailyGameId);
+    event SliceTipped(address indexed sponsor, address indexed recipient, uint256 indexed dailyGameId);  // Legacy
     event SliceRedeemed(address indexed sponsor, address indexed recipient, uint256 indexed dailyGameId, uint256 nonce);
     event FranchiseFeesDistributed(uint256 totalFees, uint256 treasuryAmount, uint256 ownersAmount, uint256 opsAmount);
     event FranchiseFeesAllocated(uint256 newFees, uint256 treasuryAmount, uint256 opsAmount, uint256 ownersAmount);
@@ -136,6 +146,9 @@ contract PizzaParlorManagerUpgradeable is
     error ParlorAlreadyNamed();
     error NameTooLong();
     error NameEmpty();
+    error NoPendingSlice();
+    error SliceExpiredWrongGame();
+    error AlreadyHasPendingSlice();
 
     // ============ Initializer ============
 
@@ -260,11 +273,67 @@ contract PizzaParlorManagerUpgradeable is
         emit ParlorPurchased(msg.sender, totalParlors, parlorCount[msg.sender], price);
     }
 
-    // ============ Direct Slice Tipping ============
+    // ============ Slice Sending (Pending) ============
 
     /**
-     * @dev Tip a slice directly to a recipient (no signature required)
-     * @param recipient The address to receive the free daily entry
+     * @dev Send a slice to a recipient - slice is stored as pending until recipient claims it
+     * The recipient must open Pizza Party and call claimSlice() to enter the daily game
+     * @param recipient The address to receive the pending slice
+     */
+    function sendSlice(address recipient) external nonReentrant {
+        if (recipient == address(0)) revert InvalidAddress();
+        if (recipient == msg.sender) revert NoSelfSlice();
+
+        // Must own a parlor
+        if (parlorCount[msg.sender] == 0) revert NoParlorOwned();
+
+        // Check if recipient already has a pending slice for TODAY's game
+        uint256 currentGameId = pizzaParty.dailyGameId();
+        PendingSlice storage existing = pendingSlices[recipient];
+        if (existing.sponsor != address(0) && existing.dailyGameId == currentGameId) {
+            revert AlreadyHasPendingSlice();
+        }
+
+        // Enforce daily slice limit for sender
+        _enforceSliceLimit(msg.sender);
+
+        // Store pending slice (overwrites any expired slice from previous games)
+        pendingSlices[recipient] = PendingSlice({
+            sponsor: msg.sender,
+            dailyGameId: currentGameId
+        });
+
+        emit SliceSent(msg.sender, recipient, currentGameId);
+    }
+
+    /**
+     * @dev Claim your pending slice and enter the daily game
+     * Called by the recipient when they open Pizza Party
+     */
+    function claimSlice() external nonReentrant {
+        PendingSlice storage pending = pendingSlices[msg.sender];
+
+        // Must have a pending slice
+        if (pending.sponsor == address(0)) revert NoPendingSlice();
+
+        // Must be for today's game (slice expires when game changes)
+        uint256 currentGameId = pizzaParty.dailyGameId();
+        if (pending.dailyGameId != currentGameId) revert SliceExpiredWrongGame();
+
+        address sponsor = pending.sponsor;
+
+        // Clear pending slice before external call (reentrancy protection)
+        delete pendingSlices[msg.sender];
+
+        // Enter daily game for recipient with sponsor
+        pizzaParty.enterDailyWithSlice(msg.sender, sponsor);
+
+        emit SliceClaimed(msg.sender, sponsor, currentGameId);
+    }
+
+    /**
+     * @dev Legacy function - now stores pending slice instead of immediate entry
+     * @notice Deprecated: Use sendSlice() for new integrations
      */
     function tipSlice(address recipient) external nonReentrant {
         if (recipient == address(0)) revert InvalidAddress();
@@ -273,13 +342,24 @@ contract PizzaParlorManagerUpgradeable is
         // Must own a parlor
         if (parlorCount[msg.sender] == 0) revert NoParlorOwned();
 
+        // Check if recipient already has a pending slice for TODAY's game
+        uint256 currentGameId = pizzaParty.dailyGameId();
+        PendingSlice storage existing = pendingSlices[recipient];
+        if (existing.sponsor != address(0) && existing.dailyGameId == currentGameId) {
+            revert AlreadyHasPendingSlice();
+        }
+
         // Enforce daily slice limit
         _enforceSliceLimit(msg.sender);
 
-        // Enter daily game for recipient
-        pizzaParty.enterDailyWithSlice(recipient, msg.sender);
+        // Store pending slice (same behavior as sendSlice)
+        pendingSlices[recipient] = PendingSlice({
+            sponsor: msg.sender,
+            dailyGameId: currentGameId
+        });
 
-        emit SliceTipped(msg.sender, recipient, pizzaParty.dailyGameId());
+        emit SliceSent(msg.sender, recipient, currentGameId);
+        emit SliceTipped(msg.sender, recipient, currentGameId);  // Legacy event for compatibility
     }
 
     // ============ Signed Slice Redemption (EIP-712) ============
@@ -574,6 +654,44 @@ contract PizzaParlorManagerUpgradeable is
 
     function isNonceUsed(address sponsor, uint256 nonce) external view returns (bool) {
         return usedSliceNonce[sponsor][nonce];
+    }
+
+    /**
+     * @dev Check if an address has a pending (claimable) slice for today's game
+     * @param recipient The address to check
+     * @return hasPending True if there's a valid pending slice
+     * @return sponsor The sponsor who sent the slice (address(0) if none)
+     */
+    function hasPendingSlice(address recipient) external view returns (bool hasPending, address sponsor) {
+        PendingSlice storage pending = pendingSlices[recipient];
+        uint256 currentGameId = pizzaParty.dailyGameId();
+
+        if (pending.sponsor != address(0) && pending.dailyGameId == currentGameId) {
+            return (true, pending.sponsor);
+        }
+        return (false, address(0));
+    }
+
+    /**
+     * @dev Get full details of a pending slice
+     * @param recipient The address to check
+     * @return sponsor The sponsor address (address(0) if none)
+     * @return dailyGameId The game ID the slice is for
+     * @return isValid True if the slice is valid for today's game
+     */
+    function getPendingSlice(address recipient) external view returns (
+        address sponsor,
+        uint256 dailyGameId,
+        bool isValid
+    ) {
+        PendingSlice storage pending = pendingSlices[recipient];
+        uint256 currentGameId = pizzaParty.dailyGameId();
+
+        return (
+            pending.sponsor,
+            pending.dailyGameId,
+            pending.sponsor != address(0) && pending.dailyGameId == currentGameId
+        );
     }
 
     /**

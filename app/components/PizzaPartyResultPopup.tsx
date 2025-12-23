@@ -1,8 +1,8 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import { X } from 'lucide-react'
-import { useAccount } from 'wagmi'
+import { useAccount, useWriteContract, useWaitForTransactionReceipt } from 'wagmi'
 import { readContract } from '@wagmi/core'
 import { wagmiConfig as config } from './config/wagmiConfig'
 import { PIZZA_PARTY_ADDRESS, PIZZA_PARTY_ABI, PARLOR_MANAGER_ADDRESS, PARLOR_MANAGER_ABI } from '../lib/constants'
@@ -29,14 +29,45 @@ export function PizzaPartyResultPopup() {
 
   // Free slice state
   const [sponsorName, setSponsorName] = useState<string | null>(null)
+  const [needsSliceClaim, setNeedsSliceClaim] = useState(false) // true = pending slice needs claim, false = already claimed
+  const [isClaiming, setIsClaiming] = useState(false)
 
   const [hasChecked, setHasChecked] = useState(false)
   const [currentDailyGameIdRef, setCurrentDailyGameIdRef] = useState<bigint>(0n)
   const [lastSettledDailyGameIdRef, setLastSettledDailyGameIdRef] = useState<bigint>(0n)
   const [lastSettledWeeklyGameIdRef, setLastSettledWeeklyGameIdRef] = useState<bigint>(0n)
 
+  // Contract write for claiming slice
+  const { writeContract, data: claimTxHash, isPending: isClaimPending } = useWriteContract()
+  const { isLoading: isClaimConfirming, isSuccess: isClaimSuccess } = useWaitForTransactionReceipt({
+    hash: claimTxHash,
+  })
+
   // Calculate total PIZZA won
   const totalPizzaWon = dailyPizzaWon + weeklyPizzaWon
+
+  // Handle successful slice claim - update UI to show claimed state
+  useEffect(() => {
+    if (isClaimSuccess && currentPopup === 'freeSlice' && needsSliceClaim) {
+      // Mark as seen and show confirmed state
+      const freeSliceSeenKey = `pizza_party_seen_freeslice_${currentDailyGameIdRef}`
+      localStorage.setItem(freeSliceSeenKey, 'true')
+      setNeedsSliceClaim(false)
+      setIsClaiming(false)
+    }
+  }, [isClaimSuccess, currentPopup, currentDailyGameIdRef, needsSliceClaim])
+
+  // Claim slice handler
+  const handleClaimSlice = useCallback(() => {
+    if (!address || isClaiming || isClaimPending || isClaimConfirming) return
+
+    setIsClaiming(true)
+    writeContract({
+      address: PARLOR_MANAGER_ADDRESS as `0x${string}`,
+      abi: PARLOR_MANAGER_ABI,
+      functionName: 'claimSlice',
+    })
+  }, [address, isClaiming, isClaimPending, isClaimConfirming, writeContract])
 
   // Fetch PIZZA/USD price
   useEffect(() => {
@@ -216,36 +247,83 @@ export function PizzaPartyResultPopup() {
           }
         }
 
-        // ===== STEP 2: Check for free slice in CURRENT game =====
+        // ===== STEP 2: Check for PENDING slice (needs to be claimed) or already claimed slice =====
         const freeSliceSeenKey = `pizza_party_seen_freeslice_${currentDailyGameId}`
         const hasSeenFreeSlice = typeof window !== 'undefined' ? localStorage.getItem(freeSliceSeenKey) : null
+        let foundFreeSlice = false
 
         if (!hasSeenFreeSlice) {
-          const sponsor = await readContract(config, {
-            address: PIZZA_PARTY_ADDRESS as `0x${string}`,
-            abi: PIZZA_PARTY_ABI,
-            functionName: 'dailySliceSponsor',
-            args: [currentDailyGameId, address as `0x${string}`],
-          }) as `0x${string}`
+          // First check for pending slice on ParlorManager (needs claiming)
+          try {
+            const pendingSliceResult = await readContract(config, {
+              address: PARLOR_MANAGER_ADDRESS as `0x${string}`,
+              abi: PARLOR_MANAGER_ABI,
+              functionName: 'hasPendingSlice',
+              args: [address as `0x${string}`],
+            }) as readonly [boolean, `0x${string}`]
 
-          if (sponsor && sponsor !== '0x0000000000000000000000000000000000000000') {
-            // Try to get sponsor's franchise name
-            try {
-              const franchiseName = await readContract(config, {
-                address: PARLOR_MANAGER_ADDRESS as `0x${string}`,
-                abi: PARLOR_MANAGER_ABI,
-                functionName: 'parlorName',
-                args: [sponsor],
-              }) as string
+            const [hasPending, pendingSponsor] = pendingSliceResult
 
-              if (franchiseName && franchiseName.length > 0) {
-                setSponsorName(franchiseName)
+            if (hasPending && pendingSponsor !== '0x0000000000000000000000000000000000000000') {
+              // User has a pending slice - they need to claim it
+              setNeedsSliceClaim(true)
+              foundFreeSlice = true
+
+              // Try to get sponsor's franchise name
+              try {
+                const franchiseName = await readContract(config, {
+                  address: PARLOR_MANAGER_ADDRESS as `0x${string}`,
+                  abi: PARLOR_MANAGER_ABI,
+                  functionName: 'parlorName',
+                  args: [pendingSponsor],
+                }) as string
+
+                if (franchiseName && franchiseName.length > 0) {
+                  setSponsorName(franchiseName)
+                }
+              } catch {
+                // Ignore errors fetching franchise name
               }
-            } catch {
-              // Ignore errors fetching franchise name
-            }
 
-            popupsToShow.push('freeSlice')
+              popupsToShow.push('freeSlice')
+            }
+          } catch (err) {
+            // hasPendingSlice doesn't exist yet (contract not upgraded) - check old way
+            console.log('hasPendingSlice not available, checking dailySliceSponsor:', err)
+          }
+
+          // Also check if already claimed (dailySliceSponsor on PizzaParty)
+          // This handles slices that were already claimed or from pre-upgrade
+          if (!foundFreeSlice) {
+            const sponsor = await readContract(config, {
+              address: PIZZA_PARTY_ADDRESS as `0x${string}`,
+              abi: PIZZA_PARTY_ABI,
+              functionName: 'dailySliceSponsor',
+              args: [currentDailyGameId, address as `0x${string}`],
+            }) as `0x${string}`
+
+            if (sponsor && sponsor !== '0x0000000000000000000000000000000000000000') {
+              // Already claimed - no need to claim again
+              setNeedsSliceClaim(false)
+
+              // Try to get sponsor's franchise name
+              try {
+                const franchiseName = await readContract(config, {
+                  address: PARLOR_MANAGER_ADDRESS as `0x${string}`,
+                  abi: PARLOR_MANAGER_ABI,
+                  functionName: 'parlorName',
+                  args: [sponsor],
+                }) as string
+
+                if (franchiseName && franchiseName.length > 0) {
+                  setSponsorName(franchiseName)
+                }
+              } catch {
+                // Ignore errors fetching franchise name
+              }
+
+              popupsToShow.push('freeSlice')
+            }
           }
         }
 
@@ -270,7 +348,7 @@ export function PizzaPartyResultPopup() {
           // Mark free slice as seen
           const freeSliceSeenKey = `pizza_party_seen_freeslice_${currentDailyGameIdRef}`
           localStorage.setItem(freeSliceSeenKey, 'true')
-        } else {
+        } else if (currentPopup === 'winner' || currentPopup === 'loser') {
           // Mark winner/loser result as seen
           const seenKey = `pizza_party_seen_daily_${lastSettledDailyGameIdRef}_weekly_${lastSettledWeeklyGameIdRef}`
           localStorage.setItem(seenKey, 'true')
@@ -479,10 +557,10 @@ export function PizzaPartyResultPopup() {
         )}
 
         {currentPopup === 'freeSlice' && (
-          /* FREE SLICE CARD */
+          /* FREE SLICE CARD - Shows claim button if pending, or confirmation if claimed */
           <div
             className="relative w-full bg-gradient-to-br from-green-500 to-green-600 rounded-3xl border-4 border-black shadow-2xl overflow-hidden"
-            style={{ aspectRatio: '360/260' }}
+            style={{ aspectRatio: needsSliceClaim ? '360/300' : '360/260' }}
           >
             <div className="absolute inset-3 sm:inset-4 border-4 border-black rounded-2xl" />
 
@@ -531,20 +609,56 @@ export function PizzaPartyResultPopup() {
                 </p>
               </div>
 
-              <div className="mt-3" style={{ fontFamily: 'var(--font-luckiest-guy)' }}>
-                <p
-                  className="text-black"
-                  style={{ fontSize: 'clamp(0.9rem, 3vw, 1.2rem)', lineHeight: '1.2', margin: '0' }}
-                >
-                  You&apos;re in today&apos;s game!
-                </p>
-                <p
-                  className="text-black"
-                  style={{ fontSize: 'clamp(0.9rem, 3vw, 1.2rem)', lineHeight: '1.2', margin: '0' }}
-                >
-                  Good luck!
-                </p>
-              </div>
+              {needsSliceClaim ? (
+                /* Show claim button */
+                <>
+                  <div className="w-full flex justify-center mt-4">
+                    <button
+                      onClick={handleClaimSlice}
+                      disabled={isClaiming || isClaimPending || isClaimConfirming}
+                      className="bg-gradient-to-b from-yellow-400 to-yellow-500 hover:from-yellow-300 hover:to-yellow-400 active:scale-95 transition-all rounded-full border-4 border-black shadow-xl px-8 py-2 w-full max-w-[280px] disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      <p
+                        className="text-white whitespace-nowrap"
+                        style={{
+                          fontFamily: 'var(--font-luckiest-guy)',
+                          textShadow: '2px 2px 0px #000, -1px -1px 0px #000',
+                          fontSize: 'clamp(1.1rem, 4vw, 1.6rem)',
+                          lineHeight: '1',
+                          margin: '0',
+                        }}
+                      >
+                        {isClaiming || isClaimPending || isClaimConfirming ? 'CLAIMING...' : 'CLAIM YOUR SLICE!'}
+                      </p>
+                    </button>
+                  </div>
+
+                  <div className="mt-2" style={{ fontFamily: 'var(--font-luckiest-guy)' }}>
+                    <p
+                      className="text-black"
+                      style={{ fontSize: 'clamp(0.8rem, 2.5vw, 1rem)', lineHeight: '1.2', margin: '0' }}
+                    >
+                      Tap to enter today&apos;s game
+                    </p>
+                  </div>
+                </>
+              ) : (
+                /* Show confirmation */
+                <div className="mt-3" style={{ fontFamily: 'var(--font-luckiest-guy)' }}>
+                  <p
+                    className="text-black"
+                    style={{ fontSize: 'clamp(0.9rem, 3vw, 1.2rem)', lineHeight: '1.2', margin: '0' }}
+                  >
+                    You&apos;re in today&apos;s game!
+                  </p>
+                  <p
+                    className="text-black"
+                    style={{ fontSize: 'clamp(0.9rem, 3vw, 1.2rem)', lineHeight: '1.2', margin: '0' }}
+                  >
+                    Good luck!
+                  </p>
+                </div>
+              )}
             </div>
           </div>
         )}
