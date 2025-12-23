@@ -308,7 +308,7 @@ export async function GET(request: NextRequest) {
 
           // weeklyGame returns: [claimWindowStart, claimWindowEnd, totalClaimedToppings, potAmount, settled]
           const totalClaimedToppings = weeklyGame[2];
-          // toppingToPizza is in wei (e.g., 10e18 = 10 PIZZA per topping)
+          // toppingToPizza is in wei (e.g., 1e18 = 1 PIZZA per topping)
           const toppingToPizza = parseFloat(formatUnits(toppingToPizzaRaw, 18));
           // Weekly jackpot = totalClaimedToppings * toppingToPizza PIZZA
           const jackpotPizza = Number(totalClaimedToppings) * toppingToPizza;

@@ -67,8 +67,8 @@ contract PizzaPartyV2Upgradeable is OwnableUpgradeable, UUPSUpgradeable, Reentra
     uint256 public constant MAX_REFERRALS_PER_WEEK = 3;
 
     // Holdings bonus constants (toppings per unit)
-    uint256 public constant HOLDINGS_TOPPINGS = 3;        // 3 toppings per $10 unit
-    uint256 public constant HOLDINGS_MAX_TOPPINGS = 30;   // cap at $100 worth (30 toppings)
+    uint256 public constant HOLDINGS_TOPPINGS = 1;        // 1 topping per $10 unit
+    uint256 public constant HOLDINGS_MAX_TOPPINGS = 5;    // cap at $50 worth (5 toppings)
 
     // ============ State Variables ============
 
@@ -602,7 +602,7 @@ contract PizzaPartyV2Upgradeable is OwnableUpgradeable, UUPSUpgradeable, Reentra
     }
 
     /**
-     * @dev Calculate holdings bonus: 3 toppings per $10 worth of PIZZA, max 30 toppings
+     * @dev Calculate holdings bonus: 1 topping per $10 worth of PIZZA, max 5 toppings
      * Uses holdingsUnitPizza (set by owner based on market price from Dexscreener)
      */
     function _calculateHoldingsBonus(address player) internal view returns (uint256) {
@@ -613,9 +613,9 @@ contract PizzaPartyV2Upgradeable is OwnableUpgradeable, UUPSUpgradeable, Reentra
         if (balance < unit) return 0;
 
         uint256 units = balance / unit;
-        uint256 bonus = units * HOLDINGS_TOPPINGS; // 3 per $10-unit
+        uint256 bonus = units * HOLDINGS_TOPPINGS; // 1 per $10-unit
 
-        // Cap at max toppings (30 = $100 worth)
+        // Cap at max toppings (5 = $50 worth)
         if (bonus > HOLDINGS_MAX_TOPPINGS) {
             bonus = HOLDINGS_MAX_TOPPINGS;
         }

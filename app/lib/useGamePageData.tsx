@@ -657,9 +657,9 @@ export function useGamePageData() {
 
           // Use ToppingsEarned as source of truth
           if (totalEarned > 0n) {
-            // Jackpot = total toppings earned this week × 10 PIZZA per topping
+            // Jackpot = total toppings earned this week × 1 PIZZA per topping
             // IMPORTANT: Toppings are added to weekly jackpot IMMEDIATELY when earned (daily plays, referrals)
-            // The only exception is holdings bonus (3 toppings per $10 of PIZZA) which is calculated
+            // The only exception is holdings bonus (1 topping per $10 of PIZZA, max 5) which is calculated
             // at claim time based on PIZZA balance snapshot at that moment
             // This projection shows what the jackpot will be if all earned toppings are claimed
             projectedJackpotWei = totalEarned * GAME_CONSTANTS.TOPPING_TO_PIZZA_RATE

@@ -520,7 +520,7 @@ export const GAME_CONSTANTS = {
   HOLDINGS_UNIT: 10000n * ONE_ETHER,
   HOLDINGS_TICKETS: 3,
   MAX_INVITES_PER_WEEK: 3,
-  TOPPING_TO_PIZZA_RATE: 10n * ONE_ETHER,  // 1 topping = 10 PIZZA in weekly jackpot
+  TOPPING_TO_PIZZA_RATE: 1n * ONE_ETHER,  // 1 topping = 1 PIZZA in weekly jackpot
   WEEKLY_WINNERS_COUNT: 10,
   DEFAULT_DAILY_WINNERS_COUNT: 8,
   // EIP-712 Permit Domain for PIZZA token
