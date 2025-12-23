@@ -17,8 +17,8 @@ interface IPizzaParlorManager {
  * @dev Daily lottery + Weekly jackpot with topping-based tickets (UUPS Upgradeable)
  *
  * Daily Game:
- * - Pay dynamic PIZZA amount ($1 worth at current market price) to enter, earn 1 topping, get 1 entry
- * - Entry fee adjusts based on PIZZA market price (frontend calculates amount for $1)
+ * - Pay PIZZA amount within MIN/MAX bounds to enter (frontend targets ~$1 USD)
+ * - Entry fee is validated by bounds only; USD value is a frontend convention
  * - 8 winners split the daily pot (94% to winners, 3% charity, 3% owner fee)
  * - Games without entries are skipped
  *
@@ -26,18 +26,18 @@ interface IPizzaParlorManager {
  * - Claim window: Sunday 12pm PT → Monday 12pm PT (24 hours)
  * - PIZZA balance snapshot taken at claim time
  * - Players claim toppings once per week during window
- * - 1 topping = 10 PIZZA in jackpot (configurable)
+ * - Jackpot = totalClaimedToppings × toppingToPizza (must be set via setToppingToPizza)
  * - 10 winners, weighted by claimed toppings
  * - Paid from treasury wallet
  *
  * Toppings earned:
  * - Daily play: 1 topping (max 7/week)
  * - Referrals: 2 toppings per successful referral (max 3/week)
- * - Holdings: 3 toppings per $10 worth of PIZZA held (max 30 toppings)
+ * - Holdings: 1 topping per $10 worth of PIZZA held (max 5 toppings, ~$50 worth)
  *
  * Parlor System:
  * - Parlor owners can tip slices (free entries) to new players
- * - If new player wins, sponsor gets 50% split (daily: same day, weekly: first claim week only)
+ * - If new player wins, sponsor gets 50% split (daily: same day, weekly: that week only)
  * - Dust and remainder also split 50/50 with sponsor
  */
 contract PizzaPartyV2Upgradeable is OwnableUpgradeable, UUPSUpgradeable, ReentrancyGuard {
@@ -661,7 +661,7 @@ contract PizzaPartyV2Upgradeable is OwnableUpgradeable, UUPSUpgradeable, Reentra
         // Require at least one claimer to settle
         require(week.claimers.length > 0 && week.totalClaimedToppings > 0, "No claimers");
 
-        // Jackpot = total claimed toppings × 100 PIZZA
+        // Jackpot = total claimed toppings × toppingToPizza (configurable, e.g. 10 PIZZA)
         uint256 jackpot = week.totalClaimedToppings * toppingToPizza;
 
         // Pull from treasury
