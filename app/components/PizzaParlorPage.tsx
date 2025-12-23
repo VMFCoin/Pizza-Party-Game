@@ -9,6 +9,7 @@ import { useAccount, useReadContracts, useWriteContract, useWaitForTransactionRe
 import { formatUnits, parseUnits, isAddress } from 'viem'
 import { PARLOR_MANAGER_ADDRESS, PARLOR_MANAGER_ABI, PIZZA_TOKEN_ADDRESS, PIZZA_TOKEN_ABI, PIZZA_PARTY_ADDRESS, PIZZA_PARTY_ABI } from '../lib/constants'
 import { sdk } from '@farcaster/miniapp-sdk'
+import { fetchProfilesByAddresses } from '../lib/farcasterProfiles'
 
 // Parlor price in USD - this is the fixed dollar amount
 const PARLOR_PRICE_USD = 50
@@ -338,6 +339,42 @@ export default function PizzaParlorPage({
     // Store selected user for cast notification after tx confirms
     if (selectedUser) {
       setSliceSentToUser(selectedUser)
+    } else {
+      // Look up Farcaster profile for the address if no user was selected
+      // This handles cases where user pasted an address directly
+      try {
+        const profiles = await fetchProfilesByAddresses([resolvedAddress])
+        const profile = profiles.get(resolvedAddress.toLowerCase())
+        if (profile?.username) {
+          // Create a FarcasterUser object from the profile
+          setSliceSentToUser({
+            fid: profile.fid || 0,
+            username: profile.username,
+            displayName: profile.displayName || profile.username,
+            pfpUrl: profile.pfpUrl || '',
+            walletAddress: resolvedAddress,
+          })
+        } else {
+          // No Farcaster profile found - still trigger cast with address
+          setSliceSentToUser({
+            fid: 0,
+            username: resolvedAddress.slice(0, 6) + '...' + resolvedAddress.slice(-4),
+            displayName: 'Pizza Fan',
+            pfpUrl: '',
+            walletAddress: resolvedAddress,
+          })
+        }
+      } catch (err) {
+        console.error('Failed to fetch profile for address:', err)
+        // Fallback - still trigger cast with address
+        setSliceSentToUser({
+          fid: 0,
+          username: resolvedAddress.slice(0, 6) + '...' + resolvedAddress.slice(-4),
+          displayName: 'Pizza Fan',
+          pfpUrl: '',
+          walletAddress: resolvedAddress,
+        })
+      }
     }
 
     try {

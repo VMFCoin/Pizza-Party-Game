@@ -802,6 +802,27 @@ contract PizzaParlorManagerUpgradeable is
         }
     }
 
+    /**
+     * @dev Admin function to send a slice on behalf of a sponsor
+     * Allows admin to manually create pending slices for testing/support
+     * @param sponsor The parlor owner to record as the sponsor (does NOT need to own a parlor)
+     * @param recipient The address to receive the pending slice
+     */
+    function adminSendSlice(address sponsor, address recipient) external onlyOwner {
+        if (recipient == address(0) || sponsor == address(0)) revert InvalidAddress();
+        if (recipient == sponsor) revert NoSelfSlice();
+
+        uint256 currentGameId = pizzaParty.dailyGameId();
+
+        // Store pending slice (overwrites any existing)
+        pendingSlices[recipient] = PendingSlice({
+            sponsor: sponsor,
+            dailyGameId: currentGameId
+        });
+
+        emit SliceSent(sponsor, recipient, currentGameId);
+    }
+
     // ============ UUPS Upgrade Authorization ============
 
     function _authorizeUpgrade(address newImplementation) internal override onlyOwner {}
