@@ -531,9 +531,11 @@ export default function PizzaParlorPage({
     setIsLoadingHistory(true)
     try {
       // Fetch SliceSent events where sponsor is the current user
-      // Look back ~30 days worth of blocks (assuming ~2 sec block time on Base)
+      // Look back ~30 days worth of blocks (Base has ~2 sec block time)
+      // 30 days × 24 hours × 60 min × 60 sec ÷ 2 sec/block = 1,296,000 blocks
       const currentBlock = await publicClient.getBlockNumber()
-      const fromBlock = currentBlock - BigInt(30 * 24 * 60 * 30) // ~30 days
+      const BLOCKS_PER_DAY = BigInt(43200) // 86400 seconds / 2 sec per block
+      const fromBlock = currentBlock - (BLOCKS_PER_DAY * 30n) // ~30 days
 
       const sliceSentLogs = await publicClient.getLogs({
         address: PARLOR_MANAGER_ADDRESS as `0x${string}`,
