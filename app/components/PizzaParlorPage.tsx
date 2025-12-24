@@ -5,8 +5,8 @@ import Image from 'next/image'
 import { Button } from './ui/button'
 import { Card } from './ui/card'
 import { ArrowLeft, ChevronDown, ChevronUp } from 'lucide-react'
-import { useAccount, useReadContracts, useWriteContract, useWaitForTransactionReceipt } from 'wagmi'
-import { formatUnits, parseUnits, isAddress } from 'viem'
+import { useAccount, useReadContracts, useWriteContract, useWaitForTransactionReceipt, usePublicClient } from 'wagmi'
+import { formatUnits, parseUnits, isAddress, parseAbiItem } from 'viem'
 import { PARLOR_MANAGER_ADDRESS, PARLOR_MANAGER_ABI, PIZZA_TOKEN_ADDRESS, PIZZA_TOKEN_ABI, PIZZA_PARTY_ADDRESS, PIZZA_PARTY_ABI } from '../lib/constants'
 import { sdk } from '@farcaster/miniapp-sdk'
 import { fetchProfilesByAddresses } from '../lib/farcasterProfiles'
@@ -55,6 +55,19 @@ interface FarcasterUser {
   walletAddress: string
 }
 
+// Slice history entry (from on-chain events + enriched with profiles)
+interface SliceHistoryEntry {
+  recipient: `0x${string}`
+  dailyGameId: bigint
+  timestamp: number
+  blockNumber: bigint
+  txHash: `0x${string}`
+  claimed: boolean
+  // Enriched data from Farcaster/localStorage
+  label?: string
+  pfpUrl?: string
+}
+
 // Parlors are now available to everyone!
 
 export default function PizzaParlorPage({
@@ -71,6 +84,7 @@ export default function PizzaParlorPage({
   }
 
   const { address: userAddress, isConnected } = useAccount()
+  const publicClient = usePublicClient()
 
   const [isMobile, setIsMobile] = useState(false)
   const [buyParlorOpen, setBuyParlorOpen] = useState(false)
@@ -84,6 +98,11 @@ export default function PizzaParlorPage({
   const [farcasterResults, setFarcasterResults] = useState<FarcasterUser[]>([])
   const [isSearching, setIsSearching] = useState(false)
   const [selectedUser, setSelectedUser] = useState<FarcasterUser | null>(null)
+
+  // Slice History state
+  const [sliceHistoryOpen, setSliceHistoryOpen] = useState(false)
+  const [sliceHistory, setSliceHistory] = useState<SliceHistoryEntry[]>([])
+  const [isLoadingHistory, setIsLoadingHistory] = useState(false)
 
   // Transaction states
   const [isPurchasing, setIsPurchasing] = useState(false)
@@ -504,6 +523,96 @@ export default function PizzaParlorPage({
       .sort((a, b) => b.uses - a.uses || b.lastUsed - a.lastUsed)
       .slice(0, 5)
   }
+
+  // Fetch slice history from on-chain events
+  const fetchSliceHistory = useCallback(async () => {
+    if (!publicClient || !userAddress) return
+
+    setIsLoadingHistory(true)
+    try {
+      // Fetch SliceSent events where sponsor is the current user
+      // Look back ~30 days worth of blocks (assuming ~2 sec block time on Base)
+      const currentBlock = await publicClient.getBlockNumber()
+      const fromBlock = currentBlock - BigInt(30 * 24 * 60 * 30) // ~30 days
+
+      const sliceSentLogs = await publicClient.getLogs({
+        address: PARLOR_MANAGER_ADDRESS as `0x${string}`,
+        event: parseAbiItem('event SliceSent(address indexed sponsor, address indexed recipient, uint256 indexed dailyGameId)'),
+        args: { sponsor: userAddress },
+        fromBlock,
+        toBlock: currentBlock,
+      })
+
+      // Fetch SliceClaimed events to check which slices were claimed
+      const sliceClaimedLogs = await publicClient.getLogs({
+        address: PARLOR_MANAGER_ADDRESS as `0x${string}`,
+        event: parseAbiItem('event SliceClaimed(address indexed recipient, address indexed sponsor, uint256 indexed dailyGameId)'),
+        args: { sponsor: userAddress },
+        fromBlock,
+        toBlock: currentBlock,
+      })
+
+      // Create a set of claimed slice keys for quick lookup
+      const claimedSet = new Set(
+        sliceClaimedLogs.map(log => `${log.args.recipient?.toLowerCase()}-${log.args.dailyGameId?.toString()}`)
+      )
+
+      // Get unique recipients for profile enrichment
+      const recipientAddresses = [...new Set(sliceSentLogs.map(log => log.args.recipient as `0x${string}`))]
+
+      // Fetch Farcaster profiles for recipients
+      const profiles = await fetchProfilesByAddresses(recipientAddresses)
+
+      // Build history entries
+      const history: SliceHistoryEntry[] = await Promise.all(
+        sliceSentLogs.map(async (log) => {
+          const recipient = log.args.recipient as `0x${string}`
+          const dailyGameId = log.args.dailyGameId as bigint
+          const claimKey = `${recipient.toLowerCase()}-${dailyGameId.toString()}`
+
+          // Try to get block timestamp
+          let timestamp = Date.now()
+          try {
+            const block = await publicClient.getBlock({ blockNumber: log.blockNumber })
+            timestamp = Number(block.timestamp) * 1000
+          } catch {
+            // Use current time as fallback
+          }
+
+          // Get profile or localStorage label
+          const profile = profiles.get(recipient.toLowerCase())
+          const localRecipient = recentRecipients.find(r => r.address.toLowerCase() === recipient.toLowerCase())
+
+          // Build label: prefer Farcaster username, then localStorage label
+          let label: string | undefined
+          if (profile?.username) {
+            label = `@${profile.username}`
+          } else if (localRecipient?.label && !localRecipient.label.startsWith('0x')) {
+            label = localRecipient.label
+          }
+
+          return {
+            recipient,
+            dailyGameId,
+            timestamp,
+            blockNumber: log.blockNumber,
+            txHash: log.transactionHash as `0x${string}`,
+            claimed: claimedSet.has(claimKey),
+            label, // username or custom label (address shown separately in UI)
+            pfpUrl: profile?.pfpUrl,
+          }
+        })
+      )
+
+      // Sort by most recent first
+      history.sort((a, b) => b.timestamp - a.timestamp)
+      setSliceHistory(history)
+    } catch (error) {
+      console.error('Failed to fetch slice history:', error)
+    } finally {
+      setIsLoadingHistory(false)
+    }
+  }, [publicClient, userAddress, recentRecipients])
 
   // ============ Effects ============
 
@@ -931,6 +1040,94 @@ export default function PizzaParlorPage({
                             ? '🍕 NO SLICES LEFT 🍕'
                             : '🍕 SEND SLICE 🍕'}
             </Button>
+
+                    {/* Slice History Dropdown */}
+                    <div className="pt-2 border-t border-blue-300 mt-3">
+                      <button
+                        onClick={() => {
+                          setSliceHistoryOpen(!sliceHistoryOpen)
+                          if (!sliceHistoryOpen && sliceHistory.length === 0) {
+                            fetchSliceHistory()
+                          }
+                        }}
+                        className="w-full flex items-center justify-between text-blue-700 hover:text-blue-900 py-1"
+                        style={{ ...customFontStyle, fontSize: 14 }}
+                      >
+                        <span>Slice History:</span>
+                        {sliceHistoryOpen ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
+                      </button>
+
+                      {sliceHistoryOpen && (
+                        <div className="mt-2 bg-blue-50 rounded-lg p-2 max-h-64 overflow-y-auto">
+                          {isLoadingHistory ? (
+                            <p className="text-center text-blue-600 py-4" style={{ ...customFontStyle, fontSize: 12 }}>
+                              Loading history...
+                            </p>
+                          ) : sliceHistory.length === 0 ? (
+                            <p className="text-center text-blue-500 py-4" style={{ ...customFontStyle, fontSize: 12 }}>
+                              No slices sent yet
+                            </p>
+                          ) : (
+                            <div className="space-y-2">
+                              {sliceHistory.map((entry, idx) => (
+                                <div
+                                  key={`${entry.txHash}-${idx}`}
+                                  className="flex items-center gap-2 p-2 bg-white rounded-lg border border-blue-200"
+                                >
+                                  {entry.pfpUrl ? (
+                                    <Image
+                                      src={entry.pfpUrl}
+                                      alt="Profile"
+                                      width={28}
+                                      height={28}
+                                      className="rounded-full"
+                                    />
+                                  ) : (
+                                    <div className="w-7 h-7 rounded-full bg-blue-200 flex items-center justify-center text-blue-600 text-xs">
+                                      🍕
+                                    </div>
+                                  )}
+                                  <div className="flex-1 min-w-0">
+                                    {entry.label && (
+                                      <p className="text-blue-900 truncate" style={{ ...customFontStyle, fontSize: 12 }}>
+                                        {entry.label}
+                                      </p>
+                                    )}
+                                    <p className="text-blue-600 truncate" style={{ fontSize: 10 }}>
+                                      {entry.recipient.slice(0, 6)}...{entry.recipient.slice(-4)}
+                                    </p>
+                                    <p className="text-blue-400" style={{ fontSize: 9 }}>
+                                      Game #{entry.dailyGameId.toString()} • {new Date(entry.timestamp).toLocaleDateString()}
+                                    </p>
+                                  </div>
+                                  <div className="text-right">
+                                    <span
+                                      className={`text-xs px-2 py-0.5 rounded-full ${
+                                        entry.claimed
+                                          ? 'bg-green-100 text-green-700'
+                                          : 'bg-yellow-100 text-yellow-700'
+                                      }`}
+                                      style={{ ...customFontStyle, fontSize: 10 }}
+                                    >
+                                      {entry.claimed ? 'Claimed' : 'Pending'}
+                                    </span>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                          {/* Refresh button */}
+                          <button
+                            onClick={fetchSliceHistory}
+                            disabled={isLoadingHistory}
+                            className="w-full mt-2 text-blue-600 hover:text-blue-800 text-center py-1"
+                            style={{ ...customFontStyle, fontSize: 11 }}
+                          >
+                            {isLoadingHistory ? 'Refreshing...' : '🔄 Refresh'}
+                          </button>
+                        </div>
+                      )}
+                    </div>
                   </div>
                 </div>
               )}
