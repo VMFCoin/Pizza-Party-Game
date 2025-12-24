@@ -1101,16 +1101,28 @@ export default function PizzaParlorPage({
                                     </p>
                                   </div>
                                   <div className="text-right">
-                                    <span
-                                      className={`text-xs px-2 py-0.5 rounded-full ${
-                                        entry.claimed
-                                          ? 'bg-green-100 text-green-700'
+                                    {(() => {
+                                      // Determine status: Claimed, Pending (current game), or Expired (past game)
+                                      const isExpired = !entry.claimed && dailyGameId && entry.dailyGameId < dailyGameId
+                                      const statusClass = entry.claimed
+                                        ? 'bg-green-100 text-green-700'
+                                        : isExpired
+                                          ? 'bg-red-100 text-red-700'
                                           : 'bg-yellow-100 text-yellow-700'
-                                      }`}
-                                      style={{ ...customFontStyle, fontSize: 10 }}
-                                    >
-                                      {entry.claimed ? 'Claimed' : 'Pending'}
-                                    </span>
+                                      const statusText = entry.claimed
+                                        ? 'Claimed'
+                                        : isExpired
+                                          ? 'Expired'
+                                          : 'Pending'
+                                      return (
+                                        <span
+                                          className={`text-xs px-2 py-0.5 rounded-full ${statusClass}`}
+                                          style={{ ...customFontStyle, fontSize: 10 }}
+                                        >
+                                          {statusText}
+                                        </span>
+                                      )
+                                    })()}
                                   </div>
                                 </div>
                               ))}
