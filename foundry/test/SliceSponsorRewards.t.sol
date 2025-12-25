@@ -172,7 +172,7 @@ contract SliceSponsorRewardsTest is Test {
 
         // Recipient claims their pending slice (this completes the entry)
         vm.prank(slicedPlayer);
-        parlorManager.claimSlice();
+        parlorManager.claimSlice(0);
 
         // Verify the slice was recorded
         assertTrue(pizzaParty.hasSlicedPlayer(sponsor, slicedPlayer), "hasSlicedPlayer should be true");
@@ -242,7 +242,7 @@ contract SliceSponsorRewardsTest is Test {
 
         // Recipient claims their pending slice
         vm.prank(slicedPlayer);
-        parlorManager.claimSlice();
+        parlorManager.claimSlice(0);
 
         console.log("Day 1: First slice given");
         assertTrue(pizzaParty.hasSlicedPlayer(sponsor, slicedPlayer), "hasSlicedPlayer should be true after first slice");
@@ -265,7 +265,7 @@ contract SliceSponsorRewardsTest is Test {
 
         // Recipient claims their pending slice
         vm.prank(slicedPlayer);
-        parlorManager.claimSlice();
+        parlorManager.claimSlice(0);
 
         console.log("Day 2: Second slice given to same player");
 
@@ -293,7 +293,7 @@ contract SliceSponsorRewardsTest is Test {
 
         // Recipient claims their pending slice
         vm.prank(slicedPlayer);
-        parlorManager.claimSlice();
+        parlorManager.claimSlice(0);
 
         console.log("Day 1: Sponsor1 gives first slice");
         assertEq(pizzaParty.dailySliceSponsor(1, slicedPlayer), sponsor, "Day 1: Sponsor1 should be recorded");
@@ -315,7 +315,7 @@ contract SliceSponsorRewardsTest is Test {
 
         // Recipient claims their pending slice
         vm.prank(slicedPlayer);
-        parlorManager.claimSlice();
+        parlorManager.claimSlice(0);
 
         uint256 day2GameId = pizzaParty.dailyGameId();
         console.log("Day 2: Sponsor2 gives their first slice to same player");
@@ -334,7 +334,7 @@ contract SliceSponsorRewardsTest is Test {
 
         // Recipient claims their pending slice
         vm.prank(slicedPlayer);
-        parlorManager.claimSlice();
+        parlorManager.claimSlice(0);
 
         uint256 day3GameId = pizzaParty.dailyGameId();
         address day3Sponsor = pizzaParty.dailySliceSponsor(day3GameId, slicedPlayer);
@@ -391,7 +391,7 @@ contract SliceSponsorRewardsTest is Test {
 
             // Recipient claims their pending slice
             vm.prank(slicedPlayer);
-            parlorManager.claimSlice();
+            parlorManager.claimSlice(0);
 
             console.log("Sliced player %s: %s", day, slicedPlayer);
             assertEq(pizzaParty.dailySliceSponsor(gameId, slicedPlayer), sponsor, "Sponsor should be recorded");
@@ -437,7 +437,7 @@ contract SliceSponsorRewardsTest is Test {
 
             // Recipient claims their pending slice
             vm.prank(slicedPlayer);
-            parlorManager.claimSlice();
+            parlorManager.claimSlice(0);
 
             console.log("Sliced player 6: %s", slicedPlayer);
             assertEq(pizzaParty.dailySliceSponsor(gameId, slicedPlayer), sponsor, "Day 7: Sponsor should be recorded");
@@ -604,7 +604,7 @@ contract SliceSponsorRewardsTest is Test {
 
         // Recipient claims their pending slice
         vm.prank(player);
-        parlorManager.claimSlice();
+        parlorManager.claimSlice(0);
 
         assertTrue(pizzaParty.hasSlicedPlayer(sponsor, player), "Should be true after first slice");
 
@@ -619,7 +619,7 @@ contract SliceSponsorRewardsTest is Test {
 
         // Recipient claims their pending slice
         vm.prank(player);
-        parlorManager.claimSlice();
+        parlorManager.claimSlice(0);
 
         assertTrue(pizzaParty.hasSlicedPlayer(sponsor2, player), "Sponsor2 should now be true");
 
@@ -639,7 +639,7 @@ contract SliceSponsorRewardsTest is Test {
 
         // Recipient claims their pending slice
         vm.prank(player);
-        parlorManager.claimSlice();
+        parlorManager.claimSlice(0);
 
         console.log("Sponsor1 sliced player in week %s", weekId);
         assertEq(pizzaParty.weeklySliceSponsor(weekId, player), sponsor, "Sponsor1 should be weekly sponsor");
@@ -651,7 +651,7 @@ contract SliceSponsorRewardsTest is Test {
 
         // Recipient claims their pending slice
         vm.prank(player);
-        parlorManager.claimSlice();
+        parlorManager.claimSlice(0);
 
         // Weekly sponsor should STILL be sponsor1 (first one this week)
         assertEq(pizzaParty.weeklySliceSponsor(weekId, player), sponsor, "Weekly sponsor should still be Sponsor1");
@@ -676,11 +676,11 @@ contract SliceSponsorRewardsTest is Test {
 
         // Recipients claim their pending slices
         vm.prank(player1);
-        parlorManager.claimSlice();
+        parlorManager.claimSlice(0);
         vm.prank(player2);
-        parlorManager.claimSlice();
+        parlorManager.claimSlice(0);
         vm.prank(player3);
-        parlorManager.claimSlice();
+        parlorManager.claimSlice(0);
 
         console.log("Sliced 3 new players");
 

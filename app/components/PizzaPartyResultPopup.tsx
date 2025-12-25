@@ -57,17 +57,23 @@ export function PizzaPartyResultPopup() {
     }
   }, [isClaimSuccess, currentPopup, currentDailyGameIdRef, needsSliceClaim])
 
-  // Claim slice handler
+  // Claim slice handler - calculates $1 worth of PIZZA for treasury contribution
   const handleClaimSlice = useCallback(() => {
     if (!address || isClaiming || isClaimPending || isClaimConfirming) return
+
+    // Calculate $1 worth of PIZZA in wei
+    // pizzaUsd is the price of 1 PIZZA in USD
+    const pizzaPerDollar = 1 / pizzaUsd
+    const entryFeeWei = BigInt(Math.floor(pizzaPerDollar * 1e18))
 
     setIsClaiming(true)
     writeContract({
       address: PARLOR_MANAGER_ADDRESS as `0x${string}`,
       abi: PARLOR_MANAGER_ABI,
       functionName: 'claimSlice',
+      args: [entryFeeWei],
     })
-  }, [address, isClaiming, isClaimPending, isClaimConfirming, writeContract])
+  }, [address, isClaiming, isClaimPending, isClaimConfirming, writeContract, pizzaUsd])
 
   // Fetch PIZZA/USD price
   useEffect(() => {

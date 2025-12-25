@@ -25,7 +25,7 @@ import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 
 interface IPizzaParty {
     function dailyGameId() external view returns (uint256);
-    function enterDailyWithSlice(address player, address sponsor) external;
+    function enterDailyWithSlice(address player, address sponsor, uint256 amount) external;
     function pizzaToken() external view returns (IERC20);
 }
 
@@ -309,8 +309,9 @@ contract PizzaParlorManagerUpgradeable is
     /**
      * @dev Claim your pending slice and enter the daily game
      * Called by the recipient when they open Pizza Party
+     * @param entryFeeAmount The $1 worth of PIZZA to pull from treasury (calculated by frontend)
      */
-    function claimSlice() external nonReentrant {
+    function claimSlice(uint256 entryFeeAmount) external nonReentrant {
         PendingSlice storage pending = pendingSlices[msg.sender];
 
         // Must have a pending slice
@@ -325,8 +326,15 @@ contract PizzaParlorManagerUpgradeable is
         // Clear pending slice before external call (reentrancy protection)
         delete pendingSlices[msg.sender];
 
-        // Enter daily game for recipient with sponsor
-        pizzaParty.enterDailyWithSlice(msg.sender, sponsor);
+        // Pull $1 worth of PIZZA from treasury to fund this entry
+        if (entryFeeAmount > 0) {
+            pizzaToken.safeTransferFrom(treasuryWallet, address(this), entryFeeAmount);
+            // Approve PizzaParty to pull the tokens
+            pizzaToken.approve(address(pizzaParty), entryFeeAmount);
+        }
+
+        // Enter daily game for recipient with sponsor (treasury-funded)
+        pizzaParty.enterDailyWithSlice(msg.sender, sponsor, entryFeeAmount);
 
         emit SliceClaimed(msg.sender, sponsor, currentGameId);
     }
@@ -373,13 +381,15 @@ contract PizzaParlorManagerUpgradeable is
      * @param nonce One-time nonce to prevent reuse
      * @param deadline Unix timestamp expiry
      * @param signature EIP-712 signature from sponsor
+     * @param entryFeeAmount The $1 worth of PIZZA to pull from treasury (calculated by frontend)
      */
     function redeemSlice(
         address sponsor,
         uint256 dailyGameId,
         uint256 nonce,
         uint256 deadline,
-        bytes calldata signature
+        bytes calldata signature,
+        uint256 entryFeeAmount
     ) external nonReentrant {
         if (sponsor == address(0)) revert InvalidAddress();
         if (msg.sender == sponsor) revert NoSelfSlice();
@@ -415,8 +425,14 @@ contract PizzaParlorManagerUpgradeable is
         // Mark nonce as used
         usedSliceNonce[sponsor][nonce] = true;
 
-        // Enter daily game for redeemer
-        pizzaParty.enterDailyWithSlice(msg.sender, sponsor);
+        // Pull $1 worth of PIZZA from treasury to fund this entry
+        if (entryFeeAmount > 0) {
+            pizzaToken.safeTransferFrom(treasuryWallet, address(this), entryFeeAmount);
+            pizzaToken.approve(address(pizzaParty), entryFeeAmount);
+        }
+
+        // Enter daily game for redeemer (treasury-funded)
+        pizzaParty.enterDailyWithSlice(msg.sender, sponsor, entryFeeAmount);
 
         emit SliceRedeemed(sponsor, msg.sender, currentGameId, nonce);
     }

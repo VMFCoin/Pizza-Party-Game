@@ -322,17 +322,22 @@ contract PizzaPartyV2Upgradeable is OwnableUpgradeable, UUPSUpgradeable, Reentra
     }
 
     /**
-     * @dev Enter daily game with a slice (free entry) - called by PizzaParlorManager
-     * @param player The player receiving the free entry
+     * @dev Enter daily game with a slice - called by PizzaParlorManager
+     * @param player The player receiving the entry
      * @param sponsor The parlor owner who is sponsoring this slice
+     * @param amount The PIZZA amount to add to pot (0 for free, or treasury-funded amount)
      */
-    function enterDailyWithSlice(address player, address sponsor) external nonReentrant onlyParlorManager {
+    function enterDailyWithSlice(address player, address sponsor, uint256 amount) external nonReentrant onlyParlorManager {
         require(player != address(0) && sponsor != address(0), "Invalid addr");
         require(player != sponsor, "No self slice");
 
-        // First, do the entry (which may auto-settle and update gameIds)
-        // This ensures we're recording sponsor for the CORRECT gameId
-        _enterDaily(player, 0);
+        // If amount > 0, transfer PIZZA from ParlorManager to this contract
+        if (amount > 0) {
+            pizzaToken.safeTransferFrom(msg.sender, address(this), amount);
+        }
+
+        // Enter the daily game (adds amount to pot)
+        _enterDailySponsored(player, amount);
 
         // Now check if this sponsor has EVER sliced this player before
         // Sponsor only gets 50% reward on their FIRST slice to this player
@@ -357,6 +362,60 @@ contract PizzaPartyV2Upgradeable is OwnableUpgradeable, UUPSUpgradeable, Reentra
         // Player still gets free entry, but sponsor gets no 50% reward
 
         emit SliceEntryGranted(dailyGameId, player, msg.sender);
+    }
+
+    /**
+     * @dev Internal entry for sponsored slices - tokens already transferred to contract
+     */
+    function _enterDailySponsored(address player, uint256 amount) internal {
+        uint256 gameId = dailyGameId;
+        DailyGame storage game = dailyGames[gameId];
+
+        // Auto-settle previous game if needed
+        if (block.timestamp >= game.endTime && !game.settled) {
+            _settleDailyGame(gameId);
+            gameId = dailyGameId;
+            game = dailyGames[gameId];
+        }
+
+        require(block.timestamp < game.endTime, "Game ended");
+        require(!hasPlayedDaily[gameId][player], "Already played");
+        require(!game.settled, "Game settled");
+
+        // Check weekly play limit
+        PlayerWeekly storage weekly = weeklyPlayers[weeklyGameId][player];
+        require(weekly.dailyPlays < 7, "Weekly limit reached");
+
+        // Add to pot (tokens already in contract if amount > 0)
+        if (amount > 0) {
+            currentDailyPot += amount;
+        }
+
+        // Track first player for bonus
+        bool isFirst = (game.players.length == 0);
+        if (isFirst) {
+            game.firstPlayer = player;
+        }
+
+        // Update game state
+        hasPlayedDaily[gameId][player] = true;
+        game.players.push(player);
+
+        // Award 1 topping
+        weekly.toppingsEarned += 1;
+        weekly.dailyPlays += 1;
+        playerStats[player].lifetimeToppings += 1;
+
+        // Auto-register referral code on first entry
+        if (bytes(playerReferralCode[player]).length == 0) {
+            string memory myCode = _generateCode(player);
+            playerReferralCode[player] = myCode;
+            codeToPlayer[myCode] = player;
+            emit ReferralCodeCreated(player, myCode);
+        }
+
+        emit DailyGameEntered(gameId, player, isFirst, amount);
+        emit ToppingsEarned(weeklyGameId, player, 1, "daily_play");
     }
 
     function _enterDaily(address player, uint256 amount) internal {

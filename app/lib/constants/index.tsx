@@ -398,7 +398,7 @@ export const PARLOR_MANAGER_ABI = [
   { type: 'function', name: 'distributeFranchiseFees', stateMutability: 'nonpayable', inputs: [], outputs: [] },
   { type: 'function', name: 'tipSlice', stateMutability: 'nonpayable', inputs: [{ type: 'address', name: 'recipient' }], outputs: [] },
   { type: 'function', name: 'sendSlice', stateMutability: 'nonpayable', inputs: [{ type: 'address', name: 'recipient' }], outputs: [] },
-  { type: 'function', name: 'claimSlice', stateMutability: 'nonpayable', inputs: [], outputs: [] },
+  { type: 'function', name: 'claimSlice', stateMutability: 'nonpayable', inputs: [{ type: 'uint256', name: 'entryFeeAmount' }], outputs: [] },
   { type: 'function', name: 'setParlorName', stateMutability: 'nonpayable', inputs: [{ type: 'string', name: 'name' }], outputs: [] },
   // --- Pending Slice View Functions ---
   {
