@@ -21,10 +21,9 @@ export function PizzaPartyResultPopup() {
   const [popupQueue, setPopupQueue] = useState<PopupType[]>([])
   const [currentPopup, setCurrentPopup] = useState<PopupType | null>(null)
 
-  // Winner/loser state
+  // Winner/loser state - now includes sponsor rewards
   const [winType, setWinType] = useState<'daily' | 'weekly' | 'both' | null>(null)
-  const [dailyPizzaWon, setDailyPizzaWon] = useState(0)
-  const [weeklyPizzaWon, setWeeklyPizzaWon] = useState(0)
+  const [totalPizzaWon, setTotalPizzaWon] = useState(0) // Combined total of all winnings
   const [pizzaUsd, setPizzaUsd] = useState(0.01)
 
   // Free slice state
@@ -42,9 +41,6 @@ export function PizzaPartyResultPopup() {
   const { isLoading: isClaimConfirming, isSuccess: isClaimSuccess } = useWaitForTransactionReceipt({
     hash: claimTxHash,
   })
-
-  // Calculate total PIZZA won
-  const totalPizzaWon = dailyPizzaWon + weeklyPizzaWon
 
   // Handle successful slice claim - update UI to show claimed state
   useEffect(() => {
@@ -108,8 +104,7 @@ export function PizzaPartyResultPopup() {
         const popupsToShow: PopupType[] = []
         let isDailyWinner = false
         let isWeeklyWinner = false
-        let dailyPayout = 0
-        let weeklyPayout = 0
+        let combinedPayout = 0 // Total of all winnings (daily + weekly + sponsor rewards)
 
         // Get current game IDs
         const currentDailyGameId = await readContract(config, {
@@ -132,11 +127,15 @@ export function PizzaPartyResultPopup() {
         setLastSettledDailyGameIdRef(lastSettledDailyGameId)
         setLastSettledWeeklyGameIdRef(lastSettledWeeklyGameId)
 
-        // ===== STEP 1: Check for PREVIOUS game results (winner/loser) =====
-        const resultSeenKey = `pizza_party_seen_daily_${lastSettledDailyGameId}_weekly_${lastSettledWeeklyGameId}`
-        const hasSeenResult = typeof window !== 'undefined' ? localStorage.getItem(resultSeenKey) : null
+        // ===== STEP 1: Check for PREVIOUS daily game results =====
+        // Use SEPARATE keys for daily and weekly to avoid duplicate popups
+        const dailyResultSeenKey = `pizza_party_seen_daily_${lastSettledDailyGameId}`
+        const weeklyResultSeenKey = `pizza_party_seen_weekly_${lastSettledWeeklyGameId}`
+        const hasSeenDailyResult = typeof window !== 'undefined' ? localStorage.getItem(dailyResultSeenKey) : null
+        const hasSeenWeeklyResult = typeof window !== 'undefined' ? localStorage.getItem(weeklyResultSeenKey) : null
 
-        if (!hasSeenResult && lastSettledDailyGameId >= 1n) {
+        // Check daily game if not already seen
+        if (!hasSeenDailyResult && lastSettledDailyGameId >= 1n) {
           const hasPlayed = await readContract(config, {
             address: PIZZA_PARTY_ADDRESS as `0x${string}`,
             abi: PIZZA_PARTY_ABI,
@@ -183,6 +182,19 @@ export function PizzaPartyResultPopup() {
                   userPayout += playersRemainder
                 }
 
+                // Check if user was sponsored (50/50 split means they get half)
+                const userSponsor = await readContract(config, {
+                  address: PIZZA_PARTY_ADDRESS as `0x${string}`,
+                  abi: PIZZA_PARTY_ABI,
+                  functionName: 'dailySliceSponsor',
+                  args: [lastSettledDailyGameId, address as `0x${string}`],
+                }) as `0x${string}`
+
+                if (userSponsor && userSponsor !== '0x0000000000000000000000000000000000000000') {
+                  // User was sponsored - they only get 50% of their share
+                  userPayout = userPayout / 2n
+                }
+
                 let firstPlayerBonus = 0n
                 if (gameData.firstPlayer?.toLowerCase() === address.toLowerCase()) {
                   firstPlayerBonus = (pot * 100n) / 10000n
@@ -196,64 +208,94 @@ export function PizzaPartyResultPopup() {
                   dustShare = dust
                 }
 
-                const totalDailyPayout = userPayout + firstPlayerBonus + dustShare
-                dailyPayout = Number(totalDailyPayout) / 1e18
+                const dailyPayout = userPayout + firstPlayerBonus + dustShare
+                combinedPayout += Number(dailyPayout) / 1e18
               }
 
-              // Check weekly results
-              if (lastSettledWeeklyGameId >= 1n) {
-                const weeklyGameData = await readContract(config, {
+              // Check if user sponsored any daily winners (they get 50% of those winnings)
+              for (const winner of winners) {
+                const winnerSponsor = await readContract(config, {
                   address: PIZZA_PARTY_ADDRESS as `0x${string}`,
                   abi: PIZZA_PARTY_ABI,
-                  functionName: 'weeklyGames',
-                  args: [lastSettledWeeklyGameId],
-                }) as {
-                  settled: boolean
-                  potAmount: bigint
+                  functionName: 'dailySliceSponsor',
+                  args: [lastSettledDailyGameId, winner],
+                }) as `0x${string}`
+
+                if (winnerSponsor?.toLowerCase() === address.toLowerCase()) {
+                  // User sponsored this winner! They get 50% of winner's base share
+                  const pot = gameData.potAmount as bigint
+                  const playersPool = (pot * 9400n) / 10000n
+                  const numberOfWinners = BigInt(winners.length || 1)
+                  const winnerBaseShare = playersPool / numberOfWinners
+                  const sponsorReward = winnerBaseShare / 2n
+                  combinedPayout += Number(sponsorReward) / 1e18
+                  isDailyWinner = true // Mark as winner since they earned from sponsorship
                 }
-
-                if (weeklyGameData.settled) {
-                  const weeklyWinners = await readContract(config, {
-                    address: PIZZA_PARTY_ADDRESS as `0x${string}`,
-                    abi: PIZZA_PARTY_ABI,
-                    functionName: 'getWeeklyGameWinners',
-                    args: [lastSettledWeeklyGameId],
-                  }) as `0x${string}`[]
-
-                  const userIsWeeklyWinner = weeklyWinners.some(
-                    (winner) => winner.toLowerCase() === address.toLowerCase()
-                  )
-
-                  if (userIsWeeklyWinner) {
-                    isWeeklyWinner = true
-                    const weeklyPot = weeklyGameData.potAmount as bigint
-                    const numberOfWeeklyWinners = BigInt(weeklyWinners.length || 1)
-                    const weeklyShare = weeklyPot / numberOfWeeklyWinners
-                    weeklyPayout = Number(weeklyShare) / 1e18
-                  }
-                }
-              }
-
-              // Set winner/loser state
-              if (isDailyWinner || isWeeklyWinner) {
-                setDailyPizzaWon(dailyPayout)
-                setWeeklyPizzaWon(weeklyPayout)
-                if (isDailyWinner && isWeeklyWinner) {
-                  setWinType('both')
-                } else if (isWeeklyWinner) {
-                  setWinType('weekly')
-                } else {
-                  setWinType('daily')
-                }
-                popupsToShow.push('winner')
-              } else {
-                popupsToShow.push('loser')
               }
             }
           }
         }
 
-        // ===== STEP 2: Check for PENDING slice (needs to be claimed) or already claimed slice =====
+        // ===== STEP 2: Check weekly game if not already seen =====
+        if (!hasSeenWeeklyResult && lastSettledWeeklyGameId >= 1n) {
+          const weeklyGameData = await readContract(config, {
+            address: PIZZA_PARTY_ADDRESS as `0x${string}`,
+            abi: PIZZA_PARTY_ABI,
+            functionName: 'weeklyGames',
+            args: [lastSettledWeeklyGameId],
+          }) as {
+            settled: boolean
+            potAmount: bigint
+          }
+
+          if (weeklyGameData.settled) {
+            const weeklyWinners = await readContract(config, {
+              address: PIZZA_PARTY_ADDRESS as `0x${string}`,
+              abi: PIZZA_PARTY_ABI,
+              functionName: 'getWeeklyGameWinners',
+              args: [lastSettledWeeklyGameId],
+            }) as `0x${string}`[]
+
+            const userIsWeeklyWinner = weeklyWinners.some(
+              (winner) => winner.toLowerCase() === address.toLowerCase()
+            )
+
+            if (userIsWeeklyWinner) {
+              isWeeklyWinner = true
+              const weeklyPot = weeklyGameData.potAmount as bigint
+              const numberOfWeeklyWinners = BigInt(weeklyWinners.length || 1)
+              const weeklyShare = weeklyPot / numberOfWeeklyWinners
+              combinedPayout += Number(weeklyShare) / 1e18
+            }
+          }
+        }
+
+        // Determine win type and show appropriate popup
+        const hasUnseenResults = !hasSeenDailyResult || !hasSeenWeeklyResult
+        if (hasUnseenResults && (isDailyWinner || isWeeklyWinner)) {
+          setTotalPizzaWon(combinedPayout)
+          if (isDailyWinner && isWeeklyWinner) {
+            setWinType('both')
+          } else if (isWeeklyWinner) {
+            setWinType('weekly')
+          } else {
+            setWinType('daily')
+          }
+          popupsToShow.push('winner')
+        } else if (!hasSeenDailyResult && lastSettledDailyGameId >= 1n) {
+          // Only show loser popup if they played but didn't win
+          const hasPlayed = await readContract(config, {
+            address: PIZZA_PARTY_ADDRESS as `0x${string}`,
+            abi: PIZZA_PARTY_ABI,
+            functionName: 'hasPlayedDaily',
+            args: [lastSettledDailyGameId, address as `0x${string}`],
+          }) as boolean
+          if (hasPlayed) {
+            popupsToShow.push('loser')
+          }
+        }
+
+        // ===== STEP 3: Check for PENDING slice (needs to be claimed) or already claimed slice =====
         const freeSliceSeenKey = `pizza_party_seen_freeslice_${currentDailyGameId}`
         const hasSeenFreeSlice = typeof window !== 'undefined' ? localStorage.getItem(freeSliceSeenKey) : null
         let foundFreeSlice = false
@@ -355,9 +397,11 @@ export function PizzaPartyResultPopup() {
           const freeSliceSeenKey = `pizza_party_seen_freeslice_${currentDailyGameIdRef}`
           localStorage.setItem(freeSliceSeenKey, 'true')
         } else if (currentPopup === 'winner' || currentPopup === 'loser') {
-          // Mark winner/loser result as seen
-          const seenKey = `pizza_party_seen_daily_${lastSettledDailyGameIdRef}_weekly_${lastSettledWeeklyGameIdRef}`
-          localStorage.setItem(seenKey, 'true')
+          // Mark BOTH daily and weekly results as seen with separate keys
+          const dailySeenKey = `pizza_party_seen_daily_${lastSettledDailyGameIdRef}`
+          const weeklySeenKey = `pizza_party_seen_weekly_${lastSettledWeeklyGameIdRef}`
+          localStorage.setItem(dailySeenKey, 'true')
+          localStorage.setItem(weeklySeenKey, 'true')
         }
       } catch (error) {
         console.error('Error saving seen state:', error)
