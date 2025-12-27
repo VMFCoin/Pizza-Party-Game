@@ -31,7 +31,7 @@ const PARLORS_EXPLAINED = [
   'Parlor owners earn 50% of all owner fees',
   'The more parlors you own, the more you earn',
   'Max 5 parlors per wallet',
-  'Only 333 total parlors will ever exist',
+  'Only 100 total parlors will ever exist',
   'Send slices directly or with shareable links',
   'Half the PIZZA used to buy parlors is burned forever',
 ]
@@ -207,7 +207,7 @@ export default function PizzaParlorPage({
   // Formatted values
   const parlorsOwned = userParlorCount ? Number(userParlorCount) : 0
   const maxParlorsPerWallet = 5
-  const maxTotalParlors = 333
+  const maxTotalParlors = 100
   const totalParlorsSold = totalParlors ? Number(totalParlors) : 0
   const parlorsRemaining = maxTotalParlors - totalParlorsSold
   const slicesRemainingNum = slicesRemaining !== undefined ? Number(slicesRemaining) : 0
