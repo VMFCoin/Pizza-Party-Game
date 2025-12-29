@@ -330,7 +330,10 @@ export function useGamePageData() {
   })
   const claimableToppings = useMemo(() => {
     if (!playerWeekly) return 0n
-    const value = playerWeekly.toppingsEarned - playerWeekly.toppingsClaimed
+    // Include projectedHoldingsBonus since it's not added to toppingsEarned until claim time
+    const baseEarned = playerWeekly.toppingsEarned - playerWeekly.toppingsClaimed
+    const holdingsBonus = playerWeekly.hasClaimed ? 0n : playerWeekly.projectedHoldingsBonus
+    const value = baseEarned + holdingsBonus
     return value > 0n ? value : 0n
   }, [playerWeekly])
 
