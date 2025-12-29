@@ -168,6 +168,10 @@ contract PizzaPartyV2Upgradeable is OwnableUpgradeable, UUPSUpgradeable, Reentra
     // IMPORTANT: Added at end of storage to avoid slot collision on upgrade
     uint256 public toppingToPizza;
 
+    // Weekly treasury bonus: fixed PIZZA amount added to weekly jackpot from treasury
+    // IMPORTANT: Added at end of storage to avoid slot collision on upgrade
+    uint256 public weeklyTreasuryBonus;
+
     // ============ Events ============
 
     event DailyGameStarted(uint256 indexed gameId, uint256 startTime, uint256 endTime);
@@ -190,6 +194,7 @@ contract PizzaPartyV2Upgradeable is OwnableUpgradeable, UUPSUpgradeable, Reentra
     event ParlorManagerUpdated(address oldManager, address newManager);
     event HoldingsUnitPizzaUpdated(uint256 oldUnit, uint256 newUnit);
     event ToppingToPizzaUpdated(uint256 oldAmount, uint256 newAmount);
+    event WeeklyTreasuryBonusUpdated(uint256 oldAmount, uint256 newAmount);
     event ParlorFeesAllocated(uint256 indexed gameId);
     event ParlorFeesAllocationFailed(uint256 indexed gameId);
 
@@ -720,8 +725,8 @@ contract PizzaPartyV2Upgradeable is OwnableUpgradeable, UUPSUpgradeable, Reentra
         // Require at least one claimer to settle
         require(week.claimers.length > 0 && week.totalClaimedToppings > 0, "No claimers");
 
-        // Jackpot = total claimed toppings × toppingToPizza (configurable, e.g. 10 PIZZA)
-        uint256 jackpot = week.totalClaimedToppings * toppingToPizza;
+        // Jackpot = total claimed toppings × toppingToPizza + treasury bonus
+        uint256 jackpot = week.totalClaimedToppings * toppingToPizza + weeklyTreasuryBonus;
 
         // Pull from treasury
         pizzaToken.safeTransferFrom(treasuryWallet, address(this), jackpot);
@@ -1251,6 +1256,16 @@ contract PizzaPartyV2Upgradeable is OwnableUpgradeable, UUPSUpgradeable, Reentra
         uint256 old = toppingToPizza;
         toppingToPizza = newAmount;
         emit ToppingToPizzaUpdated(old, newAmount);
+    }
+
+    /**
+     * @notice Set the fixed PIZZA bonus added to weekly jackpot from treasury
+     * @param newAmount PIZZA tokens to add to weekly jackpot (18 decimals)
+     */
+    function setWeeklyTreasuryBonus(uint256 newAmount) external onlyOwner {
+        uint256 old = weeklyTreasuryBonus;
+        weeklyTreasuryBonus = newAmount;
+        emit WeeklyTreasuryBonusUpdated(old, newAmount);
     }
 
     function setCharityWallets(address[] memory _charities) external onlyOwner {

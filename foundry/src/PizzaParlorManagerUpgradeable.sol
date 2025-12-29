@@ -847,6 +847,25 @@ contract PizzaParlorManagerUpgradeable is
     }
 
     /**
+     * @dev Reset claimable balance for an address (admin only)
+     * Use case: Fix corrupted storage from upgrade issues
+     * @param owner Address to reset
+     */
+    function resetClaimableBalance(address owner) external onlyOwner {
+        claimableBalance[owner] = 0;
+    }
+
+    /**
+     * @dev Add to claimable balance for an address (admin only)
+     * Use case: Compensate owners for lost fees due to storage corruption
+     * @param owner Address to credit
+     * @param amount PIZZA amount to add (18 decimals)
+     */
+    function addClaimableBalance(address owner, uint256 amount) external onlyOwner {
+        claimableBalance[owner] += amount;
+    }
+
+    /**
      * @dev Emergency transfer parlors between wallets (admin only)
      * Use case: User lost access to wallet, needs parlors moved to new wallet
      * @param from Source wallet address
