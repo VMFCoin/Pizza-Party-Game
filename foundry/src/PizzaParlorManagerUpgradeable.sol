@@ -25,6 +25,7 @@ import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 
 interface IPizzaParty {
     function dailyGameId() external view returns (uint256);
+    function weeklyGameId() external view returns (uint256);
     function enterDailyWithSlice(address player, address sponsor, uint256 amount) external;
     function pizzaToken() external view returns (IERC20);
 }
@@ -45,7 +46,8 @@ contract PizzaParlorManagerUpgradeable is
 
     uint256 public constant MAX_PARLORS = 100;
     uint256 public constant MAX_PARLORS_PER_WALLET = 5;
-    uint256 public constant DAILY_FREE_ENTRIES_PER_PARLOR = 1;
+    uint256 public constant WEEKLY_SLICES_PER_PARLOR = 1;  // 1 slice per parlor per week
+    uint256 public constant MAX_SLICES_PER_DAY = 1;        // Max 1 slice per day regardless of parlors
 
     // ✅ Dynamic parlor price: Always $50 USD worth of PIZZA
     // Frontend calculates: $50 / currentPizzaPrice = PIZZA amount needed
@@ -85,9 +87,16 @@ contract PizzaParlorManagerUpgradeable is
     address[] public parlorOwners;  // list of all parlor owners (for fee distribution)
     mapping(address => bool) public isParlorOwner;  // quick lookup
 
-    // Slice tracking (aligned with dailyGameId)
-    mapping(address => uint256) public lastSliceGameId;      // sponsor => last gameId they used slices
-    mapping(address => uint256) public slicesUsedThisGame;   // sponsor => slices used in current game
+    // Slice tracking - WEEKLY limit (resets when weeklyGameId changes)
+    mapping(address => uint256) public lastSliceWeekId;      // sponsor => last weeklyGameId they used slices
+    mapping(address => uint256) public slicesUsedThisWeek;   // sponsor => slices used in current week
+
+    // Slice tracking - DAILY limit (max 1 per day, resets when dailyGameId changes)
+    mapping(address => uint256) public lastSliceDayId;       // sponsor => last dailyGameId they sent a slice
+
+    // LEGACY - keep for storage layout compatibility (no longer used)
+    mapping(address => uint256) public lastSliceGameId;      // LEGACY: was daily tracking
+    mapping(address => uint256) public slicesUsedThisGame;   // LEGACY: was daily tracking
 
     // Nonce tracking for signed vouchers (one-time use)
     mapping(address => mapping(uint256 => bool)) public usedSliceNonce;  // sponsor => nonce => used?
@@ -108,7 +117,7 @@ contract PizzaParlorManagerUpgradeable is
     mapping(address => PendingSlice) public pendingSlices;  // recipient => pending slice info
 
     // Upgrade safety gap - reserves storage slots for future upgrades
-    uint256[46] private __gap;  // Reduced by 2 for parlorName and pendingSlices
+    uint256[43] private __gap;  // Reduced by 3 for weekly/daily slice tracking
 
     // ============ Events ============
 
@@ -133,6 +142,7 @@ contract PizzaParlorManagerUpgradeable is
     error MaxParlorsPerWalletReached();
     error InsufficientBalance();
     error NoParlorOwned();
+    error WeeklySliceLimitReached();
     error DailySliceLimitReached();
     error SliceExpired();
     error WrongDailyGameId();
@@ -440,24 +450,38 @@ contract PizzaParlorManagerUpgradeable is
     // ============ Slice Limit Enforcement ============
 
     /**
-     * @dev Enforce daily slice limit (1 per parlor per day)
-     * Resets when dailyGameId changes
+     * @dev Enforce slice limits:
+     * - WEEKLY: 1 slice per parlor per week (resets when weeklyGameId changes on Monday)
+     * - DAILY: Max 1 slice per day regardless of parlors owned (resets when dailyGameId changes)
      */
     function _enforceSliceLimit(address sponsor) internal {
-        uint256 currentGameId = pizzaParty.dailyGameId();
+        uint256 currentWeekId = pizzaParty.weeklyGameId();
+        uint256 currentDayId = pizzaParty.dailyGameId();
 
-        // Reset if new game day
-        if (lastSliceGameId[sponsor] != currentGameId) {
-            lastSliceGameId[sponsor] = currentGameId;
-            slicesUsedThisGame[sponsor] = 0;
+        // ===== DAILY LIMIT CHECK (max 1 per day) =====
+        // If already sent a slice today, revert
+        if (lastSliceDayId[sponsor] == currentDayId) {
+            revert DailySliceLimitReached();
         }
 
-        // Check limit
-        uint256 maxSlices = parlorCount[sponsor] * DAILY_FREE_ENTRIES_PER_PARLOR;
-        if (slicesUsedThisGame[sponsor] >= maxSlices) revert DailySliceLimitReached();
+        // ===== WEEKLY LIMIT CHECK (1 per parlor per week) =====
+        // Reset weekly counter if new week
+        if (lastSliceWeekId[sponsor] != currentWeekId) {
+            lastSliceWeekId[sponsor] = currentWeekId;
+            slicesUsedThisWeek[sponsor] = 0;
+        }
 
-        // Increment usage
-        slicesUsedThisGame[sponsor] += 1;
+        // Check weekly limit (1 slice per parlor per week)
+        uint256 maxWeeklySlices = parlorCount[sponsor] * WEEKLY_SLICES_PER_PARLOR;
+        if (slicesUsedThisWeek[sponsor] >= maxWeeklySlices) {
+            revert WeeklySliceLimitReached();
+        }
+
+        // ===== UPDATE TRACKING =====
+        // Mark today as used (for daily limit)
+        lastSliceDayId[sponsor] = currentDayId;
+        // Increment weekly usage
+        slicesUsedThisWeek[sponsor] += 1;
     }
 
     // ============ Franchise Fee Distribution ============
@@ -655,17 +679,59 @@ contract PizzaParlorManagerUpgradeable is
         return MAX_PARLORS - totalParlors;
     }
 
+    /**
+     * @dev Returns how many slices the sponsor can still send TODAY
+     * With new limits: max 1 per day, so returns 0 or 1
+     * Also checks weekly limit - returns 0 if weekly limit reached
+     */
     function slicesRemainingToday(address sponsor) external view returns (uint256) {
-        uint256 currentGameId = pizzaParty.dailyGameId();
+        uint256 currentDayId = pizzaParty.dailyGameId();
+        uint256 currentWeekId = pizzaParty.weeklyGameId();
 
-        uint256 maxSlices = parlorCount[sponsor] * DAILY_FREE_ENTRIES_PER_PARLOR;
-
-        if (lastSliceGameId[sponsor] != currentGameId) {
-            return maxSlices;  // New day, full allowance
+        // Check daily limit first - already sent today?
+        if (lastSliceDayId[sponsor] == currentDayId) {
+            return 0;  // Already sent 1 today
         }
 
-        uint256 used = slicesUsedThisGame[sponsor];
-        return maxSlices > used ? maxSlices - used : 0;
+        // Check weekly limit
+        uint256 weeklyUsed = slicesUsedThisWeek[sponsor];
+        // Reset if new week
+        if (lastSliceWeekId[sponsor] != currentWeekId) {
+            weeklyUsed = 0;
+        }
+
+        uint256 maxWeeklySlices = parlorCount[sponsor] * WEEKLY_SLICES_PER_PARLOR;
+        if (weeklyUsed >= maxWeeklySlices) {
+            return 0;  // Weekly limit reached
+        }
+
+        // Can send 1 today (daily limit not reached, weekly limit not reached)
+        return 1;
+    }
+
+    /**
+     * @dev Returns how many slices remaining this WEEK
+     * Resets on Monday when weekly game settles
+     */
+    function slicesRemainingThisWeek(address sponsor) external view returns (uint256) {
+        uint256 currentWeekId = pizzaParty.weeklyGameId();
+
+        uint256 maxWeeklySlices = parlorCount[sponsor] * WEEKLY_SLICES_PER_PARLOR;
+
+        // Reset if new week
+        if (lastSliceWeekId[sponsor] != currentWeekId) {
+            return maxWeeklySlices;  // New week, full allowance
+        }
+
+        uint256 used = slicesUsedThisWeek[sponsor];
+        return maxWeeklySlices > used ? maxWeeklySlices - used : 0;
+    }
+
+    /**
+     * @dev Check if sponsor has already sent a slice today
+     */
+    function hasSentSliceToday(address sponsor) external view returns (bool) {
+        return lastSliceDayId[sponsor] == pizzaParty.dailyGameId();
     }
 
     function isNonceUsed(address sponsor, uint256 nonce) external view returns (bool) {
@@ -810,10 +876,14 @@ contract PizzaParlorManagerUpgradeable is
 
     /**
      * @dev Admin function to reset slice counters for sponsors (one-time testing)
+     * Resets both weekly and daily tracking
      * @param sponsors Array of sponsor addresses to reset
      */
     function resetSliceCounters(address[] calldata sponsors) external onlyOwner {
         for (uint256 i = 0; i < sponsors.length; i++) {
+            slicesUsedThisWeek[sponsors[i]] = 0;
+            lastSliceDayId[sponsors[i]] = 0;
+            // Legacy fields (for completeness)
             slicesUsedThisGame[sponsors[i]] = 0;
         }
     }

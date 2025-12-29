@@ -376,6 +376,8 @@ export const PARLOR_MANAGER_ABI = [
   { type: 'function', name: 'parlorsRemaining', stateMutability: 'view', inputs: [], outputs: [{ type: 'uint256' }] },
   { type: 'function', name: 'parlorCount', stateMutability: 'view', inputs: [{ type: 'address', name: 'owner' }], outputs: [{ type: 'uint256' }] },
   { type: 'function', name: 'slicesRemainingToday', stateMutability: 'view', inputs: [{ type: 'address', name: 'sponsor' }], outputs: [{ type: 'uint256' }] },
+  { type: 'function', name: 'slicesRemainingThisWeek', stateMutability: 'view', inputs: [{ type: 'address', name: 'sponsor' }], outputs: [{ type: 'uint256' }] },
+  { type: 'function', name: 'hasSentSliceToday', stateMutability: 'view', inputs: [{ type: 'address', name: 'sponsor' }], outputs: [{ type: 'bool' }] },
   { type: 'function', name: 'pendingFees', stateMutability: 'view', inputs: [], outputs: [{ type: 'uint256' }] },
   { type: 'function', name: 'parlorOwnersCount', stateMutability: 'view', inputs: [], outputs: [{ type: 'uint256' }] },
   { type: 'function', name: 'isParlorOwner', stateMutability: 'view', inputs: [{ type: 'address', name: '' }], outputs: [{ type: 'bool' }] },
@@ -388,7 +390,8 @@ export const PARLOR_MANAGER_ABI = [
   // --- Constants ---
   { type: 'function', name: 'MAX_PARLORS', stateMutability: 'view', inputs: [], outputs: [{ type: 'uint256' }] },
   { type: 'function', name: 'MAX_PARLORS_PER_WALLET', stateMutability: 'view', inputs: [], outputs: [{ type: 'uint256' }] },
-  { type: 'function', name: 'DAILY_FREE_ENTRIES_PER_PARLOR', stateMutability: 'view', inputs: [], outputs: [{ type: 'uint256' }] },
+  { type: 'function', name: 'WEEKLY_SLICES_PER_PARLOR', stateMutability: 'view', inputs: [], outputs: [{ type: 'uint256' }] },
+  { type: 'function', name: 'MAX_SLICES_PER_DAY', stateMutability: 'view', inputs: [], outputs: [{ type: 'uint256' }] },
   { type: 'function', name: 'MIN_PARLOR_PRICE', stateMutability: 'view', inputs: [], outputs: [{ type: 'uint256' }] },
   { type: 'function', name: 'MAX_PARLOR_PRICE', stateMutability: 'view', inputs: [], outputs: [{ type: 'uint256' }] },
   // --- Write Functions ---

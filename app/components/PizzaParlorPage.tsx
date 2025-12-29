@@ -25,14 +25,13 @@ interface PizzaParlorPageProps {
 
 const PARLORS_EXPLAINED = [
   'Buy a Pizza Parlor for $50 worth of PIZZA',
-  'Each parlor gives you 1 free slice every day',
+  'Each parlor gives you 1 free slice per WEEK',
+  'You can only send 1 slice per day (resets daily)',
+  'Slices reset every Monday when the weekly game settles',
   'Free slices let NEW players enter the daily game for free',
-  'If a NEW sliced player wins, you earn 50% of their prize',
+  'If a sliced player wins, you earn 50% of their prize',
   'Parlor owners earn 50% of all owner fees',
-  'The more parlors you own, the more you earn',
-  'Max 5 parlors per wallet',
-  'Only 100 total parlors will ever exist',
-  'Send slices directly or with shareable links',
+  'Max 5 parlors per wallet | Only 100 total parlors',
   'Half the PIZZA used to buy parlors is burned forever',
 ]
 
@@ -153,6 +152,12 @@ export default function PizzaParlorPage({
         args: userAddress ? [userAddress] : undefined,
       },
       {
+        address: PARLOR_MANAGER_ADDRESS as `0x${string}`,
+        abi: PARLOR_MANAGER_ABI,
+        functionName: 'slicesRemainingThisWeek',
+        args: userAddress ? [userAddress] : undefined,
+      },
+      {
         address: PIZZA_TOKEN_ADDRESS as `0x${string}`,
         abi: PIZZA_TOKEN_ABI,
         functionName: 'allowance',
@@ -187,11 +192,12 @@ export default function PizzaParlorPage({
   const dailyGameId = contractData?.[1]?.result as bigint | undefined
 
   const userParlorCount = userData?.[0]?.result as bigint | undefined
-  const slicesRemaining = userData?.[1]?.result as bigint | undefined
-  const currentAllowance = userData?.[2]?.result as bigint | undefined
-  const claimableBalanceRaw = userData?.[3]?.result as bigint | undefined
-  const userParlorName = userData?.[4]?.result as string | undefined
-  const userHasParlorName = userData?.[5]?.result as boolean | undefined
+  const slicesRemainingToday = userData?.[1]?.result as bigint | undefined
+  const slicesRemainingThisWeek = userData?.[2]?.result as bigint | undefined
+  const currentAllowance = userData?.[3]?.result as bigint | undefined
+  const claimableBalanceRaw = userData?.[4]?.result as bigint | undefined
+  const userParlorName = userData?.[5]?.result as string | undefined
+  const userHasParlorName = userData?.[6]?.result as boolean | undefined
 
   // Calculate $50 worth of PIZZA based on live DEX price
   // $50 USD / price per PIZZA = number of PIZZA tokens needed
@@ -210,7 +216,8 @@ export default function PizzaParlorPage({
   const maxTotalParlors = 100
   const totalParlorsSold = totalParlors ? Number(totalParlors) : 0
   const parlorsRemaining = maxTotalParlors - totalParlorsSold
-  const slicesRemainingNum = slicesRemaining !== undefined ? Number(slicesRemaining) : 0
+  const slicesTodayNum = slicesRemainingToday !== undefined ? Number(slicesRemainingToday) : 0
+  const slicesThisWeekNum = slicesRemainingThisWeek !== undefined ? Number(slicesRemainingThisWeek) : 0
   const claimableFeesFormatted = claimableBalanceRaw ? Number(formatUnits(claimableBalanceRaw, 18)) : 0
   const parlorPriceFormatted = parlorPriceInPizza ? Math.ceil(parlorPriceInPizza) : null
 
@@ -705,7 +712,7 @@ export default function PizzaParlorPage({
   // Parlors are now available to everyone!
   const canBuyParlor = isConnected && parlorsOwned < maxParlorsPerWallet && totalParlorsSold < maxTotalParlors && parlorPriceWei !== null && !priceLoading
   const canClaimFees = claimableBalanceRaw && claimableBalanceRaw > 0n
-  const hasSlicesAvailable = slicesRemaining === undefined || slicesRemaining > 0n
+  const hasSlicesAvailable = slicesTodayNum > 0 && slicesThisWeekNum > 0
   const canSendSlice = isConnected && parlorsOwned > 0 && hasSlicesAvailable && resolveRecipient(recipientInput) !== null
 
   const buyButtonText = () => {
@@ -809,8 +816,12 @@ export default function PizzaParlorPage({
                       </Button>
                     )}
                     <div className="flex justify-between items-center">
-                      <span className="text-orange-800" style={{ ...customFontStyle, fontSize: 14 }}>Slices Today:</span>
-                      <span className="text-orange-900" style={{ ...customFontStyle, fontSize: 14 }}>{slicesRemainingNum}</span>
+                      <span className="text-orange-800" style={{ ...customFontStyle, fontSize: 14 }}>Slices This Week:</span>
+                      <span className="text-orange-900" style={{ ...customFontStyle, fontSize: 14 }}>{slicesThisWeekNum} / {parlorsOwned}</span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-orange-800" style={{ ...customFontStyle, fontSize: 14 }}>Can Send Today:</span>
+                      <span className="text-orange-900" style={{ ...customFontStyle, fontSize: 14 }}>{slicesTodayNum > 0 ? 'Yes' : 'No'}</span>
                     </div>
 
                     {/* Price Info */}
@@ -911,18 +922,20 @@ export default function PizzaParlorPage({
                   <div className="space-y-3">
                     {/* Slices Info */}
                     <div className="flex justify-between items-center">
-                      <span className="text-blue-800" style={{ ...customFontStyle, fontSize: 16 }}>Slices Remaining:</span>
-                      <span className="text-blue-900" style={{ ...customFontStyle, fontSize: 16 }}>{slicesRemainingNum}</span>
+                      <span className="text-blue-800" style={{ ...customFontStyle, fontSize: 16 }}>Slices This Week:</span>
+                      <span className="text-blue-900" style={{ ...customFontStyle, fontSize: 16 }}>{slicesThisWeekNum} / {parlorsOwned}</span>
                     </div>
                     <div className="flex justify-between items-center">
-                      <span className="text-blue-800" style={{ ...customFontStyle, fontSize: 14 }}>Your Parlors:</span>
-                      <span className="text-blue-900" style={{ ...customFontStyle, fontSize: 14 }}>{parlorsOwned}</span>
+                      <span className="text-blue-800" style={{ ...customFontStyle, fontSize: 14 }}>Can Send Today:</span>
+                      <span className={`${slicesTodayNum > 0 ? 'text-green-600' : 'text-red-600'}`} style={{ ...customFontStyle, fontSize: 14 }}>
+                        {slicesTodayNum > 0 ? 'Yes (1 max/day)' : 'Already sent today'}
+                      </span>
                     </div>
 
                     {/* Info Box */}
                     <div className="bg-blue-200 rounded-lg p-2 text-center">
                       <p className="text-blue-700" style={{ ...customFontStyle, fontSize: 10 }}>
-                        1 slice per parlor per day | A slice = free daily entry
+                        1 slice per parlor per WEEK | Max 1 slice per day | Resets on Monday
                       </p>
                     </div>
 
@@ -1038,9 +1051,11 @@ export default function PizzaParlorPage({
                         ? '🍕 SENDING... 🍕'
                         : parlorsOwned === 0
                           ? '🍕 OWN A PARLOR FIRST 🍕'
-                          : slicesRemainingNum <= 0
-                            ? '🍕 NO SLICES LEFT 🍕'
-                            : '🍕 SEND SLICE 🍕'}
+                          : slicesTodayNum <= 0
+                            ? '🍕 SENT TODAY ALREADY 🍕'
+                            : slicesThisWeekNum <= 0
+                              ? '🍕 WEEKLY LIMIT REACHED 🍕'
+                              : '🍕 SEND SLICE 🍕'}
             </Button>
 
                     {/* Slice History Dropdown */}
