@@ -159,6 +159,7 @@ contract PizzaParlorManagerUpgradeable is
     error NoPendingSlice();
     error SliceExpiredWrongGame();
     error AlreadyHasPendingSlice();
+    error RecipientIsParlorOwner();
 
     // ============ Initializer ============
 
@@ -297,6 +298,9 @@ contract PizzaParlorManagerUpgradeable is
         // Must own a parlor
         if (parlorCount[msg.sender] == 0) revert NoParlorOwned();
 
+        // Cannot send slices to other parlor owners (prevents gaming the system)
+        if (parlorCount[recipient] > 0) revert RecipientIsParlorOwner();
+
         // Check if recipient already has a pending slice for TODAY's game
         uint256 currentGameId = pizzaParty.dailyGameId();
         PendingSlice storage existing = pendingSlices[recipient];
@@ -322,6 +326,9 @@ contract PizzaParlorManagerUpgradeable is
      * @param entryFeeAmount The $1 worth of PIZZA to pull from treasury (calculated by frontend)
      */
     function claimSlice(uint256 entryFeeAmount) external nonReentrant {
+        // Cannot claim slices if you're a parlor owner (prevents gaming the system)
+        if (parlorCount[msg.sender] > 0) revert RecipientIsParlorOwner();
+
         PendingSlice storage pending = pendingSlices[msg.sender];
 
         // Must have a pending slice
@@ -359,6 +366,9 @@ contract PizzaParlorManagerUpgradeable is
 
         // Must own a parlor
         if (parlorCount[msg.sender] == 0) revert NoParlorOwned();
+
+        // Cannot send slices to other parlor owners (prevents gaming the system)
+        if (parlorCount[recipient] > 0) revert RecipientIsParlorOwner();
 
         // Check if recipient already has a pending slice for TODAY's game
         uint256 currentGameId = pizzaParty.dailyGameId();
@@ -403,6 +413,9 @@ contract PizzaParlorManagerUpgradeable is
     ) external nonReentrant {
         if (sponsor == address(0)) revert InvalidAddress();
         if (msg.sender == sponsor) revert NoSelfSlice();
+
+        // Cannot redeem slices if recipient is a parlor owner (prevents gaming the system)
+        if (parlorCount[msg.sender] > 0) revert RecipientIsParlorOwner();
 
         // Check deadline
         if (block.timestamp > deadline) revert SliceExpired();
