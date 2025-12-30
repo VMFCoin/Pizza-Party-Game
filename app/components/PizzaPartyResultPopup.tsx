@@ -308,9 +308,23 @@ export function PizzaPartyResultPopup() {
               abi: PARLOR_MANAGER_ABI,
               functionName: 'hasPendingSlice',
               args: [address as `0x${string}`],
-            }) as readonly [boolean, `0x${string}`]
+            })
 
-            const [hasPending, pendingSponsor] = pendingSliceResult
+            // Handle both array and object return formats from wagmi
+            let hasPending: boolean
+            let pendingSponsor: `0x${string}`
+
+            if (Array.isArray(pendingSliceResult)) {
+              [hasPending, pendingSponsor] = pendingSliceResult as [boolean, `0x${string}`]
+            } else if (pendingSliceResult && typeof pendingSliceResult === 'object') {
+              // wagmi might return as object with named properties
+              const result = pendingSliceResult as { hasPending?: boolean; sponsor?: `0x${string}`; 0?: boolean; 1?: `0x${string}` }
+              hasPending = result.hasPending ?? result[0] ?? false
+              pendingSponsor = result.sponsor ?? result[1] ?? '0x0000000000000000000000000000000000000000'
+            } else {
+              hasPending = false
+              pendingSponsor = '0x0000000000000000000000000000000000000000'
+            }
 
             if (hasPending && pendingSponsor !== '0x0000000000000000000000000000000000000000') {
               // User has a pending slice - they need to claim it
