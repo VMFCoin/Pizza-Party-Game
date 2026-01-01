@@ -407,9 +407,15 @@ export function PizzaPartyResultPopup() {
     if (isConnected && address && currentPopup) {
       try {
         if (currentPopup === 'freeSlice') {
-          // Mark free slice as seen
-          const freeSliceSeenKey = `pizza_party_seen_freeslice_${currentDailyGameIdRef}`
-          localStorage.setItem(freeSliceSeenKey, 'true')
+          // Only mark free slice as seen if they've already claimed (needsSliceClaim = false)
+          // If they still need to claim, don't mark as seen so it shows again next time
+          if (!needsSliceClaim) {
+            const freeSliceSeenKey = `pizza_party_seen_freeslice_${currentDailyGameIdRef}`
+            localStorage.setItem(freeSliceSeenKey, 'true')
+          } else {
+            // They closed without claiming - reset hasChecked so popup shows again on next home visit
+            setHasChecked(false)
+          }
         } else if (currentPopup === 'winner' || currentPopup === 'loser') {
           // Mark BOTH daily and weekly results as seen with separate keys
           const dailySeenKey = `pizza_party_seen_daily_${lastSettledDailyGameIdRef}`
