@@ -43,7 +43,7 @@ const TERMS = {
     'Partnered veteran charities receive 3% of the daily jackpot',
   ],
   weeklyJackpot: [
-    'Weekly jackpot starts at $20; claimed toppings add to the jackpot\n(1 topping = 1 PIZZA)',
+    'Weekly jackpot starts at $20; claimed toppings add to the jackpot (1 topping = 1 PIZZA)',
     'Claim toppings during Sunday 12pm–Monday 12pm PST to enter',
     '10 winners selected Monday 12pm PST with odds weighted by toppings claimed',
     'Unclaimed toppings expire weekly—claim or lose them',
