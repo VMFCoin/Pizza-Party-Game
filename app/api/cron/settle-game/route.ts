@@ -102,6 +102,20 @@ const SETTLE_ABI = [
     stateMutability: 'view',
     type: 'function',
   },
+  {
+    inputs: [{ type: 'uint256', name: 'newAmount' }],
+    name: 'setWeeklyTreasuryBonus',
+    outputs: [],
+    stateMutability: 'nonpayable',
+    type: 'function',
+  },
+  {
+    inputs: [],
+    name: 'weeklyTreasuryBonus',
+    outputs: [{ type: 'uint256' }],
+    stateMutability: 'view',
+    type: 'function',
+  },
 ] as const;
 
 // PIZZA token address on Base
@@ -401,6 +415,39 @@ export async function GET(request: NextRequest) {
           if (receipt.status === 'success') {
             results.weekly = { success: true, txHash: hash, gameId: weeklyGameId.toString() };
             console.log(`[Settle Bot] Weekly game ${weeklyGameId} settled! TX: ${hash}`);
+
+            // --- UPDATE TREASURY BONUS FOR NEXT WEEK ---
+            // Set the bonus to $20 worth of PIZZA at current price
+            const TARGET_USD = 20; // $20 minimum jackpot
+            if (pizzaPrice > 0) {
+              const bonusPizza = TARGET_USD / pizzaPrice;
+              const bonusWei = BigInt(Math.floor(bonusPizza * 1e18));
+
+              console.log(`[Settle Bot] Setting treasury bonus for next week: ${bonusPizza.toFixed(2)} PIZZA ($${TARGET_USD} at $${pizzaPrice})`);
+
+              try {
+                const bonusHash = await walletClient.writeContract({
+                  address: CONTRACT_ADDRESS,
+                  abi: SETTLE_ABI,
+                  functionName: 'setWeeklyTreasuryBonus',
+                  args: [bonusWei],
+                  gas: 100_000n,
+                });
+
+                const bonusReceipt = await publicClient.waitForTransactionReceipt({ hash: bonusHash });
+                if (bonusReceipt.status === 'success') {
+                  console.log(`[Settle Bot] Treasury bonus updated! TX: ${bonusHash}`);
+                  (results.weekly as { treasuryBonusUpdated?: boolean; newBonusPizza?: string }).treasuryBonusUpdated = true;
+                  (results.weekly as { newBonusPizza?: string }).newBonusPizza = bonusPizza.toFixed(2);
+                } else {
+                  console.error(`[Settle Bot] Failed to update treasury bonus`);
+                }
+              } catch (bonusErr) {
+                console.error(`[Settle Bot] Error updating treasury bonus:`, bonusErr);
+              }
+            } else {
+              console.warn(`[Settle Bot] Skipping treasury bonus update - no valid price`);
+            }
           } else {
             results.weekly = { success: false, error: 'Transaction failed', gameId: weeklyGameId.toString() };
           }
