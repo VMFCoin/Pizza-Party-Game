@@ -283,7 +283,7 @@ export async function GET(request: NextRequest) {
       });
 
       if (pendingFees > 0n) {
-        const triggeredBy = results.daily?.success || results.weekly?.success ? 'recent settlement' : 'existing pending fees';
+        const triggeredBy = results.daily?.success ? 'recent settlement' : 'existing pending fees';
         console.log(`[Settle Bot] Allocating parlor fees (${triggeredBy}): ${formatUnits(pendingFees, 18)} PIZZA`);
 
         const hash = await walletClient.writeContract({
