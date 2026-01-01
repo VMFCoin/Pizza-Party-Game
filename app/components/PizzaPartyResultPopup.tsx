@@ -308,12 +308,14 @@ export function PizzaPartyResultPopup() {
         if (!hasSeenFreeSlice) {
           // First check for pending slice on ParlorManager (needs claiming)
           try {
+            console.log('[FreeSlice] Checking hasPendingSlice for address:', address)
             const pendingSliceResult = await readContract(config, {
               address: PARLOR_MANAGER_ADDRESS as `0x${string}`,
               abi: PARLOR_MANAGER_ABI,
               functionName: 'hasPendingSlice',
               args: [address as `0x${string}`],
             })
+            console.log('[FreeSlice] hasPendingSlice result:', pendingSliceResult)
 
             // Handle both array and object return formats from wagmi
             let hasPending: boolean
@@ -331,8 +333,11 @@ export function PizzaPartyResultPopup() {
               pendingSponsor = '0x0000000000000000000000000000000000000000'
             }
 
+            console.log('[FreeSlice] Parsed - hasPending:', hasPending, 'sponsor:', pendingSponsor)
+
             if (hasPending && pendingSponsor !== '0x0000000000000000000000000000000000000000') {
               // User has a pending slice - show popup with claim button
+              console.log('[FreeSlice] Found pending slice! Adding to popup queue')
               setNeedsSliceClaim(true)
               foundFreeSlice = true
 
@@ -356,7 +361,7 @@ export function PizzaPartyResultPopup() {
             }
           } catch (err) {
             // hasPendingSlice doesn't exist yet (contract not upgraded) - check old way
-            console.log('hasPendingSlice not available, checking dailySliceSponsor:', err)
+            console.error('[FreeSlice] hasPendingSlice call failed:', err)
           }
 
           // Also check if already claimed (dailySliceSponsor on PizzaParty)
