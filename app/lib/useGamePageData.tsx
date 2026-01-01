@@ -527,7 +527,7 @@ export function useGamePageData() {
   })
   const fetchWeekly = useCallback(async () => {
     try {
-      const [weeklyData, currentWeekId] = await Promise.all([
+      const [weeklyData, currentWeekId, treasuryBonusRaw] = await Promise.all([
         readContract(wagmiConfig, {
           address: PIZZA_PARTY_ADDRESS as `0x${string}`,
           abi: PIZZA_PARTY_ABI,
@@ -538,7 +538,14 @@ export function useGamePageData() {
           abi: PIZZA_PARTY_ABI,
           functionName: 'weeklyGameId',
         }) as Promise<bigint>,
+        readContract(wagmiConfig, {
+          address: PIZZA_PARTY_ADDRESS as `0x${string}`,
+          abi: PIZZA_PARTY_ABI,
+          functionName: 'weeklyTreasuryBonus',
+        }).catch(() => 0n) as Promise<bigint>, // Returns 0 if not yet deployed
       ])
+
+      const treasuryBonus = treasuryBonusRaw ?? 0n
 
       let claimStart: bigint
       let claimEnd: bigint
@@ -567,6 +574,7 @@ export function useGamePageData() {
         totalToppings: totalToppings.toString(),
         claimerCount: claimerCount.toString(),
         jackpotWei: jackpotWei.toString(),
+        treasuryBonus: treasuryBonus.toString(),
         settled,
         isTuple: isWeeklyGameTuple(weeklyData),
       })
@@ -660,12 +668,13 @@ export function useGamePageData() {
 
           // Use ToppingsEarned as source of truth
           if (totalEarned > 0n) {
-            // Jackpot = total toppings earned this week × 1 PIZZA per topping
+            // Jackpot = total toppings earned this week × 1 PIZZA per topping + treasury bonus
             // IMPORTANT: Toppings are added to weekly jackpot IMMEDIATELY when earned (daily plays, referrals)
             // The only exception is holdings bonus (1 topping per $10 of PIZZA, max 5) which is calculated
             // at claim time based on PIZZA balance snapshot at that moment
             // This projection shows what the jackpot will be if all earned toppings are claimed
-            projectedJackpotWei = totalEarned * GAME_CONSTANTS.TOPPING_TO_PIZZA_RATE
+            // Treasury bonus is added to ensure UI shows the full jackpot from week start
+            projectedJackpotWei = totalEarned * GAME_CONSTANTS.TOPPING_TO_PIZZA_RATE + treasuryBonus
             // Weekly Players = unique players only (one player counts as 1, regardless of how many times they played)
             projectedPlayerCount = Math.max(uniquePlayersThisWeek.size, Number(claimerCount))
 

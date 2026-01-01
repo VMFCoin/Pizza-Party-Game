@@ -268,6 +268,8 @@ export const PIZZA_PARTY_ABI = [
   // Settlement with USD snapshot
   { type: 'function', name: 'settleDailyGameWithUsd', stateMutability: 'nonpayable', inputs: [{ type: 'uint256', name: 'usdCentsPerWinner' }], outputs: [] },
   { type: 'function', name: 'settleWeeklyGameWithUsd', stateMutability: 'nonpayable', inputs: [{ type: 'uint256', name: 'usdCentsPerWinner' }], outputs: [] },
+  // Weekly treasury bonus (fixed PIZZA amount added to weekly jackpot)
+  { type: 'function', name: 'weeklyTreasuryBonus', stateMutability: 'view', inputs: [], outputs: [{ type: 'uint256' }] },
 
   // --- Events ---
   {

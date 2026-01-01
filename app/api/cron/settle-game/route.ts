@@ -104,21 +104,75 @@ const SETTLE_ABI = [
   },
 ] as const;
 
-// Fetch PIZZA price from Dexscreener to calculate USD value at settlement
-async function getPizzaPrice(): Promise<number> {
-  try {
-    const response = await fetch(
-      'https://api.dexscreener.com/latest/dex/tokens/0xbD0e3768B9A7C3d53e7b92EDC4C38728E2fA9b69'
-    );
-    const data = await response.json();
-    if (data.pairs && data.pairs.length > 0) {
-      const price = parseFloat(data.pairs[0].priceUsd);
-      console.log(`[Settle Bot] PIZZA price: $${price}`);
-      return price;
-    }
-  } catch (e) {
-    console.error('[Settle Bot] Failed to fetch PIZZA price:', e);
+// PIZZA token address on Base
+const PIZZA_TOKEN_ADDRESS = '0xbD0e3768B9A7C3d53e7b92EDC4C38728E2fA9b69';
+
+// Fetch price from Dexscreener
+async function fetchDexscreenerPrice(): Promise<number> {
+  const response = await fetch(
+    `https://api.dexscreener.com/latest/dex/tokens/${PIZZA_TOKEN_ADDRESS}`,
+    { signal: AbortSignal.timeout(10000) } // 10 second timeout
+  );
+  if (!response.ok) throw new Error(`Dexscreener returned ${response.status}`);
+  const data = await response.json();
+  if (data.pairs && data.pairs.length > 0) {
+    const price = parseFloat(data.pairs[0].priceUsd);
+    if (price > 0) return price;
   }
+  throw new Error('No valid price from Dexscreener');
+}
+
+// Fetch price from GeckoTerminal (backup)
+async function fetchGeckoTerminalPrice(): Promise<number> {
+  const response = await fetch(
+    `https://api.geckoterminal.com/api/v2/simple/networks/base/token_price/${PIZZA_TOKEN_ADDRESS}`,
+    { signal: AbortSignal.timeout(10000) }
+  );
+  if (!response.ok) throw new Error(`GeckoTerminal returned ${response.status}`);
+  const data = await response.json();
+  const priceStr = data?.data?.attributes?.token_prices?.[PIZZA_TOKEN_ADDRESS.toLowerCase()];
+  if (priceStr) {
+    const price = parseFloat(priceStr);
+    if (price > 0) return price;
+  }
+  throw new Error('No valid price from GeckoTerminal');
+}
+
+// Robust price fetch with retries and fallback sources
+async function getPizzaPrice(): Promise<number> {
+  const maxRetries = 3;
+  const retryDelay = 2000; // 2 seconds between retries
+
+  // Try Dexscreener first with retries
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    try {
+      const price = await fetchDexscreenerPrice();
+      console.log(`[Settle Bot] PIZZA price from Dexscreener: $${price}`);
+      return price;
+    } catch (e) {
+      console.warn(`[Settle Bot] Dexscreener attempt ${attempt}/${maxRetries} failed:`, e instanceof Error ? e.message : e);
+      if (attempt < maxRetries) {
+        await new Promise(resolve => setTimeout(resolve, retryDelay));
+      }
+    }
+  }
+
+  // Fallback to GeckoTerminal with retries
+  console.log(`[Settle Bot] Dexscreener failed, trying GeckoTerminal...`);
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    try {
+      const price = await fetchGeckoTerminalPrice();
+      console.log(`[Settle Bot] PIZZA price from GeckoTerminal: $${price}`);
+      return price;
+    } catch (e) {
+      console.warn(`[Settle Bot] GeckoTerminal attempt ${attempt}/${maxRetries} failed:`, e instanceof Error ? e.message : e);
+      if (attempt < maxRetries) {
+        await new Promise(resolve => setTimeout(resolve, retryDelay));
+      }
+    }
+  }
+
+  console.error(`[Settle Bot] CRITICAL: All price sources failed after ${maxRetries} retries each!`);
   return 0;
 }
 
@@ -331,8 +385,9 @@ export async function GET(request: NextRequest) {
               gas: 2_000_000n,
             });
           } else {
-            // Fallback to old function if price fetch failed
-            console.log(`[Settle Bot] Warning: Using fallback settlement (no USD snapshot)`);
+            // Fallback to old function if price fetch failed - this should be rare with retry/fallback logic
+            console.error(`[Settle Bot] CRITICAL WARNING: Weekly USD snapshot failed! Using fallback settlement without USD.`);
+            console.error(`[Settle Bot] Week ${weeklyGameId} will show incorrect USD values on leaderboard.`);
             hash = await walletClient.writeContract({
               address: CONTRACT_ADDRESS,
               abi: SETTLE_ABI,

@@ -1074,7 +1074,8 @@ contract PizzaPartyV2Upgradeable is OwnableUpgradeable, UUPSUpgradeable, Reentra
         bool settled
     ) {
         WeeklyGame storage week = weeklyGames[weeklyGameId];
-        uint256 jackpot = week.totalClaimedToppings * toppingToPizza;
+        // Include treasury bonus in projected jackpot so UI shows full amount from week start
+        uint256 jackpot = week.totalClaimedToppings * toppingToPizza + weeklyTreasuryBonus;
 
         return (
             week.claimWindowStart,
