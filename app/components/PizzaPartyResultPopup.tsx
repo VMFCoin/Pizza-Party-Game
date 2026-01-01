@@ -138,6 +138,7 @@ export function PizzaPartyResultPopup() {
         let foundFreeSlice = false
 
         if (!hasSeenFreeSlice) {
+          // First check for pending slice on ParlorManager (needs claiming)
           try {
             const pendingSliceResult = await readContract(config, {
               address: PARLOR_MANAGER_ADDRESS as `0x${string}`,
@@ -146,12 +147,14 @@ export function PizzaPartyResultPopup() {
               args: [address as `0x${string}`],
             })
 
+            // Handle both array and object return formats from wagmi
             let hasPending: boolean
             let pendingSponsor: `0x${string}`
 
             if (Array.isArray(pendingSliceResult)) {
               [hasPending, pendingSponsor] = pendingSliceResult as [boolean, `0x${string}`]
             } else if (pendingSliceResult && typeof pendingSliceResult === 'object') {
+              // wagmi might return as object with named properties
               const result = pendingSliceResult as { hasPending?: boolean; sponsor?: `0x${string}`; 0?: boolean; 1?: `0x${string}` }
               hasPending = result.hasPending ?? result[0] ?? false
               pendingSponsor = result.sponsor ?? result[1] ?? '0x0000000000000000000000000000000000000000'
@@ -161,9 +164,11 @@ export function PizzaPartyResultPopup() {
             }
 
             if (hasPending && pendingSponsor !== '0x0000000000000000000000000000000000000000') {
+              // User has a pending slice - they need to claim it
               setNeedsSliceClaim(true)
               foundFreeSlice = true
 
+              // Try to get sponsor's franchise name
               try {
                 const franchiseName = await readContract(config, {
                   address: PARLOR_MANAGER_ADDRESS as `0x${string}`,
@@ -171,20 +176,23 @@ export function PizzaPartyResultPopup() {
                   functionName: 'parlorName',
                   args: [pendingSponsor],
                 }) as string
+
                 if (franchiseName && franchiseName.length > 0) {
                   setSponsorName(franchiseName)
                 }
               } catch {
-                // Ignore franchise name errors
+                // Ignore errors fetching franchise name
               }
 
               popupsToShow.push('freeSlice')
             }
           } catch (err) {
+            // hasPendingSlice check failed - log but continue
             console.error('[FreeSlice] hasPendingSlice check failed:', err)
           }
 
-          // Also check if already claimed via dailySliceSponsor
+          // Also check if already claimed (dailySliceSponsor on PizzaParty)
+          // This handles slices that were already claimed
           if (!foundFreeSlice) {
             try {
               const sponsor = await readContract(config, {
@@ -195,7 +203,10 @@ export function PizzaPartyResultPopup() {
               }) as `0x${string}`
 
               if (sponsor && sponsor !== '0x0000000000000000000000000000000000000000') {
+                // Already claimed - no need to claim again
                 setNeedsSliceClaim(false)
+
+                // Try to get sponsor's franchise name
                 try {
                   const franchiseName = await readContract(config, {
                     address: PARLOR_MANAGER_ADDRESS as `0x${string}`,
@@ -203,12 +214,14 @@ export function PizzaPartyResultPopup() {
                     functionName: 'parlorName',
                     args: [sponsor],
                   }) as string
+
                   if (franchiseName && franchiseName.length > 0) {
                     setSponsorName(franchiseName)
                   }
                 } catch {
-                  // Ignore franchise name errors
+                  // Ignore errors fetching franchise name
                 }
+
                 popupsToShow.push('freeSlice')
               }
             } catch {
@@ -403,13 +416,13 @@ export function PizzaPartyResultPopup() {
     if (isConnected && address && currentPopup) {
       try {
         if (currentPopup === 'freeSlice') {
-          // Only mark free slice as seen if they've already claimed (needsSliceClaim = false)
-          // If they still need to claim, don't mark as seen so it shows again next time
+          // Only mark as seen if they've claimed (needsSliceClaim = false)
+          // If they close without claiming, reset hasChecked so popup shows again
           if (!needsSliceClaim) {
             const freeSliceSeenKey = `pizza_party_seen_freeslice_${currentDailyGameIdRef}`
             localStorage.setItem(freeSliceSeenKey, 'true')
           } else {
-            // They closed without claiming - reset hasChecked so popup shows again on next home visit
+            // They closed without claiming - reset so it shows again next time
             setHasChecked(false)
           }
         } else if (currentPopup === 'winner' || currentPopup === 'loser') {
