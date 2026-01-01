@@ -30,7 +30,6 @@ export function PizzaPartyResultPopup() {
   const [sponsorName, setSponsorName] = useState<string | null>(null)
   const [needsSliceClaim, setNeedsSliceClaim] = useState(false) // true = pending slice needs claim, false = already claimed
   const [isClaiming, setIsClaiming] = useState(false)
-  const [shouldAutoClaim, setShouldAutoClaim] = useState(false) // Trigger auto-claim when pending slice detected
 
   const [hasChecked, setHasChecked] = useState(false)
   const [currentDailyGameIdRef, setCurrentDailyGameIdRef] = useState<bigint>(0n)
@@ -71,14 +70,6 @@ export function PizzaPartyResultPopup() {
       args: [entryFeeWei],
     })
   }, [address, isClaiming, isClaimPending, isClaimConfirming, writeContract, pizzaUsd])
-
-  // Auto-claim pending slice when detected - triggers wallet signature automatically
-  useEffect(() => {
-    if (shouldAutoClaim && pizzaUsd > 0 && !isClaiming && !isClaimPending && !isClaimConfirming) {
-      setShouldAutoClaim(false) // Prevent re-triggering
-      handleClaimSlice()
-    }
-  }, [shouldAutoClaim, pizzaUsd, isClaiming, isClaimPending, isClaimConfirming, handleClaimSlice])
 
   // Fetch PIZZA/USD price
   useEffect(() => {
@@ -336,10 +327,9 @@ export function PizzaPartyResultPopup() {
             }
 
             if (hasPending && pendingSponsor !== '0x0000000000000000000000000000000000000000') {
-              // User has a pending slice - auto-claim it immediately
+              // User has a pending slice - show popup with claim button
               setNeedsSliceClaim(true)
               foundFreeSlice = true
-              setShouldAutoClaim(true) // Trigger auto-claim
 
               // Try to get sponsor's franchise name
               try {
