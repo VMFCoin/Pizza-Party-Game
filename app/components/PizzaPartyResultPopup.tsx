@@ -96,6 +96,11 @@ export function PizzaPartyResultPopup() {
     }
   }, [popupQueue, currentPopup])
 
+  // Reset hasChecked when address changes (new user or reconnection)
+  useEffect(() => {
+    setHasChecked(false)
+  }, [address])
+
   useEffect(() => {
     if (!isConnected || !address || hasChecked) return
 
