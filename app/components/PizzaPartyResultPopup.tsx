@@ -132,6 +132,91 @@ export function PizzaPartyResultPopup() {
         setLastSettledDailyGameIdRef(lastSettledDailyGameId)
         setLastSettledWeeklyGameIdRef(lastSettledWeeklyGameId)
 
+        // ===== PRIORITY CHECK: Free slice (check FIRST so it shows immediately) =====
+        const freeSliceSeenKey = `pizza_party_seen_freeslice_${currentDailyGameId}`
+        const hasSeenFreeSlice = typeof window !== 'undefined' ? localStorage.getItem(freeSliceSeenKey) : null
+        let foundFreeSlice = false
+
+        if (!hasSeenFreeSlice) {
+          try {
+            const pendingSliceResult = await readContract(config, {
+              address: PARLOR_MANAGER_ADDRESS as `0x${string}`,
+              abi: PARLOR_MANAGER_ABI,
+              functionName: 'hasPendingSlice',
+              args: [address as `0x${string}`],
+            })
+
+            let hasPending: boolean
+            let pendingSponsor: `0x${string}`
+
+            if (Array.isArray(pendingSliceResult)) {
+              [hasPending, pendingSponsor] = pendingSliceResult as [boolean, `0x${string}`]
+            } else if (pendingSliceResult && typeof pendingSliceResult === 'object') {
+              const result = pendingSliceResult as { hasPending?: boolean; sponsor?: `0x${string}`; 0?: boolean; 1?: `0x${string}` }
+              hasPending = result.hasPending ?? result[0] ?? false
+              pendingSponsor = result.sponsor ?? result[1] ?? '0x0000000000000000000000000000000000000000'
+            } else {
+              hasPending = false
+              pendingSponsor = '0x0000000000000000000000000000000000000000'
+            }
+
+            if (hasPending && pendingSponsor !== '0x0000000000000000000000000000000000000000') {
+              setNeedsSliceClaim(true)
+              foundFreeSlice = true
+
+              try {
+                const franchiseName = await readContract(config, {
+                  address: PARLOR_MANAGER_ADDRESS as `0x${string}`,
+                  abi: PARLOR_MANAGER_ABI,
+                  functionName: 'parlorName',
+                  args: [pendingSponsor],
+                }) as string
+                if (franchiseName && franchiseName.length > 0) {
+                  setSponsorName(franchiseName)
+                }
+              } catch {
+                // Ignore franchise name errors
+              }
+
+              popupsToShow.push('freeSlice')
+            }
+          } catch (err) {
+            console.error('[FreeSlice] hasPendingSlice check failed:', err)
+          }
+
+          // Also check if already claimed via dailySliceSponsor
+          if (!foundFreeSlice) {
+            try {
+              const sponsor = await readContract(config, {
+                address: PIZZA_PARTY_ADDRESS as `0x${string}`,
+                abi: PIZZA_PARTY_ABI,
+                functionName: 'dailySliceSponsor',
+                args: [currentDailyGameId, address as `0x${string}`],
+              }) as `0x${string}`
+
+              if (sponsor && sponsor !== '0x0000000000000000000000000000000000000000') {
+                setNeedsSliceClaim(false)
+                try {
+                  const franchiseName = await readContract(config, {
+                    address: PARLOR_MANAGER_ADDRESS as `0x${string}`,
+                    abi: PARLOR_MANAGER_ABI,
+                    functionName: 'parlorName',
+                    args: [sponsor],
+                  }) as string
+                  if (franchiseName && franchiseName.length > 0) {
+                    setSponsorName(franchiseName)
+                  }
+                } catch {
+                  // Ignore franchise name errors
+                }
+                popupsToShow.push('freeSlice')
+              }
+            } catch {
+              // Ignore dailySliceSponsor errors
+            }
+          }
+        }
+
         // ===== STEP 1: Check for PREVIOUS daily game results =====
         // Use SEPARATE keys for daily and weekly to avoid duplicate popups
         const dailyResultSeenKey = `pizza_party_seen_daily_${lastSettledDailyGameId}`
@@ -297,105 +382,6 @@ export function PizzaPartyResultPopup() {
           }) as boolean
           if (hasPlayed) {
             popupsToShow.push('loser')
-          }
-        }
-
-        // ===== STEP 3: Check for PENDING slice (needs to be claimed) or already claimed slice =====
-        const freeSliceSeenKey = `pizza_party_seen_freeslice_${currentDailyGameId}`
-        const hasSeenFreeSlice = typeof window !== 'undefined' ? localStorage.getItem(freeSliceSeenKey) : null
-        let foundFreeSlice = false
-
-        if (!hasSeenFreeSlice) {
-          // First check for pending slice on ParlorManager (needs claiming)
-          try {
-            console.log('[FreeSlice] Checking hasPendingSlice for address:', address)
-            const pendingSliceResult = await readContract(config, {
-              address: PARLOR_MANAGER_ADDRESS as `0x${string}`,
-              abi: PARLOR_MANAGER_ABI,
-              functionName: 'hasPendingSlice',
-              args: [address as `0x${string}`],
-            })
-            console.log('[FreeSlice] hasPendingSlice result:', pendingSliceResult)
-
-            // Handle both array and object return formats from wagmi
-            let hasPending: boolean
-            let pendingSponsor: `0x${string}`
-
-            if (Array.isArray(pendingSliceResult)) {
-              [hasPending, pendingSponsor] = pendingSliceResult as [boolean, `0x${string}`]
-            } else if (pendingSliceResult && typeof pendingSliceResult === 'object') {
-              // wagmi might return as object with named properties
-              const result = pendingSliceResult as { hasPending?: boolean; sponsor?: `0x${string}`; 0?: boolean; 1?: `0x${string}` }
-              hasPending = result.hasPending ?? result[0] ?? false
-              pendingSponsor = result.sponsor ?? result[1] ?? '0x0000000000000000000000000000000000000000'
-            } else {
-              hasPending = false
-              pendingSponsor = '0x0000000000000000000000000000000000000000'
-            }
-
-            console.log('[FreeSlice] Parsed - hasPending:', hasPending, 'sponsor:', pendingSponsor)
-
-            if (hasPending && pendingSponsor !== '0x0000000000000000000000000000000000000000') {
-              // User has a pending slice - show popup with claim button
-              console.log('[FreeSlice] Found pending slice! Adding to popup queue')
-              setNeedsSliceClaim(true)
-              foundFreeSlice = true
-
-              // Try to get sponsor's franchise name
-              try {
-                const franchiseName = await readContract(config, {
-                  address: PARLOR_MANAGER_ADDRESS as `0x${string}`,
-                  abi: PARLOR_MANAGER_ABI,
-                  functionName: 'parlorName',
-                  args: [pendingSponsor],
-                }) as string
-
-                if (franchiseName && franchiseName.length > 0) {
-                  setSponsorName(franchiseName)
-                }
-              } catch {
-                // Ignore errors fetching franchise name
-              }
-
-              popupsToShow.push('freeSlice')
-            }
-          } catch (err) {
-            // hasPendingSlice doesn't exist yet (contract not upgraded) - check old way
-            console.error('[FreeSlice] hasPendingSlice call failed:', err)
-          }
-
-          // Also check if already claimed (dailySliceSponsor on PizzaParty)
-          // This handles slices that were already claimed or from pre-upgrade
-          if (!foundFreeSlice) {
-            const sponsor = await readContract(config, {
-              address: PIZZA_PARTY_ADDRESS as `0x${string}`,
-              abi: PIZZA_PARTY_ABI,
-              functionName: 'dailySliceSponsor',
-              args: [currentDailyGameId, address as `0x${string}`],
-            }) as `0x${string}`
-
-            if (sponsor && sponsor !== '0x0000000000000000000000000000000000000000') {
-              // Already claimed - no need to claim again
-              setNeedsSliceClaim(false)
-
-              // Try to get sponsor's franchise name
-              try {
-                const franchiseName = await readContract(config, {
-                  address: PARLOR_MANAGER_ADDRESS as `0x${string}`,
-                  abi: PARLOR_MANAGER_ABI,
-                  functionName: 'parlorName',
-                  args: [sponsor],
-                }) as string
-
-                if (franchiseName && franchiseName.length > 0) {
-                  setSponsorName(franchiseName)
-                }
-              } catch {
-                // Ignore errors fetching franchise name
-              }
-
-              popupsToShow.push('freeSlice')
-            }
           }
         }
 
