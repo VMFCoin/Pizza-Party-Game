@@ -11,6 +11,7 @@ const PARLOR_CONTRACT = PARLOR_MANAGER_ADDRESS as `0x${string}`;
 // Base mainnet RPC
 const RPC_URL = 'https://mainnet.base.org';
 
+// Daily settlement ABI - weekly settlement is handled by /api/cron/settle-weekly
 const SETTLE_ABI = [
   {
     inputs: [],
@@ -21,21 +22,7 @@ const SETTLE_ABI = [
   },
   {
     inputs: [],
-    name: 'weeklyGameId',
-    outputs: [{ type: 'uint256' }],
-    stateMutability: 'view',
-    type: 'function',
-  },
-  {
-    inputs: [],
     name: 'isDailyGameReady',
-    outputs: [{ type: 'bool' }],
-    stateMutability: 'view',
-    type: 'function',
-  },
-  {
-    inputs: [],
-    name: 'isWeeklyGameReady',
     outputs: [{ type: 'bool' }],
     stateMutability: 'view',
     type: 'function',
@@ -55,19 +42,6 @@ const SETTLE_ABI = [
     type: 'function',
   },
   {
-    inputs: [{ type: 'uint256', name: 'weekId' }],
-    name: 'weeklyGames',
-    outputs: [
-      { type: 'uint256', name: 'claimWindowStart' },
-      { type: 'uint256', name: 'claimWindowEnd' },
-      { type: 'uint256', name: 'totalClaimedToppings' },
-      { type: 'uint256', name: 'potAmount' },
-      { type: 'bool', name: 'settled' },
-    ],
-    stateMutability: 'view',
-    type: 'function',
-  },
-  {
     inputs: [],
     name: 'settleDailyGame',
     outputs: [],
@@ -79,41 +53,6 @@ const SETTLE_ABI = [
     name: 'settleDailyGameWithUsd',
     outputs: [],
     stateMutability: 'nonpayable',
-    type: 'function',
-  },
-  {
-    inputs: [],
-    name: 'settleWeeklyGame',
-    outputs: [],
-    stateMutability: 'nonpayable',
-    type: 'function',
-  },
-  {
-    inputs: [{ type: 'uint256', name: 'usdCentsPerWinner' }],
-    name: 'settleWeeklyGameWithUsd',
-    outputs: [],
-    stateMutability: 'nonpayable',
-    type: 'function',
-  },
-  {
-    inputs: [],
-    name: 'toppingToPizza',
-    outputs: [{ type: 'uint256' }],
-    stateMutability: 'view',
-    type: 'function',
-  },
-  {
-    inputs: [{ type: 'uint256', name: 'newAmount' }],
-    name: 'setWeeklyTreasuryBonus',
-    outputs: [],
-    stateMutability: 'nonpayable',
-    type: 'function',
-  },
-  {
-    inputs: [],
-    name: 'weeklyTreasuryBonus',
-    outputs: [{ type: 'uint256' }],
-    stateMutability: 'view',
     type: 'function',
   },
 ] as const;
@@ -222,11 +161,9 @@ export async function GET(request: NextRequest) {
 
   const results: {
     daily: { success: boolean; txHash?: string; error?: string; gameId?: string; reason?: string } | null;
-    weekly: { success: boolean; txHash?: string; error?: string; gameId?: string; reason?: string } | null;
     parlorFees: { success: boolean; txHash?: string; error?: string; reason?: string } | null;
   } = {
     daily: null,
-    weekly: null,
     parlorFees: null,
   };
 
@@ -249,12 +186,7 @@ export async function GET(request: NextRequest) {
       transport: http(RPC_URL),
     });
 
-    console.log(`[Settle Bot] Running settlement check from wallet: ${account.address}`);
-
-    // Check if it's Monday (for weekly settlement)
-    const now = new Date();
-    const pstTime = new Date(now.toLocaleString("en-US", { timeZone: "America/Los_Angeles" }));
-    const isMonday = pstTime.getDay() === 1;
+    console.log(`[Settle Bot] Running daily settlement check from wallet: ${account.address}`);
 
     // --- DAILY SETTLEMENT ---
     try {
@@ -338,131 +270,8 @@ export async function GET(request: NextRequest) {
       console.error(`[Settle Bot] Daily settlement error:`, error);
     }
 
-    // --- WEEKLY SETTLEMENT (only on Mondays) ---
-    // Add delay between daily and weekly to avoid RPC rate limits
-    if (isMonday) {
-      await new Promise(resolve => setTimeout(resolve, 3000)); // 3 second delay
-      try {
-        const weeklyGameId = await publicClient.readContract({
-          address: CONTRACT_ADDRESS,
-          abi: SETTLE_ABI,
-          functionName: 'weeklyGameId',
-        });
-
-        const isWeeklyReady = await publicClient.readContract({
-          address: CONTRACT_ADDRESS,
-          abi: SETTLE_ABI,
-          functionName: 'isWeeklyGameReady',
-        });
-
-        console.log(`[Settle Bot] Weekly game ${weeklyGameId}, ready: ${isWeeklyReady}`);
-
-        if (isWeeklyReady) {
-          // Get weekly game data, toppingToPizza value, and PIZZA price for USD calculation
-          const [weeklyGame, toppingToPizzaRaw, pizzaPrice] = await Promise.all([
-            publicClient.readContract({
-              address: CONTRACT_ADDRESS,
-              abi: SETTLE_ABI,
-              functionName: 'weeklyGames',
-              args: [weeklyGameId],
-            }),
-            publicClient.readContract({
-              address: CONTRACT_ADDRESS,
-              abi: SETTLE_ABI,
-              functionName: 'toppingToPizza',
-            }),
-            getPizzaPrice(),
-          ]);
-
-          // weeklyGame returns: [claimWindowStart, claimWindowEnd, totalClaimedToppings, potAmount, settled]
-          const totalClaimedToppings = weeklyGame[2];
-          // toppingToPizza is in wei (e.g., 1e18 = 1 PIZZA per topping)
-          const toppingToPizza = parseFloat(formatUnits(toppingToPizzaRaw, 18));
-          // Weekly jackpot = totalClaimedToppings * toppingToPizza PIZZA
-          const jackpotPizza = Number(totalClaimedToppings) * toppingToPizza;
-          const winnerCount = 10; // WEEKLY_WINNERS constant
-          const pizzaPerWinner = jackpotPizza / winnerCount;
-          const usdPerWinner = pizzaPerWinner * pizzaPrice;
-          const usdCentsPerWinner = Math.round(usdPerWinner * 100); // Convert to cents
-
-          console.log(`[Settle Bot] Settling weekly game ${weeklyGameId}, totalToppings: ${totalClaimedToppings}, toppingToPizza: ${toppingToPizza}, jackpot: ${jackpotPizza} PIZZA`);
-          console.log(`[Settle Bot] PIZZA price: $${pizzaPrice}, USD per winner: $${usdPerWinner.toFixed(2)} (${usdCentsPerWinner} cents)`);
-
-          let hash: `0x${string}`;
-          if (usdCentsPerWinner > 0) {
-            // Use new function that locks USD value
-            hash = await walletClient.writeContract({
-              address: CONTRACT_ADDRESS,
-              abi: SETTLE_ABI,
-              functionName: 'settleWeeklyGameWithUsd',
-              args: [BigInt(usdCentsPerWinner)],
-              gas: 2_000_000n,
-            });
-          } else {
-            // Fallback to old function if price fetch failed - this should be rare with retry/fallback logic
-            console.error(`[Settle Bot] CRITICAL WARNING: Weekly USD snapshot failed! Using fallback settlement without USD.`);
-            console.error(`[Settle Bot] Week ${weeklyGameId} will show incorrect USD values on leaderboard.`);
-            hash = await walletClient.writeContract({
-              address: CONTRACT_ADDRESS,
-              abi: SETTLE_ABI,
-              functionName: 'settleWeeklyGame',
-              gas: 2_000_000n,
-            });
-          }
-
-          const receipt = await publicClient.waitForTransactionReceipt({ hash });
-
-          if (receipt.status === 'success') {
-            results.weekly = { success: true, txHash: hash, gameId: weeklyGameId.toString() };
-            console.log(`[Settle Bot] Weekly game ${weeklyGameId} settled! TX: ${hash}`);
-
-            // --- UPDATE TREASURY BONUS FOR NEXT WEEK ---
-            // Set the bonus to $20 worth of PIZZA at current price
-            const TARGET_USD = 20; // $20 minimum jackpot
-            if (pizzaPrice > 0) {
-              const bonusPizza = TARGET_USD / pizzaPrice;
-              const bonusWei = BigInt(Math.floor(bonusPizza * 1e18));
-
-              console.log(`[Settle Bot] Setting treasury bonus for next week: ${bonusPizza.toFixed(2)} PIZZA ($${TARGET_USD} at $${pizzaPrice})`);
-
-              try {
-                const bonusHash = await walletClient.writeContract({
-                  address: CONTRACT_ADDRESS,
-                  abi: SETTLE_ABI,
-                  functionName: 'setWeeklyTreasuryBonus',
-                  args: [bonusWei],
-                  gas: 100_000n,
-                });
-
-                const bonusReceipt = await publicClient.waitForTransactionReceipt({ hash: bonusHash });
-                if (bonusReceipt.status === 'success') {
-                  console.log(`[Settle Bot] Treasury bonus updated! TX: ${bonusHash}`);
-                  (results.weekly as { treasuryBonusUpdated?: boolean; newBonusPizza?: string }).treasuryBonusUpdated = true;
-                  (results.weekly as { newBonusPizza?: string }).newBonusPizza = bonusPizza.toFixed(2);
-                } else {
-                  console.error(`[Settle Bot] Failed to update treasury bonus`);
-                }
-              } catch (bonusErr) {
-                console.error(`[Settle Bot] Error updating treasury bonus:`, bonusErr);
-              }
-            } else {
-              console.warn(`[Settle Bot] Skipping treasury bonus update - no valid price`);
-            }
-          } else {
-            results.weekly = { success: false, error: 'Transaction failed', gameId: weeklyGameId.toString() };
-          }
-        } else {
-          results.weekly = { success: false, reason: 'not_ready', gameId: weeklyGameId.toString() };
-          console.log(`[Settle Bot] Weekly game not ready to settle`);
-        }
-      } catch (e) {
-        const error = e instanceof Error ? e.message : 'Unknown error';
-        results.weekly = { success: false, error };
-        console.error(`[Settle Bot] Weekly settlement error:`, error);
-      }
-    } else {
-      console.log(`[Settle Bot] Not Monday (${pstTime.toDateString()}), skipping weekly settlement`);
-    }
+    // NOTE: Weekly settlement is now handled by separate /api/cron/settle-weekly endpoint
+    // This runs 2 minutes later (20:03 UTC on Mondays) to avoid RPC rate limit conflicts
 
     // --- PARLOR FEE ALLOCATION ---
     // Always check for pending parlor fees so owners can claim even if someone else settled the game
@@ -505,8 +314,6 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({
       success: true,
       timestamp: new Date().toISOString(),
-      pstTime: pstTime.toISOString(),
-      isMonday,
       results,
     });
   } catch (error) {
