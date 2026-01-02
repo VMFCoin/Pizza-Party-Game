@@ -839,7 +839,7 @@ export default function PizzaParlorPage({
                       </Button>
                     )}
                     <div className="flex justify-between items-center">
-                      <span className="text-orange-800" style={{ ...customFontStyle, fontSize: 14 }}>Slices This Week:</span>
+                      <span className="text-orange-800" style={{ ...customFontStyle, fontSize: 14 }}>Slices Remaining:</span>
                       <span className="text-orange-900" style={{ ...customFontStyle, fontSize: 14 }}>{slicesThisWeekNum} / {parlorsOwned}</span>
                     </div>
                     <div className="flex justify-between items-center">
@@ -945,7 +945,7 @@ export default function PizzaParlorPage({
                   <div className="space-y-3">
                     {/* Slices Info */}
                     <div className="flex justify-between items-center">
-                      <span className="text-blue-800" style={{ ...customFontStyle, fontSize: 16 }}>Slices This Week:</span>
+                      <span className="text-blue-800" style={{ ...customFontStyle, fontSize: 16 }}>Slices Remaining:</span>
                       <span className="text-blue-900" style={{ ...customFontStyle, fontSize: 16 }}>{slicesThisWeekNum} / {parlorsOwned}</span>
                     </div>
                     <div className="flex justify-between items-center">
