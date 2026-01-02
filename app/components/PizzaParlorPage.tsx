@@ -226,14 +226,30 @@ export default function PizzaParlorPage({
 
   // ============ Contract Writes ============
 
-  const { writeContract, data: txHash, reset: resetWrite } = useWriteContract()
+  const { writeContract, data: txHash, reset: resetWrite, error: writeError, isError: isWriteError } = useWriteContract()
 
   const { isLoading: isConfirming, isSuccess: isConfirmed } = useWaitForTransactionReceipt({
     hash: txHash,
   })
 
-  // Store user for cast after tx confirms
-  const [sliceSentToUser, setSliceSentToUser] = useState<FarcasterUser | null>(null)
+  // Store pending user until tx confirms (don't trigger cast until confirmed)
+  // Only triggers notification/cast AFTER transaction is confirmed on-chain
+  const [pendingSliceUser, setPendingSliceUser] = useState<FarcasterUser | null>(null)
+
+  // Handle transaction errors (user rejected, tx failed, etc.)
+  useEffect(() => {
+    if (isWriteError && writeError) {
+      console.error('Transaction error:', writeError.message)
+      // Reset all pending states
+      setIsPurchasing(false)
+      setIsApproving(false)
+      setIsDistributing(false)
+      setIsSendingSlice(false)
+      setIsSettingName(false)
+      setPendingSliceUser(null)
+      resetWrite()
+    }
+  }, [isWriteError, writeError, resetWrite])
 
   // Handle transaction success
   useEffect(() => {
@@ -256,19 +272,20 @@ export default function PizzaParlorPage({
       setIsSettingName(false)
 
       // Handle successful slice send - send notification and open compose
-      if (isSendingSlice && sliceSentToUser) {
+      // Only trigger if we have a pending user (set when tx was submitted)
+      if (isSendingSlice && pendingSliceUser) {
         // Send push notification to recipient (fire and forget)
         fetch('/api/slice-notification', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            recipientFid: sliceSentToUser.fid,
+            recipientFid: pendingSliceUser.fid,
             parlorName: userParlorName || 'A Pizza Parlor',
           }),
         }).catch(err => console.error('Failed to send slice notification:', err))
 
         const franchiseName = userParlorName || 'A Pizza Parlor'
-        const castText = `Hey @${sliceSentToUser.username}!!! 🍕🔥\n${franchiseName} just hooked you up with a free hot slice. Come grab it and jump into Pizza Party – open the app and claim to be entered for the Daily Jackpot!\n\nDon't let this slice get cold... dive in and let's get saucy! 😏\nOpen your free slice here:`
+        const castText = `Hey @${pendingSliceUser.username}!!! 🍕🔥\n${franchiseName} just hooked you up with a free hot slice. Come grab it and jump into Pizza Party – open the app and claim to be entered for the Daily Jackpot!\n\nDon't let this slice get cold... dive in and let's get saucy! 😏\nOpen your free slice here:`
         const embedUrl = 'https://farcaster.xyz/miniapps/wgY6OPqYoIkz/pizza-party'
 
         // Use Farcaster SDK composeCast to stay in-app
@@ -277,7 +294,7 @@ export default function PizzaParlorPage({
           embeds: [embedUrl],
         }).catch(err => console.error('composeCast failed:', err))
 
-        setSliceSentToUser(null)
+        setPendingSliceUser(null)
       }
 
       // Clear slice input on success
@@ -288,7 +305,7 @@ export default function PizzaParlorPage({
       setIsSendingSlice(false)
       resetWrite()
     }
-  }, [isConfirmed, refetchContractData, refetchUserData, resetWrite, isSendingSlice, sliceSentToUser, isPurchasing, userHasParlorName, userParlorName])
+  }, [isConfirmed, refetchContractData, refetchUserData, resetWrite, isSendingSlice, pendingSliceUser, isPurchasing, userHasParlorName, userParlorName])
 
   // ============ Action Handlers ============
 
@@ -362,9 +379,12 @@ export default function PizzaParlorPage({
 
     setIsSendingSlice(true)
 
-    // Store selected user for cast notification after tx confirms
+    // Prepare user info for notification AFTER tx confirms
+    // Store in pendingSliceUser - only used if tx succeeds
+    let userForNotification: FarcasterUser | null = null
+
     if (selectedUser) {
-      setSliceSentToUser(selectedUser)
+      userForNotification = selectedUser
     } else {
       // Look up Farcaster profile for the address if no user was selected
       // This handles cases where user pasted an address directly
@@ -373,35 +393,38 @@ export default function PizzaParlorPage({
         const profile = profiles.get(resolvedAddress.toLowerCase())
         if (profile?.username) {
           // Create a FarcasterUser object from the profile
-          setSliceSentToUser({
+          userForNotification = {
             fid: profile.fid || 0,
             username: profile.username,
             displayName: profile.displayName || profile.username,
             pfpUrl: profile.pfpUrl || '',
             walletAddress: resolvedAddress,
-          })
+          }
         } else {
           // No Farcaster profile found - still trigger cast with address
-          setSliceSentToUser({
+          userForNotification = {
             fid: 0,
             username: resolvedAddress.slice(0, 6) + '...' + resolvedAddress.slice(-4),
             displayName: 'Pizza Fan',
             pfpUrl: '',
             walletAddress: resolvedAddress,
-          })
+          }
         }
       } catch (err) {
         console.error('Failed to fetch profile for address:', err)
         // Fallback - still trigger cast with address
-        setSliceSentToUser({
+        userForNotification = {
           fid: 0,
           username: resolvedAddress.slice(0, 6) + '...' + resolvedAddress.slice(-4),
           displayName: 'Pizza Fan',
           pfpUrl: '',
           walletAddress: resolvedAddress,
-        })
+        }
       }
     }
+
+    // Store the user - will only be used if tx confirms successfully
+    setPendingSliceUser(userForNotification)
 
     try {
       writeContract({
@@ -417,7 +440,7 @@ export default function PizzaParlorPage({
     } catch (error) {
       console.error('Send slice error:', error)
       setIsSendingSlice(false)
-      setSliceSentToUser(null)
+      setPendingSliceUser(null)
     }
   }
 

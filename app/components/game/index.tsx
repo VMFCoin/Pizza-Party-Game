@@ -204,6 +204,11 @@ function GamePageContent({ onNavigateToWeekly, onNavigateToLeaderboard, onNaviga
     hasEnoughPizza,
     hasUsedReferral,
     isFirstTimePlayer,
+    // Free slice (pending slice from parlor owner)
+    hasPendingSlice,
+    pendingSliceSponsorName,
+    handleClaimFreeSlice,
+    isClaimingSlice,
   } = useGamePageData()
 
   useEffect(() => {
@@ -254,6 +259,15 @@ function GamePageContent({ onNavigateToWeekly, onNavigateToLeaderboard, onNaviga
     if (hasEnteredToday) {
       return { text: '✅ ALREADY ENTERED TODAY', onClick: () => {}, disabled: true }
     }
+    // PRIORITY: Show free slice button if user has a pending slice from a parlor owner
+    if (hasPendingSlice) {
+      const sponsorText = pendingSliceSponsorName ? ` from ${pendingSliceSponsorName}` : ''
+      return {
+        text: `🎁 CLAIM FREE SLICE${sponsorText} 🎁`,
+        onClick: handleClaimFreeSlice,
+        disabled: isClaimingSlice
+      }
+    }
     if (!hasEnoughPizza) {
       return { text: 'NEED $1 PIZZA TO PLAY', onClick: () => window.open('https://base.app/coin/base-mainnet/0xbd0e3768b9a7c3d53e7b92edc4c38728e2fa9b69', '_blank'), disabled: false }
     }
@@ -271,7 +285,7 @@ function GamePageContent({ onNavigateToWeekly, onNavigateToLeaderboard, onNaviga
       },
       disabled: isEntryInProgress
     }
-  }, [wallet, hasEnteredToday, hasEnoughPizza, openWalletModal, handleEnterGame, isEntryInProgress, canUseReferral])
+  }, [wallet, hasEnteredToday, hasEnoughPizza, openWalletModal, handleEnterGame, isEntryInProgress, canUseReferral, hasPendingSlice, pendingSliceSponsorName, handleClaimFreeSlice, isClaimingSlice])
 
   const { hours, minutes, seconds } = pacificCountdown
 

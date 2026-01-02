@@ -12,6 +12,8 @@ import {
   PIZZA_PARTY_ABI,
   PIZZA_TOKEN_ADDRESS,
   PIZZA_TOKEN_ABI,
+  PARLOR_MANAGER_ADDRESS,
+  PARLOR_MANAGER_ABI,
 } from './constants'
 import { wagmiConfig } from '../components/config/wagmiConfig'
 
@@ -801,6 +803,12 @@ export function useGamePageData() {
   const [hasEnteredToday, setHasEnteredToday] = useState(false)
   // With permit, we don't need to track approval separately - it happens in one tx!
 
+  // ================= Pending Slice State =================
+  const [hasPendingSlice, setHasPendingSlice] = useState(false)
+  const [_pendingSliceSponsor, setPendingSliceSponsor] = useState<`0x${string}` | null>(null)
+  const [pendingSliceSponsorName, setPendingSliceSponsorName] = useState<string | null>(null)
+  const [isClaimingSlice, setIsClaimingSlice] = useState(false)
+
   // ================= Check entry status =================
   const checkStatus = useCallback(async () => {
     if (!wallet.address) return
@@ -814,6 +822,55 @@ export function useGamePageData() {
       })
       const hasEntered = Boolean(entered)
       setHasEnteredToday(hasEntered)
+
+      // Check for pending slice (free entry from parlor owner)
+      try {
+        const pendingSliceResult = await readContract(wagmiConfig, {
+          address: PARLOR_MANAGER_ADDRESS as `0x${string}`,
+          abi: PARLOR_MANAGER_ABI,
+          functionName: 'hasPendingSlice',
+          args: [wallet.address as `0x${string}`],
+        })
+
+        // Handle wagmi return format (array or object)
+        let hasPending = false
+        let sponsor: `0x${string}` = '0x0000000000000000000000000000000000000000'
+
+        if (Array.isArray(pendingSliceResult)) {
+          [hasPending, sponsor] = pendingSliceResult as [boolean, `0x${string}`]
+        } else if (pendingSliceResult && typeof pendingSliceResult === 'object') {
+          const result = pendingSliceResult as { hasPending?: boolean; sponsor?: `0x${string}`; 0?: boolean; 1?: `0x${string}` }
+          hasPending = result.hasPending ?? result[0] ?? false
+          sponsor = result.sponsor ?? result[1] ?? '0x0000000000000000000000000000000000000000'
+        }
+
+        if (hasPending && sponsor !== '0x0000000000000000000000000000000000000000') {
+          setHasPendingSlice(true)
+          setPendingSliceSponsor(sponsor)
+
+          // Try to get sponsor's franchise name
+          try {
+            const franchiseName = await readContract(wagmiConfig, {
+              address: PARLOR_MANAGER_ADDRESS as `0x${string}`,
+              abi: PARLOR_MANAGER_ABI,
+              functionName: 'parlorName',
+              args: [sponsor],
+            }) as string
+            if (franchiseName && franchiseName.length > 0) {
+              setPendingSliceSponsorName(franchiseName)
+            }
+          } catch {
+            // Ignore errors fetching franchise name
+          }
+        } else {
+          setHasPendingSlice(false)
+          setPendingSliceSponsor(null)
+          setPendingSliceSponsorName(null)
+        }
+      } catch (err) {
+        console.error('Failed to check pending slice:', err)
+        setHasPendingSlice(false)
+      }
 
       console.debug('Entry status:', {
         hasEnteredToday: hasEntered,
@@ -911,6 +968,74 @@ export function useGamePageData() {
       alert(`Failed to claim toppings: ${message}`)
     }
   }, [networkId, wallet.isAuthenticated, writeContract, fetchPlayerInfo, fetchWeekly])
+
+  // ================= Claim Free Slice =================
+  const handleClaimFreeSlice = useCallback(async () => {
+    console.log('=== CLAIM FREE SLICE CLICKED ===')
+
+    if (networkId !== BASE_CHAIN_ID) {
+      console.error('Wrong network. Current:', networkId, 'Expected:', BASE_CHAIN_ID)
+      alert(`Please switch to Base network (Chain ID: ${BASE_CHAIN_ID})`)
+      return
+    }
+
+    if (!wallet.isAuthenticated || !wallet.address) {
+      console.error('Wallet not authenticated')
+      alert('Please connect your wallet first')
+      return
+    }
+
+    if (!hasPendingSlice) {
+      console.error('No pending slice to claim')
+      alert('No free slice available to claim')
+      return
+    }
+
+    if (hasEnteredToday) {
+      console.error('Already entered today')
+      alert('You have already entered the game today.')
+      return
+    }
+
+    try {
+      setIsClaimingSlice(true)
+
+      // Calculate $1 worth of PIZZA for the entry fee (treasury pays)
+      const pizzaPerDollar = 1 / pizzaUsdPrice
+      const entryFeeAmount = BigInt(Math.floor(pizzaPerDollar * 1e18))
+
+      console.log('Claiming free slice with entry fee:', (Number(entryFeeAmount) / 1e18).toFixed(4), 'PIZZA')
+
+      await writeContract({
+        address: PARLOR_MANAGER_ADDRESS as `0x${string}`,
+        abi: PARLOR_MANAGER_ABI,
+        functionName: 'claimSlice',
+        args: [entryFeeAmount],
+      })
+
+      console.log('✅ Free slice claimed successfully!')
+      setHasEnteredToday(true)
+      setHasPendingSlice(false)
+      setPendingSliceSponsor(null)
+      setPendingSliceSponsorName(null)
+
+      // Refresh all data
+      void fetchPlayerInfo()
+      void refreshDaily()
+      void fetchWeekly()
+      void fetchPizzaBalance()
+      void fetchPlayerLifetimeStats()
+
+    } catch (err: unknown) {
+      console.error('❌ Free slice claim failed:', err)
+      setIsClaimingSlice(false)
+
+      const message = getErrorMessage(err) || 'Unknown error'
+      alert(`Failed to claim free slice: ${message}`)
+    } finally {
+      setIsClaimingSlice(false)
+    }
+  }, [networkId, wallet.isAuthenticated, wallet.address, hasPendingSlice, hasEnteredToday, pizzaUsdPrice, writeContract, fetchPlayerInfo, refreshDaily, fetchWeekly, fetchPizzaBalance, fetchPlayerLifetimeStats])
 
   const handleEnterGame = useCallback(async (referralCode?: string) => {
     console.log('=== ENTER GAME WITH PERMIT CLICKED ===')
@@ -1217,5 +1342,10 @@ export function useGamePageData() {
     claimableToppings,
     hasUsedReferral, // Whether player has already used a referral code (can only use once)
     isFirstTimePlayer, // Whether player has never played before (lifetimeToppings = 0)
+    // Free slice (pending slice from parlor owner)
+    hasPendingSlice,
+    pendingSliceSponsorName,
+    handleClaimFreeSlice,
+    isClaimingSlice,
   }
 }
