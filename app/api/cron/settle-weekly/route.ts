@@ -54,9 +54,16 @@ const SETTLE_ABI = [
   },
   {
     inputs: [],
-    name: 'toppingToPizza',
+    name: 'toppingUnitPizza',
     outputs: [{ type: 'uint256' }],
     stateMutability: 'view',
+    type: 'function',
+  },
+  {
+    inputs: [{ type: 'uint256', name: 'newUnit' }],
+    name: 'setToppingUnitPizza',
+    outputs: [],
+    stateMutability: 'nonpayable',
     type: 'function',
   },
   {
@@ -215,8 +222,8 @@ export async function GET(request: NextRequest) {
       return NextResponse.json(result);
     }
 
-    // Get weekly game data, toppingToPizza value, treasury bonus, and PIZZA price
-    const [weeklyGame, toppingToPizzaRaw, treasuryBonusRaw, pizzaPrice] = await Promise.all([
+    // Get weekly game data, toppingUnitPizza value, treasury bonus, and PIZZA price
+    const [weeklyGame, toppingUnitPizzaRaw, treasuryBonusRaw, pizzaPrice] = await Promise.all([
       publicClient.readContract({
         address: CONTRACT_ADDRESS,
         abi: SETTLE_ABI,
@@ -226,7 +233,7 @@ export async function GET(request: NextRequest) {
       publicClient.readContract({
         address: CONTRACT_ADDRESS,
         abi: SETTLE_ABI,
-        functionName: 'toppingToPizza',
+        functionName: 'toppingUnitPizza',
       }),
       publicClient.readContract({
         address: CONTRACT_ADDRESS,
@@ -237,18 +244,18 @@ export async function GET(request: NextRequest) {
     ]);
 
     const totalClaimedToppings = weeklyGame[2];
-    const toppingToPizza = parseFloat(formatUnits(toppingToPizzaRaw, 18));
+    const toppingUnitPizza = parseFloat(formatUnits(toppingUnitPizzaRaw, 18));
     const treasuryBonus = parseFloat(formatUnits(treasuryBonusRaw, 18));
 
-    // Weekly jackpot = totalClaimedToppings * toppingToPizza + treasuryBonus
-    const jackpotPizza = Number(totalClaimedToppings) * toppingToPizza + treasuryBonus;
+    // Weekly jackpot = totalClaimedToppings * toppingUnitPizza ($0.10 per topping) + treasuryBonus
+    const jackpotPizza = Number(totalClaimedToppings) * toppingUnitPizza + treasuryBonus;
     const winnerCount = 10; // WEEKLY_WINNERS constant
     const pizzaPerWinner = jackpotPizza / winnerCount;
     const usdPerWinner = pizzaPerWinner * pizzaPrice;
     const usdCentsPerWinner = Math.round(usdPerWinner * 100);
 
     console.log(`[Weekly Settle] Settling weekly game ${weeklyGameId}`);
-    console.log(`[Weekly Settle] totalToppings: ${totalClaimedToppings}, toppingToPizza: ${toppingToPizza}, treasuryBonus: ${treasuryBonus}`);
+    console.log(`[Weekly Settle] totalToppings: ${totalClaimedToppings}, toppingUnitPizza: ${toppingUnitPizza}, treasuryBonus: ${treasuryBonus}`);
     console.log(`[Weekly Settle] jackpot: ${jackpotPizza} PIZZA, PIZZA price: $${pizzaPrice}`);
     console.log(`[Weekly Settle] USD per winner: $${usdPerWinner.toFixed(2)} (${usdCentsPerWinner} cents)`);
 
@@ -307,8 +314,35 @@ export async function GET(request: NextRequest) {
         } catch (bonusErr) {
           console.error(`[Weekly Settle] Error updating treasury bonus:`, bonusErr);
         }
+
+        // --- UPDATE TOPPING UNIT PIZZA FOR NEXT WEEK ---
+        // 1 topping = $0.10 worth of PIZZA
+        const TOPPING_USD = 0.10;
+        const toppingPizza = TOPPING_USD / pizzaPrice;
+        const toppingWei = BigInt(Math.floor(toppingPizza * 1e18));
+
+        console.log(`[Weekly Settle] Setting toppingUnitPizza for next week: ${toppingPizza.toFixed(4)} PIZZA ($${TOPPING_USD} at $${pizzaPrice})`);
+
+        try {
+          const toppingHash = await walletClient.writeContract({
+            address: CONTRACT_ADDRESS,
+            abi: SETTLE_ABI,
+            functionName: 'setToppingUnitPizza',
+            args: [toppingWei],
+            gas: 100_000n,
+          });
+
+          const toppingReceipt = await publicClient.waitForTransactionReceipt({ hash: toppingHash });
+          if (toppingReceipt.status === 'success') {
+            console.log(`[Weekly Settle] toppingUnitPizza updated! TX: ${toppingHash}`);
+          } else {
+            console.error(`[Weekly Settle] Failed to update toppingUnitPizza`);
+          }
+        } catch (toppingErr) {
+          console.error(`[Weekly Settle] Error updating toppingUnitPizza:`, toppingErr);
+        }
       } else {
-        console.warn(`[Weekly Settle] Skipping treasury bonus update - no valid price`);
+        console.warn(`[Weekly Settle] Skipping treasury bonus and toppingUnitPizza update - no valid price`);
       }
     } else {
       result.error = 'Transaction failed';

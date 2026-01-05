@@ -107,8 +107,8 @@ contract SliceSponsorRewardsTest is Test {
         vm.startPrank(owner);
         pizzaParty.setParlorManager(address(parlorManager));
         pizzaParty.setOwnerFeeRecipient(address(parlorManager));
-        // Set toppingToPizza (now a state variable, not a constant)
-        pizzaParty.setToppingToPizza(10e18); // 10 PIZZA per topping
+        // Set toppingUnitPizza (1 topping = $0.10 of PIZZA)
+        pizzaParty.setToppingUnitPizza(10e18); // 10 PIZZA per topping for testing
         vm.stopPrank();
 
         // Create player addresses

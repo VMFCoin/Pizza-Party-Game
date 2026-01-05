@@ -26,7 +26,7 @@ interface IPizzaParlorManager {
  * - Claim window: Sunday 12pm PT → Monday 12pm PT (24 hours)
  * - PIZZA balance snapshot taken at claim time
  * - Players claim toppings once per week during window
- * - Jackpot = totalClaimedToppings × toppingToPizza (must be set via setToppingToPizza)
+ * - Jackpot = totalClaimedToppings × toppingUnitPizza (1 topping = $0.10 of PIZZA)
  * - 10 winners, weighted by claimed toppings
  * - Paid from treasury wallet
  *
@@ -164,9 +164,11 @@ contract PizzaPartyV2Upgradeable is OwnableUpgradeable, UUPSUpgradeable, Reentra
     // weekId => player => sponsor (the sponsor who first sliced them in that week)
     mapping(uint256 => mapping(address => address)) public weeklySliceSponsor;
 
-    // Weekly jackpot: 1 topping = X PIZZA (configurable, default 10 PIZZA)
+    // Weekly jackpot: 1 topping = $0.10 USD worth of PIZZA
+    // Value = how many PIZZA tokens equal $0.10 (set by owner based on market price)
+    // Example: at $0.001/PIZZA, $0.10 = 100 PIZZA, so toppingUnitPizza = 100e18
     // IMPORTANT: Added at end of storage to avoid slot collision on upgrade
-    uint256 public toppingToPizza;
+    uint256 public toppingUnitPizza;
 
     // Weekly treasury bonus: fixed PIZZA amount added to weekly jackpot from treasury
     // IMPORTANT: Added at end of storage to avoid slot collision on upgrade
@@ -725,8 +727,8 @@ contract PizzaPartyV2Upgradeable is OwnableUpgradeable, UUPSUpgradeable, Reentra
         // Require at least one claimer to settle
         require(week.claimers.length > 0 && week.totalClaimedToppings > 0, "No claimers");
 
-        // Jackpot = total claimed toppings × toppingToPizza + treasury bonus
-        uint256 jackpot = week.totalClaimedToppings * toppingToPizza + weeklyTreasuryBonus;
+        // Jackpot = total claimed toppings × toppingUnitPizza ($0.10 per topping) + treasury bonus
+        uint256 jackpot = week.totalClaimedToppings * toppingUnitPizza + weeklyTreasuryBonus;
 
         // Pull from treasury
         pizzaToken.safeTransferFrom(treasuryWallet, address(this), jackpot);
@@ -1075,7 +1077,8 @@ contract PizzaPartyV2Upgradeable is OwnableUpgradeable, UUPSUpgradeable, Reentra
     ) {
         WeeklyGame storage week = weeklyGames[weeklyGameId];
         // Include treasury bonus in projected jackpot so UI shows full amount from week start
-        uint256 jackpot = week.totalClaimedToppings * toppingToPizza + weeklyTreasuryBonus;
+        // Each topping = $0.10 worth of PIZZA (toppingUnitPizza)
+        uint256 jackpot = week.totalClaimedToppings * toppingUnitPizza + weeklyTreasuryBonus;
 
         return (
             week.claimWindowStart,
@@ -1249,14 +1252,15 @@ contract PizzaPartyV2Upgradeable is OwnableUpgradeable, UUPSUpgradeable, Reentra
     }
 
     /**
-     * @notice Set the PIZZA amount per topping for weekly jackpot
-     * @param newAmount Number of PIZZA tokens per topping (18 decimals)
+     * @notice Set the PIZZA amount per topping for weekly jackpot (1 topping = $0.10 USD)
+     * @param newUnit Number of PIZZA tokens that equal $0.10 (18 decimals)
+     * Example: at $0.001/PIZZA, $0.10 = 100 PIZZA, so newUnit = 100e18
      */
-    function setToppingToPizza(uint256 newAmount) external onlyOwner {
-        require(newAmount > 0, "toppingToPizza=0");
-        uint256 old = toppingToPizza;
-        toppingToPizza = newAmount;
-        emit ToppingToPizzaUpdated(old, newAmount);
+    function setToppingUnitPizza(uint256 newUnit) external onlyOwner {
+        require(newUnit > 0, "toppingUnitPizza=0");
+        uint256 old = toppingUnitPizza;
+        toppingUnitPizza = newUnit;
+        emit ToppingToPizzaUpdated(old, newUnit);
     }
 
     /**

@@ -83,7 +83,7 @@ contract UpgradeWeeklyTreasuryBonus is Script {
         console.log("dailyGameId:", upgraded.dailyGameId());
         console.log("weeklyGameId:", upgraded.weeklyGameId());
         console.log("weeklyTreasuryBonus:", upgraded.weeklyTreasuryBonus() / 1e18, "PIZZA");
-        console.log("toppingToPizza:", upgraded.toppingToPizza() / 1e18, "PIZZA");
+        console.log("toppingUnitPizza:", upgraded.toppingUnitPizza() / 1e18, "PIZZA");
 
         // Test getCurrentWeeklyGame to verify bonus is included
         (

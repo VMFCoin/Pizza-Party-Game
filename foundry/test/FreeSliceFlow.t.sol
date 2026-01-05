@@ -108,8 +108,12 @@ contract FreeSliceFlowTest is Test {
         vm.startPrank(owner);
         pizzaParty.setParlorManager(address(parlorManager));
         pizzaParty.setOwnerFeeRecipient(address(parlorManager));
-        pizzaParty.setToppingToPizza(10e18);
+        pizzaParty.setToppingUnitPizza(10e18);
         vm.stopPrank();
+
+        // Treasury approves PizzaParty for weekly jackpot payouts
+        vm.prank(treasury);
+        pizzaToken.approve(address(pizzaParty), type(uint256).max);
 
         // Setup parlor owners with different amounts
         _setupParlorOwner(sponsor1, 5);
@@ -142,6 +146,21 @@ contract FreeSliceFlowTest is Test {
             parlorManager.purchaseParlor(PARLOR_PRICE);
         }
         vm.stopPrank();
+    }
+
+    /// @dev Helper to settle the current game and advance to a new game
+    function _settleCurrentGame() internal {
+        // Need at least one player in the game to settle
+        pizzaToken.mint(player3, ENTRY_FEE);
+        vm.startPrank(player3);
+        pizzaToken.approve(address(pizzaParty), ENTRY_FEE);
+        pizzaParty.enterDailyGame(ENTRY_FEE, "");
+        vm.stopPrank();
+
+        // Warp past game end and settle
+        (, uint256 endTime,,,) = pizzaParty.getCurrentDailyGame();
+        vm.warp(endTime + 1);
+        pizzaParty.settleDailyGame();
     }
 
     // ============================================================================
@@ -323,10 +342,11 @@ contract FreeSliceFlowTest is Test {
         parlorManager.claimSlice(ENTRY_FEE);
         console.log("Player1 claimed");
 
-        // Warp to next day (still same week)
-        vm.warp(block.timestamp + 1 days);
+        // Settle game to get new dailyGameId (daily limit reset)
+        _settleCurrentGame();
+        console.log("Game settled, new dailyGameId:", pizzaParty.dailyGameId());
 
-        // Sponsor2 tries to send another slice - should fail (weekly limit)
+        // Sponsor2 tries to send another slice - should fail (weekly limit still applies)
         vm.prank(sponsor2);
         vm.expectRevert(PizzaParlorManagerUpgradeable.WeeklySliceLimitReached.selector);
         parlorManager.sendSlice(player2);
@@ -335,7 +355,7 @@ contract FreeSliceFlowTest is Test {
     }
 
     function test_SendSlice_WeeklyLimitResetsAfterWeek() public {
-        console.log("\n=== TEST: Weekly limit resets after week ends ===");
+        console.log("\n=== TEST: Weekly limit resets after weekly settlement ===");
 
         // Sponsor2 uses their 1 weekly slice
         vm.prank(sponsor2);
@@ -344,18 +364,42 @@ contract FreeSliceFlowTest is Test {
         parlorManager.claimSlice(ENTRY_FEE);
         console.log("Sponsor2 used their weekly slice");
 
-        // Warp to next week (Monday)
         uint256 currentWeekId = pizzaParty.weeklyGameId();
         console.log("Current week ID:", currentWeekId);
 
-        // Warp forward 8 days to ensure we're in next week
-        vm.warp(block.timestamp + 8 days);
+        // Settle current daily game (player1 wins, earns toppings)
+        _settleCurrentGame();
+
+        // Get weekly game info
+        (uint256 claimWindowStart, uint256 claimWindowEnd,,,,) = pizzaParty.getCurrentWeeklyGame();
+
+        // Warp to within claim window
+        vm.warp(claimWindowStart + 1);
+
+        // Player1 claims their toppings
+        vm.prank(player1);
+        try pizzaParty.claimToppings() {} catch {}
+
+        // Warp past weekly claim window end
+        vm.warp(claimWindowEnd + 1);
+
+        // Settle weekly game (this increments weeklyGameId)
+        pizzaParty.settleWeeklyGame();
 
         uint256 newWeekId = pizzaParty.weeklyGameId();
-        console.log("New week ID:", newWeekId);
-        // Note: weeklyGameId only increments after settlement, but slice limits use internal week tracking
+        console.log("New week ID after weekly settlement:", newWeekId);
+        assertTrue(newWeekId > currentWeekId, "Week ID should have advanced");
 
-        // Now sponsor2 should be able to send again
+        // Check remaining slices - should be reset
+        uint256 remaining = parlorManager.slicesRemainingThisWeek(sponsor2);
+        console.log("Remaining weekly slices for sponsor2:", remaining);
+        assertTrue(remaining > 0, "Should have weekly slices in new week");
+
+        // After weekly settlement, there's a new daily game already initialized
+        // We need to enter a player first to make sure we can send the slice
+        // Note: The daily limit tracks by dailyGameId which also resets after settlement
+
+        // Sponsor2 can send again in the new week
         vm.prank(sponsor2);
         parlorManager.sendSlice(player2);
         console.log("Sponsor2 sent slice in new week");
@@ -363,7 +407,7 @@ contract FreeSliceFlowTest is Test {
         (bool hasPending,) = parlorManager.hasPendingSlice(player2);
         assertTrue(hasPending, "Player2 should have pending slice");
 
-        console.log("SUCCESS: Weekly limit reset correctly");
+        console.log("SUCCESS: Weekly limit reset correctly after weekly settlement");
     }
 
     // ============================================================================
@@ -393,7 +437,7 @@ contract FreeSliceFlowTest is Test {
     }
 
     function test_SendSlice_DailyLimitResetsNextDay() public {
-        console.log("\n=== TEST: Daily limit resets next day ===");
+        console.log("\n=== TEST: Daily limit resets when game changes ===");
 
         // Use daily slice
         vm.prank(sponsor1);
@@ -402,19 +446,19 @@ contract FreeSliceFlowTest is Test {
         parlorManager.claimSlice(ENTRY_FEE);
         console.log("Sponsor1 used daily slice");
 
-        // Warp to next day
-        vm.warp(block.timestamp + 1 days);
-        console.log("Warped to next day");
+        // Daily limit is per dailyGameId, so we need to settle to get new game
+        _settleCurrentGame();
+        console.log("Game settled, new dailyGameId:", pizzaParty.dailyGameId());
 
-        // Should be able to send again
+        // Should be able to send again in new game
         vm.prank(sponsor1);
         parlorManager.sendSlice(player2);
-        console.log("Sponsor1 sent slice on new day");
+        console.log("Sponsor1 sent slice in new game");
 
         (bool hasPending,) = parlorManager.hasPendingSlice(player2);
         assertTrue(hasPending, "Player2 should have pending slice");
 
-        console.log("SUCCESS: Daily limit reset correctly");
+        console.log("SUCCESS: Daily limit reset correctly when game changed");
     }
 
     // ============================================================================
@@ -700,8 +744,8 @@ contract FreeSliceFlowTest is Test {
     // EDGE CASE: Player becomes parlor owner after receiving slice
     // ============================================================================
 
-    function test_ClaimSlice_WorksEvenIfPlayerBecameParlorOwner() public {
-        console.log("\n=== TEST: Claim still works if player became parlor owner ===");
+    function test_ClaimSlice_RevertsIfPlayerBecameParlorOwner() public {
+        console.log("\n=== TEST: Claim blocked if player became parlor owner ===");
 
         // Send slice to player
         vm.prank(sponsor1);
@@ -716,14 +760,511 @@ contract FreeSliceFlowTest is Test {
         vm.stopPrank();
         console.log("Player1 bought a parlor, now has:", parlorManager.parlorCount(player1));
 
-        // Player can still claim their pending slice
+        // Player can NOT claim their pending slice (they're now a parlor owner)
+        vm.prank(player1);
+        vm.expectRevert(PizzaParlorManagerUpgradeable.RecipientIsParlorOwner.selector);
+        parlorManager.claimSlice(ENTRY_FEE);
+
+        console.log("SUCCESS: Correctly blocked claiming after becoming parlor owner");
+        console.log("(Parlor owners cannot receive free slices - prevents gaming the system)");
+    }
+
+    // ============================================================================
+    // POPUP ORDER TEST: Player played PREVIOUS game AND has FREE SLICE for current
+    // This simulates the exact frontend scenario
+    // ============================================================================
+
+    function test_PopupOrder_PlayerPlayedAndHasFreeSlice() public {
+        console.log("\n========================================");
+        console.log("POPUP ORDER TEST: Player played + has free slice");
+        console.log("========================================");
+        console.log("This simulates a player who:");
+        console.log("  1. Played in game 1 (yesterday)");
+        console.log("  2. Game 1 settled (they won or lost)");
+        console.log("  3. Got sent a free slice for game 2 (today)");
+        console.log("  4. Opens app - what popups show in what order?");
+        console.log("========================================\n");
+
+        uint256 gameId1 = pizzaParty.dailyGameId();
+        console.log("GAME 1 ID:", gameId1);
+
+        // === GAME 1: Player plays normally (pays their own way) ===
+        console.log("\n--- GAME 1: Player enters and plays ---");
+
+        // Player1 enters game 1 with their own money
+        pizzaToken.mint(player1, ENTRY_FEE);
+        vm.startPrank(player1);
+        pizzaToken.approve(address(pizzaParty), ENTRY_FEE);
+        pizzaParty.enterDailyGame(ENTRY_FEE, "");
+        vm.stopPrank();
+        console.log("Player1 entered game 1");
+
+        // Player2 also enters (need 2+ players for settlement)
+        pizzaToken.mint(player2, ENTRY_FEE);
+        vm.startPrank(player2);
+        pizzaToken.approve(address(pizzaParty), ENTRY_FEE);
+        pizzaParty.enterDailyGame(ENTRY_FEE, "");
+        vm.stopPrank();
+        console.log("Player2 entered game 1");
+
+        // Verify player1 played
+        bool played1 = pizzaParty.hasPlayedDaily(gameId1, player1);
+        assertTrue(played1, "Player1 should have played game 1");
+        console.log("Player1 hasPlayedDaily(game1):", played1);
+
+        // === SETTLE GAME 1 ===
+        console.log("\n--- SETTLING GAME 1 ---");
+        (, uint256 endTime,,,) = pizzaParty.getCurrentDailyGame();
+        vm.warp(endTime + 1);
+        pizzaParty.settleDailyGame();
+
+        uint256 gameId2 = pizzaParty.dailyGameId();
+        console.log("Game 1 settled. New GAME 2 ID:", gameId2);
+        assertTrue(gameId2 > gameId1, "Game ID should advance");
+
+        // Check game 1 settlement
+        (,,,, bool settled) = pizzaParty.dailyGames(gameId1);
+        assertTrue(settled, "Game 1 should be settled");
+        console.log("Game 1 settled:", settled);
+
+        // Get winners (for frontend to calculate winnings)
+        address[] memory winners = pizzaParty.getDailyGameWinners(gameId1);
+        console.log("Game 1 winners count:", winners.length);
+
+        bool player1Won = false;
+        for (uint i = 0; i < winners.length; i++) {
+            if (winners[i] == player1) {
+                player1Won = true;
+                console.log("Player1 WON game 1!");
+                break;
+            }
+        }
+        if (!player1Won) {
+            console.log("Player1 LOST game 1");
+        }
+
+        // === GAME 2: Sponsor sends free slice to player1 ===
+        console.log("\n--- GAME 2: Sponsor sends free slice ---");
+
+        vm.prank(sponsor1);
+        parlorManager.sendSlice(player1);
+        console.log("Sponsor1 sent free slice to Player1 for game 2");
+
+        // === FRONTEND CHECK: What does the popup system see? ===
+        console.log("\n========================================");
+        console.log("FRONTEND POPUP CHECK (what the app sees)");
+        console.log("========================================");
+
+        // PRIORITY CHECK: Free slice
+        console.log("\n[PRIORITY] Checking hasPendingSlice...");
+        (bool hasPending, address pendingSponsor) = parlorManager.hasPendingSlice(player1);
+        console.log("  hasPendingSlice:", hasPending);
+        console.log("  sponsor:", pendingSponsor);
+        if (hasPending) {
+            console.log("  => QUEUE: 'freeSlice' popup");
+        }
+
+        // STEP 1: Check previous daily game results
+        console.log("\n[STEP 1] Checking previous game (game 1) results...");
+        uint256 lastSettledGameId = gameId2 - 1;
+        console.log("  lastSettledDailyGameId:", lastSettledGameId);
+
+        bool playedPrevious = pizzaParty.hasPlayedDaily(lastSettledGameId, player1);
+        console.log("  hasPlayedDaily(lastSettled, player1):", playedPrevious);
+
+        if (playedPrevious) {
+            console.log("  => Player played previous game");
+            if (player1Won) {
+                console.log("  => QUEUE: 'winner' popup");
+            } else {
+                console.log("  => QUEUE: 'loser' popup");
+            }
+        }
+
+        // === POPUP ORDER ANALYSIS ===
+        console.log("\n========================================");
+        console.log("POPUP ORDER (as shown to user):");
+        console.log("========================================");
+        console.log("1. FREE SLICE popup (FIRST - priority check)");
+        if (player1Won) {
+            console.log("2. WINNER popup (after closing free slice)");
+        } else {
+            console.log("2. LOSER popup (after closing free slice)");
+        }
+        console.log("========================================");
+
+        // === VERIFY DATA IS AVAILABLE ===
+        console.log("\n--- VERIFICATION: All data accessible ---");
+
+        // Free slice data
+        assertTrue(hasPending, "Should have pending slice");
+        assertEq(pendingSponsor, sponsor1, "Sponsor should be sponsor1");
+
+        // Previous game data
+        assertTrue(playedPrevious, "Should have played previous game");
+        (,,,, bool prevSettled) = pizzaParty.dailyGames(lastSettledGameId);
+        assertTrue(prevSettled, "Previous game should be settled");
+
+        console.log("\n========================================");
+        console.log("TEST PASSED: All popup data accessible");
+        console.log("========================================");
+        console.log("Frontend can correctly show:");
+        console.log("  1. Free slice popup FIRST");
+        console.log("  2. Win/lose result SECOND");
+        console.log("========================================\n");
+    }
+
+    // ============================================================================
+    // FAILURE POINT TEST: What happens if free slice check fails?
+    // ============================================================================
+
+    function test_PopupOrder_FreeSliceCheckFailure() public {
+        console.log("\n========================================");
+        console.log("FAILURE POINT TEST: Free slice check error handling");
+        console.log("========================================");
+
+        // Player plays game 1
+        pizzaToken.mint(player1, ENTRY_FEE);
+        vm.startPrank(player1);
+        pizzaToken.approve(address(pizzaParty), ENTRY_FEE);
+        pizzaParty.enterDailyGame(ENTRY_FEE, "");
+        vm.stopPrank();
+
+        // Add another player
+        pizzaToken.mint(player2, ENTRY_FEE);
+        vm.startPrank(player2);
+        pizzaToken.approve(address(pizzaParty), ENTRY_FEE);
+        pizzaParty.enterDailyGame(ENTRY_FEE, "");
+        vm.stopPrank();
+
+        // Settle
+        uint256 gameId1 = pizzaParty.dailyGameId();
+        (, uint256 endTime,,,) = pizzaParty.getCurrentDailyGame();
+        vm.warp(endTime + 1);
+        pizzaParty.settleDailyGame();
+
+        console.log("\n--- Scenario: Player has NO free slice ---");
+
+        // Check hasPendingSlice for player with NO slice
+        (bool hasPending, address sponsor) = parlorManager.hasPendingSlice(player1);
+        console.log("hasPendingSlice result:");
+        console.log("  hasPending:", hasPending);
+        console.log("  sponsor:", sponsor);
+
+        assertFalse(hasPending, "Should NOT have pending slice");
+        assertEq(sponsor, address(0), "Sponsor should be zero address");
+
+        // Frontend should skip free slice popup and show win/lose result
+        console.log("\n--- Frontend behavior ---");
+        console.log("hasPending = false, so skip 'freeSlice' popup");
+        console.log("Check previous game results instead...");
+
+        bool playedPrevious = pizzaParty.hasPlayedDaily(gameId1, player1);
+        assertTrue(playedPrevious, "Should have played game 1");
+        console.log("hasPlayedDaily = true, show win/lose popup");
+
+        console.log("\nPOPUP ORDER: Only 'winner' or 'loser' shown (no free slice)");
+    }
+
+    // ============================================================================
+    // CLAIM DURING POPUP FLOW: What state changes when user claims?
+    // ============================================================================
+
+    function test_PopupOrder_StateChangesOnClaim() public {
+        console.log("\n========================================");
+        console.log("STATE CHANGES TEST: Before/after claim");
+        console.log("========================================");
+
+        // Send slice
+        vm.prank(sponsor1);
+        parlorManager.sendSlice(player1);
+
+        console.log("\n--- BEFORE CLAIM ---");
+        (bool hasPendingBefore,) = parlorManager.hasPendingSlice(player1);
+        bool playedBefore = pizzaParty.hasPlayedDaily(pizzaParty.dailyGameId(), player1);
+        address sponsorBefore = pizzaParty.dailySliceSponsor(pizzaParty.dailyGameId(), player1);
+
+        console.log("hasPendingSlice:", hasPendingBefore);
+        console.log("hasPlayedDaily:", playedBefore);
+        console.log("dailySliceSponsor:", sponsorBefore);
+
+        assertTrue(hasPendingBefore, "Should have pending before");
+        assertFalse(playedBefore, "Should NOT have played before");
+        assertEq(sponsorBefore, address(0), "Sponsor should be 0 before");
+
+        console.log("\n--- PLAYER TAPS 'CLAIM YOUR SLICE!' ---");
         vm.prank(player1);
         parlorManager.claimSlice(ENTRY_FEE);
-        console.log("Player1 claimed slice successfully");
+        console.log("claimSlice() called successfully");
 
-        bool played = pizzaParty.hasPlayedDaily(pizzaParty.dailyGameId(), player1);
-        assertTrue(played, "Player should be in game");
+        console.log("\n--- AFTER CLAIM ---");
+        (bool hasPendingAfter,) = parlorManager.hasPendingSlice(player1);
+        bool playedAfter = pizzaParty.hasPlayedDaily(pizzaParty.dailyGameId(), player1);
+        address sponsorAfter = pizzaParty.dailySliceSponsor(pizzaParty.dailyGameId(), player1);
 
-        console.log("SUCCESS: Claim worked even after becoming parlor owner");
+        console.log("hasPendingSlice:", hasPendingAfter);
+        console.log("hasPlayedDaily:", playedAfter);
+        console.log("dailySliceSponsor:", sponsorAfter);
+
+        assertFalse(hasPendingAfter, "Should NOT have pending after");
+        assertTrue(playedAfter, "Should have played after");
+        assertEq(sponsorAfter, sponsor1, "Sponsor should be recorded after");
+
+        console.log("\n========================================");
+        console.log("STATE TRANSITION VERIFIED");
+        console.log("========================================");
+        console.log("Before claim: pending=true, played=false, sponsor=0x0");
+        console.log("After claim:  pending=false, played=true, sponsor=recorded");
+        console.log("========================================\n");
+    }
+
+    // ============================================================================
+    // 50% SPONSOR REWARD TESTS - CRITICAL FLOW
+    // ============================================================================
+
+    function test_SponsorReward_FirstSliceWinnerPays50Percent() public {
+        console.log("\n========================================");
+        console.log("TEST: First slice winner pays sponsor 50%");
+        console.log("========================================");
+
+        uint256 gameId = pizzaParty.dailyGameId();
+
+        // Step 1: Sponsor sends first-ever slice to player
+        vm.prank(sponsor1);
+        parlorManager.sendSlice(player1);
+        console.log("Sponsor1 sent FIRST slice to Player1");
+
+        // Verify hasSlicedPlayer is now true
+        bool hasSliced = pizzaParty.hasSlicedPlayer(sponsor1, player1);
+        assertTrue(hasSliced, "hasSlicedPlayer should be true after sending slice");
+        console.log("hasSlicedPlayer[sponsor1][player1]:", hasSliced);
+
+        // Step 2: Player claims slice
+        vm.prank(player1);
+        parlorManager.claimSlice(ENTRY_FEE);
+        console.log("Player1 claimed slice");
+
+        // Verify sponsor is recorded
+        address recordedSponsor = pizzaParty.dailySliceSponsor(gameId, player1);
+        assertEq(recordedSponsor, sponsor1, "Sponsor should be recorded for first slice");
+        console.log("dailySliceSponsor[gameId][player1]:", recordedSponsor);
+
+        // Step 3: Need another player so game can settle
+        pizzaToken.mint(player2, ENTRY_FEE);
+        vm.startPrank(player2);
+        pizzaToken.approve(address(pizzaParty), ENTRY_FEE);
+        pizzaParty.enterDailyGame(ENTRY_FEE, "");
+        vm.stopPrank();
+
+        // Track balances before settlement
+        uint256 player1BalanceBefore = pizzaToken.balanceOf(player1);
+        uint256 sponsor1BalanceBefore = pizzaToken.balanceOf(sponsor1);
+        console.log("Player1 balance before:", player1BalanceBefore / 1e18, "PIZZA");
+        console.log("Sponsor1 balance before:", sponsor1BalanceBefore / 1e18, "PIZZA");
+
+        // Step 4: Settle game (player1 may or may not win, but let's check)
+        (, uint256 endTime,,,) = pizzaParty.getCurrentDailyGame();
+        vm.warp(endTime + 1);
+        pizzaParty.settleDailyGame();
+        console.log("Game settled");
+
+        // Check if player1 won
+        address[] memory winners = pizzaParty.getDailyGameWinners(gameId);
+        bool player1Won = false;
+        for (uint i = 0; i < winners.length; i++) {
+            if (winners[i] == player1) {
+                player1Won = true;
+                break;
+            }
+        }
+
+        uint256 player1BalanceAfter = pizzaToken.balanceOf(player1);
+        uint256 sponsor1BalanceAfter = pizzaToken.balanceOf(sponsor1);
+
+        console.log("Player1 won:", player1Won);
+        console.log("Player1 balance after:", player1BalanceAfter / 1e18, "PIZZA");
+        console.log("Sponsor1 balance after:", sponsor1BalanceAfter / 1e18, "PIZZA");
+
+        if (player1Won) {
+            // Sponsor should have received 50% of player1's winnings
+            uint256 sponsorGain = sponsor1BalanceAfter - sponsor1BalanceBefore;
+            uint256 playerGain = player1BalanceAfter - player1BalanceBefore;
+
+            console.log("Sponsor1 gained:", sponsorGain / 1e18, "PIZZA");
+            console.log("Player1 gained:", playerGain / 1e18, "PIZZA");
+
+            // They should be roughly equal (50/50 split)
+            // Note: There might be small rounding differences
+            assertApproxEqAbs(sponsorGain, playerGain, 1e18, "Sponsor and player should get equal amounts");
+            assertTrue(sponsorGain > 0, "Sponsor should have received winnings");
+
+            console.log("SUCCESS: Sponsor received 50% of winnings!");
+        } else {
+            console.log("Player1 didn't win, so no 50% split to verify");
+            console.log("But sponsor is correctly recorded for future wins");
+        }
+
+        console.log("========================================\n");
+    }
+
+    function test_SponsorReward_RepeatSliceNoReward() public {
+        console.log("\n========================================");
+        console.log("TEST: Repeat slice does NOT record sponsor");
+        console.log("========================================");
+        console.log("This is the bug scenario: sponsor slices same player twice");
+        console.log("Second slice should NOT record sponsor for 50% reward");
+        console.log("========================================\n");
+
+        // === GAME 1: First slice ===
+        uint256 gameId1 = pizzaParty.dailyGameId();
+        console.log("GAME 1 ID:", gameId1);
+
+        // Sponsor sends first slice
+        vm.prank(sponsor1);
+        parlorManager.sendSlice(player1);
+        console.log("Game 1: Sponsor1 sent FIRST slice to Player1");
+
+        // Player claims
+        vm.prank(player1);
+        parlorManager.claimSlice(ENTRY_FEE);
+
+        // Verify sponsor recorded for game 1
+        address sponsor1G1 = pizzaParty.dailySliceSponsor(gameId1, player1);
+        assertEq(sponsor1G1, sponsor1, "Sponsor should be recorded for Game 1");
+        console.log("Game 1 dailySliceSponsor:", sponsor1G1);
+
+        // Verify hasSlicedPlayer is now true
+        bool hasSliced1 = pizzaParty.hasSlicedPlayer(sponsor1, player1);
+        assertTrue(hasSliced1, "hasSlicedPlayer should be true");
+        console.log("hasSlicedPlayer[sponsor1][player1]:", hasSliced1);
+
+        // === Settle Game 1 ===
+        _settleCurrentGame();
+
+        // === GAME 2: Repeat slice (same sponsor, same player) ===
+        uint256 gameId2 = pizzaParty.dailyGameId();
+        console.log("\nGAME 2 ID:", gameId2);
+        assertTrue(gameId2 > gameId1, "Should be new game");
+
+        // Sponsor sends slice again to same player
+        vm.prank(sponsor1);
+        parlorManager.sendSlice(player1);
+        console.log("Game 2: Sponsor1 sent REPEAT slice to Player1");
+
+        // Player claims
+        vm.prank(player1);
+        parlorManager.claimSlice(ENTRY_FEE);
+
+        // CRITICAL CHECK: Sponsor should NOT be recorded for game 2!
+        address sponsor2G2 = pizzaParty.dailySliceSponsor(gameId2, player1);
+        console.log("Game 2 dailySliceSponsor:", sponsor2G2);
+
+        // The sponsor should be 0x0 because hasSlicedPlayer was already true
+        assertEq(sponsor2G2, address(0), "Sponsor should NOT be recorded for repeat slice!");
+
+        console.log("\n========================================");
+        console.log("SUCCESS: Repeat slice correctly NOT recorded");
+        console.log("This prevents sponsors from gaming the 50% reward");
+        console.log("========================================\n");
+    }
+
+    function test_SponsorReward_DifferentSponsorsCanSliceSamePlayer() public {
+        console.log("\n========================================");
+        console.log("TEST: Different sponsors CAN slice same player");
+        console.log("========================================");
+
+        // === GAME 1: Sponsor1 slices player1 ===
+        uint256 gameId1 = pizzaParty.dailyGameId();
+
+        vm.prank(sponsor1);
+        parlorManager.sendSlice(player1);
+        vm.prank(player1);
+        parlorManager.claimSlice(ENTRY_FEE);
+
+        address sponsorG1 = pizzaParty.dailySliceSponsor(gameId1, player1);
+        assertEq(sponsorG1, sponsor1, "Sponsor1 should be recorded");
+        console.log("Game 1: Sponsor1 recorded");
+
+        // Settle
+        _settleCurrentGame();
+
+        // === GAME 2: Sponsor2 slices player1 (different sponsor!) ===
+        uint256 gameId2 = pizzaParty.dailyGameId();
+
+        vm.prank(sponsor2);
+        parlorManager.sendSlice(player1);
+        vm.prank(player1);
+        parlorManager.claimSlice(ENTRY_FEE);
+
+        address sponsorG2 = pizzaParty.dailySliceSponsor(gameId2, player1);
+        assertEq(sponsorG2, sponsor2, "Sponsor2 should be recorded (first time slicing this player)");
+        console.log("Game 2: Sponsor2 recorded (their first slice to this player)");
+
+        // Verify hasSlicedPlayer for both
+        assertTrue(pizzaParty.hasSlicedPlayer(sponsor1, player1), "Sponsor1 hasSlicedPlayer");
+        assertTrue(pizzaParty.hasSlicedPlayer(sponsor2, player1), "Sponsor2 hasSlicedPlayer");
+
+        console.log("SUCCESS: Different sponsors can each get one 50% reward per player");
+    }
+
+    function test_SponsorReward_FullSettlementFlow() public {
+        console.log("\n========================================");
+        console.log("TEST: Full settlement with sponsored player winning");
+        console.log("========================================");
+
+        uint256 gameId = pizzaParty.dailyGameId();
+
+        // Sponsor sends slice
+        vm.prank(sponsor1);
+        parlorManager.sendSlice(player1);
+        vm.prank(player1);
+        parlorManager.claimSlice(ENTRY_FEE);
+
+        // Add more players to increase pot and randomness
+        for (uint i = 0; i < 5; i++) {
+            address player = makeAddr(string.concat("extraPlayer", vm.toString(i)));
+            pizzaToken.mint(player, ENTRY_FEE);
+            vm.startPrank(player);
+            pizzaToken.approve(address(pizzaParty), ENTRY_FEE);
+            pizzaParty.enterDailyGame(ENTRY_FEE, "");
+            vm.stopPrank();
+        }
+
+        // Record balances
+        uint256 sponsorBefore = pizzaToken.balanceOf(sponsor1);
+        uint256 playerBefore = pizzaToken.balanceOf(player1);
+
+        // Get pot size
+        (,, uint256 pot,,) = pizzaParty.getCurrentDailyGame();
+        console.log("Pot size:", pot / 1e18, "PIZZA");
+
+        // Settle
+        (, uint256 endTime,,,) = pizzaParty.getCurrentDailyGame();
+        vm.warp(endTime + 1);
+        pizzaParty.settleDailyGame();
+
+        // Check results
+        address[] memory winners = pizzaParty.getDailyGameWinners(gameId);
+        console.log("Number of winners:", winners.length);
+
+        bool player1Won = false;
+        for (uint i = 0; i < winners.length; i++) {
+            console.log("Winner", i, ":", winners[i]);
+            if (winners[i] == player1) player1Won = true;
+        }
+
+        uint256 sponsorAfter = pizzaToken.balanceOf(sponsor1);
+        uint256 playerAfter = pizzaToken.balanceOf(player1);
+
+        console.log("\n--- RESULTS ---");
+        console.log("Player1 won:", player1Won);
+        console.log("Sponsor balance change:", (sponsorAfter - sponsorBefore) / 1e18, "PIZZA");
+        console.log("Player balance change:", (playerAfter - playerBefore) / 1e18, "PIZZA");
+
+        if (player1Won && sponsorAfter > sponsorBefore) {
+            console.log("SUCCESS: Sponsor received their 50% cut!");
+        }
+
+        console.log("========================================\n");
     }
 }

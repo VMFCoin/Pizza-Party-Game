@@ -10,7 +10,7 @@ import {UUPSUpgradeable} from "@openzeppelin/contracts-upgradeable/proxy/utils/U
  * @dev Upgrades the PizzaParty proxy with new economic constants:
  *      - HOLDINGS_TOPPINGS: 3 -> 1 (1 topping per $10 of PIZZA held)
  *      - HOLDINGS_MAX_TOPPINGS: 30 -> 5 (max at $50 instead of $100)
- *      - toppingToPizza already set to 1e18 via setToppingToPizza() call
+ *      - toppingUnitPizza already set to 1e18 via setToppingUnitPizza() call
  *
  * These changes reduce weekly jackpot inflation by:
  *   - Reducing holdings bonus from 3 toppings/$10 (30 max) to 1 topping/$10 (5 max)
@@ -41,7 +41,7 @@ contract UpgradeHoldingsAndToppingRate is Script {
         console.log("Changes in this upgrade:");
         console.log("  - HOLDINGS_TOPPINGS: 3 -> 1 (1 topping per $10 of PIZZA)");
         console.log("  - HOLDINGS_MAX_TOPPINGS: 30 -> 5 (max at $50 worth)");
-        console.log("  - toppingToPizza: already set to 1e18 (1 PIZZA per topping)");
+        console.log("  - toppingUnitPizza: already set to 1e18 (1 PIZZA per topping)");
         console.log("");
 
         // Check current state
@@ -50,7 +50,7 @@ contract UpgradeHoldingsAndToppingRate is Script {
         console.log("Owner:", current.owner());
         console.log("dailyGameId:", current.dailyGameId());
         console.log("weeklyGameId:", current.weeklyGameId());
-        console.log("toppingToPizza:", current.toppingToPizza());
+        console.log("toppingUnitPizza:", current.toppingUnitPizza());
         console.log("HOLDINGS_TOPPINGS (old constant):", current.HOLDINGS_TOPPINGS());
         console.log("HOLDINGS_MAX_TOPPINGS (old constant):", current.HOLDINGS_MAX_TOPPINGS());
         console.log("");
@@ -84,13 +84,13 @@ contract UpgradeHoldingsAndToppingRate is Script {
         console.log("--- New Constants ---");
         console.log("HOLDINGS_TOPPINGS:", upgraded.HOLDINGS_TOPPINGS());
         console.log("HOLDINGS_MAX_TOPPINGS:", upgraded.HOLDINGS_MAX_TOPPINGS());
-        console.log("toppingToPizza:", upgraded.toppingToPizza());
+        console.log("toppingUnitPizza:", upgraded.toppingUnitPizza());
         console.log("");
 
         // Verify expected values
         require(upgraded.HOLDINGS_TOPPINGS() == 1, "HOLDINGS_TOPPINGS should be 1");
         require(upgraded.HOLDINGS_MAX_TOPPINGS() == 5, "HOLDINGS_MAX_TOPPINGS should be 5");
-        require(upgraded.toppingToPizza() == 1e18, "toppingToPizza should be 1e18");
+        require(upgraded.toppingUnitPizza() == 1e18, "toppingUnitPizza should be 1e18");
 
         console.log("=================================================================");
         console.log("SUCCESS! Weekly jackpot inflation reduced:");

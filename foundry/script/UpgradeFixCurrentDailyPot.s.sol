@@ -35,7 +35,7 @@ contract UpgradeFixCurrentDailyPot is Script {
         console.log("  currentDailyPot:", current.currentDailyPot());
         console.log("  dailyGameId:", current.dailyGameId());
         console.log("  weeklyGameId:", current.weeklyGameId());
-        console.log("  toppingToPizza:", current.toppingToPizza());
+        console.log("  toppingUnitPizza:", current.toppingUnitPizza());
 
         vm.startBroadcast(deployerPrivateKey);
 
@@ -63,7 +63,7 @@ contract UpgradeFixCurrentDailyPot is Script {
         console.log("  currentDailyPot:", upgraded.currentDailyPot());
         console.log("  dailyGameId:", upgraded.dailyGameId());
         console.log("  weeklyGameId:", upgraded.weeklyGameId());
-        console.log("  toppingToPizza:", upgraded.toppingToPizza());
+        console.log("  toppingUnitPizza:", upgraded.toppingUnitPizza());
 
         console.log("");
         console.log("=================================================");

@@ -25,7 +25,7 @@ const customFontStyle = {
 }
 
 const HOW_TO_WIN = [
-  'Play Daily: 1 topping each day you play',
+  'Play Daily: 1 topping per day + 3 bonus for playing all 7 days (10 max)',
   'Refer new players: 2 toppings per referral (max 3 per week)',
   'Hold PIZZA tokens: 1 topping for every $10 of PIZZA you hold (5 toppings max)',
   'More toppings = more tickets in the weekly draw',
@@ -43,7 +43,7 @@ const TERMS = {
     'Partnered veteran charities receive 3% of the daily jackpot',
   ],
   weeklyJackpot: [
-    'Weekly jackpot starts at $20; claimed toppings add to the jackpot (1\u00A0topping\u00A0=\u00A01\u00A0PIZZA)',
+    'Weekly jackpot starts at $20; claimed toppings add to the jackpot (1\u00A0topping\u00A0=\u00A0$0.10\u00A0of\u00A0PIZZA)',
     'Claim toppings during Sunday 12pm–Monday 12pm PST to enter',
     '10 winners selected Monday 12pm PST with odds weighted by toppings claimed',
     'Unclaimed toppings expire weekly—claim or lose them',
