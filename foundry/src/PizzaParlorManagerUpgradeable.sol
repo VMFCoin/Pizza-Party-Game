@@ -46,8 +46,9 @@ contract PizzaParlorManagerUpgradeable is
 
     uint256 public constant MAX_PARLORS = 100;
     uint256 public constant MAX_PARLORS_PER_WALLET = 5;
-    uint256 public constant WEEKLY_SLICES_PER_PARLOR = 1;  // 1 slice per parlor per week
+    uint256 public constant WEEKLY_SLICES_PER_PARLOR = 1;  // 1 slice per parlor per week (for 1-4 parlors)
     uint256 public constant MAX_SLICES_PER_DAY = 1;        // Max 1 slice per day regardless of parlors
+    uint256 public constant MAX_OWNER_WEEKLY_SLICES = 7;   // Owners with 5 parlors get 7 slices/week (1 per day)
 
     // ✅ Dynamic parlor price: Always $50 USD worth of PIZZA
     // Frontend calculates: $50 / currentPizzaPrice = PIZZA amount needed
@@ -463,8 +464,23 @@ contract PizzaParlorManagerUpgradeable is
     // ============ Slice Limit Enforcement ============
 
     /**
+     * @dev Calculate weekly slice allowance for a sponsor
+     * - Owners with 5 parlors (max) get 7 slices per week (1 per day of the week)
+     * - Owners with 1-4 parlors get 1 slice per parlor per week
+     */
+    function _getWeeklySliceAllowance(address sponsor) internal view returns (uint256) {
+        uint256 parlors = parlorCount[sponsor];
+        if (parlors >= MAX_PARLORS_PER_WALLET) {
+            // Max parlor owners get 7 slices (1 per day)
+            return MAX_OWNER_WEEKLY_SLICES;
+        }
+        // Others get 1 slice per parlor
+        return parlors * WEEKLY_SLICES_PER_PARLOR;
+    }
+
+    /**
      * @dev Enforce slice limits:
-     * - WEEKLY: 1 slice per parlor per week (resets when weeklyGameId changes on Monday)
+     * - WEEKLY: 1 slice per parlor per week, OR 7 slices if owner has 5 parlors
      * - DAILY: Max 1 slice per day regardless of parlors owned (resets when dailyGameId changes)
      */
     function _enforceSliceLimit(address sponsor) internal {
@@ -477,15 +493,15 @@ contract PizzaParlorManagerUpgradeable is
             revert DailySliceLimitReached();
         }
 
-        // ===== WEEKLY LIMIT CHECK (1 per parlor per week) =====
+        // ===== WEEKLY LIMIT CHECK =====
         // Reset weekly counter if new week
         if (lastSliceWeekId[sponsor] != currentWeekId) {
             lastSliceWeekId[sponsor] = currentWeekId;
             slicesUsedThisWeek[sponsor] = 0;
         }
 
-        // Check weekly limit (1 slice per parlor per week)
-        uint256 maxWeeklySlices = parlorCount[sponsor] * WEEKLY_SLICES_PER_PARLOR;
+        // Check weekly limit (5 parlor owners get 7, others get 1 per parlor)
+        uint256 maxWeeklySlices = _getWeeklySliceAllowance(sponsor);
         if (slicesUsedThisWeek[sponsor] >= maxWeeklySlices) {
             revert WeeklySliceLimitReached();
         }
@@ -713,7 +729,7 @@ contract PizzaParlorManagerUpgradeable is
             weeklyUsed = 0;
         }
 
-        uint256 maxWeeklySlices = parlorCount[sponsor] * WEEKLY_SLICES_PER_PARLOR;
+        uint256 maxWeeklySlices = _getWeeklySliceAllowance(sponsor);
         if (weeklyUsed >= maxWeeklySlices) {
             return 0;  // Weekly limit reached
         }
@@ -725,11 +741,12 @@ contract PizzaParlorManagerUpgradeable is
     /**
      * @dev Returns how many slices remaining this WEEK
      * Resets on Monday when weekly game settles
+     * Note: 5-parlor owners get 7 slices, others get 1 per parlor
      */
     function slicesRemainingThisWeek(address sponsor) external view returns (uint256) {
         uint256 currentWeekId = pizzaParty.weeklyGameId();
 
-        uint256 maxWeeklySlices = parlorCount[sponsor] * WEEKLY_SLICES_PER_PARLOR;
+        uint256 maxWeeklySlices = _getWeeklySliceAllowance(sponsor);
 
         // Reset if new week
         if (lastSliceWeekId[sponsor] != currentWeekId) {
@@ -738,6 +755,15 @@ contract PizzaParlorManagerUpgradeable is
 
         uint256 used = slicesUsedThisWeek[sponsor];
         return maxWeeklySlices > used ? maxWeeklySlices - used : 0;
+    }
+
+    /**
+     * @dev Returns the weekly slice allowance for a sponsor (public view version)
+     * - Owners with 5 parlors get 7 slices per week
+     * - Owners with 1-4 parlors get 1 slice per parlor per week
+     */
+    function weeklySliceAllowance(address sponsor) external view returns (uint256) {
+        return _getWeeklySliceAllowance(sponsor);
     }
 
     /**

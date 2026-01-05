@@ -379,6 +379,7 @@ export const PARLOR_MANAGER_ABI = [
   { type: 'function', name: 'parlorCount', stateMutability: 'view', inputs: [{ type: 'address', name: 'owner' }], outputs: [{ type: 'uint256' }] },
   { type: 'function', name: 'slicesRemainingToday', stateMutability: 'view', inputs: [{ type: 'address', name: 'sponsor' }], outputs: [{ type: 'uint256' }] },
   { type: 'function', name: 'slicesRemainingThisWeek', stateMutability: 'view', inputs: [{ type: 'address', name: 'sponsor' }], outputs: [{ type: 'uint256' }] },
+  { type: 'function', name: 'weeklySliceAllowance', stateMutability: 'view', inputs: [{ type: 'address', name: 'sponsor' }], outputs: [{ type: 'uint256' }] },
   { type: 'function', name: 'hasSentSliceToday', stateMutability: 'view', inputs: [{ type: 'address', name: 'sponsor' }], outputs: [{ type: 'bool' }] },
   { type: 'function', name: 'pendingFees', stateMutability: 'view', inputs: [], outputs: [{ type: 'uint256' }] },
   { type: 'function', name: 'parlorOwnersCount', stateMutability: 'view', inputs: [], outputs: [{ type: 'uint256' }] },
