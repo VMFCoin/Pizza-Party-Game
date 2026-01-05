@@ -174,9 +174,9 @@ export async function GET(request: NextRequest) {
   } = { success: false };
 
   try {
-    const privateKey = process.env.SETTLE_BOT_PRIVATE_KEY;
+    const privateKey = process.env.AUTO_SETTLE_PRIVATE_KEY;
     if (!privateKey) {
-      throw new Error('SETTLE_BOT_PRIVATE_KEY not configured');
+      throw new Error('AUTO_SETTLE_PRIVATE_KEY not configured');
     }
 
     const account = privateKeyToAccount(privateKey as `0x${string}`);
