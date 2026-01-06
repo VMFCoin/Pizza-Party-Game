@@ -236,9 +236,12 @@ export default function PizzaParlorPage({
 
   const { writeContract, data: txHash, reset: resetWrite, error: writeError, isError: isWriteError } = useWriteContract()
 
-  const { isLoading: isConfirming, isSuccess: isConfirmed } = useWaitForTransactionReceipt({
+  const { isLoading: isConfirming, isSuccess: isConfirmed, data: txReceipt } = useWaitForTransactionReceipt({
     hash: txHash,
   })
+
+  // Check if transaction actually succeeded (status = 'success') vs reverted (status = 'reverted')
+  const txSucceeded = isConfirmed && txReceipt?.status === 'success'
 
   // Store pending user until tx confirms (don't trigger cast until confirmed)
   // Only triggers notification/cast AFTER transaction is confirmed on-chain
@@ -259,9 +262,9 @@ export default function PizzaParlorPage({
     }
   }, [isWriteError, writeError, resetWrite])
 
-  // Handle transaction success
+  // Handle transaction success (only when tx succeeded, not when it reverted)
   useEffect(() => {
-    if (isConfirmed) {
+    if (txSucceeded) {
       // Refetch data after successful transaction
       refetchContractData()
       refetchUserData()
@@ -313,7 +316,25 @@ export default function PizzaParlorPage({
       setIsSendingSlice(false)
       resetWrite()
     }
-  }, [isConfirmed, refetchContractData, refetchUserData, resetWrite, isSendingSlice, pendingSliceUser, isPurchasing, userHasParlorName, userParlorName])
+  }, [txSucceeded, refetchContractData, refetchUserData, resetWrite, isSendingSlice, pendingSliceUser, isPurchasing, userHasParlorName, userParlorName])
+
+  // Handle transaction revert (tx was mined but execution failed)
+  useEffect(() => {
+    if (isConfirmed && txReceipt?.status === 'reverted') {
+      console.error('Transaction reverted on-chain')
+      // Reset all pending states
+      setIsPurchasing(false)
+      setIsApproving(false)
+      setIsDistributing(false)
+      setIsSendingSlice(false)
+      setIsSettingName(false)
+      setPendingSliceUser(null)
+      resetWrite()
+
+      // Alert user that transaction failed
+      alert('Transaction failed. Please check that you own a parlor and have slices remaining.')
+    }
+  }, [isConfirmed, txReceipt, resetWrite])
 
   // ============ Action Handlers ============
 
