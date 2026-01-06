@@ -529,7 +529,7 @@ export function useGamePageData() {
   })
   const fetchWeekly = useCallback(async () => {
     try {
-      const [weeklyData, currentWeekId, treasuryBonusRaw] = await Promise.all([
+      const [weeklyData, currentWeekId, treasuryBonusRaw, toppingUnitPizzaRaw] = await Promise.all([
         readContract(wagmiConfig, {
           address: PIZZA_PARTY_ADDRESS as `0x${string}`,
           abi: PIZZA_PARTY_ABI,
@@ -545,9 +545,16 @@ export function useGamePageData() {
           abi: PIZZA_PARTY_ABI,
           functionName: 'weeklyTreasuryBonus',
         }).catch(() => 0n) as Promise<bigint>, // Returns 0 if not yet deployed
+        readContract(wagmiConfig, {
+          address: PIZZA_PARTY_ADDRESS as `0x${string}`,
+          abi: PIZZA_PARTY_ABI,
+          functionName: 'toppingUnitPizza',
+        }).catch(() => 1n * (10n ** 18n)) as Promise<bigint>, // Fallback to 1 PIZZA if not deployed
       ])
 
       const treasuryBonus = treasuryBonusRaw ?? 0n
+      // toppingUnitPizza: dynamic value representing $0.10 worth of PIZZA (e.g., 15 PIZZA at $0.007/PIZZA)
+      const toppingUnitPizza = toppingUnitPizzaRaw ?? (1n * (10n ** 18n))
 
       let claimStart: bigint
       let claimEnd: bigint
@@ -577,6 +584,7 @@ export function useGamePageData() {
         claimerCount: claimerCount.toString(),
         jackpotWei: jackpotWei.toString(),
         treasuryBonus: treasuryBonus.toString(),
+        toppingUnitPizza: toppingUnitPizza.toString(),
         settled,
         isTuple: isWeeklyGameTuple(weeklyData),
       })
@@ -641,7 +649,8 @@ export function useGamePageData() {
           console.log('Total ToppingsEarned events:', allLogs.length)
           console.log('Unique players (all reasons):', uniquePlayersThisWeek.size)
           console.log('Total toppings earned:', totalEarned.toString())
-          console.log('Projected jackpot:', (Number(totalEarned) * 10).toString(), 'PIZZA')
+          console.log('toppingUnitPizza:', (Number(toppingUnitPizza) / 1e18).toString(), 'PIZZA per topping')
+          console.log('Projected jackpot:', (Number(totalEarned) * Number(toppingUnitPizza) / 1e18).toString(), 'PIZZA (earned) +', (Number(treasuryBonus) / 1e18).toString(), 'PIZZA (treasury)')
           console.log('')
           console.log('Breakdown by reason:')
           for (const [reason, amount] of Object.entries(toppingsByReason)) {
@@ -670,13 +679,13 @@ export function useGamePageData() {
 
           // Use ToppingsEarned as source of truth
           if (totalEarned > 0n) {
-            // Jackpot = total toppings earned this week × 1 PIZZA per topping + treasury bonus
+            // Jackpot = total toppings earned this week × toppingUnitPizza ($0.10 of PIZZA) + treasury bonus
             // IMPORTANT: Toppings are added to weekly jackpot IMMEDIATELY when earned (daily plays, referrals)
             // The only exception is holdings bonus (1 topping per $10 of PIZZA, max 5) which is calculated
             // at claim time based on PIZZA balance snapshot at that moment
             // This projection shows what the jackpot will be if all earned toppings are claimed
             // Treasury bonus is added to ensure UI shows the full jackpot from week start
-            projectedJackpotWei = totalEarned * GAME_CONSTANTS.TOPPING_TO_PIZZA_RATE + treasuryBonus
+            projectedJackpotWei = totalEarned * toppingUnitPizza + treasuryBonus
             // Weekly Players = unique players only (one player counts as 1, regardless of how many times they played)
             projectedPlayerCount = Math.max(uniquePlayersThisWeek.size, Number(claimerCount))
 
