@@ -249,7 +249,7 @@ export default function StakingPage({
               <div className="px-3 pb-2 pt-1.5">
                 {/* Early Staker Boost Banner - on top inside position card */}
                 {getBoostDaysRemaining() > 0 && (
-                  <div className="bg-gradient-to-r from-yellow-400 to-orange-400 rounded-lg px-2 py-1.5 border-2 border-yellow-600 flex items-center gap-2 mb-2">
+                  <div className="bg-gradient-to-r from-yellow-400 to-orange-400 rounded-lg px-2 py-1.5 border-2 border-yellow-600 flex items-center gap-2 mb-1.5">
                     <Gift className="text-yellow-800" size={16} />
                     <div className="flex-1">
                       <p className="text-yellow-900 font-bold text-xs" style={customFontStyle}>
