@@ -244,31 +244,31 @@ export default function StakingPage({
               </p>
             </div>
 
-            {/* Early Staker Boost Banner */}
-            {getBoostDaysRemaining() > 0 && (
-              <div className="bg-gradient-to-r from-yellow-400 to-orange-400 rounded-xl px-3 py-2 border-2 border-yellow-600 flex items-center gap-2">
-                <Gift className="text-yellow-800" size={20} />
-                <div className="flex-1">
-                  <p className="text-yellow-900 font-bold text-sm" style={customFontStyle}>
-                    EARLY STAKER BOOST ACTIVE!
-                  </p>
-                  <p className="text-yellow-800 text-xs">
-                    +30% rewards for {getBoostDaysRemaining()} more days
-                  </p>
-                </div>
-                <TrendingUp className="text-yellow-800" size={20} />
-              </div>
-            )}
-
             {/* Your Position Card */}
             <Card className="border-4 border-green-600 rounded-2xl bg-white/95">
-              <div className="px-3 pb-3 pt-2">
+              <div className="px-3 pb-2 pt-1.5">
                 <p
-                  className="text-green-600 text-center mb-2"
+                  className="text-green-600 text-center mb-1.5"
                   style={{ fontFamily: 'var(--font-luckiest-guy)', fontSize: '20px' }}
                 >
                   Your Staking Position
                 </p>
+
+                {/* Early Staker Boost Banner - inside position card */}
+                {getBoostDaysRemaining() > 0 && (
+                  <div className="bg-gradient-to-r from-yellow-400 to-orange-400 rounded-lg px-2 py-1.5 border-2 border-yellow-600 flex items-center gap-2 mb-2">
+                    <Gift className="text-yellow-800" size={16} />
+                    <div className="flex-1">
+                      <p className="text-yellow-900 font-bold text-xs" style={customFontStyle}>
+                        EARLY STAKER BOOST ACTIVE!
+                      </p>
+                      <p className="text-yellow-800 text-xs">
+                        +30% rewards for {getBoostDaysRemaining()} more days
+                      </p>
+                    </div>
+                    <TrendingUp className="text-yellow-800" size={16} />
+                  </div>
+                )}
 
                 {userPosition ? (
                   <div className="space-y-2">
@@ -523,7 +523,7 @@ export default function StakingPage({
 
               {/* Spin Result */}
               {spinResult && !isSpinning && (
-                <div className={`${spinResult.color} rounded-xl p-3 mt-3 text-center text-white`}>
+                <div className="bg-red-500 rounded-xl p-3 mt-3 text-center text-white border-4 border-red-700">
                   <p className="font-bold text-lg" style={customFontStyle}>{spinResult.name}!</p>
                   <p className="text-sm">You get {spinResult.multiplier} of your rewards!</p>
                 </div>
@@ -637,22 +637,6 @@ export default function StakingPage({
                 </div>
               </div>
             </Card>
-
-            {/* Coming Soon Notice */}
-            <div className="bg-gradient-to-r from-red-500 to-orange-500 rounded-2xl px-4 py-3 text-center border-4 border-red-700">
-              <p
-                className="text-white font-bold"
-                style={{ fontFamily: 'var(--font-luckiest-guy)', fontSize: '24px' }}
-              >
-                COMING SOON
-              </p>
-              <p
-                className="text-white/90 text-sm mt-1"
-                style={{ fontFamily: 'var(--font-luckiest-guy)' }}
-              >
-                Staking launches with new PIZZA token
-              </p>
-            </div>
 
             {/* How It Works */}
             <Card className="border-4 border-green-600 rounded-2xl bg-white/95">
