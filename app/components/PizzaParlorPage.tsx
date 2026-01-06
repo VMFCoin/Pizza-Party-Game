@@ -90,6 +90,7 @@ export default function PizzaParlorPage({
   const [collectFeesOpen, setCollectFeesOpen] = useState(false)
   const [sendSliceOpen, setSendSliceOpen] = useState(false)
 
+
   // Send Slice state
   const [recipientInput, setRecipientInput] = useState('')
   const [recentRecipients, setRecentRecipients] = useState<RecentRecipient[]>([])
@@ -972,6 +973,21 @@ export default function PizzaParlorPage({
               {sendSliceOpen && (
                 <div className="bg-blue-100 border-4 border-t-0 border-blue-800 rounded-b-xl p-4">
                   <div className="space-y-3">
+                    {/* No Parlors Warning */}
+                    {parlorsOwned === 0 && (
+                      <div className="bg-red-100 border-2 border-red-500 rounded-lg p-3 text-center">
+                        <p className="text-red-700 font-bold" style={{ ...customFontStyle, fontSize: 14 }}>
+                          ⚠️ No Parlors on This Wallet
+                        </p>
+                        <p className="text-red-600 mt-1" style={{ ...customFontStyle, fontSize: 12 }}>
+                          You need to own a parlor to send free slices.
+                        </p>
+                        <p className="text-red-600 mt-1" style={{ ...customFontStyle, fontSize: 11 }}>
+                          Buy a parlor above, or connect with a wallet that owns parlors.
+                        </p>
+                      </div>
+                    )}
+
                     {/* Slices Info */}
                     <div className="flex justify-between items-center">
                       <span className="text-blue-800" style={{ ...customFontStyle, fontSize: 16 }}>Slices Remaining:</span>
