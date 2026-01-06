@@ -29,7 +29,7 @@ const SPIN_OUTCOMES = [
   { name: 'Regular Slice', chance: '73%', multiplier: '100%', color: 'bg-yellow-400' },
   { name: 'Loaded Slice', chance: '20%', multiplier: '110%', color: 'bg-orange-400' },
   { name: 'Hot Out the Oven', chance: '5%', multiplier: '125%', color: 'bg-red-500' },
-  { name: 'JACKPOT', chance: '2%', multiplier: '200%', color: 'bg-purple-600' },
+  { name: 'JACKPOT', chance: '2%', multiplier: '200%', color: 'bg-green-600' },
 ]
 
 const STAKING_EXPLAINED = [
@@ -143,22 +143,21 @@ export default function StakingPage({
               </p>
 
               {/* Wheel Container */}
-              <div className="relative mx-auto" style={{ width: isMobile ? 220 : 280, height: isMobile ? 220 : 280 }}>
-                {/* Outer Ring (static) */}
+              <div className="relative mx-auto" style={{ width: isMobile ? 240 : 300, height: isMobile ? 240 : 300 }}>
+                {/* Outer Ring (static - behind) */}
                 <div className="absolute inset-0 flex items-center justify-center">
                   <Image
                     src="/images/Spin-Ring.png"
                     alt="Spin Ring"
-                    width={isMobile ? 220 : 280}
-                    height={isMobile ? 220 : 280}
-                    className="absolute"
+                    width={isMobile ? 240 : 300}
+                    height={isMobile ? 240 : 300}
                     priority
                   />
                 </div>
 
-                {/* Inner Wheel (spins) */}
+                {/* Pizza Wheel (spins - on top) */}
                 <div
-                  className="absolute inset-0 flex items-center justify-center transition-transform"
+                  className="absolute inset-0 flex items-center justify-center transition-transform z-10"
                   style={{
                     transform: `rotate(${spinRotation}deg)`,
                     transitionDuration: isSpinning ? '3s' : '0s',
@@ -168,15 +167,10 @@ export default function StakingPage({
                   <Image
                     src="/images/Pizza Wheel.png"
                     alt="Pizza Wheel"
-                    width={isMobile ? 180 : 230}
-                    height={isMobile ? 180 : 230}
+                    width={isMobile ? 190 : 240}
+                    height={isMobile ? 190 : 240}
                     priority
                   />
-                </div>
-
-                {/* Center pointer/indicator */}
-                <div className="absolute top-0 left-1/2 transform -translate-x-1/2 -translate-y-1 z-10">
-                  <div className="w-0 h-0 border-l-[12px] border-r-[12px] border-t-[20px] border-l-transparent border-r-transparent border-t-red-600 drop-shadow-lg" />
                 </div>
               </div>
 
@@ -209,10 +203,10 @@ export default function StakingPage({
             </div>
 
             {/* Staking Tiers */}
-            <Card className="border-4 border-purple-600 rounded-2xl bg-white/95">
+            <Card className="border-4 border-orange-600 rounded-2xl bg-white/95">
               <div className="px-3 pb-3 pt-1.5">
                 <p
-                  className="text-purple-600 text-center mb-2"
+                  className="text-orange-600 text-center mb-2"
                   style={{ fontFamily: 'var(--font-luckiest-guy)', fontSize: '22px' }}
                 >
                   Staking Tiers
@@ -221,23 +215,23 @@ export default function StakingPage({
                   {STAKING_TIERS.map((tier) => (
                     <div
                       key={tier.id}
-                      className="bg-purple-50 border-2 border-purple-300 rounded-lg p-2"
+                      className="bg-orange-50 border-2 border-orange-300 rounded-lg p-2"
                     >
                       <div className="flex justify-between items-center">
                         <span
-                          className="text-purple-700 font-bold"
+                          className="text-orange-700 font-bold"
                           style={{ ...customFontStyle, fontSize: 14 }}
                         >
                           {tier.name}
                         </span>
                         <span
-                          className="text-purple-500 text-xs"
+                          className="text-orange-500 text-xs"
                           style={customFontStyle}
                         >
                           {tier.minStake > 0 ? `${(tier.minStake / 1_000_000).toFixed(0)}M+ PIZZA` : 'Any amount'}
                         </span>
                       </div>
-                      <div className="flex justify-between text-xs text-purple-600 mt-1">
+                      <div className="flex justify-between text-xs text-orange-600 mt-1">
                         <span>Yield: {tier.yieldBoost}</span>
                         <span>Toppings: {tier.toppingBonus}</span>
                         <span>Weight: {tier.weeklyWeight}</span>
