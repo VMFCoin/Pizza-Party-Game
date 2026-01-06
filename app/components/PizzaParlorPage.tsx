@@ -982,9 +982,6 @@ export default function PizzaParlorPage({
                         <p className="text-red-600 mt-1" style={{ ...customFontStyle, fontSize: 12 }}>
                           You need to own a parlor to send free slices.
                         </p>
-                        <p className="text-red-600 mt-1" style={{ ...customFontStyle, fontSize: 11 }}>
-                          Buy a parlor above, or connect with a wallet that owns parlors.
-                        </p>
                       </div>
                     )}
 
@@ -1011,7 +1008,7 @@ export default function PizzaParlorPage({
                     <div className="relative recipient-suggestions">
                       <input
                         type="text"
-                        placeholder="Search @username or enter 0x..."
+                        placeholder={parlorsOwned === 0 ? "You need to own a parlor first" : "Search @username or enter 0x..."}
                         value={recipientInput}
                         onChange={(e) => {
                           setRecipientInput(e.target.value)
@@ -1019,7 +1016,8 @@ export default function PizzaParlorPage({
                           if (selectedUser) setSelectedUser(null)
                         }}
                         onFocus={() => setShowSuggestions(true)}
-                        className="w-full p-2 rounded-xl border-2 border-blue-400 text-blue-900"
+                        disabled={parlorsOwned === 0}
+                        className={`w-full p-2 rounded-xl border-2 border-blue-400 text-blue-900 ${parlorsOwned === 0 ? 'bg-gray-200 cursor-not-allowed opacity-60' : ''}`}
                         style={{ ...customFontStyle, fontSize: 14 }}
                       />
 
