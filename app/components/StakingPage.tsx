@@ -165,7 +165,7 @@ export default function StakingPage({
                   }}
                 >
                   <Image
-                    src="/images/Pizza Wheel.png"
+                    src="/images/Pizza-Wheel.png"
                     alt="Pizza Wheel"
                     width={isMobile ? 190 : 240}
                     height={isMobile ? 190 : 240}
