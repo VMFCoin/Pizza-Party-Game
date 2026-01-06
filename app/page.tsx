@@ -10,13 +10,14 @@ import GamePage from "./components/game";
 import WeeklyJackpotPage from "./components/WeeklyJackpotPage";
 import LeaderboardPage from "./components/LeaderboardPage";
 import PizzaParlorPage from "./components/PizzaParlorPage";
+import StakingPage from "./components/StakingPage";
 import { sdk } from "@farcaster/miniapp-sdk";
 import { useRouter, useSearchParams } from "next/navigation";
 
 import { PizzaPartyResultPopup } from "./components/PizzaPartyResultPopup";
 
 
-type ViewType = 'home' | 'game' | 'weekly' | 'leaderboard' | 'parlor'
+type ViewType = 'home' | 'game' | 'weekly' | 'leaderboard' | 'parlor' | 'staking'
 
 export default function HomePage() {
   const customFontStyle = {
@@ -53,7 +54,7 @@ export default function HomePage() {
   useEffect(() => {
     const viewParam = searchParams?.get('view') as ViewType | null
 
-    if (viewParam && ['home', 'game', 'weekly', 'leaderboard', 'parlor'].includes(viewParam)) {
+    if (viewParam && ['home', 'game', 'weekly', 'leaderboard', 'parlor', 'staking'].includes(viewParam)) {
       setCurrentView(viewParam)
     } else if (!viewParam) {
       setCurrentView('home')
@@ -95,6 +96,8 @@ export default function HomePage() {
   const handleNavigateToLeaderboard = () => goToView('leaderboard')
 
   const handleNavigateToParlor = () => goToView('parlor')
+
+  const handleNavigateToStaking = () => goToView('staking')
 
   // GAME VIEW
   if (currentView === 'game') {
@@ -166,6 +169,22 @@ export default function HomePage() {
           onNavigateToDaily={() => goToView('game')}
           onNavigateToWeekly={handleNavigateToWeekly}
           onNavigateToLeaderboard={handleNavigateToLeaderboard}
+          onNavigateToHome={handleBackToHome}
+          userFid={userFid}
+        />
+      </>
+    );
+  }
+
+  if (currentView === 'staking') {
+    return (
+      <>
+        <StakingPage
+          onBack={handleBackToHome}
+          onNavigateToDaily={() => goToView('game')}
+          onNavigateToWeekly={handleNavigateToWeekly}
+          onNavigateToLeaderboard={handleNavigateToLeaderboard}
+          onNavigateToParlor={handleNavigateToParlor}
           onNavigateToHome={handleBackToHome}
           userFid={userFid}
         />
@@ -319,6 +338,22 @@ export default function HomePage() {
                 }}
               >
                 🍍 OWN A PARLOR 🍍
+              </Button>
+
+              {/* Staking Button - Visible to all, only FID 1013491 can access */}
+              <Button
+                onClick={userFid === 1013491 ? handleNavigateToStaking : undefined}
+                className={`w-full !bg-green-600 text-white font-bold py-3 px-6 rounded-xl border-4 border-green-900 shadow-lg uppercase transform transition-all touch-manipulation ${
+                  userFid === 1013491 ? 'hover:!bg-green-700 hover:scale-105 cursor-pointer' : 'cursor-not-allowed opacity-90'
+                }`}
+                style={{
+                  ...customFontStyle,
+                  letterSpacing: "1px",
+                  fontSize: isMobile ? 18 : 20
+                }}
+                disabled={userFid !== 1013491}
+              >
+                ???
               </Button>
 
             </div>
