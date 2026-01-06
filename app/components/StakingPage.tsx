@@ -245,7 +245,7 @@ export default function StakingPage({
             </div>
 
             {/* Your Position Card */}
-            <Card className="border-4 border-green-600 rounded-2xl bg-white/95">
+            <Card className="border-4 border-green-600 rounded-2xl bg-white/95 !py-0">
               <div className="px-3 pb-2 pt-1">
                 {/* Early Staker Boost Banner - on top inside position card */}
                 {getBoostDaysRemaining() > 0 && (
