@@ -229,19 +229,14 @@ export default function StakingPage({
         >
           <div className="space-y-3">
             {/* Header */}
-            <div className="bg-gradient-to-r from-green-500 to-green-700 rounded-2xl px-3 py-3 text-center border-4 border-green-900">
-              <p
-                className="text-white font-bold"
-                style={{ fontFamily: 'var(--font-luckiest-guy)', fontSize: '32px', lineHeight: '1' }}
-              >
-                SPIN THE PIE
-              </p>
-              <p
-                className="text-green-100 text-sm mt-1"
-                style={{ fontFamily: 'var(--font-luckiest-guy)' }}
-              >
-                Stake PIZZA - Earn Rewards
-              </p>
+            <div className="flex justify-center">
+              <Image
+                src="/images/Spin-the-Pie-Title-Card.png"
+                alt="Spin the Pie"
+                width={400}
+                height={120}
+                className="w-full max-w-[400px] h-auto"
+              />
             </div>
 
             {/* Your Position Card */}
