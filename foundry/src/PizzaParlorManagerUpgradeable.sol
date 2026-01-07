@@ -4,7 +4,7 @@ pragma solidity ^0.8.24;
 import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/utils/cryptography/EIP712Upgradeable.sol";
-import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
+import "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
@@ -38,7 +38,7 @@ contract PizzaParlorManagerUpgradeable is
     OwnableUpgradeable,
     UUPSUpgradeable,
     EIP712Upgradeable,
-    ReentrancyGuard
+    ReentrancyGuardUpgradeable
 {
     using SafeERC20 for IERC20;
 
@@ -290,6 +290,8 @@ contract PizzaParlorManagerUpgradeable is
     /**
      * @dev Send a slice to a recipient - slice is stored as pending until recipient claims it
      * The recipient must open Pizza Party and call claimSlice() to enter the daily game
+     * IMPORTANT: Slice only counts against weekly/daily limit when CLAIMED, not when sent
+     * If unclaimed, the slice expires and sponsor can send again next game
      * @param recipient The address to receive the pending slice
      */
     function sendSlice(address recipient) external nonReentrant {
@@ -309,10 +311,10 @@ contract PizzaParlorManagerUpgradeable is
             revert AlreadyHasPendingSlice();
         }
 
-        // Enforce daily slice limit for sender
-        _enforceSliceLimit(msg.sender);
+        // Check slice limits (does NOT consume - only validates sponsor can send)
+        _checkSliceLimit(msg.sender);
 
-        // Store pending slice (overwrites any expired slice from previous games)
+        // Store pending slice for recipient (overwrites any expired slice from previous games)
         pendingSlices[recipient] = PendingSlice({
             sponsor: msg.sender,
             dailyGameId: currentGameId
@@ -324,6 +326,7 @@ contract PizzaParlorManagerUpgradeable is
     /**
      * @dev Claim your pending slice and enter the daily game
      * Called by the recipient when they open Pizza Party
+     * THIS is when the slice counts against the sponsor's weekly/daily limit
      * @param entryFeeAmount The $1 worth of PIZZA to pull from treasury (calculated by frontend)
      */
     function claimSlice(uint256 entryFeeAmount) external nonReentrant {
@@ -344,6 +347,9 @@ contract PizzaParlorManagerUpgradeable is
         // Clear pending slice before external call (reentrancy protection)
         delete pendingSlices[msg.sender];
 
+        // NOW consume the slice - counts against sponsor's daily/weekly limit
+        _consumeSlice(sponsor);
+
         // Pull $1 worth of PIZZA from treasury to fund this entry
         if (entryFeeAmount > 0) {
             pizzaToken.safeTransferFrom(treasuryWallet, address(this), entryFeeAmount);
@@ -360,6 +366,7 @@ contract PizzaParlorManagerUpgradeable is
     /**
      * @dev Legacy function - now stores pending slice instead of immediate entry
      * @notice Deprecated: Use sendSlice() for new integrations
+     * IMPORTANT: Slice only counts against weekly/daily limit when CLAIMED, not when sent
      */
     function tipSlice(address recipient) external nonReentrant {
         if (recipient == address(0)) revert InvalidAddress();
@@ -378,8 +385,8 @@ contract PizzaParlorManagerUpgradeable is
             revert AlreadyHasPendingSlice();
         }
 
-        // Enforce daily slice limit
-        _enforceSliceLimit(msg.sender);
+        // Check slice limits (does NOT consume - only validates sponsor can send)
+        _checkSliceLimit(msg.sender);
 
         // Store pending slice (same behavior as sendSlice)
         pendingSlices[recipient] = PendingSlice({
@@ -479,38 +486,63 @@ contract PizzaParlorManagerUpgradeable is
     }
 
     /**
-     * @dev Enforce slice limits:
+     * @dev Check slice limits WITHOUT consuming - only validates sponsor can send
+     * Slices are only counted when CLAIMED, not when sent
      * - WEEKLY: 1 slice per parlor per week, OR 7 slices if owner has 5 parlors
      * - DAILY: Max 1 slice per day regardless of parlors owned (resets when dailyGameId changes)
      */
-    function _enforceSliceLimit(address sponsor) internal {
+    function _checkSliceLimit(address sponsor) internal view {
         uint256 currentWeekId = pizzaParty.weeklyGameId();
         uint256 currentDayId = pizzaParty.dailyGameId();
 
-        // ===== DAILY LIMIT CHECK (max 1 per day) =====
-        // If already sent a slice today, revert
+        // ===== DAILY LIMIT CHECK (max 1 claimed per day) =====
+        // If already had a slice claimed today, revert
         if (lastSliceDayId[sponsor] == currentDayId) {
             revert DailySliceLimitReached();
         }
 
         // ===== WEEKLY LIMIT CHECK =====
+        // Get current weekly usage (account for week reset)
+        uint256 currentWeeklyUsage = slicesUsedThisWeek[sponsor];
+        if (lastSliceWeekId[sponsor] != currentWeekId) {
+            currentWeeklyUsage = 0;  // Would be reset on claim
+        }
+
+        // Check weekly limit (5 parlor owners get 7, others get 1 per parlor)
+        uint256 maxWeeklySlices = _getWeeklySliceAllowance(sponsor);
+        if (currentWeeklyUsage >= maxWeeklySlices) {
+            revert WeeklySliceLimitReached();
+        }
+    }
+
+    /**
+     * @dev Consume a slice - called when slice is CLAIMED (not when sent)
+     * Updates daily and weekly tracking for the sponsor
+     */
+    function _consumeSlice(address sponsor) internal {
+        uint256 currentWeekId = pizzaParty.weeklyGameId();
+        uint256 currentDayId = pizzaParty.dailyGameId();
+
         // Reset weekly counter if new week
         if (lastSliceWeekId[sponsor] != currentWeekId) {
             lastSliceWeekId[sponsor] = currentWeekId;
             slicesUsedThisWeek[sponsor] = 0;
         }
 
-        // Check weekly limit (5 parlor owners get 7, others get 1 per parlor)
-        uint256 maxWeeklySlices = _getWeeklySliceAllowance(sponsor);
-        if (slicesUsedThisWeek[sponsor] >= maxWeeklySlices) {
-            revert WeeklySliceLimitReached();
-        }
-
-        // ===== UPDATE TRACKING =====
         // Mark today as used (for daily limit)
         lastSliceDayId[sponsor] = currentDayId;
         // Increment weekly usage
         slicesUsedThisWeek[sponsor] += 1;
+    }
+
+    /**
+     * @dev Enforce slice limits - for immediate redemption (redeemSlice)
+     * Checks limits AND consumes the slice in one call
+     * For pending slice flows, use _checkSliceLimit (send) + _consumeSlice (claim) separately
+     */
+    function _enforceSliceLimit(address sponsor) internal {
+        _checkSliceLimit(sponsor);
+        _consumeSlice(sponsor);
     }
 
     // ============ Franchise Fee Distribution ============

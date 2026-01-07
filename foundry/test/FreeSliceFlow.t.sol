@@ -1034,15 +1034,20 @@ contract FreeSliceFlowTest is Test {
         parlorManager.sendSlice(player1);
         console.log("Sponsor1 sent FIRST slice to Player1");
 
-        // Verify hasSlicedPlayer is now true
-        bool hasSliced = pizzaParty.hasSlicedPlayer(sponsor1, player1);
-        assertTrue(hasSliced, "hasSlicedPlayer should be true after sending slice");
-        console.log("hasSlicedPlayer[sponsor1][player1]:", hasSliced);
+        // Note: hasSlicedPlayer is set when slice is CLAIMED, not when sent
+        bool hasSlicedBeforeClaim = pizzaParty.hasSlicedPlayer(sponsor1, player1);
+        assertFalse(hasSlicedBeforeClaim, "hasSlicedPlayer should be false before claim");
+        console.log("hasSlicedPlayer[sponsor1][player1] before claim:", hasSlicedBeforeClaim);
 
         // Step 2: Player claims slice
         vm.prank(player1);
         parlorManager.claimSlice(ENTRY_FEE);
         console.log("Player1 claimed slice");
+
+        // Verify hasSlicedPlayer is now true after claim
+        bool hasSliced = pizzaParty.hasSlicedPlayer(sponsor1, player1);
+        assertTrue(hasSliced, "hasSlicedPlayer should be true after claiming slice");
+        console.log("hasSlicedPlayer[sponsor1][player1] after claim:", hasSliced);
 
         // Verify sponsor is recorded
         address recordedSponsor = pizzaParty.dailySliceSponsor(gameId, player1);

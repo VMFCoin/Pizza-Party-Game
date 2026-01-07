@@ -256,8 +256,11 @@ contract SliceSponsorRewardsTest is Test {
             vm.stopPrank();
         }
 
-        // Warp to next day
-        vm.warp(block.timestamp + 1 days);
+        // Warp to end of day 1 and settle
+        (,uint256 endTime,,,) = pizzaParty.getCurrentDailyGame();
+        vm.warp(endTime + 1);
+        pizzaParty.settleDailyGame();
+        console.log("Day 1 settled, dailyGameId now: %s", pizzaParty.dailyGameId());
 
         // Day 2: Sponsor gives second slice to SAME player
         vm.prank(sponsor);
