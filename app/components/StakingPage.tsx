@@ -227,15 +227,20 @@ export default function StakingPage({
             backgroundPosition: 'center',
           }}
         >
-          <div className="flex flex-col gap-1.5">
-            {/* Header - cropped to remove empty space from image */}
-            <div className="overflow-hidden" style={{ marginTop: '-12%', marginBottom: '-12%' }}>
-              <img
-                src="/images/Spin-the-Pie-Title-Card.png"
-                alt="Spin the Pie"
-                className="w-full h-auto"
-                style={{ display: 'block' }}
-              />
+          <div className="flex flex-col gap-3">
+            {/* Header */}
+            <div className="rounded-2xl border-4 border-black relative overflow-hidden bg-white">
+              <div className="relative w-full" style={{ paddingBottom: isMobile ? '21%' : '30%', minHeight: isMobile ? '98px' : '140px' }}>
+                <Image
+                  src="/images/Spin-the-Pie-Title-Card.png"
+                  alt="Spin the Pie - Stake $PIZZA, Earn Rewards"
+                  fill
+                  className="object-cover"
+                  priority
+                  sizes="100vw"
+                  style={{ objectPosition: 'center 50%' }}
+                />
+              </div>
             </div>
 
             {/* Your Position Card */}
