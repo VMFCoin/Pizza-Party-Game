@@ -227,15 +227,15 @@ export default function StakingPage({
             backgroundPosition: 'center',
           }}
         >
-          <div className="space-y-1.5">
+          <div className="flex flex-col gap-1.5">
             {/* Header */}
-            <div className="flex justify-center">
+            <div className="w-full">
               <Image
                 src="/images/Spin-the-Pie-Title-Card.png"
                 alt="Spin the Pie"
-                width={625}
-                height={188}
-                className="w-full h-auto scale-125"
+                width={800}
+                height={200}
+                className="w-full h-auto"
               />
             </div>
 
