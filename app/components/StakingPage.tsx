@@ -229,13 +229,14 @@ export default function StakingPage({
         >
           <div className="space-y-3">
             {/* Header */}
-            <div className="flex justify-center">
+            <div className="flex justify-center overflow-hidden" style={{ margin: '-20px -10px -30px -10px' }}>
               <Image
                 src="/images/Spin-the-Pie-Title-Card.png"
                 alt="Spin the Pie"
-                width={400}
-                height={120}
-                className="w-full max-w-[400px] h-auto"
+                width={500}
+                height={150}
+                className="w-full h-auto scale-125"
+                style={{ objectFit: 'contain' }}
               />
             </div>
 
