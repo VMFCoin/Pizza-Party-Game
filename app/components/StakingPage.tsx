@@ -228,14 +228,13 @@ export default function StakingPage({
           }}
         >
           <div className="flex flex-col gap-1.5">
-            {/* Header */}
-            <div className="w-full">
-              <Image
+            {/* Header - cropped to remove empty space from image */}
+            <div className="overflow-hidden" style={{ marginTop: '-12%', marginBottom: '-12%' }}>
+              <img
                 src="/images/Spin-the-Pie-Title-Card.png"
                 alt="Spin the Pie"
-                width={800}
-                height={200}
                 className="w-full h-auto"
+                style={{ display: 'block' }}
               />
             </div>
 
