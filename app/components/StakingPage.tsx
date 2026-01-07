@@ -264,7 +264,7 @@ export default function StakingPage({
                 )}
 
                 <p
-                  className="text-green-600 text-center mb-1.5"
+                  className="text-green-600 text-center mb-1"
                   style={{ fontFamily: 'var(--font-luckiest-guy)', fontSize: '32px', lineHeight: '1' }}
                 >
                   Your Staking Position
@@ -360,11 +360,11 @@ export default function StakingPage({
                   </div>
                 ) : (
                   // No position - Show stake interface
-                  <div className="space-y-3">
+                  <div className="space-y-2">
                     {!showStakeInput ? (
                       <>
-                        <div className="text-center py-4">
-                          <p className="text-gray-500 text-sm mb-2">You have no staked position</p>
+                        <div className="text-center py-1">
+                          <p className="text-gray-500 text-sm mb-1">You have no staked position</p>
                           <p className="text-green-600 font-bold" style={customFontStyle}>
                             Wallet: {formatPizza(walletBalance)} PIZZA
                           </p>
@@ -481,12 +481,12 @@ export default function StakingPage({
             </Card>
 
             {/* Spin the Pie Wheel */}
-            <div className="bg-white/95 rounded-2xl p-4 border-4 border-yellow-600">
+            <div className="bg-black rounded-2xl p-4 border-4 border-red-800">
               <p
-                className="text-center text-yellow-700 mb-3"
-                style={{ fontFamily: 'var(--font-luckiest-guy)', fontSize: '20px' }}
+                className="text-center mb-3"
+                style={{ fontFamily: 'var(--font-luckiest-guy)', fontSize: '32px', lineHeight: '1', color: '#FFA500' }}
               >
-                Spin the Pie {userPosition ? '(Claim to Spin!)' : 'Preview'}
+                Spin the Pie
               </p>
 
               {/* Wheel Container */}
