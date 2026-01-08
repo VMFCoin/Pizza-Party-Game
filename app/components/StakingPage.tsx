@@ -1,10 +1,11 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import Image from 'next/image'
 import { Button } from './ui/button'
 import { Card } from './ui/card'
-import { ArrowLeft, Lock, Unlock, TrendingUp, Gift, Coins, AlertTriangle, Info } from 'lucide-react'
+import { ArrowLeft, Lock, Unlock, TrendingUp, Gift, Coins, AlertTriangle, Info, XCircle } from 'lucide-react'
+import { useAccount } from 'wagmi'
 
 interface StakingPageProps {
   onBack?: () => void
@@ -14,6 +15,7 @@ interface StakingPageProps {
   onNavigateToParlor?: () => void
   onNavigateToHome?: () => void
   userFid?: number | null
+  authToken?: string | null // Farcaster auth token for API calls
 }
 
 // Staking Tiers - yield bonuses are ADDITIVE (not multiplicative)
@@ -68,12 +70,22 @@ export default function StakingPage({
   onNavigateToLeaderboard,
   onNavigateToParlor,
   onNavigateToHome,
-  userFid: _userFid,
+  userFid,
+  authToken,
 }: StakingPageProps) {
+  const { address } = useAccount()
   const [isMobile, setIsMobile] = useState(false)
   const [isSpinning, setIsSpinning] = useState(false)
   const [spinRotation, setSpinRotation] = useState(0)
   const [spinResult, setSpinResult] = useState<typeof SPIN_OUTCOMES[0] | null>(null)
+
+  // Anti-sybil: Track if this FID already has a staking position
+  const [stakingEligibility, setStakingEligibility] = useState<{
+    canStake: boolean
+    reason?: string
+    existingWallet?: string
+    loading: boolean
+  }>({ canStake: true, loading: true })
 
   // Mock staking state (will be replaced with contract reads)
   const [stakeAmount, setStakeAmount] = useState('')
@@ -94,6 +106,39 @@ export default function StakingPage({
 
   // Early staker boost end time (60 days from launch)
   const [boostEndTime] = useState(Date.now() + 60 * 24 * 60 * 60 * 1000) // Demo: 60 days from now
+
+  // Check staking eligibility (anti-sybil)
+  const checkStakingEligibility = useCallback(async () => {
+    if (!authToken || !userFid) {
+      setStakingEligibility({ canStake: false, reason: 'no_auth', loading: false })
+      return
+    }
+
+    try {
+      const response = await fetch('/api/staking', {
+        headers: { Authorization: `Bearer ${authToken}` },
+      })
+      const data = await response.json()
+
+      if (data.canStake) {
+        setStakingEligibility({ canStake: true, loading: false })
+      } else {
+        setStakingEligibility({
+          canStake: false,
+          reason: data.reason,
+          existingWallet: data.existingPosition?.wallet,
+          loading: false,
+        })
+      }
+    } catch (error) {
+      console.error('[Staking] Failed to check eligibility:', error)
+      setStakingEligibility({ canStake: true, loading: false }) // Allow staking on API error
+    }
+  }, [authToken, userFid])
+
+  useEffect(() => {
+    checkStakingEligibility()
+  }, [checkStakingEligibility])
 
   useEffect(() => {
     const handleResize = () => setIsMobile(window.innerWidth < 960)
@@ -139,8 +184,44 @@ export default function StakingPage({
     }, 3000)
   }
 
+  // Register staking position with API (for anti-sybil tracking)
+  const registerStakingPosition = async (wallet: string): Promise<boolean> => {
+    if (!authToken) return false
+    try {
+      const response = await fetch('/api/staking', {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${authToken}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ wallet }),
+      })
+      const data = await response.json()
+      return data.success === true
+    } catch (error) {
+      console.error('[Staking] Failed to register position:', error)
+      return false
+    }
+  }
+
+  // Remove staking position from API (after unstake)
+  const removeStakingPosition = async (): Promise<boolean> => {
+    if (!authToken) return false
+    try {
+      const response = await fetch('/api/staking', {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${authToken}` },
+      })
+      const data = await response.json()
+      return data.success === true
+    } catch (error) {
+      console.error('[Staking] Failed to remove position:', error)
+      return false
+    }
+  }
+
   // Mock stake handler
-  const handleStake = () => {
+  const handleStake = async () => {
     const amount = parseFloat(stakeAmount) || 0
     if (amount < 100_000) {
       alert('Minimum stake is 100,000 PIZZA')
@@ -148,6 +229,18 @@ export default function StakingPage({
     }
     if (amount > walletBalance) {
       alert('Insufficient balance')
+      return
+    }
+    if (!address) {
+      alert('Please connect your wallet')
+      return
+    }
+
+    // Register position with API for anti-sybil tracking
+    const registered = await registerStakingPosition(address)
+    if (!registered) {
+      alert('Failed to register staking position. You may already have a position on another wallet.')
+      await checkStakingEligibility() // Refresh eligibility status
       return
     }
 
@@ -164,7 +257,7 @@ export default function StakingPage({
   }
 
   // Mock unstake handler
-  const handleUnstake = () => {
+  const handleUnstake = async () => {
     if (!userPosition) return
 
     const isLocked = userPosition.lockType === 'locked' && userPosition.lockEndTime > Date.now()
@@ -175,7 +268,12 @@ export default function StakingPage({
       }
     }
 
+    // Remove position from API tracking
+    await removeStakingPosition()
+
     setUserPosition(null)
+    // Refresh eligibility so user can stake again on this or another wallet
+    await checkStakingEligibility()
   }
 
   // Mock claim handler
@@ -350,9 +448,43 @@ export default function StakingPage({
                     </Button>
                   </div>
                 ) : (
-                  // No position - Show stake interface
+                  // No position - Show stake interface or blocked message
                   <div className="space-y-2">
-                    {!showStakeInput ? (
+                    {/* Loading state */}
+                    {stakingEligibility.loading ? (
+                      <div className="text-center py-4">
+                        <p className="text-gray-500 text-sm">Checking eligibility...</p>
+                      </div>
+                    ) : !stakingEligibility.canStake && stakingEligibility.reason === 'fid_already_staking' ? (
+                      // BLOCKED: User already has a staking position on another wallet
+                      <div className="bg-red-50 rounded-xl p-4 border-2 border-red-300">
+                        <div className="flex items-center gap-3 mb-2">
+                          <XCircle className="text-red-500" size={24} />
+                          <p className="text-red-700 font-bold" style={customFontStyle}>
+                            Already Staking
+                          </p>
+                        </div>
+                        <p className="text-red-600 text-sm mb-2">
+                          Your Farcaster account already has an active staking position on another wallet.
+                        </p>
+                        <p className="text-red-500 text-xs">
+                          Each Farcaster account can only have ONE staking position to prevent multi-wallet abuse.
+                        </p>
+                        {stakingEligibility.existingWallet && (
+                          <div className="mt-3 bg-red-100 rounded-lg p-2">
+                            <p className="text-red-600 text-xs">
+                              Existing position wallet:
+                            </p>
+                            <p className="text-red-700 text-xs font-mono break-all">
+                              {stakingEligibility.existingWallet}
+                            </p>
+                          </div>
+                        )}
+                        <p className="text-red-500 text-xs mt-3 italic">
+                          To stake with this wallet, first unstake from your other wallet.
+                        </p>
+                      </div>
+                    ) : !showStakeInput ? (
                       <>
                         <div className="text-center py-1">
                           <p className="text-gray-500 text-sm mb-1">You have no staked position</p>

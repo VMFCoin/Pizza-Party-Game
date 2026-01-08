@@ -12,3 +12,14 @@ generator client {
 datasource db {
   provider = "postgresql"
 }
+
+// Staking position - tracks one position per FID to prevent multi-wallet abuse
+model StakingPosition {
+  id        String   @id @default(cuid())
+  fid       Int      @unique // Farcaster ID - only ONE position per FID allowed
+  wallet    String   // The wallet address that holds the stake
+  stakedAt  DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([wallet])
+}
