@@ -640,7 +640,7 @@ export default function StakingPage({
                 <div className="space-y-2">
                   <div className="flex items-start gap-2 text-sm text-green-800">
                     <Coins size={16} className="text-green-600 mt-0.5 flex-shrink-0" />
-                    <span>Stake PIZZA tokens to earn 4% of every daily lottery pot</span>
+                    <span>Stake PIZZA tokens to earn 10% of every daily lottery pot</span>
                   </div>
                   <div className="flex items-start gap-2 text-sm text-green-800">
                     <TrendingUp size={16} className="text-green-600 mt-0.5 flex-shrink-0" />
