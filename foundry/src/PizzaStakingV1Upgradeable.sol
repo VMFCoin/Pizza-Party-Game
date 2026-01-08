@@ -79,8 +79,8 @@ contract PizzaStakingV1Upgradeable is
     /// @notice Early unstake penalty: 15% (1500 BPS)
     uint256 public constant EARLY_UNSTAKE_PENALTY_BPS = 1500;
 
-    /// @notice Lock bonus: +50% (5000 BPS) added to rewards when locked
-    uint256 public constant LOCK_BONUS_BPS = 5000;
+    /// @notice Lock bonus: +10% (1000 BPS) added to rewards when locked
+    uint256 public constant LOCK_BONUS_BPS = 1000;
 
     /// @notice Early staker boost: 30% (3000 BPS)
     uint256 public constant EARLY_BOOST_BPS = 3000;
@@ -102,17 +102,17 @@ contract PizzaStakingV1Upgradeable is
     // TIER YIELD BONUSES (in BPS - additive, NOT multiplicative)
     // ==================================================================================
 
-    /// @notice Tier 0 (Slice Runner) yield bonus: +0%
-    uint256 public constant TIER0_BONUS_BPS = 0;
+    /// @notice Tier 0 (Slice Runner) yield bonus: +1.5%
+    uint256 public constant TIER0_BONUS_BPS = 150;
 
-    /// @notice Tier 1 (Oven Operator) yield bonus: +50%
-    uint256 public constant TIER1_BONUS_BPS = 5000;
+    /// @notice Tier 1 (Oven Operator) yield bonus: +5%
+    uint256 public constant TIER1_BONUS_BPS = 500;
 
-    /// @notice Tier 2 (Pie Boss) yield bonus: +100%
-    uint256 public constant TIER2_BONUS_BPS = 10000;
+    /// @notice Tier 2 (Pie Boss) yield bonus: +10%
+    uint256 public constant TIER2_BONUS_BPS = 1000;
 
-    /// @notice Tier 3 (Pizza Tycoon) yield bonus: +200%
-    uint256 public constant TIER3_BONUS_BPS = 20000;
+    /// @notice Tier 3 (Pizza Tycoon) yield bonus: +20%
+    uint256 public constant TIER3_BONUS_BPS = 2000;
 
     // ==================================================================================
     // TIER TOPPING BONUSES (weekly bonus toppings for lottery)
@@ -162,19 +162,19 @@ contract PizzaStakingV1Upgradeable is
      * @dev Tier determines yield bonus (additive) and topping bonus
      */
     enum Tier {
-        SliceRunner,    // 0: Any amount, +0% yield, +0 toppings
-        OvenOperator,   // 1: 50M+ PIZZA, +50% yield, +1 topping/week
-        PieBoss,        // 2: 200M+ PIZZA, +100% yield, +3 toppings/week
-        PizzaTycoon     // 3: 500M+ PIZZA, +200% yield, +5 toppings/week
+        SliceRunner,    // 0: Any amount, +1.5% yield, +0 toppings
+        OvenOperator,   // 1: 50M+ PIZZA, +5% yield, +1 topping/week
+        PieBoss,        // 2: 200M+ PIZZA, +10% yield, +3 toppings/week
+        PizzaTycoon     // 3: 500M+ PIZZA, +20% yield, +5 toppings/week
     }
 
     /**
      * @notice Lock period options
-     * @dev No lock = tier bonus only; Locked = tier bonus + 50% lock bonus
+     * @dev No lock = tier bonus only; Locked = tier bonus + 10% lock bonus
      */
     enum LockType {
         Flexible,   // 0: No lock, no lock bonus, no penalty
-        Locked      // 1: 7-day lock, +50% lock bonus, 15% early exit penalty
+        Locked      // 1: 7-day lock, +10% lock bonus, 15% early exit penalty
     }
 
     /**

@@ -18,10 +18,10 @@ interface StakingPageProps {
 
 // Staking Tiers - yield bonuses are ADDITIVE (not multiplicative)
 const STAKING_TIERS = [
-  { id: 0, name: 'Slice Runner', minStake: 0, yieldBoost: '+0%', toppingBonus: 0, color: 'bg-gray-500', emoji: '🍕' },
-  { id: 1, name: 'Oven Operator', minStake: 50_000_000, yieldBoost: '+50%', toppingBonus: 1, color: 'bg-green-500', emoji: '🔥' },
-  { id: 2, name: 'Pie Boss', minStake: 200_000_000, yieldBoost: '+100%', toppingBonus: 3, color: 'bg-orange-500', emoji: '👨‍🍳' },
-  { id: 3, name: 'Pizza Tycoon', minStake: 500_000_000, yieldBoost: '+200%', toppingBonus: 5, color: 'bg-red-600', emoji: '👑' },
+  { id: 0, name: 'Slice Runner', minStake: 0, yieldBoost: '+1.5%', toppingBonus: 0, color: 'bg-gray-500', emoji: '🍕' },
+  { id: 1, name: 'Oven Operator', minStake: 50_000_000, yieldBoost: '+5%', toppingBonus: 1, color: 'bg-green-500', emoji: '🔥' },
+  { id: 2, name: 'Pie Boss', minStake: 200_000_000, yieldBoost: '+10%', toppingBonus: 3, color: 'bg-orange-500', emoji: '👨‍🍳' },
+  { id: 3, name: 'Pizza Tycoon', minStake: 500_000_000, yieldBoost: '+20%', toppingBonus: 5, color: 'bg-red-600', emoji: '👑' },
 ]
 
 // Spin the Pie outcomes
@@ -35,7 +35,7 @@ const SPIN_OUTCOMES = [
 // Lock Types - bonuses are ADDITIVE (not multiplicative)
 const LOCK_TYPES = [
   { id: 'flexible', name: 'No Lock', bonus: '+0%', duration: 'No lock', penalty: 'None', icon: Unlock },
-  { id: 'locked', name: '7-Day Lock', bonus: '+50%', duration: '7 days', penalty: '15% early exit', icon: Lock },
+  { id: 'locked', name: '7-Day Lock', bonus: '+10%', duration: '7 days', penalty: '15% early exit', icon: Lock },
 ]
 
 const customFontStyle = {
@@ -323,7 +323,7 @@ export default function StakingPage({
                           Tier: {currentTier.yieldBoost}
                         </span>
                         <span className="bg-blue-100 text-blue-700 px-2 py-0.5 rounded">
-                          Lock: {userPosition.lockType === 'locked' ? '+50%' : '+0%'}
+                          Lock: {userPosition.lockType === 'locked' ? '+10%' : '+0%'}
                         </span>
                         {getBoostDaysRemaining() > 0 && (
                           <span className="bg-yellow-100 text-yellow-700 px-2 py-0.5 rounded">
@@ -648,7 +648,7 @@ export default function StakingPage({
                   </div>
                   <div className="flex items-start gap-2 text-sm text-green-800">
                     <Lock size={16} className="text-green-600 mt-0.5 flex-shrink-0" />
-                    <span>7-day lock adds +50% bonus (No lock = tier bonus only)</span>
+                    <span>7-day lock adds +10% bonus (No lock = tier bonus only)</span>
                   </div>
                   <div className="flex items-start gap-2 text-sm text-green-800">
                     <AlertTriangle size={16} className="text-orange-500 mt-0.5 flex-shrink-0" />
