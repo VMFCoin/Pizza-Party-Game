@@ -551,11 +551,11 @@ export default function StakingPage({
             </div>
 
             {/* Staking Tiers */}
-            <Card className="border-4 border-orange-600 rounded-2xl bg-white/95">
-              <div className="px-3 pb-3 pt-1.5">
+            <Card className="border-4 border-orange-600 rounded-2xl bg-white/95 !py-0">
+              <div className="px-3 py-2">
                 <p
                   className="text-orange-600 text-center mb-2"
-                  style={{ fontFamily: 'var(--font-luckiest-guy)', fontSize: '22px' }}
+                  style={{ fontFamily: 'var(--font-luckiest-guy)', fontSize: '32px', lineHeight: '1' }}
                 >
                   Staking Tiers
                 </p>
@@ -600,11 +600,11 @@ export default function StakingPage({
             </Card>
 
             {/* Staking Stats */}
-            <Card className="border-4 border-blue-500 rounded-2xl bg-white/95">
-              <div className="px-3 pb-3 pt-2">
+            <Card className="border-4 border-blue-500 rounded-2xl bg-white/95 !py-0">
+              <div className="px-3 py-2">
                 <p
                   className="text-blue-600 text-center mb-2"
-                  style={{ fontFamily: 'var(--font-luckiest-guy)', fontSize: '20px' }}
+                  style={{ fontFamily: 'var(--font-luckiest-guy)', fontSize: '32px', lineHeight: '1' }}
                 >
                   Staking Pool Stats
                 </p>
@@ -630,11 +630,11 @@ export default function StakingPage({
             </Card>
 
             {/* How It Works */}
-            <Card className="border-4 border-green-600 rounded-2xl bg-white/95">
-              <div className="px-3 pb-3 pt-1.5">
+            <Card className="border-4 border-green-600 rounded-2xl bg-white/95 !py-0">
+              <div className="px-3 py-2">
                 <p
                   className="text-green-600 text-center mb-2"
-                  style={{ fontFamily: 'var(--font-luckiest-guy)', fontSize: '22px' }}
+                  style={{ fontFamily: 'var(--font-luckiest-guy)', fontSize: '32px', lineHeight: '1' }}
                 >
                   How Staking Works
                 </p>
