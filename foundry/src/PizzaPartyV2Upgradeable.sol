@@ -7,6 +7,7 @@ import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/extensions/IERC20Permit.sol";
+import "./IPizzaStaking.sol";
 
 interface IPizzaParlorManager {
     function allocateFees() external;
@@ -174,6 +175,14 @@ contract PizzaPartyV2Upgradeable is OwnableUpgradeable, UUPSUpgradeable, Reentra
     // IMPORTANT: Added at end of storage to avoid slot collision on upgrade
     uint256 public weeklyTreasuryBonus;
 
+    // ============ Staking Integration ============
+
+    /// @notice Staking contract address
+    address public stakingContract;
+
+    /// @notice Fee to stakers in BPS (1000 = 10%)
+    uint256 public stakingFeeBPS;
+
     // ============ Events ============
 
     event DailyGameStarted(uint256 indexed gameId, uint256 startTime, uint256 endTime);
@@ -199,6 +208,9 @@ contract PizzaPartyV2Upgradeable is OwnableUpgradeable, UUPSUpgradeable, Reentra
     event WeeklyTreasuryBonusUpdated(uint256 oldAmount, uint256 newAmount);
     event ParlorFeesAllocated(uint256 indexed gameId);
     event ParlorFeesAllocationFailed(uint256 indexed gameId);
+    event StakingContractSet(address indexed stakingContract);
+    event StakingFeeBPSSet(uint256 feeBPS);
+    event StakingRewardsDistributed(uint256 indexed gameId, uint256 amount);
 
     // ============ Initializer ============
 
@@ -1514,5 +1526,27 @@ contract PizzaPartyV2Upgradeable is OwnableUpgradeable, UUPSUpgradeable, Reentra
             dailyGames[gameId].players.push(correctPlayers[i]);
         }
         dailyGames[gameId].firstPlayer = firstPlayer;
+    }
+
+    // ============ Staking Admin Functions ============
+
+    /**
+     * @notice Set staking contract address
+     * @param _stakingContract Address of PizzaStakingV1Upgradeable
+     */
+    function adminSetStakingContract(address _stakingContract) external onlyOwner {
+        require(_stakingContract != address(0), "Zero address");
+        stakingContract = _stakingContract;
+        emit StakingContractSet(_stakingContract);
+    }
+
+    /**
+     * @notice Set staking fee in BPS (10% = 1000 BPS)
+     * @param _feeBPS Fee in basis points
+     */
+    function adminSetStakingFeeBPS(uint256 _feeBPS) external onlyOwner {
+        require(_feeBPS <= 2000, "Max 20%");
+        stakingFeeBPS = _feeBPS;
+        emit StakingFeeBPSSet(_feeBPS);
     }
 }
