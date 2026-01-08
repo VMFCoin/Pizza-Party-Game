@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/app/lib/db'
-import { Errors, createClient } from '@farcaster/quick-auth'
+import { createClient } from '@farcaster/quick-auth'
 
 const client = createClient()
 const DOMAIN = 'pizza-party-game.vmfcoin.com'
