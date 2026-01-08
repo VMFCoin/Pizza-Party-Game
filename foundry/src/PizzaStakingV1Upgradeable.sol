@@ -20,7 +20,7 @@ pragma solidity ^0.8.24;
  *
  * INTEGRATION:
  * - PizzaPartyV2Upgradeable calls notifyRewardAmount() when settling daily games
- * - PizzaPartyV2Upgradeable queries getTier(), getToppingBonus(), getWeeklyWeightBoost()
+ * - PizzaPartyV2Upgradeable queries getTierLevel(), getTierYieldBoost(), getToppingBonus()
  * - Uses same UUPS upgradeable pattern as other Pizza Party contracts
  *
  * FUNDING:
@@ -128,22 +128,6 @@ contract PizzaStakingV1Upgradeable is
     uint256 public constant TIER3_TOPPING_BONUS = 5;
 
     // ==================================================================================
-    // TIER WEEKLY WEIGHT BOOSTS (for lottery selection, in BPS)
-    // ==================================================================================
-
-    /// @notice Tier 0 weekly weight: 1.0x
-    uint256 public constant TIER0_WEIGHT_BPS = 10000;
-
-    /// @notice Tier 1 weekly weight: 1.25x
-    uint256 public constant TIER1_WEIGHT_BPS = 12500;
-
-    /// @notice Tier 2 weekly weight: 1.5x
-    uint256 public constant TIER2_WEIGHT_BPS = 15000;
-
-    /// @notice Tier 3 weekly weight: 2.0x
-    uint256 public constant TIER3_WEIGHT_BPS = 20000;
-
-    // ==================================================================================
     // SPIN THE PIE CONSTANTS
     // ==================================================================================
 
@@ -172,13 +156,13 @@ contract PizzaStakingV1Upgradeable is
 
     /**
      * @notice Staking tiers based on amount staked
-     * @dev Tier determines yield boost, topping bonus, and lottery weight
+     * @dev Tier determines yield boost and topping bonus
      */
     enum Tier {
-        SliceRunner,    // 0: Any amount, 1x yield, +0 toppings, 1x weight
-        OvenOperator,   // 1: 50M+ PIZZA, 1.5x yield, +1 topping/week, 1.25x weight
-        PieBoss,        // 2: 200M+ PIZZA, 2x yield, +3 toppings/week, 1.5x weight
-        PizzaTycoon     // 3: 500M+ PIZZA, 3x yield, +5 toppings/week, 2x weight
+        SliceRunner,    // 0: Any amount, 1x yield, +0 toppings
+        OvenOperator,   // 1: 50M+ PIZZA, 1.5x yield, +1 topping/week
+        PieBoss,        // 2: 200M+ PIZZA, 2x yield, +3 toppings/week
+        PizzaTycoon     // 3: 500M+ PIZZA, 3x yield, +5 toppings/week
     }
 
     /**
@@ -577,17 +561,12 @@ contract PizzaStakingV1Upgradeable is
     }
 
     /**
-     * @notice Get weekly weight boost for user's tier (in BPS)
+     * @notice Get tier yield boost for user (in BPS)
      * @param user Address to check
-     * @return Weight multiplier in basis points (10000 = 1x)
+     * @return Yield boost in basis points (10000 = 1x, 15000 = 1.5x, etc.)
      */
-    function getWeeklyWeightBoost(address user) external view returns (uint256) {
-        Tier tier = getTier(user);
-
-        if (tier == Tier.PizzaTycoon) return TIER3_WEIGHT_BPS;
-        if (tier == Tier.PieBoss) return TIER2_WEIGHT_BPS;
-        if (tier == Tier.OvenOperator) return TIER1_WEIGHT_BPS;
-        return TIER0_WEIGHT_BPS;
+    function getTierYieldBoost(address user) external view returns (uint256) {
+        return _getTierYieldBoost(getTier(user));
     }
 
     /**

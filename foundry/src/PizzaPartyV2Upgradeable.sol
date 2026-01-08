@@ -175,13 +175,17 @@ contract PizzaPartyV2Upgradeable is OwnableUpgradeable, UUPSUpgradeable, Reentra
     // IMPORTANT: Added at end of storage to avoid slot collision on upgrade
     uint256 public weeklyTreasuryBonus;
 
-    // ============ Staking Integration ============
+    // ============ Staking Integration (DORMANT - not active yet) ============
 
     /// @notice Staking contract address
     address public stakingContract;
 
-    /// @notice Fee to stakers in BPS (1000 = 10%)
+    /// @notice Fee to stakers in BPS (1000 = 10%) - DORMANT until activated
     uint256 public stakingFeeBPS;
+
+    /// @notice Fee to parlors in BPS (700 = 7%) - DORMANT until activated
+    /// @dev When activated, this will replace the current ownerFeeBPS for parlor distribution
+    uint256 public parlorFeeBPS;
 
     // ============ Events ============
 
@@ -210,6 +214,7 @@ contract PizzaPartyV2Upgradeable is OwnableUpgradeable, UUPSUpgradeable, Reentra
     event ParlorFeesAllocationFailed(uint256 indexed gameId);
     event StakingContractSet(address indexed stakingContract);
     event StakingFeeBPSSet(uint256 feeBPS);
+    event ParlorFeeBPSSet(uint256 feeBPS);
     event StakingRewardsDistributed(uint256 indexed gameId, uint256 amount);
 
     // ============ Initializer ============
@@ -1549,4 +1554,60 @@ contract PizzaPartyV2Upgradeable is OwnableUpgradeable, UUPSUpgradeable, Reentra
         stakingFeeBPS = _feeBPS;
         emit StakingFeeBPSSet(_feeBPS);
     }
+
+    /**
+     * @notice Set parlor fee in BPS (7% = 700 BPS) - DORMANT until staking activated
+     * @dev When activated, this will be used instead of ownerFeeBPS for parlor distribution
+     * @param _feeBPS Fee in basis points
+     */
+    function adminSetParlorFeeBPS(uint256 _feeBPS) external onlyOwner {
+        require(_feeBPS <= 1500, "Max 15%");
+        parlorFeeBPS = _feeBPS;
+        emit ParlorFeeBPSSet(_feeBPS);
+    }
+
+    // ============================================================
+    // STAKING INTEGRATION - DORMANT CODE (activate when ready)
+    // ============================================================
+    //
+    // When staking is activated, the following changes will be made:
+    //
+    // 1. NEW POT DISTRIBUTION (replace current 94/3/3 split):
+    //    - Winners: 80% (was 94%)
+    //    - Stakers: 10% (new)
+    //    - Parlors: 7% (was 3% owner fee)
+    //    - Charity: 3% (unchanged)
+    //
+    // 2. In _settleDailyGame(), ADD before winner distribution:
+    //
+    //    // STAKING FEE (10%)
+    //    if (stakingFeeBPS > 0 && stakingContract != address(0)) {
+    //        uint256 stakingFee = (pot * stakingFeeBPS) / BPS_DENOMINATOR;
+    //        if (stakingFee > 0) {
+    //            pizzaToken.safeTransfer(stakingContract, stakingFee);
+    //            IPizzaStaking(stakingContract).notifyRewardAmount(stakingFee);
+    //            emit StakingRewardsDistributed(gameId, stakingFee);
+    //        }
+    //    }
+    //
+    // 3. In claimToppings(), ADD staking tier bonus:
+    //
+    //    // STAKING TOPPING BONUS
+    //    if (stakingContract != address(0)) {
+    //        uint256 stakingBonus = IPizzaStaking(stakingContract).getToppingBonus(msg.sender);
+    //        if (stakingBonus > 0) {
+    //            player.toppingsEarned += stakingBonus;
+    //            playerStats[msg.sender].lifetimeToppings += stakingBonus;
+    //            emit ToppingsEarned(weekId, msg.sender, stakingBonus, "staking_bonus");
+    //        }
+    //    }
+    //
+    // 4. DEPLOYMENT CHECKLIST:
+    //    - adminSetStakingContract(stakingContractAddress)
+    //    - adminSetStakingFeeBPS(1000)  // 10%
+    //    - adminSetParlorFeeBPS(700)    // 7%
+    //    - Update PLAYERS_POOL_BPS constant to 8000 (80%)
+    //    - Update ownerFeeBPS flow to use parlorFeeBPS
+    //
+    // ============================================================
 }
