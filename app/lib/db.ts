@@ -1,4 +1,4 @@
-import { PrismaClient } from '@/app/generated/prisma'
+import { PrismaClient } from '@prisma/client'
 
 // Create a global PrismaClient to prevent exhausting connections in development
 const globalForPrisma = globalThis as unknown as {
