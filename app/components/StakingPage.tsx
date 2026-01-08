@@ -227,18 +227,13 @@ export default function StakingPage({
             backgroundPosition: 'center',
           }}
         >
-          <div className="flex flex-col gap-3">
+          <div className="flex flex-col gap-1">
             {/* Header */}
-            <div className="relative w-full" style={{ paddingBottom: isMobile ? '21%' : '30%', minHeight: isMobile ? '98px' : '140px' }}>
-              <Image
-                src="/images/Spin-the-Pie-Title-Card.png"
-                alt="Spin the Pie - Stake $PIZZA, Earn Rewards"
-                fill
-                className="object-contain"
-                priority
-                sizes="100vw"
-              />
-            </div>
+            <img
+              src="/images/Spin-the-Pie-Title-Card.png"
+              alt="Spin the Pie - Stake $PIZZA, Earn Rewards"
+              className="w-full h-auto"
+            />
 
             {/* Your Position Card */}
             <Card className="border-4 border-green-600 rounded-2xl bg-white/95 !py-0">
@@ -480,7 +475,7 @@ export default function StakingPage({
             <div className="bg-black rounded-2xl p-4 border-4 border-red-800">
               <p
                 className="text-center mb-3"
-                style={{ fontFamily: 'var(--font-luckiest-guy)', fontSize: '32px', lineHeight: '1', color: '#FFA500' }}
+                style={{ fontFamily: 'var(--font-luckiest-guy)', fontSize: '48px', lineHeight: '1', color: '#FFA500' }}
               >
                 Spin the Pie
               </p>
