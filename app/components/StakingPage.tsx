@@ -16,12 +16,12 @@ interface StakingPageProps {
   userFid?: number | null
 }
 
-// Staking Tiers from STAKING-INSTRUCTIONS.md
+// Staking Tiers - yield bonuses are ADDITIVE (not multiplicative)
 const STAKING_TIERS = [
-  { id: 0, name: 'Slice Runner', minStake: 0, yieldBoost: '1.0x', toppingBonus: 0, weeklyWeight: '1.0x', color: 'bg-gray-500', emoji: '🍕' },
-  { id: 1, name: 'Oven Operator', minStake: 50_000_000, yieldBoost: '1.5x', toppingBonus: 1, weeklyWeight: '1.25x', color: 'bg-green-500', emoji: '🔥' },
-  { id: 2, name: 'Pie Boss', minStake: 200_000_000, yieldBoost: '2.0x', toppingBonus: 3, weeklyWeight: '1.5x', color: 'bg-orange-500', emoji: '👨‍🍳' },
-  { id: 3, name: 'Pizza Tycoon', minStake: 500_000_000, yieldBoost: '3.0x', toppingBonus: 5, weeklyWeight: '2.0x', color: 'bg-red-600', emoji: '👑' },
+  { id: 0, name: 'Slice Runner', minStake: 0, yieldBoost: '+0%', toppingBonus: 0, color: 'bg-gray-500', emoji: '🍕' },
+  { id: 1, name: 'Oven Operator', minStake: 50_000_000, yieldBoost: '+50%', toppingBonus: 1, color: 'bg-green-500', emoji: '🔥' },
+  { id: 2, name: 'Pie Boss', minStake: 200_000_000, yieldBoost: '+100%', toppingBonus: 3, color: 'bg-orange-500', emoji: '👨‍🍳' },
+  { id: 3, name: 'Pizza Tycoon', minStake: 500_000_000, yieldBoost: '+200%', toppingBonus: 5, color: 'bg-red-600', emoji: '👑' },
 ]
 
 // Spin the Pie outcomes
@@ -32,10 +32,10 @@ const SPIN_OUTCOMES = [
   { name: 'JACKPOT', chance: '2%', multiplier: '200%', color: 'bg-green-600' },
 ]
 
-// Lock Types
+// Lock Types - bonuses are ADDITIVE (not multiplicative)
 const LOCK_TYPES = [
-  { id: 'flexible', name: 'Flexible', multiplier: '0.5x', duration: 'No lock', penalty: 'None', icon: Unlock },
-  { id: 'locked', name: '7-Day Lock', multiplier: '1.5x', duration: '7 days', penalty: '15% early exit', icon: Lock },
+  { id: 'flexible', name: 'No Lock', bonus: '+0%', duration: 'No lock', penalty: 'None', icon: Unlock },
+  { id: 'locked', name: '7-Day Lock', bonus: '+50%', duration: '7 days', penalty: '15% early exit', icon: Lock },
 ]
 
 const customFontStyle = {
@@ -315,15 +315,15 @@ export default function StakingPage({
                       </div>
                     </div>
 
-                    {/* Yield Multiplier Breakdown */}
+                    {/* Yield Bonus Breakdown */}
                     <div className="bg-gray-50 rounded-lg p-2 border border-gray-200">
-                      <p className="text-gray-600 text-xs mb-1 font-bold">Your Yield Multipliers:</p>
+                      <p className="text-gray-600 text-xs mb-1 font-bold">Your Yield Bonuses (Additive):</p>
                       <div className="flex flex-wrap gap-1 text-xs">
                         <span className="bg-green-100 text-green-700 px-2 py-0.5 rounded">
                           Tier: {currentTier.yieldBoost}
                         </span>
                         <span className="bg-blue-100 text-blue-700 px-2 py-0.5 rounded">
-                          Lock: {userPosition.lockType === 'locked' ? '1.5x' : '0.5x'}
+                          Lock: {userPosition.lockType === 'locked' ? '+50%' : '+0%'}
                         </span>
                         {getBoostDaysRemaining() > 0 && (
                           <span className="bg-yellow-100 text-yellow-700 px-2 py-0.5 rounded">
@@ -433,7 +433,7 @@ export default function StakingPage({
                                     {lockType.name}
                                   </p>
                                   <p className={`text-xs ${isSelected ? 'text-green-600' : 'text-gray-500'}`}>
-                                    Yield: {lockType.multiplier}
+                                    Bonus: {lockType.bonus}
                                   </p>
                                   {lockType.id === 'locked' && (
                                     <p className="text-xs text-orange-500 mt-1">
@@ -590,7 +590,6 @@ export default function StakingPage({
                         <div className={`flex justify-between text-xs mt-1 ${isCurrentTier ? 'text-white/80' : 'text-orange-600'}`}>
                           <span>Yield: {tier.yieldBoost}</span>
                           <span>+{tier.toppingBonus} toppings/week</span>
-                          <span>Weight: {tier.weeklyWeight}</span>
                         </div>
                       </div>
                     )
@@ -649,7 +648,7 @@ export default function StakingPage({
                   </div>
                   <div className="flex items-start gap-2 text-sm text-green-800">
                     <Lock size={16} className="text-green-600 mt-0.5 flex-shrink-0" />
-                    <span>7-day lock gives 1.5x yield (Flexible = 0.5x yield)</span>
+                    <span>7-day lock adds +50% bonus (No lock = tier bonus only)</span>
                   </div>
                   <div className="flex items-start gap-2 text-sm text-green-800">
                     <AlertTriangle size={16} className="text-orange-500 mt-0.5 flex-shrink-0" />

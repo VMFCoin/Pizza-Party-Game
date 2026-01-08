@@ -130,25 +130,30 @@ Stake $PIZZA tokens to earn a share of every daily pot!
 
 ### Staking Tiers
 
-| Tier | Min Stake | Yield Boost | Toppings/Week |
+| Tier | Min Stake | Yield Bonus | Toppings/Week |
 |------|-----------|-------------|---------------|
-| Slice Runner | 0 | 1x | +0 |
-| Oven Operator | 50M | 1.5x | +1 |
-| Pie Boss | 200M | 2x | +3 |
-| Pizza Tycoon | 500M | 3x | +5 |
+| Slice Runner | 0 | +0% | +0 |
+| Oven Operator | 50M | +50% | +1 |
+| Pie Boss | 200M | +100% | +3 |
+| Pizza Tycoon | 500M | +200% | +5 |
 
 ### Lock Options
 
-| Option | Yield Multiplier | Early Exit Penalty |
-|--------|------------------|-------------------|
-| No Lock | 1x | None |
-| 7-Day Lock | 1.5x | 15% |
+| Option | Lock Bonus | Early Exit Penalty |
+|--------|------------|-------------------|
+| No Lock | +0% | None |
+| 7-Day Lock | +50% | 15% |
 
-### Yield Formula
+### Yield Formula (Additive)
 
 ```
-Final Reward = Base Share × Tier Boost × Lock Boost × Early Boost
+Final Reward = Base Share × (1 + Tier Bonus + Lock Bonus + Early Bonus)
 ```
+
+**Example**: Pizza Tycoon with 7-day lock during early period:
+- Base: 100 PIZZA
+- Tier: +200%, Lock: +50%, Early: +30%
+- Total: 100 × (1 + 2.0 + 0.5 + 0.3) = 100 × 3.8 = **380 PIZZA**
 
 ### Early Staker Boost
 - **+30%** for the first 60 days after launch

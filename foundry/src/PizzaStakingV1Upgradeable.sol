@@ -13,10 +13,16 @@ pragma solidity ^0.8.24;
  *
  * KEY FEATURES:
  * - 4 staking tiers based on amount staked (Slice Runner, Oven Operator, Pie Boss, Pizza Tycoon)
- * - 2 lock periods (Flexible at 0.5x, 7-day lock at 1.5x yield)
+ * - 2 lock periods: No Lock (tier bonus only) or 7-day Lock (+50% bonus)
  * - Early staker boost (+30% for first 60 days)
  * - Spin the Pie mechanic for claiming (toggleable, disabled by default)
  * - Single position per wallet (simplifies accounting)
+ *
+ * YIELD FORMULA (additive bonuses):
+ * finalReward = baseReward × (1 + tierBonus + lockBonus + earlyBonus)
+ * - Tier bonuses: +0% / +50% / +100% / +200%
+ * - Lock bonus: +0% (no lock) or +50% (7-day lock)
+ * - Early bonus: +30% (first 60 days)
  *
  * INTEGRATION:
  * - PizzaPartyV2Upgradeable calls notifyRewardAmount() when settling daily games
@@ -73,11 +79,8 @@ contract PizzaStakingV1Upgradeable is
     /// @notice Early unstake penalty: 15% (1500 BPS)
     uint256 public constant EARLY_UNSTAKE_PENALTY_BPS = 1500;
 
-    /// @notice Flexible lock yield multiplier: 0.5x (5000 BPS)
-    uint256 public constant FLEXIBLE_YIELD_BPS = 5000;
-
-    /// @notice Locked yield multiplier: 1.5x (15000 BPS)
-    uint256 public constant LOCKED_YIELD_BPS = 15000;
+    /// @notice Lock bonus: +50% (5000 BPS) added to rewards when locked
+    uint256 public constant LOCK_BONUS_BPS = 5000;
 
     /// @notice Early staker boost: 30% (3000 BPS)
     uint256 public constant EARLY_BOOST_BPS = 3000;
@@ -96,20 +99,20 @@ contract PizzaStakingV1Upgradeable is
     uint256 public constant TIER3_THRESHOLD = 500_000_000 * 1e18;
 
     // ==================================================================================
-    // TIER YIELD BOOSTS (in BPS - 10000 = 1x)
+    // TIER YIELD BONUSES (in BPS - additive, NOT multiplicative)
     // ==================================================================================
 
-    /// @notice Tier 0 (Slice Runner) yield boost: 1.0x
-    uint256 public constant TIER0_YIELD_BPS = 10000;
+    /// @notice Tier 0 (Slice Runner) yield bonus: +0%
+    uint256 public constant TIER0_BONUS_BPS = 0;
 
-    /// @notice Tier 1 (Oven Operator) yield boost: 1.5x
-    uint256 public constant TIER1_YIELD_BPS = 15000;
+    /// @notice Tier 1 (Oven Operator) yield bonus: +50%
+    uint256 public constant TIER1_BONUS_BPS = 5000;
 
-    /// @notice Tier 2 (Pie Boss) yield boost: 2.0x
-    uint256 public constant TIER2_YIELD_BPS = 20000;
+    /// @notice Tier 2 (Pie Boss) yield bonus: +100%
+    uint256 public constant TIER2_BONUS_BPS = 10000;
 
-    /// @notice Tier 3 (Pizza Tycoon) yield boost: 3.0x
-    uint256 public constant TIER3_YIELD_BPS = 30000;
+    /// @notice Tier 3 (Pizza Tycoon) yield bonus: +200%
+    uint256 public constant TIER3_BONUS_BPS = 20000;
 
     // ==================================================================================
     // TIER TOPPING BONUSES (weekly bonus toppings for lottery)
@@ -156,22 +159,22 @@ contract PizzaStakingV1Upgradeable is
 
     /**
      * @notice Staking tiers based on amount staked
-     * @dev Tier determines yield boost and topping bonus
+     * @dev Tier determines yield bonus (additive) and topping bonus
      */
     enum Tier {
-        SliceRunner,    // 0: Any amount, 1x yield, +0 toppings
-        OvenOperator,   // 1: 50M+ PIZZA, 1.5x yield, +1 topping/week
-        PieBoss,        // 2: 200M+ PIZZA, 2x yield, +3 toppings/week
-        PizzaTycoon     // 3: 500M+ PIZZA, 3x yield, +5 toppings/week
+        SliceRunner,    // 0: Any amount, +0% yield, +0 toppings
+        OvenOperator,   // 1: 50M+ PIZZA, +50% yield, +1 topping/week
+        PieBoss,        // 2: 200M+ PIZZA, +100% yield, +3 toppings/week
+        PizzaTycoon     // 3: 500M+ PIZZA, +200% yield, +5 toppings/week
     }
 
     /**
      * @notice Lock period options
-     * @dev Flexible has no lock but 0.5x yield; Locked has 7-day lock but 1.5x yield
+     * @dev No lock = tier bonus only; Locked = tier bonus + 50% lock bonus
      */
     enum LockType {
-        Flexible,   // 0: No lock, 0.5x yield multiplier, no penalty
-        Locked      // 1: 7-day lock, 1.5x yield multiplier, 15% early exit penalty
+        Flexible,   // 0: No lock, no lock bonus, no penalty
+        Locked      // 1: 7-day lock, +50% lock bonus, 15% early exit penalty
     }
 
     /**
@@ -561,12 +564,12 @@ contract PizzaStakingV1Upgradeable is
     }
 
     /**
-     * @notice Get tier yield boost for user (in BPS)
+     * @notice Get tier yield bonus for user (in BPS, additive)
      * @param user Address to check
-     * @return Yield boost in basis points (10000 = 1x, 15000 = 1.5x, etc.)
+     * @return Yield bonus in basis points (0 = +0%, 5000 = +50%, 10000 = +100%, 20000 = +200%)
      */
     function getTierYieldBoost(address user) external view returns (uint256) {
-        return _getTierYieldBoost(getTier(user));
+        return _getTierBonus(getTier(user));
     }
 
     /**
@@ -802,7 +805,17 @@ contract PizzaStakingV1Upgradeable is
     /**
      * @notice Calculate pending rewards for user
      * @param user Address to calculate for
-     * @return Pending reward amount with all multipliers applied
+     * @return Pending reward amount with all bonuses applied (additive)
+     *
+     * FORMULA: finalReward = baseReward × (1 + tierBonus + lockBonus + earlyBonus)
+     *
+     * Example for Pizza Tycoon with lock and early boost:
+     * - Base: 100 PIZZA
+     * - Tier bonus: +200% (Pizza Tycoon)
+     * - Lock bonus: +50%
+     * - Early bonus: +30%
+     * - Total multiplier: 1 + 2.0 + 0.5 + 0.3 = 3.8x
+     * - Final: 100 × 3.8 = 380 PIZZA
      */
     function _calculatePendingRewards(address user) internal view returns (uint256) {
         StakePosition storage position = stakes[user];
@@ -813,32 +826,36 @@ contract PizzaStakingV1Upgradeable is
 
         if (baseReward == 0) return 0;
 
-        // Apply tier yield boost
-        uint256 tierBoostBPS = _getTierYieldBoost(getTier(user));
-        uint256 boostedReward = (baseReward * tierBoostBPS) / BPS_DENOMINATOR;
+        // Start with base (10000 BPS = 1x = 100%)
+        uint256 totalBonusBPS = BPS_DENOMINATOR;
 
-        // Apply lock type yield multiplier
-        uint256 lockMultiplierBPS = position.lockType == LockType.Locked ? LOCKED_YIELD_BPS : FLEXIBLE_YIELD_BPS;
-        boostedReward = (boostedReward * lockMultiplierBPS) / BPS_DENOMINATOR;
+        // Add tier bonus (+0%, +50%, +100%, or +200%)
+        totalBonusBPS += _getTierBonus(getTier(user));
 
-        // Apply early staker boost if active
-        if (boostEndTime > 0 && block.timestamp < boostEndTime) {
-            boostedReward = (boostedReward * (BPS_DENOMINATOR + EARLY_BOOST_BPS)) / BPS_DENOMINATOR;
+        // Add lock bonus (+50% if locked, +0% if not locked)
+        if (position.lockType == LockType.Locked) {
+            totalBonusBPS += LOCK_BONUS_BPS;
         }
 
-        return boostedReward;
+        // Add early staker bonus (+30% if active)
+        if (boostEndTime > 0 && block.timestamp < boostEndTime) {
+            totalBonusBPS += EARLY_BOOST_BPS;
+        }
+
+        // Apply total bonus to base reward
+        return (baseReward * totalBonusBPS) / BPS_DENOMINATOR;
     }
 
     /**
-     * @notice Get yield boost for tier (in BPS)
-     * @param tier Tier to get boost for
-     * @return Yield boost in basis points
+     * @notice Get yield bonus for tier (in BPS, additive)
+     * @param tier Tier to get bonus for
+     * @return Yield bonus in basis points (0, 5000, 10000, or 20000)
      */
-    function _getTierYieldBoost(Tier tier) internal pure returns (uint256) {
-        if (tier == Tier.PizzaTycoon) return TIER3_YIELD_BPS;
-        if (tier == Tier.PieBoss) return TIER2_YIELD_BPS;
-        if (tier == Tier.OvenOperator) return TIER1_YIELD_BPS;
-        return TIER0_YIELD_BPS;
+    function _getTierBonus(Tier tier) internal pure returns (uint256) {
+        if (tier == Tier.PizzaTycoon) return TIER3_BONUS_BPS;
+        if (tier == Tier.PieBoss) return TIER2_BONUS_BPS;
+        if (tier == Tier.OvenOperator) return TIER1_BONUS_BPS;
+        return TIER0_BONUS_BPS;
     }
 
     /**
