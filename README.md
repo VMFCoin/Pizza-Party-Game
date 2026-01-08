@@ -115,14 +115,77 @@ npm start
 
 ---
 
+## Spin the Pie - Staking System
+
+Stake $PIZZA tokens to earn a share of every daily pot!
+
+### Pot Distribution (when staking is active)
+
+| Recipient | Share |
+|-----------|-------|
+| Winners | 80% |
+| Stakers | 10% |
+| Parlors | 7% |
+| Charity | 3% |
+
+### Staking Tiers
+
+| Tier | Min Stake | Yield Boost | Toppings/Week |
+|------|-----------|-------------|---------------|
+| Slice Runner | 0 | 1x | +0 |
+| Oven Operator | 50M | 1.5x | +1 |
+| Pie Boss | 200M | 2x | +3 |
+| Pizza Tycoon | 500M | 3x | +5 |
+
+### Lock Options
+
+| Option | Yield Multiplier | Early Exit Penalty |
+|--------|------------------|-------------------|
+| No Lock | 1x | None |
+| 7-Day Lock | 1.5x | 15% |
+
+### Yield Formula
+
+```
+Final Reward = Base Share × Tier Boost × Lock Boost × Early Boost
+```
+
+### Early Staker Boost
+- **+30%** for the first 60 days after launch
+
+### Spin the Pie (optional claiming mechanic)
+
+When enabled, claiming rewards triggers a spin:
+
+| Outcome | Chance | Payout |
+|---------|--------|--------|
+| Regular Slice | 73% | 100% |
+| Loaded Slice | 20% | 110% |
+| Hot Out the Oven | 5% | 125% |
+| JACKPOT | 2% | 200% |
+
+### Staking Parameters
+
+| Parameter | Value |
+|-----------|-------|
+| Min Stake | 100,000 PIZZA |
+| Max Stake | 1,000,000,000 PIZZA |
+| Lock Duration | 7 days |
+| Early Exit Penalty | 15% |
+| Positions per Wallet | 1 |
+
+---
+
 ## Smart Contracts
 
 The game runs on a verified contract deployed to Base mainnet.
 
 | Contract | Address |
 |----------|---------|
-| Pizza Party | `0x5c3aaD450F0014292Ff363b2147e6571b16c8035` |
-| VMF Token | `0xa3e82aDf6bD3207a1D2470ED7Ad742596Ee81776` |
+| Pizza Party V2 | `0x5c3aaD450F0014292Ff363b2147e6571b16c8035` |
+| Pizza Parlor Manager | TBD |
+| Pizza Staking V1 | TBD |
+| $PIZZA Token | TBD (Clanker launch) |
 
 ### Contract Development
 
