@@ -97,7 +97,8 @@ export default function StakingPage({
     stakedAmount: number
     lockType: 'flexible' | 'locked'
     lockEndTime: number
-    pendingRewards: number
+    pendingRewards: number // Rewards ready to claim (after spinning)
+    spinnableRewards: number // Rewards available to spin
     lastClaimTime: number
   } | null>(null)
 
@@ -159,21 +160,55 @@ export default function StakingPage({
     return Math.max(0, Math.ceil(remaining / (24 * 60 * 60 * 1000)))
   }
 
-  // Demo spin animation with result
-  const handleDemoSpin = () => {
-    if (isSpinning) return
+  // Demo spin animation with result - spins and adds winnings to pending rewards
+  const handleSpinAndWin = () => {
+    if (isSpinning || !userPosition || userPosition.spinnableRewards <= 0) return
     setIsSpinning(true)
     setSpinResult(null)
 
     // Determine outcome based on chances
     const rand = Math.random() * 100
     let outcome: typeof SPIN_OUTCOMES[0]
-    if (rand < 73) outcome = SPIN_OUTCOMES[0] // Regular
-    else if (rand < 93) outcome = SPIN_OUTCOMES[1] // Loaded
-    else if (rand < 98) outcome = SPIN_OUTCOMES[2] // Hot
-    else outcome = SPIN_OUTCOMES[3] // Jackpot
+    if (rand < 73) outcome = SPIN_OUTCOMES[0] // Regular - 100%
+    else if (rand < 93) outcome = SPIN_OUTCOMES[1] // Loaded - 110%
+    else if (rand < 98) outcome = SPIN_OUTCOMES[2] // Hot - 125%
+    else outcome = SPIN_OUTCOMES[3] // Jackpot - 200%
 
     // Spin 3-5 full rotations plus a random amount
+    const fullRotations = (3 + Math.random() * 2) * 360
+    const extraRotation = Math.random() * 360
+    setSpinRotation(prev => prev + fullRotations + extraRotation)
+
+    setTimeout(() => {
+      setIsSpinning(false)
+      setSpinResult(outcome)
+
+      // Calculate winnings based on spin result
+      const multiplier = parseInt(outcome.multiplier) / 100 // "100%" -> 1.0, "200%" -> 2.0
+      const winnings = userPosition.spinnableRewards * multiplier
+
+      // Move spinnable rewards to pending rewards (after multiplier)
+      setUserPosition(prev => prev ? {
+        ...prev,
+        pendingRewards: prev.pendingRewards + winnings,
+        spinnableRewards: 0, // Reset spinnable after spinning
+      } : null)
+    }, 3000)
+  }
+
+  // Demo spin for users without a position (just visual demo)
+  const handleDemoSpin = () => {
+    if (isSpinning) return
+    setIsSpinning(true)
+    setSpinResult(null)
+
+    const rand = Math.random() * 100
+    let outcome: typeof SPIN_OUTCOMES[0]
+    if (rand < 73) outcome = SPIN_OUTCOMES[0]
+    else if (rand < 93) outcome = SPIN_OUTCOMES[1]
+    else if (rand < 98) outcome = SPIN_OUTCOMES[2]
+    else outcome = SPIN_OUTCOMES[3]
+
     const fullRotations = (3 + Math.random() * 2) * 360
     const extraRotation = Math.random() * 360
     setSpinRotation(prev => prev + fullRotations + extraRotation)
@@ -244,12 +279,13 @@ export default function StakingPage({
       return
     }
 
-    // Demo: Set position
+    // Demo: Set position with some spinnable rewards for testing
     setUserPosition({
       stakedAmount: amount,
       lockType: selectedLockType,
       lockEndTime: selectedLockType === 'locked' ? Date.now() + 7 * 24 * 60 * 60 * 1000 : 0,
       pendingRewards: 0,
+      spinnableRewards: 50_000, // Demo: 50K PIZZA available to spin
       lastClaimTime: Date.now(),
     })
     setStakeAmount('')
@@ -276,10 +312,18 @@ export default function StakingPage({
     await checkStakingEligibility()
   }
 
-  // Mock claim handler
+  // Mock claim handler - claims pending rewards (no spin)
   const handleClaim = () => {
     if (!userPosition || userPosition.pendingRewards <= 0) return
-    handleDemoSpin()
+
+    // In production, this would call the contract to transfer PIZZA to user
+    alert(`Claimed ${formatPizza(userPosition.pendingRewards)} PIZZA!`)
+
+    setUserPosition(prev => prev ? {
+      ...prev,
+      pendingRewards: 0,
+      lastClaimTime: Date.now(),
+    } : null)
   }
 
   // Get current tier
@@ -393,11 +437,32 @@ export default function StakingPage({
                       </div>
                     </div>
 
-                    {/* Pending Rewards */}
+                    {/* Spinnable Rewards - must spin first */}
+                    <div className="bg-orange-50 rounded-lg p-3 border-2 border-orange-300">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="text-orange-700 text-xs">Available to Spin</p>
+                          <p className="text-orange-800 font-bold text-xl" style={customFontStyle}>
+                            {formatPizza(userPosition.spinnableRewards)} PIZZA
+                          </p>
+                        </div>
+                        <Button
+                          onClick={handleSpinAndWin}
+                          disabled={userPosition.spinnableRewards <= 0 || isSpinning}
+                          className="!bg-orange-500 hover:!bg-orange-600 text-white font-bold py-2 px-4 rounded-xl border-2 border-orange-700 disabled:opacity-50"
+                          style={customFontStyle}
+                        >
+                          {isSpinning ? 'SPINNING...' : 'SPIN & WIN'}
+                        </Button>
+                      </div>
+                      <p className="text-orange-600 text-xs mt-1">Spin the wheel to multiply your rewards!</p>
+                    </div>
+
+                    {/* Pending Rewards - ready to claim */}
                     <div className="bg-yellow-50 rounded-lg p-3 border-2 border-yellow-300">
                       <div className="flex items-center justify-between">
                         <div>
-                          <p className="text-yellow-700 text-xs">Pending Rewards</p>
+                          <p className="text-yellow-700 text-xs">Pending Rewards (Ready to Claim)</p>
                           <p className="text-yellow-800 font-bold text-xl" style={customFontStyle}>
                             {formatPizza(userPosition.pendingRewards)} PIZZA
                           </p>
@@ -408,7 +473,7 @@ export default function StakingPage({
                           className="!bg-yellow-500 hover:!bg-yellow-600 text-white font-bold py-2 px-4 rounded-xl border-2 border-yellow-700 disabled:opacity-50"
                           style={customFontStyle}
                         >
-                          {isSpinning ? 'SPINNING...' : 'CLAIM'}
+                          CLAIM
                         </Button>
                       </div>
                     </div>
@@ -487,15 +552,15 @@ export default function StakingPage({
                     ) : !showStakeInput ? (
                       <>
                         <div className="text-center py-1">
-                          <p className="text-gray-500 text-sm mb-1">You have no staked position</p>
-                          <p className="text-green-600 font-bold" style={customFontStyle}>
+                          <p className="text-gray-500 text-sm mb-1" style={{ fontFamily: 'var(--font-luckiest-guy)' }}>You have no staked position</p>
+                          <p className="text-green-600 font-bold" style={{ fontFamily: 'var(--font-luckiest-guy)' }}>
                             Wallet: {formatPizza(walletBalance)} PIZZA
                           </p>
                         </div>
                         <Button
                           onClick={() => setShowStakeInput(true)}
                           className="w-full !bg-green-500 hover:!bg-green-600 text-white font-bold py-3 rounded-xl border-4 border-green-700"
-                          style={{ ...customFontStyle, fontSize: 18 }}
+                          style={{ fontFamily: 'var(--font-luckiest-guy)', fontSize: 18 }}
                         >
                           START STAKING
                         </Button>
@@ -504,7 +569,7 @@ export default function StakingPage({
                       <>
                         {/* Stake Amount Input */}
                         <div>
-                          <label className="text-green-700 text-sm font-bold block mb-1" style={customFontStyle}>
+                          <label className="text-green-700 text-sm font-bold block mb-1" style={{ fontFamily: 'var(--font-luckiest-guy)' }}>
                             Amount to Stake
                           </label>
                           <div className="flex gap-2">
@@ -514,16 +579,17 @@ export default function StakingPage({
                               onChange={(e) => setStakeAmount(e.target.value)}
                               placeholder="Min: 100,000 PIZZA"
                               className="flex-1 px-3 py-2 border-2 border-green-300 rounded-xl focus:border-green-500 focus:outline-none"
+                              style={{ fontFamily: 'var(--font-luckiest-guy)' }}
                             />
                             <Button
                               onClick={() => setStakeAmount(walletBalance.toString())}
                               className="!bg-green-200 hover:!bg-green-300 text-green-700 font-bold px-3 rounded-xl border-2 border-green-400"
-                              style={customFontStyle}
+                              style={{ fontFamily: 'var(--font-luckiest-guy)' }}
                             >
                               MAX
                             </Button>
                           </div>
-                          <p className="text-gray-500 text-xs mt-1">
+                          <p className="text-gray-500 text-xs mt-1" style={{ fontFamily: 'var(--font-luckiest-guy)' }}>
                             Balance: {formatPizza(walletBalance)} PIZZA
                           </p>
                         </div>
@@ -531,10 +597,10 @@ export default function StakingPage({
                         {/* Preview Tier */}
                         {stakeAmount && parseFloat(stakeAmount) >= 100_000 && (
                           <div className="bg-green-50 rounded-lg p-2 border border-green-200">
-                            <p className="text-green-600 text-xs mb-1">Your tier will be:</p>
+                            <p className="text-green-600 text-xs mb-1" style={{ fontFamily: 'var(--font-luckiest-guy)' }}>Your tier will be:</p>
                             <div className="flex items-center gap-2">
                               <span className="text-xl">{getTierFromAmount(parseFloat(stakeAmount)).emoji}</span>
-                              <span className="text-green-800 font-bold" style={customFontStyle}>
+                              <span className="text-green-800 font-bold" style={{ fontFamily: 'var(--font-luckiest-guy)' }}>
                                 {getTierFromAmount(parseFloat(stakeAmount)).name}
                               </span>
                             </div>
@@ -543,7 +609,7 @@ export default function StakingPage({
 
                         {/* Lock Type Selection */}
                         <div>
-                          <label className="text-green-700 text-sm font-bold block mb-2" style={customFontStyle}>
+                          <label className="text-green-700 text-sm font-bold block mb-2" style={{ fontFamily: 'var(--font-luckiest-guy)' }}>
                             Lock Period
                           </label>
                           <div className="grid grid-cols-2 gap-2">
@@ -561,14 +627,14 @@ export default function StakingPage({
                                   }`}
                                 >
                                   <Icon size={20} className={isSelected ? 'text-green-600 mx-auto' : 'text-gray-400 mx-auto'} />
-                                  <p className={`font-bold text-sm mt-1 ${isSelected ? 'text-green-700' : 'text-gray-600'}`} style={customFontStyle}>
+                                  <p className={`font-bold text-sm mt-1 ${isSelected ? 'text-green-700' : 'text-gray-600'}`} style={{ fontFamily: 'var(--font-luckiest-guy)' }}>
                                     {lockType.name}
                                   </p>
-                                  <p className={`text-xs ${isSelected ? 'text-green-600' : 'text-gray-500'}`}>
+                                  <p className={`text-xs ${isSelected ? 'text-green-600' : 'text-gray-500'}`} style={{ fontFamily: 'var(--font-luckiest-guy)' }}>
                                     Bonus: {lockType.bonus}
                                   </p>
                                   {lockType.id === 'locked' && (
-                                    <p className="text-xs text-orange-500 mt-1">
+                                    <p className="text-xs text-orange-500 mt-1" style={{ fontFamily: 'var(--font-luckiest-guy)' }}>
                                       {lockType.penalty}
                                     </p>
                                   )}
@@ -652,7 +718,7 @@ export default function StakingPage({
                 </div>
               )}
 
-              {/* Demo Spin Button (only if no position) */}
+              {/* Spin Button (only if no position - demo mode) */}
               {!userPosition && (
                 <Button
                   onClick={handleDemoSpin}
@@ -660,7 +726,7 @@ export default function StakingPage({
                   className="w-full mt-4 !bg-yellow-500 hover:!bg-yellow-600 text-white font-bold py-2 rounded-xl border-4 border-yellow-700"
                   style={{ ...customFontStyle, fontSize: 16 }}
                 >
-                  {isSpinning ? 'SPINNING...' : 'DEMO SPIN'}
+                  {isSpinning ? 'SPINNING...' : 'SPIN & WIN'}
                 </Button>
               )}
 
@@ -706,7 +772,7 @@ export default function StakingPage({
                         <div className="flex justify-between items-center">
                           <span
                             className={`font-bold flex items-center gap-1 ${isCurrentTier ? 'text-white' : 'text-orange-700'}`}
-                            style={{ ...customFontStyle, fontSize: 14 }}
+                            style={{ fontFamily: 'var(--font-luckiest-guy)', fontSize: 14 }}
                           >
                             <span>{tier.emoji}</span>
                             {tier.name}
@@ -714,12 +780,12 @@ export default function StakingPage({
                           </span>
                           <span
                             className={`text-xs ${isCurrentTier ? 'text-white/90' : 'text-orange-500'}`}
-                            style={customFontStyle}
+                            style={{ fontFamily: 'var(--font-luckiest-guy)' }}
                           >
                             {tier.minStake > 0 ? `${(tier.minStake / 1_000_000).toFixed(0)}M+ PIZZA` : 'Any amount'}
                           </span>
                         </div>
-                        <div className={`flex justify-between text-xs mt-1 ${isCurrentTier ? 'text-white/80' : 'text-orange-600'}`}>
+                        <div className={`flex justify-between text-xs mt-1 ${isCurrentTier ? 'text-white/80' : 'text-orange-600'}`} style={{ fontFamily: 'var(--font-luckiest-guy)' }}>
                           <span>Yield: {tier.yieldBoost}</span>
                           <span>+{tier.toppingBonus} toppings/week</span>
                         </div>
@@ -741,20 +807,20 @@ export default function StakingPage({
                 </p>
                 <div className="grid grid-cols-2 gap-2">
                   <div className="bg-blue-50 rounded-lg p-2 text-center border border-blue-200">
-                    <p className="text-blue-500 text-xs">Total Staked</p>
-                    <p className="text-blue-700 font-bold" style={customFontStyle}>--</p>
+                    <p className="text-blue-500 text-xs" style={{ fontFamily: 'var(--font-luckiest-guy)' }}>Total Staked</p>
+                    <p className="text-blue-700 font-bold" style={{ fontFamily: 'var(--font-luckiest-guy)' }}>--</p>
                   </div>
                   <div className="bg-blue-50 rounded-lg p-2 text-center border border-blue-200">
-                    <p className="text-blue-500 text-xs">Total Stakers</p>
-                    <p className="text-blue-700 font-bold" style={customFontStyle}>--</p>
+                    <p className="text-blue-500 text-xs" style={{ fontFamily: 'var(--font-luckiest-guy)' }}>Total Stakers</p>
+                    <p className="text-blue-700 font-bold" style={{ fontFamily: 'var(--font-luckiest-guy)' }}>--</p>
                   </div>
                   <div className="bg-blue-50 rounded-lg p-2 text-center border border-blue-200">
-                    <p className="text-blue-500 text-xs">Daily Pot Share</p>
-                    <p className="text-blue-700 font-bold" style={customFontStyle}>4%</p>
+                    <p className="text-blue-500 text-xs" style={{ fontFamily: 'var(--font-luckiest-guy)' }}>Daily Pot Share</p>
+                    <p className="text-blue-700 font-bold" style={{ fontFamily: 'var(--font-luckiest-guy)' }}>10%</p>
                   </div>
                   <div className="bg-blue-50 rounded-lg p-2 text-center border border-blue-200">
-                    <p className="text-blue-500 text-xs">Bonus Pool</p>
-                    <p className="text-blue-700 font-bold" style={customFontStyle}>--</p>
+                    <p className="text-blue-500 text-xs" style={{ fontFamily: 'var(--font-luckiest-guy)' }}>Bonus Pool</p>
+                    <p className="text-blue-700 font-bold" style={{ fontFamily: 'var(--font-luckiest-guy)' }}>--</p>
                   </div>
                 </div>
               </div>
@@ -770,27 +836,27 @@ export default function StakingPage({
                   How Staking Works
                 </p>
                 <div className="space-y-2">
-                  <div className="flex items-start gap-2 text-sm text-green-800">
+                  <div className="flex items-start gap-2 text-sm text-green-800" style={{ fontFamily: 'var(--font-luckiest-guy)' }}>
                     <Coins size={16} className="text-green-600 mt-0.5 flex-shrink-0" />
                     <span>Stake PIZZA tokens to earn 10% of every daily lottery pot</span>
                   </div>
-                  <div className="flex items-start gap-2 text-sm text-green-800">
+                  <div className="flex items-start gap-2 text-sm text-green-800" style={{ fontFamily: 'var(--font-luckiest-guy)' }}>
                     <TrendingUp size={16} className="text-green-600 mt-0.5 flex-shrink-0" />
                     <span>Higher tiers = more yield boost + bonus weekly toppings</span>
                   </div>
-                  <div className="flex items-start gap-2 text-sm text-green-800">
+                  <div className="flex items-start gap-2 text-sm text-green-800" style={{ fontFamily: 'var(--font-luckiest-guy)' }}>
                     <Lock size={16} className="text-green-600 mt-0.5 flex-shrink-0" />
                     <span>7-day lock adds +10% bonus (No lock = tier bonus only)</span>
                   </div>
-                  <div className="flex items-start gap-2 text-sm text-green-800">
+                  <div className="flex items-start gap-2 text-sm text-green-800" style={{ fontFamily: 'var(--font-luckiest-guy)' }}>
                     <AlertTriangle size={16} className="text-orange-500 mt-0.5 flex-shrink-0" />
                     <span>Early unstake from locked position = 15% penalty</span>
                   </div>
-                  <div className="flex items-start gap-2 text-sm text-green-800">
+                  <div className="flex items-start gap-2 text-sm text-green-800" style={{ fontFamily: 'var(--font-luckiest-guy)' }}>
                     <Gift size={16} className="text-yellow-500 mt-0.5 flex-shrink-0" />
                     <span>First 60 days: Early staker boost (+30% rewards!)</span>
                   </div>
-                  <div className="flex items-start gap-2 text-sm text-green-800">
+                  <div className="flex items-start gap-2 text-sm text-green-800" style={{ fontFamily: 'var(--font-luckiest-guy)' }}>
                     <Info size={16} className="text-blue-500 mt-0.5 flex-shrink-0" />
                     <span>Spin the Pie when claiming for bonus multipliers</span>
                   </div>
