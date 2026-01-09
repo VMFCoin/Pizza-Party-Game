@@ -759,7 +759,7 @@ export function PizzaPartyResultPopup() {
                   <div className="w-full flex justify-center mt-4">
                     <button
                       onClick={handleClaimSlice}
-                      disabled={isClaiming || isClaimPending || isClaimConfirming || !pizzaUsd}
+                      disabled={isClaiming || isClaimPending || isClaimConfirming}
                       className="bg-gradient-to-b from-yellow-400 to-yellow-500 hover:from-yellow-300 hover:to-yellow-400 active:scale-95 transition-all rounded-full border-4 border-black shadow-xl px-8 py-2 w-full max-w-[280px] disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       <p
@@ -772,7 +772,7 @@ export function PizzaPartyResultPopup() {
                           margin: '0',
                         }}
                       >
-                        {isClaiming || isClaimPending || isClaimConfirming ? 'CLAIMING...' : (!pizzaUsd ? 'LOADING...' : 'CLAIM YOUR SLICE!')}
+                        {isClaiming || isClaimPending || isClaimConfirming ? 'CLAIMING...' : 'CLAIM YOUR SLICE!'}
                       </p>
                     </button>
                   </div>
