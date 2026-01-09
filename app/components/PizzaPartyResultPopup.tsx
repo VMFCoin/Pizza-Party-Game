@@ -56,15 +56,39 @@ export function PizzaPartyResultPopup() {
   }, [isClaimSuccess, currentPopup, currentDailyGameIdRef, needsSliceClaim])
 
   // Claim slice handler - calculates $1 worth of PIZZA for treasury contribution
-  const handleClaimSlice = useCallback(() => {
-    if (!address || isClaiming || isClaimPending || isClaimConfirming || !pizzaUsd) return
-
-    // Calculate $1 worth of PIZZA in wei
-    // pizzaUsd is the price of 1 PIZZA in USD
-    const pizzaPerDollar = 1 / pizzaUsd
-    const entryFeeWei = BigInt(Math.floor(pizzaPerDollar * 1e18))
+  const handleClaimSlice = useCallback(async () => {
+    if (!address || isClaiming || isClaimPending || isClaimConfirming) return
 
     setIsClaiming(true)
+
+    // Get the price - use cached value or fetch fresh
+    let price = pizzaUsd
+    if (!price) {
+      try {
+        const res = await fetch('/api/price')
+        const data = await res.json()
+        if (data.priceUsd) {
+          price = parseFloat(data.priceUsd)
+          setPizzaUsd(price)
+        }
+      } catch (error) {
+        console.error('Failed to fetch price for claim:', error)
+        setIsClaiming(false)
+        return
+      }
+    }
+
+    if (!price) {
+      console.error('Could not get price for claim')
+      setIsClaiming(false)
+      return
+    }
+
+    // Calculate $1 worth of PIZZA in wei
+    // price is the price of 1 PIZZA in USD
+    const pizzaPerDollar = 1 / price
+    const entryFeeWei = BigInt(Math.floor(pizzaPerDollar * 1e18))
+
     writeContract({
       address: PARLOR_MANAGER_ADDRESS as `0x${string}`,
       abi: PARLOR_MANAGER_ABI,
