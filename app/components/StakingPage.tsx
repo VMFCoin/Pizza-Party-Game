@@ -124,6 +124,7 @@ export default function StakingPage({
   const [showConfirmModal, setShowConfirmModal] = useState<'stake' | 'unstake' | 'claim' | null>(null)
   const [unstakeAmount, setUnstakeAmount] = useState('')
   const [unstakeLockType, setUnstakeLockType] = useState<0 | 1>(0)
+  const [pendingApproval, setPendingApproval] = useState(false) // Track if we're waiting for approval to stake
 
   // Anti-sybil: Track if this FID already has a staking position
   const [stakingEligibility, setStakingEligibility] = useState<{
@@ -214,9 +215,10 @@ export default function StakingPage({
     hash: writeHash,
   })
 
-  // Refetch data after successful transaction
+  // Refetch data after successful transaction (but not during approval->stake flow)
   useEffect(() => {
-    if (isConfirmed) {
+    if (isConfirmed && !pendingApproval) {
+      // Only cleanup when the final transaction is confirmed (not intermediate approval)
       refetchBalance()
       refetchAllowance()
       refetchStakeInfo()
@@ -226,7 +228,7 @@ export default function StakingPage({
       setShowStakeInput(false)
       resetWrite()
     }
-  }, [isConfirmed, refetchBalance, refetchAllowance, refetchStakeInfo, resetWrite])
+  }, [isConfirmed, pendingApproval, refetchBalance, refetchAllowance, refetchStakeInfo, resetWrite])
 
   // === COMPUTED VALUES ===
 
@@ -364,7 +366,8 @@ export default function StakingPage({
     // Check if we need to approve first
     const currentAllowance = allowance as bigint || 0n
     if (currentAllowance < amountWei) {
-      // Approve first
+      // Approve first - mark that we're pending approval so useEffect will stake after
+      setPendingApproval(true)
       writeContract({
         address: PIZZA_TOKEN_ADDRESS as `0x${string}`,
         abi: PIZZA_TOKEN_ABI,
@@ -372,7 +375,9 @@ export default function StakingPage({
         args: [PIZZA_STAKING_ADDRESS as `0x${string}`, amountWei],
       })
     } else {
-      // Already approved, stake directly
+      // Already approved, stake directly (no pending approval needed)
+      setPendingApproval(false)
+
       // Try to register with API (optional - on-chain is source of truth)
       if (authToken) {
         const result = await registerStakingPosition(address)
@@ -391,35 +396,40 @@ export default function StakingPage({
     }
   }
 
-  // After approval completes, stake
+  // After approval completes, stake (only if we were waiting for approval)
   useEffect(() => {
     const performStakeAfterApproval = async () => {
-      if (isConfirmed && stakeAmount && showConfirmModal === 'stake') {
-        const amountWei = parseUnits(stakeAmount, 18)
-        const currentAllowance = allowance as bigint || 0n
+      // Only proceed if we're waiting for approval to complete before staking
+      if (!pendingApproval) return
+      if (!isConfirmed || !stakeAmount || showConfirmModal !== 'stake') return
 
-        if (currentAllowance >= amountWei && address) {
-          // Try to register with API (optional - on-chain is source of truth)
-          if (authToken) {
-            const result = await registerStakingPosition(address)
-            if (!result.success) {
-              console.warn('[Staking] API registration failed:', result.error)
-              // Continue anyway - on-chain stake is what matters
-            }
+      const amountWei = parseUnits(stakeAmount, 18)
+      const currentAllowance = allowance as bigint || 0n
+
+      if (currentAllowance >= amountWei && address) {
+        // Clear pending approval flag BEFORE sending stake tx
+        setPendingApproval(false)
+
+        // Try to register with API (optional - on-chain is source of truth)
+        if (authToken) {
+          const result = await registerStakingPosition(address)
+          if (!result.success) {
+            console.warn('[Staking] API registration failed:', result.error)
+            // Continue anyway - on-chain stake is what matters
           }
-
-          resetWrite()
-          writeContract({
-            address: PIZZA_STAKING_ADDRESS as `0x${string}`,
-            abi: PIZZA_STAKING_ABI,
-            functionName: 'stake',
-            args: [amountWei, selectedLockType],
-          })
         }
+
+        resetWrite()
+        writeContract({
+          address: PIZZA_STAKING_ADDRESS as `0x${string}`,
+          abi: PIZZA_STAKING_ABI,
+          functionName: 'stake',
+          args: [amountWei, selectedLockType],
+        })
       }
     }
     performStakeAfterApproval()
-  }, [isConfirmed, allowance, stakeAmount, selectedLockType, showConfirmModal, address, authToken, resetWrite, writeContract, registerStakingPosition])
+  }, [isConfirmed, allowance, stakeAmount, selectedLockType, showConfirmModal, address, authToken, pendingApproval, resetWrite, writeContract, registerStakingPosition])
 
   // Handle unstake
   const handleUnstake = () => {
