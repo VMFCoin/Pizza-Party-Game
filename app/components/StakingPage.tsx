@@ -652,30 +652,131 @@ export default function StakingPage({
                       </div>
                     </div>
 
-                    {/* Stake / Unstake Buttons */}
-                    <div className="flex gap-2">
-                      <Button
-                        onClick={() => setShowStakeInput(true)}
-                        className="flex-1 !bg-green-500 hover:!bg-green-600 text-white font-bold py-2 rounded-xl border-2 border-green-700"
-                        style={customFontStyle}
-                      >
-                        STAKE
-                      </Button>
-                      <Button
-                        onClick={() => setShowConfirmModal('unstake')}
-                        className="flex-1 !bg-red-500 hover:!bg-red-600 text-white font-bold py-2 rounded-xl border-2 border-red-700"
-                        style={customFontStyle}
-                      >
-                        {isLocked ? (
-                          <span className="flex items-center justify-center gap-1">
-                            <AlertTriangle size={14} />
-                            UNSTAKE
-                          </span>
-                        ) : (
-                          'UNSTAKE'
-                        )}
-                      </Button>
-                    </div>
+                    {/* Stake More Input (shown when showStakeInput is true) */}
+                    {showStakeInput ? (
+                      <div className="space-y-2 bg-green-50 rounded-lg p-3 border-2 border-green-300">
+                        <p className="text-green-700 font-bold text-center" style={customFontStyle}>Add to Your Stake</p>
+
+                        {/* Stake Amount Input */}
+                        <div>
+                          <label className="text-green-700 text-sm font-bold block mb-1" style={{ fontFamily: 'var(--font-luckiest-guy)' }}>
+                            Amount to Stake
+                          </label>
+                          <div className="flex gap-2">
+                            <input
+                              type="number"
+                              value={stakeAmount}
+                              onChange={(e) => setStakeAmount(e.target.value)}
+                              placeholder={`Min: ${formatPizza(MIN_STAKE)} PIZZA`}
+                              className="flex-1 px-3 py-2 border-2 border-green-300 rounded-xl focus:border-green-500 focus:outline-none"
+                              style={{ fontFamily: 'var(--font-luckiest-guy)' }}
+                            />
+                            <Button
+                              onClick={() => {
+                                if (pizzaBalance) {
+                                  setStakeAmount(formatUnits(pizzaBalance as bigint, 18))
+                                }
+                              }}
+                              className="!bg-green-200 hover:!bg-green-300 text-green-700 font-bold px-3 rounded-xl border-2 border-green-400"
+                              style={{ fontFamily: 'var(--font-luckiest-guy)' }}
+                            >
+                              MAX
+                            </Button>
+                          </div>
+                          <p className="text-gray-500 text-xs mt-1" style={{ fontFamily: 'var(--font-luckiest-guy)' }}>
+                            Available: {formatWeiExact(pizzaBalance as bigint)} PIZZA
+                          </p>
+                        </div>
+
+                        {/* Lock Type Selection */}
+                        <div>
+                          <label className="text-green-700 text-sm font-bold block mb-2" style={{ fontFamily: 'var(--font-luckiest-guy)' }}>
+                            Lock Period
+                          </label>
+                          <div className="grid grid-cols-2 gap-2">
+                            {LOCK_TYPES.map((lockType) => {
+                              const Icon = lockType.icon
+                              const isSelected = selectedLockType === lockType.lockType
+                              return (
+                                <button
+                                  key={lockType.id}
+                                  onClick={() => setSelectedLockType(lockType.lockType as 0 | 1)}
+                                  className={`p-3 rounded-xl border-2 transition-all ${
+                                    isSelected
+                                      ? 'border-green-500 bg-green-100'
+                                      : 'border-gray-200 bg-white hover:border-green-300'
+                                  }`}
+                                >
+                                  <Icon size={20} className={isSelected ? 'text-green-600 mx-auto' : 'text-gray-400 mx-auto'} />
+                                  <p className={`font-bold text-sm mt-1 ${isSelected ? 'text-green-700' : 'text-gray-600'}`} style={{ fontFamily: 'var(--font-luckiest-guy)' }}>
+                                    {lockType.name}
+                                  </p>
+                                  <p className={`text-xs ${isSelected ? 'text-green-600' : 'text-gray-500'}`} style={{ fontFamily: 'var(--font-luckiest-guy)' }}>
+                                    Bonus: {lockType.bonus}
+                                  </p>
+                                  {lockType.id === 'locked' && (
+                                    <p className="text-xs text-orange-500 mt-1" style={{ fontFamily: 'var(--font-luckiest-guy)' }}>
+                                      {lockType.penalty}
+                                    </p>
+                                  )}
+                                </button>
+                              )
+                            })}
+                          </div>
+                        </div>
+
+                        {/* Action Buttons */}
+                        <div className="flex gap-2">
+                          <Button
+                            onClick={() => {
+                              setShowStakeInput(false)
+                              setStakeAmount('')
+                            }}
+                            className="flex-1 !bg-gray-300 hover:!bg-gray-400 text-gray-700 font-bold py-2 rounded-xl border-2 border-gray-400"
+                            style={customFontStyle}
+                          >
+                            CANCEL
+                          </Button>
+                          <Button
+                            onClick={() => setShowConfirmModal('stake')}
+                            disabled={!stakeAmount || parseFloat(stakeAmount) < MIN_STAKE || isWritePending || isConfirming}
+                            className="flex-1 !bg-green-500 hover:!bg-green-600 text-white font-bold py-2 rounded-xl border-2 border-green-700 disabled:opacity-50"
+                            style={customFontStyle}
+                          >
+                            {isWritePending || isConfirming ? (
+                              <Loader2 className="animate-spin" size={16} />
+                            ) : (
+                              'STAKE'
+                            )}
+                          </Button>
+                        </div>
+                      </div>
+                    ) : (
+                      /* Stake / Unstake Buttons */
+                      <div className="flex gap-2">
+                        <Button
+                          onClick={() => setShowStakeInput(true)}
+                          className="flex-1 !bg-green-500 hover:!bg-green-600 text-white font-bold py-2 rounded-xl border-2 border-green-700"
+                          style={customFontStyle}
+                        >
+                          STAKE
+                        </Button>
+                        <Button
+                          onClick={() => setShowConfirmModal('unstake')}
+                          className="flex-1 !bg-red-500 hover:!bg-red-600 text-white font-bold py-2 rounded-xl border-2 border-red-700"
+                          style={customFontStyle}
+                        >
+                          {isLocked ? (
+                            <span className="flex items-center justify-center gap-1">
+                              <AlertTriangle size={14} />
+                              UNSTAKE
+                            </span>
+                          ) : (
+                            'UNSTAKE'
+                          )}
+                        </Button>
+                      </div>
+                    )}
                   </div>
                 ) : (
                   // No position - Show stake interface or blocked message
