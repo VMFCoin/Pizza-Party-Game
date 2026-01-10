@@ -1200,9 +1200,54 @@ export function useGamePageData() {
     // ============================================================
 
     // ============================================================
-    // EIP-2612 PERMIT: Sign approval off-chain, then submit single tx
+    // ENTRY FLOW: Try permit first, fallback to approve+enter
     // ============================================================
+
+    // Helper function to do traditional approve+enter (2 transactions)
+    const doApproveAndEnter = async () => {
+      console.log('=== FALLBACK: APPROVE + ENTER (2 transactions) ===')
+
+      // Check current allowance
+      const currentAllowance = await readContract(wagmiConfig, {
+        address: PIZZA_TOKEN_ADDRESS as `0x${string}`,
+        abi: PIZZA_TOKEN_ABI,
+        functionName: 'allowance',
+        args: [wallet.address as `0x${string}`, PIZZA_PARTY_ADDRESS as `0x${string}`],
+      }) as bigint
+
+      console.log('Current allowance:', currentAllowance.toString())
+      console.log('Required:', entryFeeWei.toString())
+
+      // Step 1: Approve if needed
+      if (currentAllowance < entryFeeWei) {
+        console.log('=== STEP 1: APPROVE ===')
+        await writeContract({
+          address: PIZZA_TOKEN_ADDRESS as `0x${string}`,
+          abi: PIZZA_TOKEN_ABI,
+          functionName: 'approve',
+          args: [PIZZA_PARTY_ADDRESS as `0x${string}`, entryFeeWei],
+        })
+        console.log('Approval transaction sent, waiting 3 seconds...')
+        // Wait a bit for approval to confirm
+        await new Promise(resolve => setTimeout(resolve, 3000))
+      }
+
+      // Step 2: Enter game
+      console.log('=== STEP 2: ENTER GAME ===')
+      const result = await writeContract({
+        address: PIZZA_PARTY_ADDRESS as `0x${string}`,
+        abi: PIZZA_PARTY_ABI,
+        functionName: 'enterDailyGame',
+        args: [entryFeeWei, code],
+      })
+
+      return result
+    }
+
     try {
+      // Try EIP-2612 permit flow first (single transaction)
+      console.log('=== ATTEMPTING PERMIT FLOW ===')
+
       // 1. Get current nonce from PIZZA token
       const nonce = await readContract(wagmiConfig, {
         address: PIZZA_TOKEN_ADDRESS as `0x${string}`,
@@ -1220,31 +1265,49 @@ export function useGamePageData() {
       console.log('Amount:', entryFeeWei.toString())
 
       // 3. Sign EIP-712 typed data for permit (using wagmi hook for proper connector handling)
-      const signature = await signTypedDataAsync({
-        domain: {
-          name: GAME_CONSTANTS.PERMIT_DOMAIN.name,
-          version: GAME_CONSTANTS.PERMIT_DOMAIN.version,
-          chainId: GAME_CONSTANTS.PERMIT_DOMAIN.chainId,
-          verifyingContract: PIZZA_TOKEN_ADDRESS as `0x${string}`,
-        },
-        types: {
-          Permit: [
-            { name: 'owner', type: 'address' },
-            { name: 'spender', type: 'address' },
-            { name: 'value', type: 'uint256' },
-            { name: 'nonce', type: 'uint256' },
-            { name: 'deadline', type: 'uint256' },
-          ],
-        },
-        primaryType: 'Permit',
-        message: {
-          owner: wallet.address as `0x${string}`,
-          spender: PIZZA_PARTY_ADDRESS as `0x${string}`,
-          value: entryFeeWei,
-          nonce,
-          deadline,
-        },
-      })
+      let signature: string
+      try {
+        signature = await signTypedDataAsync({
+          domain: {
+            name: GAME_CONSTANTS.PERMIT_DOMAIN.name,
+            version: GAME_CONSTANTS.PERMIT_DOMAIN.version,
+            chainId: GAME_CONSTANTS.PERMIT_DOMAIN.chainId,
+            verifyingContract: PIZZA_TOKEN_ADDRESS as `0x${string}`,
+          },
+          types: {
+            Permit: [
+              { name: 'owner', type: 'address' },
+              { name: 'spender', type: 'address' },
+              { name: 'value', type: 'uint256' },
+              { name: 'nonce', type: 'uint256' },
+              { name: 'deadline', type: 'uint256' },
+            ],
+          },
+          primaryType: 'Permit',
+          message: {
+            owner: wallet.address as `0x${string}`,
+            spender: PIZZA_PARTY_ADDRESS as `0x${string}`,
+            value: entryFeeWei,
+            nonce,
+            deadline,
+          },
+        })
+      } catch (signErr) {
+        // Signature failed - wallet may not support EIP-712 properly
+        console.warn('Permit signature failed, falling back to approve+enter:', signErr)
+        await doApproveAndEnter()
+        console.log('✅ Entry successful via approve+enter fallback')
+        setHasEnteredToday(true)
+        setTimeout(() => {
+          void checkStatus()
+          void fetchPlayerInfo()
+          void refreshDaily()
+          void fetchPizzaBalance()
+          void fetchWeekly()
+          void fetchPlayerLifetimeStats()
+        }, 3000)
+        return
+      }
 
       // 4. Split signature into v, r, s
       const r = `0x${signature.slice(2, 66)}` as `0x${string}`
@@ -1260,14 +1323,22 @@ export function useGamePageData() {
       // Contract signature: enterDailyGameWithPermit(uint256 amountPaid, string referralCode, uint256 deadline, uint8 v, bytes32 r, bytes32 s)
       console.log('=== CALLING enterDailyGameWithPermit ===')
       console.log('Referral code being passed:', code || '(empty string)')
-      const result = await writeContract({
-        address: PIZZA_PARTY_ADDRESS as `0x${string}`,
-        abi: PIZZA_PARTY_ABI,
-        functionName: 'enterDailyGameWithPermit',
-        args: [entryFeeWei, code, deadline, v, r, s],
-      })
 
-      console.log('✅ Transaction sent successfully:', result)
+      try {
+        const result = await writeContract({
+          address: PIZZA_PARTY_ADDRESS as `0x${string}`,
+          abi: PIZZA_PARTY_ABI,
+          functionName: 'enterDailyGameWithPermit',
+          args: [entryFeeWei, code, deadline, v, r, s],
+        })
+        console.log('✅ Transaction sent successfully:', result)
+      } catch (permitTxErr) {
+        // Permit transaction failed - try approve+enter fallback
+        console.warn('Permit transaction failed, falling back to approve+enter:', permitTxErr)
+        await doApproveAndEnter()
+        console.log('✅ Entry successful via approve+enter fallback')
+      }
+
       setHasEnteredToday(true)
 
       // Refresh data after a short delay
