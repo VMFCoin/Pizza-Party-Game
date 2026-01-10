@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback, useMemo } from 'react'
 import Image from 'next/image'
 import { Button } from './ui/button'
 import { Card } from './ui/card'
-import { ArrowLeft, Lock, Unlock, TrendingUp, Gift, Coins, AlertTriangle, Info, XCircle, Loader2, ChevronDown, ChevronUp } from 'lucide-react'
+import { ArrowLeft, Lock, Unlock, TrendingUp, Gift, Coins, AlertTriangle, XCircle, Loader2, ChevronDown, ChevronUp } from 'lucide-react'
 import { useAccount, useReadContract, useWriteContract, useWaitForTransactionReceipt } from 'wagmi'
 import { formatUnits, parseUnits } from 'viem'
 import {
