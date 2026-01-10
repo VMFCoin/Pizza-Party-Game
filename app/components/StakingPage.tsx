@@ -292,34 +292,25 @@ export default function StakingPage({
 
   // === HANDLERS ===
 
-  // Check staking eligibility (anti-sybil via API)
+  // Whitelist of FIDs allowed to stake (private testing phase)
+  const STAKING_WHITELIST_FIDS = [1013491, 1060809]
+
+  // Check staking eligibility (whitelist check using FID from miniapp SDK)
   const checkStakingEligibility = useCallback(async () => {
-    if (!authToken || !userFid) {
-      setStakingEligibility({ canStake: false, reason: 'no_auth', loading: false })
+    // Check if user FID is in whitelist
+    if (!userFid) {
+      setStakingEligibility({ canStake: false, reason: 'no_fid', loading: false })
       return
     }
 
-    try {
-      const response = await fetch('/api/staking', {
-        headers: { Authorization: `Bearer ${authToken}` },
-      })
-      const data = await response.json()
-
-      if (data.canStake) {
-        setStakingEligibility({ canStake: true, loading: false })
-      } else {
-        setStakingEligibility({
-          canStake: false,
-          reason: data.reason,
-          existingWallet: data.existingPosition?.wallet,
-          loading: false,
-        })
-      }
-    } catch (error) {
-      console.error('[Staking] Failed to check eligibility:', error)
-      setStakingEligibility({ canStake: true, loading: false })
+    if (!STAKING_WHITELIST_FIDS.includes(userFid)) {
+      setStakingEligibility({ canStake: false, reason: 'not_whitelisted', loading: false })
+      return
     }
-  }, [authToken, userFid])
+
+    // User is whitelisted - they can stake
+    setStakingEligibility({ canStake: true, loading: false })
+  }, [userFid])
 
   useEffect(() => {
     checkStakingEligibility()
@@ -382,12 +373,13 @@ export default function StakingPage({
       })
     } else {
       // Already approved, stake directly
-      // Register with API first
-      const result = await registerStakingPosition(address)
-      if (!result.success && !userPosition) {
-        alert(`Failed to register staking position: ${result.error}`)
-        await checkStakingEligibility()
-        return
+      // Try to register with API (optional - on-chain is source of truth)
+      if (authToken) {
+        const result = await registerStakingPosition(address)
+        if (!result.success) {
+          console.warn('[Staking] API registration failed:', result.error)
+          // Continue anyway - on-chain stake is what matters
+        }
       }
 
       writeContract({
@@ -407,11 +399,13 @@ export default function StakingPage({
         const currentAllowance = allowance as bigint || 0n
 
         if (currentAllowance >= amountWei && address) {
-          // Register with API first
-          const result = await registerStakingPosition(address)
-          if (!result.success && !userPosition) {
-            alert(`Failed to register staking position: ${result.error}`)
-            return
+          // Try to register with API (optional - on-chain is source of truth)
+          if (authToken) {
+            const result = await registerStakingPosition(address)
+            if (!result.success) {
+              console.warn('[Staking] API registration failed:', result.error)
+              // Continue anyway - on-chain stake is what matters
+            }
           }
 
           resetWrite()
@@ -425,7 +419,7 @@ export default function StakingPage({
       }
     }
     performStakeAfterApproval()
-  }, [isConfirmed, allowance, stakeAmount, selectedLockType, showConfirmModal, address, userPosition, resetWrite, writeContract, registerStakingPosition])
+  }, [isConfirmed, allowance, stakeAmount, selectedLockType, showConfirmModal, address, authToken, resetWrite, writeContract, registerStakingPosition])
 
   // Handle unstake
   const handleUnstake = () => {
