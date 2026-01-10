@@ -77,11 +77,18 @@ const formatPizza = (amount: number): string => {
   return amount.toFixed(2)
 }
 
-// Format with commas for exact display (no rounding)
+// Format with commas for exact display (3 decimal places)
 const formatExact = (amount: string): string => {
   const num = parseFloat(amount)
   if (isNaN(num)) return amount
-  return num.toLocaleString('en-US', { maximumFractionDigits: 18 })
+  return num.toLocaleString('en-US', { minimumFractionDigits: 3, maximumFractionDigits: 3 })
+}
+
+// Format wei to exact display with commas (3 decimal places)
+const formatWeiExact = (amountWei: bigint | undefined): string => {
+  if (!amountWei) return '0.000'
+  const amount = Number(formatUnits(amountWei, 18))
+  return amount.toLocaleString('en-US', { minimumFractionDigits: 3, maximumFractionDigits: 3 })
 }
 
 // Get tier from staked amount (in whole tokens, not wei)
@@ -468,10 +475,8 @@ export default function StakingPage({
     }, 3000)
   }
 
-  // Derived values for display
+  // Derived values for display (abbreviated format for compact areas)
   const walletBalanceDisplay = formatPizzaWei(pizzaBalance as bigint | undefined)
-  const totalStakedPoolDisplay = formatPizzaWei(totalStakedPool as bigint | undefined)
-  const bonusPoolDisplay = formatPizzaWei(bonusPool as bigint | undefined)
 
   return (
     <div
@@ -629,14 +634,28 @@ export default function StakingPage({
                       </div>
                     </div>
 
-                    {/* Add More / Unstake Buttons */}
+                    {/* Balance Summary */}
+                    <div className="bg-purple-50 rounded-lg p-2 border border-purple-200">
+                      <div className="grid grid-cols-2 gap-2 text-xs">
+                        <div>
+                          <p className="text-purple-500">Available to Stake</p>
+                          <p className="text-purple-700 font-bold" style={customFontStyle}>{formatWeiExact(pizzaBalance as bigint)} PIZZA</p>
+                        </div>
+                        <div>
+                          <p className="text-purple-500">Your Total Staked</p>
+                          <p className="text-purple-700 font-bold" style={customFontStyle}>{formatWeiExact(userPosition.totalStakedAmount)} PIZZA</p>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Stake / Unstake Buttons */}
                     <div className="flex gap-2">
                       <Button
                         onClick={() => setShowStakeInput(true)}
                         className="flex-1 !bg-green-500 hover:!bg-green-600 text-white font-bold py-2 rounded-xl border-2 border-green-700"
                         style={customFontStyle}
                       >
-                        ADD MORE
+                        STAKE
                       </Button>
                       <Button
                         onClick={() => setShowConfirmModal('unstake')}
@@ -961,8 +980,8 @@ export default function StakingPage({
                 </p>
                 <div className="grid grid-cols-2 gap-2">
                   <div className="bg-blue-50 rounded-lg p-2 text-center border border-blue-200">
-                    <p className="text-blue-500 text-xs" style={{ fontFamily: 'var(--font-luckiest-guy)' }}>Total Staked</p>
-                    <p className="text-blue-700 font-bold" style={{ fontFamily: 'var(--font-luckiest-guy)' }}>{totalStakedPoolDisplay}</p>
+                    <p className="text-blue-500 text-xs" style={{ fontFamily: 'var(--font-luckiest-guy)' }}>Total Pool Staked</p>
+                    <p className="text-blue-700 font-bold text-sm" style={{ fontFamily: 'var(--font-luckiest-guy)' }}>{formatWeiExact(totalStakedPool as bigint)} PIZZA</p>
                   </div>
                   <div className="bg-blue-50 rounded-lg p-2 text-center border border-blue-200">
                     <p className="text-blue-500 text-xs" style={{ fontFamily: 'var(--font-luckiest-guy)' }}>Daily Pot Share</p>
@@ -970,7 +989,7 @@ export default function StakingPage({
                   </div>
                   <div className="bg-blue-50 rounded-lg p-2 text-center border border-blue-200">
                     <p className="text-blue-500 text-xs" style={{ fontFamily: 'var(--font-luckiest-guy)' }}>Bonus Pool</p>
-                    <p className="text-blue-700 font-bold" style={{ fontFamily: 'var(--font-luckiest-guy)' }}>{bonusPoolDisplay}</p>
+                    <p className="text-blue-700 font-bold text-sm" style={{ fontFamily: 'var(--font-luckiest-guy)' }}>{formatWeiExact(bonusPool as bigint)} PIZZA</p>
                   </div>
                   <div className="bg-blue-50 rounded-lg p-2 text-center border border-blue-200">
                     <p className="text-blue-500 text-xs" style={{ fontFamily: 'var(--font-luckiest-guy)' }}>Boost Days Left</p>
