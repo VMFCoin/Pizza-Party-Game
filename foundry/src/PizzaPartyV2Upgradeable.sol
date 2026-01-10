@@ -3,7 +3,7 @@ pragma solidity ^0.8.24;
 
 import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
-import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
+import "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/extensions/IERC20Permit.sol";
@@ -41,7 +41,7 @@ interface IPizzaParlorManager {
  * - If new player wins, sponsor gets 50% split (daily: same day, weekly: that week only)
  * - Dust and remainder also split 50/50 with sponsor
  */
-contract PizzaPartyV2Upgradeable is OwnableUpgradeable, UUPSUpgradeable, ReentrancyGuard {
+contract PizzaPartyV2Upgradeable is OwnableUpgradeable, UUPSUpgradeable, ReentrancyGuardUpgradeable {
     using SafeERC20 for IERC20;
 
     // ============ Constants ============
@@ -55,14 +55,16 @@ contract PizzaPartyV2Upgradeable is OwnableUpgradeable, UUPSUpgradeable, Reentra
     uint256 public constant WEEKLY_WINNERS = 10;
 
     // Daily pot split (100% total):
-    // - 94% → PLAYERS_POOL_BPS (distributed equally among winners)
+    // - 93% → PLAYERS_POOL_BPS (distributed equally among winners)
     // - 3%  → CHARITY_TOTAL_BPS (charity distribution)
     // - 3%  → Owner fee (flows to PizzaParlorManager)
+    // - 1%  → STAKING_POOL_BPS (distributed to stakers via PizzaStaking contract)
     // NOTE: All percentages are expressed in basis points (BPS), where 10000 = 100%.
     uint256 public constant FIRST_PLAYER_BONUS_BPS = 0;   // No first player bonus
     uint256 public constant CHARITY_TOTAL_BPS = 300;      // 3% = 300 basis points
-    uint256 public constant PLAYERS_POOL_BPS = 9400;      // 94% = 9400 basis points
+    uint256 public constant PLAYERS_POOL_BPS = 9300;      // 93% = 9300 basis points (1% goes to staking)
     uint256 public constant MAX_OWNER_FEE_BPS = 300;      // Maximum 3% owner fee
+    uint256 public constant STAKING_POOL_BPS = 100;       // 1% = 100 basis points to staking pool
     uint256 public constant BPS_DENOMINATOR = 10000;
     uint256 public constant MAX_CHARITIES = 20;
     uint256 public constant MAX_REFERRALS_PER_WEEK = 3;
@@ -230,16 +232,16 @@ contract PizzaPartyV2Upgradeable is OwnableUpgradeable, UUPSUpgradeable, Reentra
         address[] memory _charities,
         address _owner
     ) public initializer {
-        require(_pizzaToken != address(0), "Invalid PIZZA token");
-        require(_treasury != address(0), "Invalid treasury");
-        require(_owner != address(0), "Invalid owner");
-        require(_charities.length <= MAX_CHARITIES, "Too many charities");
+        require(_pizzaToken != address(0), "0");
+        require(_treasury != address(0), "0");
+        require(_owner != address(0), "0");
+        require(_charities.length <= MAX_CHARITIES, "max");
 
         // Validate charity addresses and ensure uniqueness
         for (uint256 i = 0; i < _charities.length; i++) {
-            require(_charities[i] != address(0), "Invalid charity");
+            require(_charities[i] != address(0), "0");
             for (uint256 j = i + 1; j < _charities.length; j++) {
-                require(_charities[i] != _charities[j], "Duplicate charity");
+                require(_charities[i] != _charities[j], "dup");
             }
         }
 
@@ -268,7 +270,7 @@ contract PizzaPartyV2Upgradeable is OwnableUpgradeable, UUPSUpgradeable, Reentra
     // ============ Modifiers ============
 
     modifier onlyParlorManager() {
-        require(msg.sender == parlorManager, "Not parlor manager");
+        require(msg.sender == parlorManager, "!mgr");
         _;
     }
 
@@ -290,13 +292,13 @@ contract PizzaPartyV2Upgradeable is OwnableUpgradeable, UUPSUpgradeable, Reentra
      * @param referralCode Optional referral code (empty string if none)
      */
     function enterDailyGame(uint256 amountPaid, string calldata referralCode) external nonReentrant {
-        require(amountPaid >= MIN_ENTRY_FEE, "Amount too low");
-        require(amountPaid <= MAX_ENTRY_FEE, "Amount too high");
+        require(amountPaid >= MIN_ENTRY_FEE, "<");
+        require(amountPaid <= MAX_ENTRY_FEE, ">");
 
         // Process referral if provided (only for new players)
         if (bytes(referralCode).length > 0) {
-            require(_isNewPlayer(msg.sender), "Referral only on first play");
-            require(!hasUsedReferral[msg.sender], "Already used referral");
+            require(_isNewPlayer(msg.sender), "1st");
+            require(!hasUsedReferral[msg.sender], "used");
             _processReferral(msg.sender, referralCode);
         }
 
@@ -321,13 +323,13 @@ contract PizzaPartyV2Upgradeable is OwnableUpgradeable, UUPSUpgradeable, Reentra
         bytes32 r,
         bytes32 s
     ) external nonReentrant {
-        require(amountPaid >= MIN_ENTRY_FEE, "Amount too low");
-        require(amountPaid <= MAX_ENTRY_FEE, "Amount too high");
+        require(amountPaid >= MIN_ENTRY_FEE, "<");
+        require(amountPaid <= MAX_ENTRY_FEE, ">");
 
         // Process referral if provided (only for new players)
         if (bytes(referralCode).length > 0) {
-            require(_isNewPlayer(msg.sender), "Referral only on first play");
-            require(!hasUsedReferral[msg.sender], "Already used referral");
+            require(_isNewPlayer(msg.sender), "1st");
+            require(!hasUsedReferral[msg.sender], "used");
             _processReferral(msg.sender, referralCode);
         }
 
@@ -352,8 +354,8 @@ contract PizzaPartyV2Upgradeable is OwnableUpgradeable, UUPSUpgradeable, Reentra
      * @param amount The PIZZA amount to add to pot (0 for free, or treasury-funded amount)
      */
     function enterDailyWithSlice(address player, address sponsor, uint256 amount) external nonReentrant onlyParlorManager {
-        require(player != address(0) && sponsor != address(0), "Invalid addr");
-        require(player != sponsor, "No self slice");
+        require(player != address(0) && sponsor != address(0), "0");
+        require(player != sponsor, "self");
 
         // If amount > 0, transfer PIZZA from ParlorManager to this contract
         if (amount > 0) {
@@ -402,13 +404,13 @@ contract PizzaPartyV2Upgradeable is OwnableUpgradeable, UUPSUpgradeable, Reentra
             game = dailyGames[gameId];
         }
 
-        require(block.timestamp < game.endTime, "Game ended");
-        require(!hasPlayedDaily[gameId][player], "Already played");
-        require(!game.settled, "Game settled");
+        require(block.timestamp < game.endTime, "end");
+        require(!hasPlayedDaily[gameId][player], "ply");
+        require(!game.settled, "set");
 
         // Check weekly play limit
         PlayerWeekly storage weekly = weeklyPlayers[weeklyGameId][player];
-        require(weekly.dailyPlays < 7, "Weekly limit reached");
+        require(weekly.dailyPlays < 7, "7");
 
         // Add to pot (tokens already in contract if amount > 0)
         if (amount > 0) {
@@ -453,13 +455,13 @@ contract PizzaPartyV2Upgradeable is OwnableUpgradeable, UUPSUpgradeable, Reentra
             game = dailyGames[gameId];
         }
 
-        require(block.timestamp < game.endTime, "Game ended");
-        require(!hasPlayedDaily[gameId][player], "Already played");
-        require(!game.settled, "Game settled");
+        require(block.timestamp < game.endTime, "end");
+        require(!hasPlayedDaily[gameId][player], "ply");
+        require(!game.settled, "set");
 
         // Check weekly play limit
         PlayerWeekly storage weekly = weeklyPlayers[weeklyGameId][player];
-        require(weekly.dailyPlays < 7, "Weekly limit reached");
+        require(weekly.dailyPlays < 7, "7");
 
         // ✅ Collect dynamic entry fee (skip for free slice entries where amount = 0)
         if (amount > 0) {
@@ -502,8 +504,8 @@ contract PizzaPartyV2Upgradeable is OwnableUpgradeable, UUPSUpgradeable, Reentra
         uint256 gameId = dailyGameId;
         DailyGame storage game = dailyGames[gameId];
 
-        require(block.timestamp >= game.endTime, "Game not ended");
-        require(!game.settled, "Already settled");
+        require(block.timestamp >= game.endTime, "!end");
+        require(!game.settled, "set");
 
         _settleDailyGame(gameId);
     }
@@ -517,9 +519,9 @@ contract PizzaPartyV2Upgradeable is OwnableUpgradeable, UUPSUpgradeable, Reentra
         uint256 gameId = dailyGameId;
         DailyGame storage game = dailyGames[gameId];
 
-        require(block.timestamp >= game.endTime, "Game not ended");
-        require(!game.settled, "Already settled");
-        require(usdCentsPerWinner > 0, "USD value required");
+        require(block.timestamp >= game.endTime, "!end");
+        require(!game.settled, "set");
+        require(usdCentsPerWinner > 0, "usd");
 
         // Store USD value BEFORE settlement
         dailyGameUsdValue[gameId] = usdCentsPerWinner;
@@ -531,7 +533,7 @@ contract PizzaPartyV2Upgradeable is OwnableUpgradeable, UUPSUpgradeable, Reentra
         DailyGame storage game = dailyGames[gameId];
 
         // Require at least one player to settle (prevents accidental empty game settlements)
-        require(game.players.length > 0, "No players in game");
+        require(game.players.length > 0, "0ply");
 
         // Auto-initialize charities on first settlement if not set
         if (charityWallets.length == 0) {
@@ -549,13 +551,24 @@ contract PizzaPartyV2Upgradeable is OwnableUpgradeable, UUPSUpgradeable, Reentra
         uint256 pot = currentDailyPot;
         uint256 winnerCount = game.players.length < DAILY_WINNERS ? game.players.length : DAILY_WINNERS;
 
-        // Calculate allocations (94% winners, 3% charity, 3% owner fee)
+        // Calculate allocations (93% winners, 3% charity, 3% owner fee, 1% staking)
         uint256 charityTotal = (pot * CHARITY_TOTAL_BPS) / BPS_DENOMINATOR;
         uint256 ownerFee = (pot * ownerFeeBPS) / BPS_DENOMINATOR;
         uint256 playersPool = (pot * PLAYERS_POOL_BPS) / BPS_DENOMINATOR;
+        uint256 stakingFee = (pot * STAKING_POOL_BPS) / BPS_DENOMINATOR;
 
-        uint256 totalAllocated = charityTotal + ownerFee + playersPool;
+        uint256 totalAllocated = charityTotal + ownerFee + playersPool + stakingFee;
         uint256 dust = pot > totalAllocated ? pot - totalAllocated : 0;
+
+        // Distribute staking fee to staking contract
+        if (stakingFee > 0 && stakingContract != address(0)) {
+            pizzaToken.safeTransfer(stakingContract, stakingFee);
+            IPizzaStaking(stakingContract).notifyRewardAmount(stakingFee);
+            emit StakingRewardsDistributed(gameId, stakingFee);
+        } else if (stakingFee > 0) {
+            // No staking contract set, add to treasury
+            pizzaToken.safeTransfer(treasuryWallet, stakingFee);
+        }
 
         // Select winners randomly
         address[] memory winners = _selectRandomWinners(game.players, winnerCount, gameId);
@@ -655,10 +668,10 @@ contract PizzaPartyV2Upgradeable is OwnableUpgradeable, UUPSUpgradeable, Reentra
         WeeklyGame storage week = weeklyGames[weekId];
         PlayerWeekly storage player = weeklyPlayers[weekId][msg.sender];
 
-        require(block.timestamp >= week.claimWindowStart, "Window not open");
-        require(block.timestamp < week.claimWindowEnd, "Window closed");
-        require(!player.hasClaimed, "Already claimed");
-        require(player.toppingsEarned > 0, "No toppings");
+        require(block.timestamp >= week.claimWindowStart, "!open");
+        require(block.timestamp < week.claimWindowEnd, "cls");
+        require(!player.hasClaimed, "clm");
+        require(player.toppingsEarned > 0, "0top");
 
         // Add holdings bonus (snapshot at claim time)
         uint256 holdingsBonus = _calculateHoldingsBonus(msg.sender);
@@ -690,7 +703,7 @@ contract PizzaPartyV2Upgradeable is OwnableUpgradeable, UUPSUpgradeable, Reentra
      */
     function _calculateHoldingsBonus(address player) internal view returns (uint256) {
         uint256 unit = holdingsUnitPizza;
-        require(unit > 0, "holdingsUnitPizza=0");
+        require(unit > 0, "h0");
 
         uint256 balance = pizzaToken.balanceOf(player);
         if (balance < unit) return 0;
@@ -713,8 +726,8 @@ contract PizzaPartyV2Upgradeable is OwnableUpgradeable, UUPSUpgradeable, Reentra
         uint256 weekId = weeklyGameId;
         WeeklyGame storage week = weeklyGames[weekId];
 
-        require(block.timestamp >= week.claimWindowEnd, "Window not closed");
-        require(!week.settled, "Already settled");
+        require(block.timestamp >= week.claimWindowEnd, "!cls");
+        require(!week.settled, "set");
 
         _settleWeeklyGame(weekId);
     }
@@ -728,9 +741,9 @@ contract PizzaPartyV2Upgradeable is OwnableUpgradeable, UUPSUpgradeable, Reentra
         uint256 weekId = weeklyGameId;
         WeeklyGame storage week = weeklyGames[weekId];
 
-        require(block.timestamp >= week.claimWindowEnd, "Window not closed");
-        require(!week.settled, "Already settled");
-        require(usdCentsPerWinner > 0, "USD value required");
+        require(block.timestamp >= week.claimWindowEnd, "!cls");
+        require(!week.settled, "set");
+        require(usdCentsPerWinner > 0, "usd");
 
         // Store USD value BEFORE settlement
         weeklyGameUsdValue[weekId] = usdCentsPerWinner;
@@ -742,7 +755,7 @@ contract PizzaPartyV2Upgradeable is OwnableUpgradeable, UUPSUpgradeable, Reentra
         WeeklyGame storage week = weeklyGames[weekId];
 
         // Require at least one claimer to settle
-        require(week.claimers.length > 0 && week.totalClaimedToppings > 0, "No claimers");
+        require(week.claimers.length > 0 && week.totalClaimedToppings > 0, "0clm");
 
         // Jackpot = total claimed toppings × toppingUnitPizza ($0.10 per topping) + treasury bonus
         uint256 jackpot = week.totalClaimedToppings * toppingUnitPizza + weeklyTreasuryBonus;
@@ -829,13 +842,13 @@ contract PizzaPartyV2Upgradeable is OwnableUpgradeable, UUPSUpgradeable, Reentra
     }
 
     function createReferralCode() external {
-        require(bytes(playerReferralCode[msg.sender]).length == 0, "Code exists");
-        require(!_isNewPlayer(msg.sender), "Must play first");
+        require(bytes(playerReferralCode[msg.sender]).length == 0, "ex");
+        require(!_isNewPlayer(msg.sender), "1st");
 
         string memory code = _generateCode(msg.sender);
 
         // Deterministic generation; collision check for safety
-        require(codeToPlayer[code] == address(0), "Code collision");
+        require(codeToPlayer[code] == address(0), "col");
 
         playerReferralCode[msg.sender] = code;
         codeToPlayer[code] = msg.sender;
@@ -866,29 +879,29 @@ contract PizzaPartyV2Upgradeable is OwnableUpgradeable, UUPSUpgradeable, Reentra
      * @dev Validate and get referrer address from code
      */
     function _getReferrerFromCode(string memory code) internal view returns (address) {
-        require(bytes(code).length == 10, "Invalid code length");
-        require(bytes(code)[0] == 'P' && bytes(code)[1] == 'Z', "Invalid code prefix");
+        require(bytes(code).length == 10, "len");
+        require(bytes(code)[0] == 'P' && bytes(code)[1] == 'Z', "pfx");
 
         // Check if it's registered in the mapping
         address registered = codeToPlayer[code];
-        require(registered != address(0), "Code not found");
+        require(registered != address(0), "!cod");
 
         // Ensure referrer has played at least once
-        require(playerStats[registered].lifetimeToppings > 0, "Referrer must play first");
+        require(playerStats[registered].lifetimeToppings > 0, "rfr");
 
         return registered;
     }
 
     function _processReferral(address referee, string memory code) internal {
-        require(!hasUsedReferral[referee], "Already used referral");
+        require(!hasUsedReferral[referee], "used");
 
         address referrer = _getReferrerFromCode(code);
-        require(referrer != referee, "Cannot refer self");
+        require(referrer != referee, "self");
 
         uint256 weekId = weeklyGameId;
         PlayerWeekly storage referrerWeekly = weeklyPlayers[weekId][referrer];
 
-        require(referrerWeekly.referralsUsed < MAX_REFERRALS_PER_WEEK, "Referral limit");
+        require(referrerWeekly.referralsUsed < MAX_REFERRALS_PER_WEEK, "lim");
 
         // Mark as used (lifetime)
         hasUsedReferral[referee] = true;
@@ -962,7 +975,7 @@ contract PizzaPartyV2Upgradeable is OwnableUpgradeable, UUPSUpgradeable, Reentra
             prefixSums[i] = totalWeight;
         }
 
-        require(totalWeight > 0, "No weight");
+        require(totalWeight > 0, "w");
 
         bytes32 randSeed = keccak256(abi.encodePacked(
             block.prevrandao,
@@ -1208,17 +1221,17 @@ contract PizzaPartyV2Upgradeable is OwnableUpgradeable, UUPSUpgradeable, Reentra
         address[] calldata players,
         PlayerLifetimeStats[] calldata stats
     ) external onlyOwner {
-        require(players.length == stats.length, "Length mismatch");
-        require(players.length > 0, "Empty array");
+        require(players.length == stats.length, "len");
+        require(players.length > 0, "[]");
 
         for (uint256 i = 0; i < players.length; i++) {
-            require(players[i] != address(0), "Invalid player address");
+            require(players[i] != address(0), "0");
             playerStats[players[i]] = stats[i];
         }
     }
 
     function setTreasuryWallet(address _treasury) external onlyOwner {
-        require(_treasury != address(0), "Invalid treasury");
+        require(_treasury != address(0), "0");
         treasuryWallet = _treasury;
     }
 
@@ -1233,7 +1246,7 @@ contract PizzaPartyV2Upgradeable is OwnableUpgradeable, UUPSUpgradeable, Reentra
     }
 
     function setOwnerFee(uint256 _bps) external onlyOwner {
-        require(_bps <= MAX_OWNER_FEE_BPS, "Fee exceeds maximum");
+        require(_bps <= MAX_OWNER_FEE_BPS, "fee");
         uint256 oldFee = ownerFeeBPS;
         ownerFeeBPS = _bps;
         emit OwnerFeeUpdated(oldFee, _bps);
@@ -1252,7 +1265,7 @@ contract PizzaPartyV2Upgradeable is OwnableUpgradeable, UUPSUpgradeable, Reentra
      * @param _hour 19 for PDT (March-November), 20 for PST (November-March)
      */
     function setNoonPacificUtcHour(uint256 _hour) external onlyOwner {
-        require(_hour == 19 || _hour == 20, "Invalid hour");
+        require(_hour == 19 || _hour == 20, "hr");
         noonPacificUtcHour = _hour;
     }
 
@@ -1262,7 +1275,7 @@ contract PizzaPartyV2Upgradeable is OwnableUpgradeable, UUPSUpgradeable, Reentra
      * @param newUnit Number of PIZZA tokens that equal $10 (18 decimals)
      */
     function setHoldingsUnitPizza(uint256 newUnit) external onlyOwner {
-        require(newUnit > 0, "holdingsUnitPizza=0");
+        require(newUnit > 0, "h0");
         uint256 old = holdingsUnitPizza;
         holdingsUnitPizza = newUnit;
         emit HoldingsUnitPizzaUpdated(old, newUnit);
@@ -1274,7 +1287,7 @@ contract PizzaPartyV2Upgradeable is OwnableUpgradeable, UUPSUpgradeable, Reentra
      * Example: at $0.001/PIZZA, $0.10 = 100 PIZZA, so newUnit = 100e18
      */
     function setToppingUnitPizza(uint256 newUnit) external onlyOwner {
-        require(newUnit > 0, "toppingUnitPizza=0");
+        require(newUnit > 0, "t0");
         uint256 old = toppingUnitPizza;
         toppingUnitPizza = newUnit;
         emit ToppingToPizzaUpdated(old, newUnit);
@@ -1291,12 +1304,12 @@ contract PizzaPartyV2Upgradeable is OwnableUpgradeable, UUPSUpgradeable, Reentra
     }
 
     function setCharityWallets(address[] memory _charities) external onlyOwner {
-        require(_charities.length <= MAX_CHARITIES, "Too many charities");
+        require(_charities.length <= MAX_CHARITIES, "max");
 
         for (uint256 i = 0; i < _charities.length; i++) {
-            require(_charities[i] != address(0), "Invalid charity address");
+            require(_charities[i] != address(0), "0");
             for (uint256 j = i + 1; j < _charities.length; j++) {
-                require(_charities[i] != _charities[j], "Duplicate charity");
+                require(_charities[i] != _charities[j], "dup");
             }
         }
 
@@ -1310,11 +1323,11 @@ contract PizzaPartyV2Upgradeable is OwnableUpgradeable, UUPSUpgradeable, Reentra
     }
 
     function addCharityWallet(address _charity) external onlyOwner {
-        require(_charity != address(0), "Invalid charity");
-        require(charityWallets.length < MAX_CHARITIES, "Max charities reached");
+        require(_charity != address(0), "0");
+        require(charityWallets.length < MAX_CHARITIES, "max");
 
         for (uint256 i = 0; i < charityWallets.length; i++) {
-            require(charityWallets[i] != _charity, "Charity already exists");
+            require(charityWallets[i] != _charity, "dup");
         }
 
         address[] memory oldCharities = new address[](charityWallets.length);
@@ -1327,7 +1340,7 @@ contract PizzaPartyV2Upgradeable is OwnableUpgradeable, UUPSUpgradeable, Reentra
     }
 
     function removeCharityWallet(uint256 index) external onlyOwner {
-        require(index < charityWallets.length, "Invalid index");
+        require(index < charityWallets.length, "idx");
 
         address[] memory oldCharities = new address[](charityWallets.length);
         for (uint256 i = 0; i < charityWallets.length; i++) {
@@ -1346,13 +1359,13 @@ contract PizzaPartyV2Upgradeable is OwnableUpgradeable, UUPSUpgradeable, Reentra
 
     function emergencySettleDaily() external onlyOwner {
         uint256 gameId = dailyGameId;
-        require(!dailyGames[gameId].settled, "Already settled");
+        require(!dailyGames[gameId].settled, "set");
         _settleDailyGame(gameId);
     }
 
     function emergencySettleWeekly() external onlyOwner {
         uint256 weekId = weeklyGameId;
-        require(!weeklyGames[weekId].settled, "Already settled");
+        require(!weeklyGames[weekId].settled, "set");
         _settleWeeklyGame(weekId);
     }
 
@@ -1362,7 +1375,7 @@ contract PizzaPartyV2Upgradeable is OwnableUpgradeable, UUPSUpgradeable, Reentra
      * @param newDailyGameId The correct daily game ID to set
      */
     function adminSetDailyGameId(uint256 newDailyGameId) external onlyOwner {
-        require(newDailyGameId > 0, "Invalid game ID");
+        require(newDailyGameId > 0, "gid");
         dailyGameId = newDailyGameId;
         // Re-initialize the game with correct times and reset settled flag
         _initializeDailyGame(newDailyGameId);
@@ -1374,7 +1387,7 @@ contract PizzaPartyV2Upgradeable is OwnableUpgradeable, UUPSUpgradeable, Reentra
      * @param newWeeklyGameId The correct weekly game ID to set
      */
     function adminSetWeeklyGameId(uint256 newWeeklyGameId) external onlyOwner {
-        require(newWeeklyGameId > 0, "Invalid week ID");
+        require(newWeeklyGameId > 0, "wid");
         weeklyGameId = newWeeklyGameId;
         // Re-initialize the week with correct times and reset settled flag
         _initializeWeeklyGame(newWeeklyGameId);
@@ -1387,7 +1400,7 @@ contract PizzaPartyV2Upgradeable is OwnableUpgradeable, UUPSUpgradeable, Reentra
      * @param gameId The game ID to reset
      */
     function adminResetDailyGameSettled(uint256 gameId) external onlyOwner {
-        require(gameId > 0, "Invalid game ID");
+        require(gameId > 0, "gid");
         dailyGames[gameId].settled = false;
     }
 
@@ -1397,7 +1410,7 @@ contract PizzaPartyV2Upgradeable is OwnableUpgradeable, UUPSUpgradeable, Reentra
      * @param gameId The game ID to mark as settled
      */
     function adminMarkDailyGameSettled(uint256 gameId) external onlyOwner {
-        require(gameId > 0, "Invalid game ID");
+        require(gameId > 0, "gid");
         dailyGames[gameId].settled = true;
     }
 
@@ -1408,7 +1421,7 @@ contract PizzaPartyV2Upgradeable is OwnableUpgradeable, UUPSUpgradeable, Reentra
      * @param newDailyGameId The correct daily game ID to set
      */
     function adminSetDailyGameIdOnly(uint256 newDailyGameId) external onlyOwner {
-        require(newDailyGameId > 0, "Invalid game ID");
+        require(newDailyGameId > 0, "gid");
         dailyGameId = newDailyGameId;
     }
 
@@ -1426,7 +1439,7 @@ contract PizzaPartyV2Upgradeable is OwnableUpgradeable, UUPSUpgradeable, Reentra
      * @param newToken The correct PIZZA token address
      */
     function adminSetPizzaToken(address newToken) external onlyOwner {
-        require(newToken != address(0), "Invalid token");
+        require(newToken != address(0), "0");
         pizzaToken = IERC20(newToken);
     }
 
@@ -1444,8 +1457,8 @@ contract PizzaPartyV2Upgradeable is OwnableUpgradeable, UUPSUpgradeable, Reentra
         address[] calldata playersToMigrate,
         uint256 pizzaPerPlayer
     ) external onlyOwner {
-        require(fromGameId > 0 && toGameId > 0, "Invalid game IDs");
-        require(playersToMigrate.length > 0, "No players to migrate");
+        require(fromGameId > 0 && toGameId > 0, "gids");
+        require(playersToMigrate.length > 0, "[]");
 
         DailyGame storage fromGame = dailyGames[fromGameId];
         DailyGame storage toGame = dailyGames[toGameId];
@@ -1454,7 +1467,7 @@ contract PizzaPartyV2Upgradeable is OwnableUpgradeable, UUPSUpgradeable, Reentra
         uint256 totalPizzaToMove = pizzaPerPlayer * playersToMigrate.length;
 
         // Move pot amount
-        require(fromGame.potAmount >= totalPizzaToMove, "Insufficient pot in source game");
+        require(fromGame.potAmount >= totalPizzaToMove, "pot");
         fromGame.potAmount -= totalPizzaToMove;
         toGame.potAmount += totalPizzaToMove;
 
@@ -1488,7 +1501,7 @@ contract PizzaPartyV2Upgradeable is OwnableUpgradeable, UUPSUpgradeable, Reentra
         uint256 startTime,
         uint256 endTime
     ) external onlyOwner {
-        require(gameId > 0, "Invalid game ID");
+        require(gameId > 0, "gid");
         DailyGame storage game = dailyGames[gameId];
         game.startTime = startTime;
         game.endTime = endTime;
@@ -1502,7 +1515,7 @@ contract PizzaPartyV2Upgradeable is OwnableUpgradeable, UUPSUpgradeable, Reentra
      * @param usdCentsPerWinner USD value per winner in cents (e.g., 591 = $5.91)
      */
     function adminSetDailyGameUsdValue(uint256 gameId, uint256 usdCentsPerWinner) external onlyOwner {
-        require(gameId > 0, "Invalid game ID");
+        require(gameId > 0, "gid");
         dailyGameUsdValue[gameId] = usdCentsPerWinner;
     }
 
@@ -1513,7 +1526,7 @@ contract PizzaPartyV2Upgradeable is OwnableUpgradeable, UUPSUpgradeable, Reentra
      * @param usdCentsPerWinner USD value per winner in cents (e.g., 652 = $6.52)
      */
     function adminSetWeeklyGameUsdValue(uint256 weekId, uint256 usdCentsPerWinner) external onlyOwner {
-        require(weekId > 0, "Invalid week ID");
+        require(weekId > 0, "wid");
         weeklyGameUsdValue[weekId] = usdCentsPerWinner;
     }
 
@@ -1525,7 +1538,7 @@ contract PizzaPartyV2Upgradeable is OwnableUpgradeable, UUPSUpgradeable, Reentra
      * @param firstPlayer The first player address
      */
     function adminFixDailyGamePlayers(uint256 gameId, address[] calldata correctPlayers, address firstPlayer) external onlyOwner {
-        require(gameId > 0, "Invalid game ID");
+        require(gameId > 0, "gid");
         delete dailyGames[gameId].players;
         for (uint256 i = 0; i < correctPlayers.length; i++) {
             dailyGames[gameId].players.push(correctPlayers[i]);
@@ -1540,7 +1553,7 @@ contract PizzaPartyV2Upgradeable is OwnableUpgradeable, UUPSUpgradeable, Reentra
      * @param _stakingContract Address of PizzaStakingV1Upgradeable
      */
     function adminSetStakingContract(address _stakingContract) external onlyOwner {
-        require(_stakingContract != address(0), "Zero address");
+        require(_stakingContract != address(0), "0");
         stakingContract = _stakingContract;
         emit StakingContractSet(_stakingContract);
     }
@@ -1550,7 +1563,7 @@ contract PizzaPartyV2Upgradeable is OwnableUpgradeable, UUPSUpgradeable, Reentra
      * @param _feeBPS Fee in basis points
      */
     function adminSetStakingFeeBPS(uint256 _feeBPS) external onlyOwner {
-        require(_feeBPS <= 2000, "Max 20%");
+        require(_feeBPS <= 2000, "20");
         stakingFeeBPS = _feeBPS;
         emit StakingFeeBPSSet(_feeBPS);
     }
@@ -1561,53 +1574,9 @@ contract PizzaPartyV2Upgradeable is OwnableUpgradeable, UUPSUpgradeable, Reentra
      * @param _feeBPS Fee in basis points
      */
     function adminSetParlorFeeBPS(uint256 _feeBPS) external onlyOwner {
-        require(_feeBPS <= 1500, "Max 15%");
+        require(_feeBPS <= 1500, "15");
         parlorFeeBPS = _feeBPS;
         emit ParlorFeeBPSSet(_feeBPS);
     }
 
-    // ============================================================
-    // STAKING INTEGRATION - DORMANT CODE (activate when ready)
-    // ============================================================
-    //
-    // When staking is activated, the following changes will be made:
-    //
-    // 1. NEW POT DISTRIBUTION (replace current 94/3/3 split):
-    //    - Winners: 80% (was 94%)
-    //    - Stakers: 10% (new)
-    //    - Parlors: 7% (was 3% owner fee)
-    //    - Charity: 3% (unchanged)
-    //
-    // 2. In _settleDailyGame(), ADD before winner distribution:
-    //
-    //    // STAKING FEE (10%)
-    //    if (stakingFeeBPS > 0 && stakingContract != address(0)) {
-    //        uint256 stakingFee = (pot * stakingFeeBPS) / BPS_DENOMINATOR;
-    //        if (stakingFee > 0) {
-    //            pizzaToken.safeTransfer(stakingContract, stakingFee);
-    //            IPizzaStaking(stakingContract).notifyRewardAmount(stakingFee);
-    //            emit StakingRewardsDistributed(gameId, stakingFee);
-    //        }
-    //    }
-    //
-    // 3. In claimToppings(), ADD staking tier bonus:
-    //
-    //    // STAKING TOPPING BONUS
-    //    if (stakingContract != address(0)) {
-    //        uint256 stakingBonus = IPizzaStaking(stakingContract).getToppingBonus(msg.sender);
-    //        if (stakingBonus > 0) {
-    //            player.toppingsEarned += stakingBonus;
-    //            playerStats[msg.sender].lifetimeToppings += stakingBonus;
-    //            emit ToppingsEarned(weekId, msg.sender, stakingBonus, "staking_bonus");
-    //        }
-    //    }
-    //
-    // 4. DEPLOYMENT CHECKLIST:
-    //    - adminSetStakingContract(stakingContractAddress)
-    //    - adminSetStakingFeeBPS(1000)  // 10%
-    //    - adminSetParlorFeeBPS(700)    // 7%
-    //    - Update PLAYERS_POOL_BPS constant to 8000 (80%)
-    //    - Update ownerFeeBPS flow to use parlorFeeBPS
-    //
-    // ============================================================
 }

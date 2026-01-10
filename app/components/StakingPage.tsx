@@ -1,11 +1,20 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useMemo } from 'react'
 import Image from 'next/image'
 import { Button } from './ui/button'
 import { Card } from './ui/card'
-import { ArrowLeft, Lock, Unlock, TrendingUp, Gift, Coins, AlertTriangle, Info, XCircle } from 'lucide-react'
-import { useAccount } from 'wagmi'
+import { ArrowLeft, Lock, Unlock, TrendingUp, Gift, Coins, AlertTriangle, Info, XCircle, CheckCircle, Loader2 } from 'lucide-react'
+import { useAccount, useReadContract, useWriteContract, useWaitForTransactionReceipt } from 'wagmi'
+import { formatUnits, parseUnits } from 'viem'
+import {
+  PIZZA_STAKING_ADDRESS,
+  PIZZA_STAKING_ABI,
+  PIZZA_TOKEN_ADDRESS,
+  PIZZA_TOKEN_ABI,
+  PIZZA_PARTY_ADDRESS,
+  PIZZA_PARTY_ABI,
+} from '@/lib/constants'
 
 interface StakingPageProps {
   onBack?: () => void
@@ -15,16 +24,21 @@ interface StakingPageProps {
   onNavigateToParlor?: () => void
   onNavigateToHome?: () => void
   userFid?: number | null
-  authToken?: string | null // Farcaster auth token for API calls
+  authToken?: string | null
 }
 
 // Staking Tiers - yield bonuses are ADDITIVE (not multiplicative)
+// NOTE: Thresholds are for 10M supply testing. Multiply by 1000 for 10B supply.
 const STAKING_TIERS = [
   { id: 0, name: 'Slice Runner', minStake: 0, yieldBoost: '+1.5%', toppingBonus: 0, color: 'bg-gray-500', emoji: '🍕' },
-  { id: 1, name: 'Oven Operator', minStake: 50_000_000, yieldBoost: '+5%', toppingBonus: 1, color: 'bg-green-500', emoji: '🔥' },
-  { id: 2, name: 'Pie Boss', minStake: 200_000_000, yieldBoost: '+10%', toppingBonus: 3, color: 'bg-orange-500', emoji: '👨‍🍳' },
-  { id: 3, name: 'Pizza Tycoon', minStake: 500_000_000, yieldBoost: '+20%', toppingBonus: 5, color: 'bg-red-600', emoji: '👑' },
+  { id: 1, name: 'Oven Operator', minStake: 50_000, yieldBoost: '+5%', toppingBonus: 1, color: 'bg-green-500', emoji: '🔥' },
+  { id: 2, name: 'Pie Boss', minStake: 200_000, yieldBoost: '+10%', toppingBonus: 3, color: 'bg-orange-500', emoji: '👨‍🍳' },
+  { id: 3, name: 'Pizza Tycoon', minStake: 500_000, yieldBoost: '+20%', toppingBonus: 5, color: 'bg-red-600', emoji: '👑' },
 ]
+
+// Staking limits for 10M supply testing. Change for 10B supply.
+const MIN_STAKE = 100 // 100 PIZZA minimum
+const MAX_STAKE = 1_000_000 // 1M PIZZA maximum (10% of supply)
 
 // Spin the Pie outcomes
 const SPIN_OUTCOMES = [
@@ -36,8 +50,8 @@ const SPIN_OUTCOMES = [
 
 // Lock Types - bonuses are ADDITIVE (not multiplicative)
 const LOCK_TYPES = [
-  { id: 'flexible', name: 'No Lock', bonus: '+0%', duration: 'No lock', penalty: 'None', icon: Unlock },
-  { id: 'locked', name: '7-Day Lock', bonus: '+10%', duration: '7 days', penalty: '15% early exit', icon: Lock },
+  { id: 'flexible', name: 'No Lock', bonus: '+0%', duration: 'No lock', penalty: 'None', icon: Unlock, lockType: 0 },
+  { id: 'locked', name: '7-Day Lock', bonus: '+10%', duration: '7 days', penalty: '15% early exit', icon: Lock, lockType: 1 },
 ]
 
 const customFontStyle = {
@@ -45,7 +59,17 @@ const customFontStyle = {
   fontWeight: 'bold' as const,
 }
 
-// Helper to format large numbers
+// Helper to format large numbers from wei (18 decimals)
+const formatPizzaWei = (amountWei: bigint | undefined): string => {
+  if (!amountWei) return '0'
+  const amount = Number(formatUnits(amountWei, 18))
+  if (amount >= 1_000_000_000) return `${(amount / 1_000_000_000).toFixed(2)}B`
+  if (amount >= 1_000_000) return `${(amount / 1_000_000).toFixed(2)}M`
+  if (amount >= 1_000) return `${(amount / 1_000).toFixed(2)}K`
+  return amount.toFixed(2)
+}
+
+// Format regular numbers
 const formatPizza = (amount: number): string => {
   if (amount >= 1_000_000_000) return `${(amount / 1_000_000_000).toFixed(2)}B`
   if (amount >= 1_000_000) return `${(amount / 1_000_000).toFixed(2)}M`
@@ -53,7 +77,7 @@ const formatPizza = (amount: number): string => {
   return amount.toFixed(2)
 }
 
-// Get tier from staked amount
+// Get tier from staked amount (in whole tokens, not wei)
 const getTierFromAmount = (amount: number): typeof STAKING_TIERS[0] => {
   for (let i = STAKING_TIERS.length - 1; i >= 0; i--) {
     if (amount >= STAKING_TIERS[i].minStake) {
@@ -79,6 +103,14 @@ export default function StakingPage({
   const [spinRotation, setSpinRotation] = useState(0)
   const [spinResult, setSpinResult] = useState<typeof SPIN_OUTCOMES[0] | null>(null)
 
+  // UI state
+  const [stakeAmount, setStakeAmount] = useState('')
+  const [selectedLockType, setSelectedLockType] = useState<0 | 1>(1) // 0 = flexible, 1 = locked
+  const [showStakeInput, setShowStakeInput] = useState(false)
+  const [showConfirmModal, setShowConfirmModal] = useState<'stake' | 'unstake' | 'claim' | null>(null)
+  const [unstakeAmount, setUnstakeAmount] = useState('')
+  const [unstakeLockType, setUnstakeLockType] = useState<0 | 1>(0)
+
   // Anti-sybil: Track if this FID already has a staking position
   const [stakingEligibility, setStakingEligibility] = useState<{
     canStake: boolean
@@ -87,28 +119,166 @@ export default function StakingPage({
     loading: boolean
   }>({ canStake: true, loading: true })
 
-  // Mock staking state (will be replaced with contract reads)
-  const [stakeAmount, setStakeAmount] = useState('')
-  const [selectedLockType, setSelectedLockType] = useState<'flexible' | 'locked'>('locked')
-  const [showStakeInput, setShowStakeInput] = useState(false)
+  // === CONTRACT READS ===
 
-  // Mock user position (will come from contract)
-  const [userPosition, setUserPosition] = useState<{
-    stakedAmount: number
-    lockType: 'flexible' | 'locked'
-    lockEndTime: number
-    pendingRewards: number // Rewards ready to claim (after spinning)
-    spinnableRewards: number // Rewards available to spin
-    lastClaimTime: number
-  } | null>(null)
+  // Read user's PIZZA balance
+  const { data: pizzaBalance, refetch: refetchBalance } = useReadContract({
+    address: PIZZA_TOKEN_ADDRESS as `0x${string}`,
+    abi: PIZZA_TOKEN_ABI,
+    functionName: 'balanceOf',
+    args: address ? [address] : undefined,
+    query: { enabled: !!address },
+  })
 
-  // Mock wallet balance
-  const [walletBalance] = useState(100_000_000) // 100M PIZZA for demo
+  // Read allowance for staking contract
+  const { data: allowance, refetch: refetchAllowance } = useReadContract({
+    address: PIZZA_TOKEN_ADDRESS as `0x${string}`,
+    abi: PIZZA_TOKEN_ABI,
+    functionName: 'allowance',
+    args: address ? [address, PIZZA_STAKING_ADDRESS as `0x${string}`] : undefined,
+    query: { enabled: !!address },
+  })
 
-  // Early staker boost end time (60 days from launch)
-  const [boostEndTime] = useState(Date.now() + 60 * 24 * 60 * 60 * 1000) // Demo: 60 days from now
+  // Read user's stake info from contract
+  const { data: stakeInfo, refetch: refetchStakeInfo } = useReadContract({
+    address: PIZZA_STAKING_ADDRESS as `0x${string}`,
+    abi: PIZZA_STAKING_ABI,
+    functionName: 'getStakeInfo',
+    args: address ? [address] : undefined,
+    query: { enabled: !!address },
+  })
 
-  // Check staking eligibility (anti-sybil)
+  // Read boost end time
+  const { data: boostEndTime } = useReadContract({
+    address: PIZZA_STAKING_ADDRESS as `0x${string}`,
+    abi: PIZZA_STAKING_ABI,
+    functionName: 'boostEndTime',
+  })
+
+  // Read total staked in pool
+  const { data: totalStakedPool } = useReadContract({
+    address: PIZZA_STAKING_ADDRESS as `0x${string}`,
+    abi: PIZZA_STAKING_ABI,
+    functionName: 'totalStaked',
+  })
+
+  // Read bonus pool
+  const { data: bonusPool } = useReadContract({
+    address: PIZZA_STAKING_ADDRESS as `0x${string}`,
+    abi: PIZZA_STAKING_ABI,
+    functionName: 'bonusPool',
+  })
+
+  // Read spin enabled status
+  const { data: spinEnabled } = useReadContract({
+    address: PIZZA_STAKING_ADDRESS as `0x${string}`,
+    abi: PIZZA_STAKING_ABI,
+    functionName: 'spinEnabled',
+  })
+
+  // Read current game ID (for spin tracking)
+  const { data: currentGameId } = useReadContract({
+    address: PIZZA_PARTY_ADDRESS as `0x${string}`,
+    abi: PIZZA_PARTY_ABI,
+    functionName: 'dailyGameId',
+  })
+
+  // Read last spin game ID for user
+  const { data: lastSpinGameId } = useReadContract({
+    address: PIZZA_STAKING_ADDRESS as `0x${string}`,
+    abi: PIZZA_STAKING_ABI,
+    functionName: 'lastSpinGameId',
+    args: address ? [address] : undefined,
+    query: { enabled: !!address },
+  })
+
+  // === CONTRACT WRITES ===
+
+  const { writeContract, data: writeHash, isPending: isWritePending, reset: resetWrite } = useWriteContract()
+
+  const { isLoading: isConfirming, isSuccess: isConfirmed } = useWaitForTransactionReceipt({
+    hash: writeHash,
+  })
+
+  // Refetch data after successful transaction
+  useEffect(() => {
+    if (isConfirmed) {
+      refetchBalance()
+      refetchAllowance()
+      refetchStakeInfo()
+      setShowConfirmModal(null)
+      setStakeAmount('')
+      setUnstakeAmount('')
+      setShowStakeInput(false)
+      resetWrite()
+    }
+  }, [isConfirmed, refetchBalance, refetchAllowance, refetchStakeInfo, resetWrite])
+
+  // === COMPUTED VALUES ===
+
+  // Parse stake info tuple
+  const userPosition = useMemo(() => {
+    if (!stakeInfo) return null
+    const [totalStakedAmount, flexibleAmount, lockedAmount, tier, lockEndTimestamp, totalPendingRewards, isEarlyBoostActive] = stakeInfo as [bigint, bigint, bigint, number, bigint, bigint, boolean]
+
+    if (totalStakedAmount === 0n) return null
+
+    return {
+      totalStakedAmount,
+      flexibleAmount,
+      lockedAmount,
+      tier,
+      lockEndTimestamp: Number(lockEndTimestamp) * 1000, // Convert to ms
+      totalPendingRewards,
+      isEarlyBoostActive,
+    }
+  }, [stakeInfo])
+
+  // Get current tier from contract data
+  const currentTier = useMemo(() => {
+    if (!userPosition) return STAKING_TIERS[0]
+    return STAKING_TIERS[userPosition.tier] || STAKING_TIERS[0]
+  }, [userPosition])
+
+  // Check if user can spin today
+  const canSpinToday = useMemo(() => {
+    if (!spinEnabled) return false
+    if (!currentGameId || !lastSpinGameId) return true
+    return lastSpinGameId !== currentGameId
+  }, [spinEnabled, currentGameId, lastSpinGameId])
+
+  // Has pending rewards that can be claimed
+  const hasPendingRewards = useMemo(() => {
+    if (!userPosition) return false
+    return userPosition.totalPendingRewards > 0n
+  }, [userPosition])
+
+  // Calculate days remaining for early staker boost
+  const boostDaysRemaining = useMemo(() => {
+    if (!boostEndTime) return 0
+    const remaining = Number(boostEndTime) * 1000 - Date.now()
+    return Math.max(0, Math.ceil(remaining / (24 * 60 * 60 * 1000)))
+  }, [boostEndTime])
+
+  // Time until unlock
+  const timeUntilUnlock = useMemo(() => {
+    if (!userPosition || userPosition.lockedAmount === 0n) return 'Unlocked'
+    const remaining = userPosition.lockEndTimestamp - Date.now()
+    if (remaining <= 0) return 'Unlocked'
+    const days = Math.floor(remaining / (24 * 60 * 60 * 1000))
+    const hours = Math.floor((remaining % (24 * 60 * 60 * 1000)) / (60 * 60 * 1000))
+    return `${days}d ${hours}h`
+  }, [userPosition])
+
+  // Check if locked position is still locked
+  const isLocked = useMemo(() => {
+    if (!userPosition || userPosition.lockedAmount === 0n) return false
+    return userPosition.lockEndTimestamp > Date.now()
+  }, [userPosition])
+
+  // === HANDLERS ===
+
+  // Check staking eligibility (anti-sybil via API)
   const checkStakingEligibility = useCallback(async () => {
     if (!authToken || !userFid) {
       setStakingEligibility({ canStake: false, reason: 'no_auth', loading: false })
@@ -133,7 +303,7 @@ export default function StakingPage({
       }
     } catch (error) {
       console.error('[Staking] Failed to check eligibility:', error)
-      setStakingEligibility({ canStake: true, loading: false }) // Allow staking on API error
+      setStakingEligibility({ canStake: true, loading: false })
     }
   }, [authToken, userFid])
 
@@ -152,71 +322,6 @@ export default function StakingPage({
     if (onNavigateToHome) {
       onNavigateToHome()
     }
-  }
-
-  // Calculate days remaining for early staker boost
-  const getBoostDaysRemaining = (): number => {
-    const remaining = boostEndTime - Date.now()
-    return Math.max(0, Math.ceil(remaining / (24 * 60 * 60 * 1000)))
-  }
-
-  // Demo spin animation with result - spins and adds winnings to pending rewards
-  const handleSpinAndWin = () => {
-    if (isSpinning || !userPosition || userPosition.spinnableRewards <= 0) return
-    setIsSpinning(true)
-    setSpinResult(null)
-
-    // Determine outcome based on chances
-    const rand = Math.random() * 100
-    let outcome: typeof SPIN_OUTCOMES[0]
-    if (rand < 73) outcome = SPIN_OUTCOMES[0] // Regular - 100%
-    else if (rand < 93) outcome = SPIN_OUTCOMES[1] // Loaded - 110%
-    else if (rand < 98) outcome = SPIN_OUTCOMES[2] // Hot - 125%
-    else outcome = SPIN_OUTCOMES[3] // Jackpot - 200%
-
-    // Spin 3-5 full rotations plus a random amount
-    const fullRotations = (3 + Math.random() * 2) * 360
-    const extraRotation = Math.random() * 360
-    setSpinRotation(prev => prev + fullRotations + extraRotation)
-
-    setTimeout(() => {
-      setIsSpinning(false)
-      setSpinResult(outcome)
-
-      // Calculate winnings based on spin result
-      const multiplier = parseInt(outcome.multiplier) / 100 // "100%" -> 1.0, "200%" -> 2.0
-      const winnings = userPosition.spinnableRewards * multiplier
-
-      // Move spinnable rewards to pending rewards (after multiplier)
-      setUserPosition(prev => prev ? {
-        ...prev,
-        pendingRewards: prev.pendingRewards + winnings,
-        spinnableRewards: 0, // Reset spinnable after spinning
-      } : null)
-    }, 3000)
-  }
-
-  // Demo spin for users without a position (just visual demo)
-  const handleDemoSpin = () => {
-    if (isSpinning) return
-    setIsSpinning(true)
-    setSpinResult(null)
-
-    const rand = Math.random() * 100
-    let outcome: typeof SPIN_OUTCOMES[0]
-    if (rand < 73) outcome = SPIN_OUTCOMES[0]
-    else if (rand < 93) outcome = SPIN_OUTCOMES[1]
-    else if (rand < 98) outcome = SPIN_OUTCOMES[2]
-    else outcome = SPIN_OUTCOMES[3]
-
-    const fullRotations = (3 + Math.random() * 2) * 360
-    const extraRotation = Math.random() * 360
-    setSpinRotation(prev => prev + fullRotations + extraRotation)
-
-    setTimeout(() => {
-      setIsSpinning(false)
-      setSpinResult(outcome)
-    }, 3000)
   }
 
   // Register staking position with API (for anti-sybil tracking)
@@ -239,105 +344,123 @@ export default function StakingPage({
     }
   }
 
-  // Remove staking position from API (after unstake)
-  const removeStakingPosition = async (): Promise<boolean> => {
-    if (!authToken) return false
-    try {
-      const response = await fetch('/api/staking', {
-        method: 'DELETE',
-        headers: { Authorization: `Bearer ${authToken}` },
-      })
-      const data = await response.json()
-      return data.success === true
-    } catch (error) {
-      console.error('[Staking] Failed to remove position:', error)
-      return false
-    }
-  }
-
-  // Mock stake handler
+  // Handle approve + stake
   const handleStake = async () => {
-    const amount = parseFloat(stakeAmount) || 0
-    if (amount < 100_000) {
-      alert('Minimum stake is 100,000 PIZZA')
-      return
-    }
-    if (amount > walletBalance) {
-      alert('Insufficient balance')
-      return
-    }
-    if (!address) {
-      alert('Please connect your wallet')
-      return
-    }
+    if (!address) return
+    const amountNum = parseFloat(stakeAmount)
+    if (isNaN(amountNum) || amountNum < MIN_STAKE) return
 
-    // Register position with API for anti-sybil tracking
-    const registered = await registerStakingPosition(address)
-    if (!registered) {
-      alert('Failed to register staking position. You may already have a position on another wallet.')
-      await checkStakingEligibility() // Refresh eligibility status
-      return
-    }
+    const amountWei = parseUnits(stakeAmount, 18)
 
-    // Demo: Set position with some spinnable rewards for testing
-    setUserPosition({
-      stakedAmount: amount,
-      lockType: selectedLockType,
-      lockEndTime: selectedLockType === 'locked' ? Date.now() + 7 * 24 * 60 * 60 * 1000 : 0,
-      pendingRewards: 0,
-      spinnableRewards: 50_000, // Demo: 50K PIZZA available to spin
-      lastClaimTime: Date.now(),
-    })
-    setStakeAmount('')
-    setShowStakeInput(false)
-  }
-
-  // Mock unstake handler
-  const handleUnstake = async () => {
-    if (!userPosition) return
-
-    const isLocked = userPosition.lockType === 'locked' && userPosition.lockEndTime > Date.now()
-    if (isLocked) {
-      const penalty = userPosition.stakedAmount * 0.15
-      if (!confirm(`Early unstake will cost you ${formatPizza(penalty)} PIZZA (15% penalty). Continue?`)) {
+    // Check if we need to approve first
+    const currentAllowance = allowance as bigint || 0n
+    if (currentAllowance < amountWei) {
+      // Approve first
+      writeContract({
+        address: PIZZA_TOKEN_ADDRESS as `0x${string}`,
+        abi: PIZZA_TOKEN_ABI,
+        functionName: 'approve',
+        args: [PIZZA_STAKING_ADDRESS as `0x${string}`, amountWei],
+      })
+    } else {
+      // Already approved, stake directly
+      // Register with API first
+      const registered = await registerStakingPosition(address)
+      if (!registered && !userPosition) {
+        alert('Failed to register staking position. You may already have a position on another wallet.')
+        await checkStakingEligibility()
         return
       }
+
+      writeContract({
+        address: PIZZA_STAKING_ADDRESS as `0x${string}`,
+        abi: PIZZA_STAKING_ABI,
+        functionName: 'stake',
+        args: [amountWei, selectedLockType],
+      })
     }
-
-    // Remove position from API tracking
-    await removeStakingPosition()
-
-    setUserPosition(null)
-    // Refresh eligibility so user can stake again on this or another wallet
-    await checkStakingEligibility()
   }
 
-  // Mock claim handler - claims pending rewards (no spin)
+  // After approval completes, stake
+  useEffect(() => {
+    const performStakeAfterApproval = async () => {
+      if (isConfirmed && stakeAmount && showConfirmModal === 'stake') {
+        const amountWei = parseUnits(stakeAmount, 18)
+        const currentAllowance = allowance as bigint || 0n
+
+        if (currentAllowance >= amountWei && address) {
+          // Register with API first
+          const registered = await registerStakingPosition(address)
+          if (!registered && !userPosition) {
+            alert('Failed to register staking position.')
+            return
+          }
+
+          resetWrite()
+          writeContract({
+            address: PIZZA_STAKING_ADDRESS as `0x${string}`,
+            abi: PIZZA_STAKING_ABI,
+            functionName: 'stake',
+            args: [amountWei, selectedLockType],
+          })
+        }
+      }
+    }
+    performStakeAfterApproval()
+  }, [isConfirmed, allowance, stakeAmount, selectedLockType, showConfirmModal, address, userPosition, resetWrite, writeContract])
+
+  // Handle unstake
+  const handleUnstake = () => {
+    if (!userPosition) return
+    const amountNum = parseFloat(unstakeAmount)
+    if (isNaN(amountNum) || amountNum <= 0) return
+
+    const amountWei = parseUnits(unstakeAmount, 18)
+
+    writeContract({
+      address: PIZZA_STAKING_ADDRESS as `0x${string}`,
+      abi: PIZZA_STAKING_ABI,
+      functionName: 'unstake',
+      args: [amountWei, unstakeLockType],
+    })
+  }
+
+  // Handle claim (includes spin if enabled)
   const handleClaim = () => {
-    if (!userPosition || userPosition.pendingRewards <= 0) return
-
-    // In production, this would call the contract to transfer PIZZA to user
-    alert(`Claimed ${formatPizza(userPosition.pendingRewards)} PIZZA!`)
-
-    setUserPosition(prev => prev ? {
-      ...prev,
-      pendingRewards: 0,
-      lastClaimTime: Date.now(),
-    } : null)
+    writeContract({
+      address: PIZZA_STAKING_ADDRESS as `0x${string}`,
+      abi: PIZZA_STAKING_ABI,
+      functionName: 'claim',
+    })
   }
 
-  // Get current tier
-  const currentTier = userPosition ? getTierFromAmount(userPosition.stakedAmount) : STAKING_TIERS[0]
+  // Demo spin animation (visual only)
+  const handleDemoSpin = () => {
+    if (isSpinning) return
+    setIsSpinning(true)
+    setSpinResult(null)
 
-  // Calculate time until unlock
-  const getTimeUntilUnlock = (): string => {
-    if (!userPosition || userPosition.lockType === 'flexible') return 'Unlocked'
-    const remaining = userPosition.lockEndTime - Date.now()
-    if (remaining <= 0) return 'Unlocked'
-    const days = Math.floor(remaining / (24 * 60 * 60 * 1000))
-    const hours = Math.floor((remaining % (24 * 60 * 60 * 1000)) / (60 * 60 * 1000))
-    return `${days}d ${hours}h`
+    const rand = Math.random() * 100
+    let outcome: typeof SPIN_OUTCOMES[0]
+    if (rand < 73) outcome = SPIN_OUTCOMES[0]
+    else if (rand < 93) outcome = SPIN_OUTCOMES[1]
+    else if (rand < 98) outcome = SPIN_OUTCOMES[2]
+    else outcome = SPIN_OUTCOMES[3]
+
+    const fullRotations = (3 + Math.random() * 2) * 360
+    const extraRotation = Math.random() * 360
+    setSpinRotation(prev => prev + fullRotations + extraRotation)
+
+    setTimeout(() => {
+      setIsSpinning(false)
+      setSpinResult(outcome)
+    }, 3000)
   }
+
+  // Derived values for display
+  const walletBalanceDisplay = formatPizzaWei(pizzaBalance as bigint | undefined)
+  const totalStakedPoolDisplay = formatPizzaWei(totalStakedPool as bigint | undefined)
+  const bonusPoolDisplay = formatPizzaWei(bonusPool as bigint | undefined)
 
   return (
     <div
@@ -380,8 +503,8 @@ export default function StakingPage({
             {/* Your Position Card */}
             <Card className="border-4 border-green-600 rounded-2xl bg-white/95 !py-0">
               <div className="px-3 pb-2 pt-1">
-                {/* Early Staker Boost Banner - on top inside position card */}
-                {getBoostDaysRemaining() > 0 && (
+                {/* Early Staker Boost Banner */}
+                {boostDaysRemaining > 0 && (
                   <div className="bg-gradient-to-r from-yellow-400 to-orange-400 rounded-lg px-2 py-1.5 border-2 border-yellow-600 flex items-center gap-2 mb-3">
                     <Gift className="text-yellow-800" size={16} />
                     <div className="flex-1">
@@ -389,7 +512,7 @@ export default function StakingPage({
                         EARLY STAKER BOOST ACTIVE!
                       </p>
                       <p className="text-yellow-800 text-xs">
-                        +30% rewards for {getBoostDaysRemaining()} more days
+                        +30% rewards for {boostDaysRemaining} more days
                       </p>
                     </div>
                     <TrendingUp className="text-yellow-800" size={16} />
@@ -414,68 +537,65 @@ export default function StakingPage({
                       </p>
                     </div>
 
-                    {/* Position Details */}
-                    <div className="grid grid-cols-2 gap-2">
+                    {/* Position Details - Flexible */}
+                    {userPosition.flexibleAmount > 0n && (
                       <div className="bg-green-50 rounded-lg p-2 border border-green-200">
                         <div className="flex items-center gap-1 text-green-600 text-xs mb-1">
-                          <Coins size={14} />
-                          <span>Staked</span>
+                          <Unlock size={14} />
+                          <span>Flexible Stake</span>
                         </div>
                         <p className="text-green-800 font-bold" style={customFontStyle}>
-                          {formatPizza(userPosition.stakedAmount)} PIZZA
+                          {formatPizzaWei(userPosition.flexibleAmount)} PIZZA
                         </p>
                       </div>
+                    )}
 
-                      <div className="bg-green-50 rounded-lg p-2 border border-green-200">
-                        <div className="flex items-center gap-1 text-green-600 text-xs mb-1">
-                          {userPosition.lockType === 'locked' ? <Lock size={14} /> : <Unlock size={14} />}
-                          <span>Lock Status</span>
+                    {/* Position Details - Locked */}
+                    {userPosition.lockedAmount > 0n && (
+                      <div className="bg-blue-50 rounded-lg p-2 border border-blue-200">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-1 text-blue-600 text-xs mb-1">
+                            <Lock size={14} />
+                            <span>Locked Stake</span>
+                          </div>
+                          <span className="text-blue-600 text-xs">{timeUntilUnlock}</span>
                         </div>
-                        <p className="text-green-800 font-bold" style={customFontStyle}>
-                          {getTimeUntilUnlock()}
+                        <p className="text-blue-800 font-bold" style={customFontStyle}>
+                          {formatPizzaWei(userPosition.lockedAmount)} PIZZA
                         </p>
                       </div>
-                    </div>
+                    )}
 
-                    {/* Spinnable Rewards - must spin first */}
-                    <div className="bg-orange-50 rounded-lg p-3 border-2 border-orange-300">
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <p className="text-orange-700 text-xs">Available to Spin</p>
-                          <p className="text-orange-800 font-bold text-xl" style={customFontStyle}>
-                            {formatPizza(userPosition.spinnableRewards)} PIZZA
-                          </p>
-                        </div>
-                        <Button
-                          onClick={handleSpinAndWin}
-                          disabled={userPosition.spinnableRewards <= 0 || isSpinning}
-                          className="!bg-orange-500 hover:!bg-orange-600 text-white font-bold py-2 px-4 rounded-xl border-2 border-orange-700 disabled:opacity-50"
-                          style={customFontStyle}
-                        >
-                          {isSpinning ? 'SPINNING...' : 'SPIN & WIN'}
-                        </Button>
-                      </div>
-                      <p className="text-orange-600 text-xs mt-1">Spin the wheel to multiply your rewards!</p>
-                    </div>
-
-                    {/* Pending Rewards - ready to claim */}
+                    {/* Pending Rewards */}
                     <div className="bg-yellow-50 rounded-lg p-3 border-2 border-yellow-300">
                       <div className="flex items-center justify-between">
                         <div>
-                          <p className="text-yellow-700 text-xs">Pending Rewards (Ready to Claim)</p>
+                          <p className="text-yellow-700 text-xs">Pending Rewards</p>
                           <p className="text-yellow-800 font-bold text-xl" style={customFontStyle}>
-                            {formatPizza(userPosition.pendingRewards)} PIZZA
+                            {formatPizzaWei(userPosition.totalPendingRewards)} PIZZA
                           </p>
                         </div>
                         <Button
-                          onClick={handleClaim}
-                          disabled={userPosition.pendingRewards <= 0 || isSpinning}
+                          onClick={() => setShowConfirmModal('claim')}
+                          disabled={!hasPendingRewards || isWritePending || isConfirming}
                           className="!bg-yellow-500 hover:!bg-yellow-600 text-white font-bold py-2 px-4 rounded-xl border-2 border-yellow-700 disabled:opacity-50"
                           style={customFontStyle}
                         >
-                          CLAIM
+                          {isWritePending || isConfirming ? (
+                            <Loader2 className="animate-spin" size={16} />
+                          ) : spinEnabled && canSpinToday ? (
+                            'SPIN & CLAIM'
+                          ) : (
+                            'CLAIM'
+                          )}
                         </Button>
                       </div>
+                      {spinEnabled && canSpinToday && hasPendingRewards && (
+                        <p className="text-yellow-600 text-xs mt-1">Spin the wheel to multiply your rewards!</p>
+                      )}
+                      {spinEnabled && !canSpinToday && (
+                        <p className="text-yellow-600 text-xs mt-1">Already spun today - claim at 100%</p>
+                      )}
                     </div>
 
                     {/* Yield Bonus Breakdown */}
@@ -485,10 +605,12 @@ export default function StakingPage({
                         <span className="bg-green-100 text-green-700 px-2 py-0.5 rounded">
                           Tier: {currentTier.yieldBoost}
                         </span>
-                        <span className="bg-blue-100 text-blue-700 px-2 py-0.5 rounded">
-                          Lock: {userPosition.lockType === 'locked' ? '+10%' : '+0%'}
-                        </span>
-                        {getBoostDaysRemaining() > 0 && (
+                        {userPosition.lockedAmount > 0n && (
+                          <span className="bg-blue-100 text-blue-700 px-2 py-0.5 rounded">
+                            Lock: +10%
+                          </span>
+                        )}
+                        {userPosition.isEarlyBoostActive && (
                           <span className="bg-yellow-100 text-yellow-700 px-2 py-0.5 rounded">
                             Early: +30%
                           </span>
@@ -496,32 +618,54 @@ export default function StakingPage({
                       </div>
                     </div>
 
-                    {/* Unstake Button */}
-                    <Button
-                      onClick={handleUnstake}
-                      className="w-full !bg-red-500 hover:!bg-red-600 text-white font-bold py-2 rounded-xl border-2 border-red-700"
-                      style={customFontStyle}
-                    >
-                      {userPosition.lockType === 'locked' && userPosition.lockEndTime > Date.now() ? (
-                        <span className="flex items-center justify-center gap-2">
-                          <AlertTriangle size={16} />
-                          UNSTAKE (15% PENALTY)
-                        </span>
-                      ) : (
-                        'UNSTAKE'
-                      )}
-                    </Button>
+                    {/* Add More / Unstake Buttons */}
+                    <div className="flex gap-2">
+                      <Button
+                        onClick={() => setShowStakeInput(true)}
+                        className="flex-1 !bg-green-500 hover:!bg-green-600 text-white font-bold py-2 rounded-xl border-2 border-green-700"
+                        style={customFontStyle}
+                      >
+                        ADD MORE
+                      </Button>
+                      <Button
+                        onClick={() => setShowConfirmModal('unstake')}
+                        className="flex-1 !bg-red-500 hover:!bg-red-600 text-white font-bold py-2 rounded-xl border-2 border-red-700"
+                        style={customFontStyle}
+                      >
+                        {isLocked ? (
+                          <span className="flex items-center justify-center gap-1">
+                            <AlertTriangle size={14} />
+                            UNSTAKE
+                          </span>
+                        ) : (
+                          'UNSTAKE'
+                        )}
+                      </Button>
+                    </div>
                   </div>
                 ) : (
                   // No position - Show stake interface or blocked message
                   <div className="space-y-2">
-                    {/* Loading state */}
                     {stakingEligibility.loading ? (
                       <div className="text-center py-4">
-                        <p className="text-gray-500 text-sm">Checking eligibility...</p>
+                        <Loader2 className="animate-spin mx-auto text-gray-400" size={24} />
+                        <p className="text-gray-500 text-sm mt-2">Checking eligibility...</p>
+                      </div>
+                    ) : !stakingEligibility.canStake && stakingEligibility.reason === 'not_whitelisted' ? (
+                      // BLOCKED: Not in whitelist
+                      <div className="bg-orange-50 rounded-xl p-4 border-2 border-orange-300">
+                        <div className="flex items-center gap-3 mb-2">
+                          <AlertTriangle className="text-orange-500" size={24} />
+                          <p className="text-orange-700 font-bold" style={customFontStyle}>
+                            Private Testing
+                          </p>
+                        </div>
+                        <p className="text-orange-600 text-sm">
+                          Staking is currently in private testing mode. Check back soon!
+                        </p>
                       </div>
                     ) : !stakingEligibility.canStake && stakingEligibility.reason === 'fid_already_staking' ? (
-                      // BLOCKED: User already has a staking position on another wallet
+                      // BLOCKED: Already has position on another wallet
                       <div className="bg-red-50 rounded-xl p-4 border-2 border-red-300">
                         <div className="flex items-center gap-3 mb-2">
                           <XCircle className="text-red-500" size={24} />
@@ -532,29 +676,20 @@ export default function StakingPage({
                         <p className="text-red-600 text-sm mb-2">
                           Your Farcaster account already has an active staking position on another wallet.
                         </p>
-                        <p className="text-red-500 text-xs">
-                          Each Farcaster account can only have ONE staking position to prevent multi-wallet abuse.
-                        </p>
                         {stakingEligibility.existingWallet && (
-                          <div className="mt-3 bg-red-100 rounded-lg p-2">
-                            <p className="text-red-600 text-xs">
-                              Existing position wallet:
-                            </p>
-                            <p className="text-red-700 text-xs font-mono break-all">
-                              {stakingEligibility.existingWallet}
-                            </p>
-                          </div>
+                          <p className="text-red-500 text-xs font-mono break-all">
+                            Wallet: {stakingEligibility.existingWallet}
+                          </p>
                         )}
-                        <p className="text-red-500 text-xs mt-3 italic">
-                          To stake with this wallet, first unstake from your other wallet.
-                        </p>
                       </div>
                     ) : !showStakeInput ? (
                       <>
                         <div className="text-center py-1">
-                          <p className="text-gray-500 text-sm mb-1" style={{ fontFamily: 'var(--font-luckiest-guy)' }}>You have no staked position</p>
+                          <p className="text-gray-500 text-sm mb-1" style={{ fontFamily: 'var(--font-luckiest-guy)' }}>
+                            You have no staked position
+                          </p>
                           <p className="text-green-600 font-bold" style={{ fontFamily: 'var(--font-luckiest-guy)' }}>
-                            Wallet: {formatPizza(walletBalance)} PIZZA
+                            Wallet: {walletBalanceDisplay} PIZZA
                           </p>
                         </div>
                         <Button
@@ -577,12 +712,16 @@ export default function StakingPage({
                               type="number"
                               value={stakeAmount}
                               onChange={(e) => setStakeAmount(e.target.value)}
-                              placeholder="Min: 100,000 PIZZA"
+                              placeholder={`Min: ${formatPizza(MIN_STAKE)} PIZZA`}
                               className="flex-1 px-3 py-2 border-2 border-green-300 rounded-xl focus:border-green-500 focus:outline-none"
                               style={{ fontFamily: 'var(--font-luckiest-guy)' }}
                             />
                             <Button
-                              onClick={() => setStakeAmount(walletBalance.toString())}
+                              onClick={() => {
+                                if (pizzaBalance) {
+                                  setStakeAmount(formatUnits(pizzaBalance as bigint, 18))
+                                }
+                              }}
                               className="!bg-green-200 hover:!bg-green-300 text-green-700 font-bold px-3 rounded-xl border-2 border-green-400"
                               style={{ fontFamily: 'var(--font-luckiest-guy)' }}
                             >
@@ -590,12 +729,12 @@ export default function StakingPage({
                             </Button>
                           </div>
                           <p className="text-gray-500 text-xs mt-1" style={{ fontFamily: 'var(--font-luckiest-guy)' }}>
-                            Balance: {formatPizza(walletBalance)} PIZZA
+                            Balance: {walletBalanceDisplay} PIZZA
                           </p>
                         </div>
 
                         {/* Preview Tier */}
-                        {stakeAmount && parseFloat(stakeAmount) >= 100_000 && (
+                        {stakeAmount && parseFloat(stakeAmount) >= MIN_STAKE && (
                           <div className="bg-green-50 rounded-lg p-2 border border-green-200">
                             <p className="text-green-600 text-xs mb-1" style={{ fontFamily: 'var(--font-luckiest-guy)' }}>Your tier will be:</p>
                             <div className="flex items-center gap-2">
@@ -615,11 +754,11 @@ export default function StakingPage({
                           <div className="grid grid-cols-2 gap-2">
                             {LOCK_TYPES.map((lockType) => {
                               const Icon = lockType.icon
-                              const isSelected = selectedLockType === lockType.id
+                              const isSelected = selectedLockType === lockType.lockType
                               return (
                                 <button
                                   key={lockType.id}
-                                  onClick={() => setSelectedLockType(lockType.id as 'flexible' | 'locked')}
+                                  onClick={() => setSelectedLockType(lockType.lockType as 0 | 1)}
                                   className={`p-3 rounded-xl border-2 transition-all ${
                                     isSelected
                                       ? 'border-green-500 bg-green-100'
@@ -654,12 +793,16 @@ export default function StakingPage({
                             CANCEL
                           </Button>
                           <Button
-                            onClick={handleStake}
-                            disabled={!stakeAmount || parseFloat(stakeAmount) < 100_000}
+                            onClick={() => setShowConfirmModal('stake')}
+                            disabled={!stakeAmount || parseFloat(stakeAmount) < MIN_STAKE || isWritePending || isConfirming}
                             className="flex-1 !bg-green-500 hover:!bg-green-600 text-white font-bold py-2 rounded-xl border-2 border-green-700 disabled:opacity-50"
                             style={customFontStyle}
                           >
-                            STAKE
+                            {isWritePending || isConfirming ? (
+                              <Loader2 className="animate-spin" size={16} />
+                            ) : (
+                              'STAKE'
+                            )}
                           </Button>
                         </div>
                       </>
@@ -718,7 +861,7 @@ export default function StakingPage({
                 </div>
               )}
 
-              {/* Spin Button (only if no position - demo mode) */}
+              {/* Spin Button (demo mode for non-stakers) */}
               {!userPosition && (
                 <Button
                   onClick={handleDemoSpin}
@@ -726,7 +869,7 @@ export default function StakingPage({
                   className="w-full mt-4 !bg-yellow-500 hover:!bg-yellow-600 text-white font-bold py-2 rounded-xl border-4 border-yellow-700"
                   style={{ ...customFontStyle, fontSize: 16 }}
                 >
-                  {isSpinning ? 'SPINNING...' : 'SPIN & WIN'}
+                  {isSpinning ? 'SPINNING...' : 'TRY DEMO SPIN'}
                 </Button>
               )}
 
@@ -782,7 +925,7 @@ export default function StakingPage({
                             className={`text-xs ${isCurrentTier ? 'text-white/90' : 'text-orange-500'}`}
                             style={{ fontFamily: 'var(--font-luckiest-guy)' }}
                           >
-                            {tier.minStake > 0 ? `${(tier.minStake / 1_000_000).toFixed(0)}M+ PIZZA` : 'Any amount'}
+                            {tier.minStake > 0 ? `${formatPizza(tier.minStake)}+ PIZZA` : 'Any amount'}
                           </span>
                         </div>
                         <div className={`flex justify-between text-xs mt-1 ${isCurrentTier ? 'text-white/80' : 'text-orange-600'}`} style={{ fontFamily: 'var(--font-luckiest-guy)' }}>
@@ -808,19 +951,19 @@ export default function StakingPage({
                 <div className="grid grid-cols-2 gap-2">
                   <div className="bg-blue-50 rounded-lg p-2 text-center border border-blue-200">
                     <p className="text-blue-500 text-xs" style={{ fontFamily: 'var(--font-luckiest-guy)' }}>Total Staked</p>
-                    <p className="text-blue-700 font-bold" style={{ fontFamily: 'var(--font-luckiest-guy)' }}>--</p>
-                  </div>
-                  <div className="bg-blue-50 rounded-lg p-2 text-center border border-blue-200">
-                    <p className="text-blue-500 text-xs" style={{ fontFamily: 'var(--font-luckiest-guy)' }}>Total Stakers</p>
-                    <p className="text-blue-700 font-bold" style={{ fontFamily: 'var(--font-luckiest-guy)' }}>--</p>
+                    <p className="text-blue-700 font-bold" style={{ fontFamily: 'var(--font-luckiest-guy)' }}>{totalStakedPoolDisplay}</p>
                   </div>
                   <div className="bg-blue-50 rounded-lg p-2 text-center border border-blue-200">
                     <p className="text-blue-500 text-xs" style={{ fontFamily: 'var(--font-luckiest-guy)' }}>Daily Pot Share</p>
-                    <p className="text-blue-700 font-bold" style={{ fontFamily: 'var(--font-luckiest-guy)' }}>10%</p>
+                    <p className="text-blue-700 font-bold" style={{ fontFamily: 'var(--font-luckiest-guy)' }}>1%</p>
                   </div>
                   <div className="bg-blue-50 rounded-lg p-2 text-center border border-blue-200">
                     <p className="text-blue-500 text-xs" style={{ fontFamily: 'var(--font-luckiest-guy)' }}>Bonus Pool</p>
-                    <p className="text-blue-700 font-bold" style={{ fontFamily: 'var(--font-luckiest-guy)' }}>--</p>
+                    <p className="text-blue-700 font-bold" style={{ fontFamily: 'var(--font-luckiest-guy)' }}>{bonusPoolDisplay}</p>
+                  </div>
+                  <div className="bg-blue-50 rounded-lg p-2 text-center border border-blue-200">
+                    <p className="text-blue-500 text-xs" style={{ fontFamily: 'var(--font-luckiest-guy)' }}>Boost Days Left</p>
+                    <p className="text-blue-700 font-bold" style={{ fontFamily: 'var(--font-luckiest-guy)' }}>{boostDaysRemaining}</p>
                   </div>
                 </div>
               </div>
@@ -838,7 +981,7 @@ export default function StakingPage({
                 <div className="space-y-2">
                   <div className="flex items-start gap-2 text-sm text-green-800" style={{ fontFamily: 'var(--font-luckiest-guy)' }}>
                     <Coins size={16} className="text-green-600 mt-0.5 flex-shrink-0" />
-                    <span>Stake PIZZA tokens to earn 10% of every daily lottery pot</span>
+                    <span>Stake PIZZA tokens to earn 1% of every daily lottery pot</span>
                   </div>
                   <div className="flex items-start gap-2 text-sm text-green-800" style={{ fontFamily: 'var(--font-luckiest-guy)' }}>
                     <TrendingUp size={16} className="text-green-600 mt-0.5 flex-shrink-0" />
@@ -900,9 +1043,159 @@ export default function StakingPage({
             >
               OWN A PARLOR
             </Button>
-
           </div>
         </Card>
+
+        {/* Confirmation Modals */}
+        {showConfirmModal && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+            <Card className="border-4 border-red-800 rounded-2xl bg-white max-w-sm w-full p-4">
+              {showConfirmModal === 'stake' && (
+                <>
+                  <p className="text-xl font-bold text-center mb-4" style={{ fontFamily: 'var(--font-luckiest-guy)' }}>
+                    Confirm Stake
+                  </p>
+                  <div className="bg-green-50 rounded-lg p-3 mb-4">
+                    <p className="text-green-700 text-sm">Amount: <span className="font-bold">{formatPizza(parseFloat(stakeAmount))} PIZZA</span></p>
+                    <p className="text-green-700 text-sm">Lock Type: <span className="font-bold">{selectedLockType === 1 ? '7-Day Lock (+10%)' : 'Flexible'}</span></p>
+                    {selectedLockType === 1 && (
+                      <p className="text-orange-600 text-xs mt-2">
+                        <AlertTriangle size={12} className="inline mr-1" />
+                        Early unstake = 15% penalty
+                      </p>
+                    )}
+                  </div>
+                  <div className="flex gap-2">
+                    <Button
+                      onClick={() => setShowConfirmModal(null)}
+                      className="flex-1 !bg-gray-300 hover:!bg-gray-400 text-gray-700 font-bold py-2 rounded-xl"
+                      disabled={isWritePending || isConfirming}
+                    >
+                      Cancel
+                    </Button>
+                    <Button
+                      onClick={handleStake}
+                      className="flex-1 !bg-green-500 hover:!bg-green-600 text-white font-bold py-2 rounded-xl"
+                      disabled={isWritePending || isConfirming}
+                    >
+                      {isWritePending || isConfirming ? (
+                        <Loader2 className="animate-spin mx-auto" size={20} />
+                      ) : (
+                        'Confirm'
+                      )}
+                    </Button>
+                  </div>
+                </>
+              )}
+
+              {showConfirmModal === 'unstake' && (
+                <>
+                  <p className="text-xl font-bold text-center mb-4" style={{ fontFamily: 'var(--font-luckiest-guy)' }}>
+                    Unstake PIZZA
+                  </p>
+                  <div className="space-y-3 mb-4">
+                    <div>
+                      <label className="text-sm font-bold text-gray-700 block mb-1">Amount to Unstake</label>
+                      <input
+                        type="number"
+                        value={unstakeAmount}
+                        onChange={(e) => setUnstakeAmount(e.target.value)}
+                        placeholder="Amount"
+                        className="w-full px-3 py-2 border-2 border-gray-300 rounded-xl focus:border-red-500 focus:outline-none"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-sm font-bold text-gray-700 block mb-1">From Position</label>
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => setUnstakeLockType(0)}
+                          className={`flex-1 py-2 rounded-lg border-2 ${unstakeLockType === 0 ? 'bg-green-100 border-green-500' : 'border-gray-300'}`}
+                        >
+                          Flexible
+                        </button>
+                        <button
+                          onClick={() => setUnstakeLockType(1)}
+                          className={`flex-1 py-2 rounded-lg border-2 ${unstakeLockType === 1 ? 'bg-blue-100 border-blue-500' : 'border-gray-300'}`}
+                        >
+                          Locked
+                        </button>
+                      </div>
+                    </div>
+                    {unstakeLockType === 1 && isLocked && (
+                      <div className="bg-red-50 rounded-lg p-3 border border-red-200">
+                        <p className="text-red-700 text-sm font-bold flex items-center gap-1">
+                          <AlertTriangle size={14} />
+                          15% Early Unstake Penalty
+                        </p>
+                        <p className="text-red-600 text-xs mt-1">
+                          Lock period not finished. You will lose 15% of unstaked amount.
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                  <div className="flex gap-2">
+                    <Button
+                      onClick={() => setShowConfirmModal(null)}
+                      className="flex-1 !bg-gray-300 hover:!bg-gray-400 text-gray-700 font-bold py-2 rounded-xl"
+                      disabled={isWritePending || isConfirming}
+                    >
+                      Cancel
+                    </Button>
+                    <Button
+                      onClick={handleUnstake}
+                      className="flex-1 !bg-red-500 hover:!bg-red-600 text-white font-bold py-2 rounded-xl"
+                      disabled={isWritePending || isConfirming || !unstakeAmount || parseFloat(unstakeAmount) <= 0}
+                    >
+                      {isWritePending || isConfirming ? (
+                        <Loader2 className="animate-spin mx-auto" size={20} />
+                      ) : (
+                        'Unstake'
+                      )}
+                    </Button>
+                  </div>
+                </>
+              )}
+
+              {showConfirmModal === 'claim' && (
+                <>
+                  <p className="text-xl font-bold text-center mb-4" style={{ fontFamily: 'var(--font-luckiest-guy)' }}>
+                    Claim Rewards
+                  </p>
+                  <div className="bg-yellow-50 rounded-lg p-3 mb-4">
+                    <p className="text-yellow-700 text-sm">
+                      Pending Rewards: <span className="font-bold">{userPosition ? formatPizzaWei(userPosition.totalPendingRewards) : '0'} PIZZA</span>
+                    </p>
+                    {spinEnabled && canSpinToday && (
+                      <p className="text-yellow-600 text-xs mt-2">
+                        Spin the wheel to multiply your rewards!
+                      </p>
+                    )}
+                  </div>
+                  <div className="flex gap-2">
+                    <Button
+                      onClick={() => setShowConfirmModal(null)}
+                      className="flex-1 !bg-gray-300 hover:!bg-gray-400 text-gray-700 font-bold py-2 rounded-xl"
+                      disabled={isWritePending || isConfirming}
+                    >
+                      Cancel
+                    </Button>
+                    <Button
+                      onClick={handleClaim}
+                      className="flex-1 !bg-yellow-500 hover:!bg-yellow-600 text-white font-bold py-2 rounded-xl"
+                      disabled={isWritePending || isConfirming}
+                    >
+                      {isWritePending || isConfirming ? (
+                        <Loader2 className="animate-spin mx-auto" size={20} />
+                      ) : (
+                        'Claim'
+                      )}
+                    </Button>
+                  </div>
+                </>
+              )}
+            </Card>
+          </div>
+        )}
       </div>
     </div>
   )

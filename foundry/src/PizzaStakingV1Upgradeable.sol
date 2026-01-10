@@ -46,6 +46,13 @@ import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
 /**
+ * @notice Interface to get current game ID from PizzaParty
+ */
+interface IPizzaPartyV2 {
+    function dailyGameId() external view returns (uint256);
+}
+
+/**
  * @title PizzaStakingV1Upgradeable
  * @author Pizza Party Team
  * @notice Staking contract for $PIZZA token with tiered rewards and Spin the Pie mechanic
@@ -67,11 +74,13 @@ contract PizzaStakingV1Upgradeable is
     /// @notice Basis points denominator (10000 = 100%)
     uint256 public constant BPS_DENOMINATOR = 10000;
 
-    /// @notice Minimum stake amount: 100,000 PIZZA (with 18 decimals)
-    uint256 public constant MIN_STAKE = 100_000 * 1e18;
+    /// @notice Minimum stake amount: 100 PIZZA (with 18 decimals)
+    /// @dev For 10M supply testing. Change to 100_000 for 10B supply.
+    uint256 public constant MIN_STAKE = 100 * 1e18;
 
-    /// @notice Maximum stake per wallet: 1,000,000,000 PIZZA (10% of supply)
-    uint256 public constant MAX_STAKE = 1_000_000_000 * 1e18;
+    /// @notice Maximum stake per wallet: 1,000,000 PIZZA (10% of 10M supply)
+    /// @dev For 10M supply testing. Change to 1_000_000_000 for 10B supply.
+    uint256 public constant MAX_STAKE = 1_000_000 * 1e18;
 
     /// @notice Lock period duration: 7 days
     uint256 public constant LOCK_DURATION = 7 days;
@@ -87,16 +96,17 @@ contract PizzaStakingV1Upgradeable is
 
     // ==================================================================================
     // TIER THRESHOLDS (in tokens with 18 decimals)
+    // @dev For 10M supply testing. Multiply by 1000 for 10B supply.
     // ==================================================================================
 
-    /// @notice Tier 1 (Oven Operator) threshold: 50,000,000 PIZZA
-    uint256 public constant TIER1_THRESHOLD = 50_000_000 * 1e18;
+    /// @notice Tier 1 (Oven Operator) threshold: 50,000 PIZZA
+    uint256 public constant TIER1_THRESHOLD = 50_000 * 1e18;
 
-    /// @notice Tier 2 (Pie Boss) threshold: 200,000,000 PIZZA
-    uint256 public constant TIER2_THRESHOLD = 200_000_000 * 1e18;
+    /// @notice Tier 2 (Pie Boss) threshold: 200,000 PIZZA
+    uint256 public constant TIER2_THRESHOLD = 200_000 * 1e18;
 
-    /// @notice Tier 3 (Pizza Tycoon) threshold: 500,000,000 PIZZA
-    uint256 public constant TIER3_THRESHOLD = 500_000_000 * 1e18;
+    /// @notice Tier 3 (Pizza Tycoon) threshold: 500,000 PIZZA
+    uint256 public constant TIER3_THRESHOLD = 500_000 * 1e18;
 
     // ==================================================================================
     // TIER YIELD BONUSES (in BPS - additive, NOT multiplicative)
@@ -193,10 +203,9 @@ contract PizzaStakingV1Upgradeable is
     // ==================================================================================
 
     /**
-     * @notice Represents a user's staking position
-     * @dev Each wallet can only have one position
-     * @param stakedAmount Amount of PIZZA tokens staked
-     * @param lockType Whether position is Flexible or Locked
+     * @notice Represents a user's staking position (one per lock type)
+     * @dev Each wallet can have TWO positions: one Flexible and one Locked
+     * @param stakedAmount Amount of PIZZA tokens staked in this position
      * @param stakeTimestamp When the stake was created (for early boost calculation)
      * @param lockEndTimestamp When the lock period ends (0 for Flexible)
      * @param lastClaimTimestamp Last time rewards were claimed
@@ -205,7 +214,6 @@ contract PizzaStakingV1Upgradeable is
      */
     struct StakePosition {
         uint256 stakedAmount;
-        LockType lockType;
         uint256 stakeTimestamp;
         uint256 lockEndTimestamp;
         uint256 lastClaimTimestamp;
@@ -241,11 +249,20 @@ contract PizzaStakingV1Upgradeable is
     /// @notice Nonce for pseudo-random spin calculation
     uint256 private spinNonce;
 
-    /// @notice Mapping of user address to their stake position
-    mapping(address => StakePosition) public stakes;
+    /// @notice Mapping of user address to their flexible (unlocked) stake position
+    mapping(address => StakePosition) public flexibleStakes;
+
+    /// @notice Mapping of user address to their locked stake position
+    mapping(address => StakePosition) public lockedStakes;
+
+    /// @notice DEPRECATED: Old single-position mapping, kept for storage layout compatibility
+    mapping(address => StakePosition) private _legacyStakes;
 
     /// @notice Reference to PizzaPartyV2 contract (for integration)
     address public pizzaPartyContract;
+
+    /// @notice Tracks the last gameId a user spun on (one spin per game day)
+    mapping(address => uint256) public lastSpinGameId;
 
     // ==================================================================================
     // EVENTS
@@ -322,6 +339,7 @@ contract PizzaStakingV1Upgradeable is
     error InsufficientBonusPool();
     error TokenNotSet();
     error Unauthorized();
+    error AlreadySpunToday();
 
     // ==================================================================================
     // MODIFIERS
@@ -366,41 +384,54 @@ contract PizzaStakingV1Upgradeable is
 
     /**
      * @notice Stake PIZZA tokens to earn rewards
-     * @dev Creates a new position or adds to existing. User must approve tokens first.
+     * @dev User can have TWO positions: one Flexible and one Locked (separately)
      * @param amount Amount of PIZZA to stake (must be >= MIN_STAKE for new positions)
      * @param lockType Whether to use Flexible (0) or Locked (1) staking
+     *
+     * Example flow:
+     * - Day 1: User stakes 10M PIZZA locked (7 day lock)
+     * - Day 2: User claims rewards, stakes them as Flexible (no lock, instant access)
+     * - Both positions earn rewards independently
      */
     function stake(uint256 amount, LockType lockType) external nonReentrant whenNotPaused tokenSet {
         if (amount == 0) revert ZeroAmount();
 
-        StakePosition storage position = stakes[msg.sender];
+        // Get the appropriate position based on lock type
+        StakePosition storage position = lockType == LockType.Locked
+            ? lockedStakes[msg.sender]
+            : flexibleStakes[msg.sender];
 
-        // Check if user already has a position
+        uint256 totalUserStaked = flexibleStakes[msg.sender].stakedAmount + lockedStakes[msg.sender].stakedAmount;
+
+        // Check if creating new position or adding to existing
         if (position.stakedAmount > 0) {
-            // Adding to existing position - must use same lock type
-            // Lock timer restarts on any addition to locked position
-            _addToPosition(msg.sender, amount);
+            // Adding to existing position of this lock type
+            if (totalUserStaked + amount > MAX_STAKE) revert ExceedsMaximumStake();
+            _addToPosition(msg.sender, amount, lockType);
         } else {
-            // New position
+            // New position of this lock type
             if (amount < MIN_STAKE) revert BelowMinimumStake();
-            if (amount > MAX_STAKE) revert ExceedsMaximumStake();
+            if (totalUserStaked + amount > MAX_STAKE) revert ExceedsMaximumStake();
             _createPosition(msg.sender, amount, lockType);
         }
 
         // Transfer tokens from user to this contract
         IERC20(pizzaToken).safeTransferFrom(msg.sender, address(this), amount);
 
-        // Emit event with new tier
+        // Emit event with new tier (based on total staked)
         emit Staked(msg.sender, amount, lockType, getTier(msg.sender));
     }
 
     /**
-     * @notice Unstake PIZZA tokens and withdraw
+     * @notice Unstake PIZZA tokens and withdraw from a specific position type
      * @dev Handles both normal and early unstaking with penalties
      * @param amount Amount of PIZZA to unstake
+     * @param lockType Which position to unstake from: Flexible (0) or Locked (1)
      */
-    function unstake(uint256 amount) external nonReentrant whenNotPaused tokenSet {
-        StakePosition storage position = stakes[msg.sender];
+    function unstake(uint256 amount, LockType lockType) external nonReentrant whenNotPaused tokenSet {
+        StakePosition storage position = lockType == LockType.Locked
+            ? lockedStakes[msg.sender]
+            : flexibleStakes[msg.sender];
 
         if (position.stakedAmount == 0) revert NoStakePosition();
         if (amount == 0) revert ZeroAmount();
@@ -408,14 +439,14 @@ contract PizzaStakingV1Upgradeable is
             amount = position.stakedAmount; // Cap at max
         }
 
-        // Claim pending rewards first
-        _claimRewards(msg.sender, false);
+        // Claim pending rewards first (for this position type)
+        _claimRewardsForPosition(msg.sender, lockType, false);
 
         // Calculate penalty for early unstake from locked position
         uint256 penalty = 0;
         bool isEarlyUnstake = false;
 
-        if (position.lockType == LockType.Locked && block.timestamp < position.lockEndTimestamp) {
+        if (lockType == LockType.Locked && block.timestamp < position.lockEndTimestamp) {
             isEarlyUnstake = true;
             penalty = (amount * EARLY_UNSTAKE_PENALTY_BPS) / BPS_DENOMINATOR;
 
@@ -432,7 +463,11 @@ contract PizzaStakingV1Upgradeable is
 
         // If fully unstaked, clean up position
         if (position.stakedAmount == 0) {
-            delete stakes[msg.sender];
+            if (lockType == LockType.Locked) {
+                delete lockedStakes[msg.sender];
+            } else {
+                delete flexibleStakes[msg.sender];
+            }
         }
 
         // Transfer tokens (minus penalty) to user
@@ -443,34 +478,58 @@ contract PizzaStakingV1Upgradeable is
     }
 
     /**
-     * @notice Claim pending staking rewards
+     * @notice Claim pending staking rewards from BOTH positions (flexible + locked)
      * @dev If spin enabled, determines payout multiplier via spin. Otherwise 100%.
+     *      One spin applies to total rewards from both positions.
      */
     function claim() external nonReentrant whenNotPaused tokenSet {
-        _claimRewards(msg.sender, true);
+        _claimAllRewards(msg.sender, true);
     }
 
     /**
-     * @notice Claim rewards and automatically restake them
-     * @dev Same as claim() but tokens go back into stake instead of wallet
+     * @notice Claim pending staking rewards from a specific position type
+     * @dev Useful when you only want to claim from one position
+     * @param lockType Which position to claim from: Flexible (0) or Locked (1)
      */
-    function restake() external nonReentrant whenNotPaused tokenSet {
-        StakePosition storage position = stakes[msg.sender];
-        if (position.stakedAmount == 0) revert NoStakePosition();
+    function claimFromPosition(LockType lockType) external nonReentrant whenNotPaused tokenSet {
+        _claimRewardsForPosition(msg.sender, lockType, true);
+    }
 
-        // Calculate pending rewards (no spin - restake always at 100%)
-        uint256 pending = _calculatePendingRewards(msg.sender);
+    /**
+     * @notice Claim rewards and automatically restake them into flexible position
+     * @dev Restakes to flexible position since locked rewards shouldn't auto-lock
+     * @param lockType Which position to restake INTO: Flexible (0) or Locked (1)
+     */
+    function restake(LockType lockType) external nonReentrant whenNotPaused tokenSet {
+        uint256 totalUserStaked = flexibleStakes[msg.sender].stakedAmount + lockedStakes[msg.sender].stakedAmount;
+        if (totalUserStaked == 0) revert NoStakePosition();
+
+        // Calculate pending rewards from BOTH positions (no spin - restake always at 100%)
+        uint256 pending = _calculateTotalPendingRewards(msg.sender);
 
         if (pending > 0) {
+            // Get target position
+            StakePosition storage targetPosition = lockType == LockType.Locked
+                ? lockedStakes[msg.sender]
+                : flexibleStakes[msg.sender];
+
             // Check max stake limit
-            uint256 newTotal = position.stakedAmount + pending;
-            if (newTotal > MAX_STAKE) {
+            uint256 newTotalUserStaked = totalUserStaked + pending;
+            if (newTotalUserStaked > MAX_STAKE) {
                 // Only restake up to max, claim the rest
-                uint256 restakeAmount = MAX_STAKE - position.stakedAmount;
+                uint256 restakeAmount = MAX_STAKE - totalUserStaked;
                 uint256 claimAmount = pending - restakeAmount;
 
-                position.stakedAmount = MAX_STAKE;
+                // Add to target position
+                if (targetPosition.stakedAmount == 0) {
+                    targetPosition.stakeTimestamp = block.timestamp;
+                }
+                targetPosition.stakedAmount += restakeAmount;
                 totalStaked += restakeAmount;
+
+                if (lockType == LockType.Locked) {
+                    targetPosition.lockEndTimestamp = block.timestamp + LOCK_DURATION;
+                }
 
                 // Transfer overflow to user
                 IERC20(pizzaToken).safeTransfer(msg.sender, claimAmount);
@@ -479,20 +538,21 @@ contract PizzaStakingV1Upgradeable is
                 emit RewardsClaimed(msg.sender, claimAmount, claimAmount, SpinOutcome.RegularSlice);
             } else {
                 // Restake full amount
-                position.stakedAmount = newTotal;
+                if (targetPosition.stakedAmount == 0) {
+                    targetPosition.stakeTimestamp = block.timestamp;
+                }
+                targetPosition.stakedAmount += pending;
                 totalStaked += pending;
+
+                if (lockType == LockType.Locked) {
+                    targetPosition.lockEndTimestamp = block.timestamp + LOCK_DURATION;
+                }
 
                 emit RewardsRestaked(msg.sender, pending);
             }
 
-            // If locked, restart lock timer
-            if (position.lockType == LockType.Locked) {
-                position.lockEndTimestamp = block.timestamp + LOCK_DURATION;
-            }
-
-            // Update reward tracking
-            position.lastClaimTimestamp = block.timestamp;
-            position.rewardDebt = (position.stakedAmount * accRewardPerShare) / 1e18;
+            // Update reward debt for BOTH positions
+            _updateAllRewardDebts(msg.sender);
         }
     }
 
@@ -527,17 +587,26 @@ contract PizzaStakingV1Upgradeable is
     // ==================================================================================
 
     /**
-     * @notice Get user's current staking tier
+     * @notice Get user's current staking tier (based on TOTAL staked across both positions)
      * @param user Address to check
      * @return Tier enum value (0-3)
      */
     function getTier(address user) public view returns (Tier) {
-        uint256 stakedAmount = stakes[user].stakedAmount;
+        uint256 stakedAmount = flexibleStakes[user].stakedAmount + lockedStakes[user].stakedAmount;
 
         if (stakedAmount >= TIER3_THRESHOLD) return Tier.PizzaTycoon;
         if (stakedAmount >= TIER2_THRESHOLD) return Tier.PieBoss;
         if (stakedAmount >= TIER1_THRESHOLD) return Tier.OvenOperator;
         return Tier.SliceRunner;
+    }
+
+    /**
+     * @notice Get user's total staked amount across both positions
+     * @param user Address to check
+     * @return Total staked amount
+     */
+    function getTotalStaked(address user) public view returns (uint256) {
+        return flexibleStakes[user].stakedAmount + lockedStakes[user].stakedAmount;
     }
 
     /**
@@ -573,40 +642,79 @@ contract PizzaStakingV1Upgradeable is
     }
 
     /**
-     * @notice Get user's pending rewards (before any multipliers from spin)
+     * @notice Get user's total pending rewards from BOTH positions
      * @param user Address to check
-     * @return Pending reward amount
+     * @return Total pending reward amount from flexible + locked positions
      */
     function getPendingRewards(address user) external view returns (uint256) {
-        return _calculatePendingRewards(user);
+        return _calculateTotalPendingRewards(user);
     }
 
     /**
-     * @notice Get user's full stake position details
+     * @notice Get user's pending rewards for a specific position
      * @param user Address to check
-     * @return stakedAmount Total staked
-     * @return lockType Flexible (0) or Locked (1)
-     * @return tier Current tier (0-3)
-     * @return lockEndTimestamp When lock ends (0 if Flexible)
-     * @return pendingRewards Claimable rewards
+     * @param lockType Which position: Flexible (0) or Locked (1)
+     * @return Pending reward amount for that position
+     */
+    function getPendingRewardsForPosition(address user, LockType lockType) external view returns (uint256) {
+        return _calculatePendingRewardsForPosition(user, lockType);
+    }
+
+    /**
+     * @notice Get user's combined stake info from BOTH positions
+     * @param user Address to check
+     * @return totalStakedAmount Total staked across both positions
+     * @return flexibleAmount Amount in flexible position
+     * @return lockedAmount Amount in locked position
+     * @return tier Current tier (0-3) based on total
+     * @return lockEndTimestamp When locked position unlocks (0 if no locked position)
+     * @return totalPendingRewards Total claimable rewards from both positions
      * @return isEarlyBoostActive Whether early staker boost applies
      */
     function getStakeInfo(address user) external view returns (
-        uint256 stakedAmount,
-        LockType lockType,
+        uint256 totalStakedAmount,
+        uint256 flexibleAmount,
+        uint256 lockedAmount,
         Tier tier,
         uint256 lockEndTimestamp,
-        uint256 pendingRewards,
+        uint256 totalPendingRewards,
         bool isEarlyBoostActive
     ) {
-        StakePosition storage position = stakes[user];
+        StakePosition storage flexible = flexibleStakes[user];
+        StakePosition storage locked = lockedStakes[user];
+
+        totalStakedAmount = flexible.stakedAmount + locked.stakedAmount;
+        flexibleAmount = flexible.stakedAmount;
+        lockedAmount = locked.stakedAmount;
+        tier = getTier(user);
+        lockEndTimestamp = locked.lockEndTimestamp;
+        totalPendingRewards = _calculateTotalPendingRewards(user);
+        isEarlyBoostActive = (boostEndTime > 0 && block.timestamp < boostEndTime);
+    }
+
+    /**
+     * @notice Get detailed info for a specific position
+     * @param user Address to check
+     * @param lockType Which position: Flexible (0) or Locked (1)
+     * @return stakedAmount Amount staked in this position
+     * @return stakeTimestamp When this position was created
+     * @return lockEndTimestamp When lock ends (0 for flexible)
+     * @return pendingRewards Rewards for this position
+     */
+    function getPositionInfo(address user, LockType lockType) external view returns (
+        uint256 stakedAmount,
+        uint256 stakeTimestamp,
+        uint256 lockEndTimestamp,
+        uint256 pendingRewards
+    ) {
+        StakePosition storage position = lockType == LockType.Locked
+            ? lockedStakes[user]
+            : flexibleStakes[user];
 
         stakedAmount = position.stakedAmount;
-        lockType = position.lockType;
-        tier = getTier(user);
+        stakeTimestamp = position.stakeTimestamp;
         lockEndTimestamp = position.lockEndTimestamp;
-        pendingRewards = _calculatePendingRewards(user);
-        isEarlyBoostActive = (boostEndTime > 0 && block.timestamp < boostEndTime);
+        pendingRewards = _calculatePendingRewardsForPosition(user, lockType);
     }
 
     // ==================================================================================
@@ -706,10 +814,11 @@ contract PizzaStakingV1Upgradeable is
      * @param lockType Lock type (Flexible or Locked)
      */
     function _createPosition(address user, uint256 amount, LockType lockType) internal {
-        StakePosition storage position = stakes[user];
+        StakePosition storage position = lockType == LockType.Locked
+            ? lockedStakes[user]
+            : flexibleStakes[user];
 
         position.stakedAmount = amount;
-        position.lockType = lockType;
         position.stakeTimestamp = block.timestamp;
         position.lastClaimTimestamp = block.timestamp;
         position.lastToppingClaimWeek = 0;
@@ -727,98 +836,215 @@ contract PizzaStakingV1Upgradeable is
     }
 
     /**
-     * @notice Add tokens to existing position
+     * @notice Add tokens to existing position of a specific lock type
      * @param user Address adding to position
      * @param amount Amount to add
+     * @param lockType Which position to add to
      */
-    function _addToPosition(address user, uint256 amount) internal {
-        StakePosition storage position = stakes[user];
+    function _addToPosition(address user, uint256 amount, LockType lockType) internal {
+        StakePosition storage position = lockType == LockType.Locked
+            ? lockedStakes[user]
+            : flexibleStakes[user];
 
-        // Claim pending rewards first
-        _claimRewards(user, false);
-
-        // Check max stake
-        uint256 newTotal = position.stakedAmount + amount;
-        if (newTotal > MAX_STAKE) revert ExceedsMaximumStake();
+        // Claim pending rewards first (for this position)
+        _claimRewardsForPosition(user, lockType, false);
 
         // Update position
-        position.stakedAmount = newTotal;
+        position.stakedAmount += amount;
         totalStaked += amount;
 
         // Restart lock timer if locked
-        if (position.lockType == LockType.Locked) {
+        if (lockType == LockType.Locked) {
             position.lockEndTimestamp = block.timestamp + LOCK_DURATION;
         }
 
         // Update reward debt
-        position.rewardDebt = (newTotal * accRewardPerShare) / 1e18;
+        position.rewardDebt = (position.stakedAmount * accRewardPerShare) / 1e18;
     }
 
     /**
-     * @notice Internal claim logic
+     * @notice Internal claim logic for ALL positions (flexible + locked)
      * @param user Address claiming rewards
      * @param applySpin Whether to apply spin mechanic (false for internal claims)
+     *
+     * SPIN FLOW (when spinEnabled):
+     * - User can spin once per game day (tracked by lastSpinGameId)
+     * - Spin determines multiplier: 73% (1x), 20% (1.1x), 5% (1.25x), 2% (2x)
+     * - One spin applies to total rewards from both positions
+     * - Rewards accumulate until claimed - skipping days doesn't lose rewards
      */
-    function _claimRewards(address user, bool applySpin) internal {
-        StakePosition storage position = stakes[user];
-        if (position.stakedAmount == 0) return;
+    function _claimAllRewards(address user, bool applySpin) internal {
+        uint256 pending = _calculateTotalPendingRewards(user);
+        if (pending == 0) return;
 
-        uint256 pending = _calculatePendingRewards(user);
+        SpinOutcome outcome = SpinOutcome.RegularSlice;
+        uint256 finalReward = pending;
 
-        if (pending > 0) {
-            SpinOutcome outcome = SpinOutcome.RegularSlice;
-            uint256 finalReward = pending;
-
-            // Apply spin if enabled and requested
-            if (applySpin && spinEnabled) {
-                outcome = _spin();
-                uint256 multiplierBPS = _getSpinMultiplier(outcome);
-
-                if (multiplierBPS > BPS_DENOMINATOR) {
-                    // Payout is above 100%, need bonus pool
-                    uint256 extraNeeded = (pending * (multiplierBPS - BPS_DENOMINATOR)) / BPS_DENOMINATOR;
-
-                    // Check bonus pool and top up from staking wallet if needed
-                    if (bonusPool < extraNeeded) {
-                        _autoTopUpBonusPool(extraNeeded - bonusPool);
-                    }
-
-                    if (bonusPool >= extraNeeded) {
-                        bonusPool -= extraNeeded;
-                        finalReward = pending + extraNeeded;
-                    }
-                    // If still not enough, just pay base reward
-                }
+        // Apply spin if enabled and requested
+        if (applySpin && spinEnabled) {
+            // Check if user has already spun today (same gameId)
+            uint256 currentGameId = _getCurrentGameId();
+            if (lastSpinGameId[user] == currentGameId) {
+                revert AlreadySpunToday();
             }
 
-            // Update position
-            position.lastClaimTimestamp = block.timestamp;
-            position.rewardDebt = (position.stakedAmount * accRewardPerShare) / 1e18;
+            // Record this spin
+            lastSpinGameId[user] = currentGameId;
 
-            // Transfer rewards
-            IERC20(pizzaToken).safeTransfer(user, finalReward);
+            outcome = _spin();
+            uint256 multiplierBPS = _getSpinMultiplier(outcome);
 
-            emit RewardsClaimed(user, pending, finalReward, outcome);
+            if (multiplierBPS > BPS_DENOMINATOR) {
+                // Payout is above 100%, need bonus pool
+                uint256 extraNeeded = (pending * (multiplierBPS - BPS_DENOMINATOR)) / BPS_DENOMINATOR;
+
+                // Check bonus pool and top up from staking wallet if needed
+                if (bonusPool < extraNeeded) {
+                    _autoTopUpBonusPool(extraNeeded - bonusPool);
+                }
+
+                if (bonusPool >= extraNeeded) {
+                    bonusPool -= extraNeeded;
+                    finalReward = pending + extraNeeded;
+                }
+                // If still not enough, just pay base reward
+            }
+        }
+
+        // Update reward debt for BOTH positions
+        _updateAllRewardDebts(user);
+
+        // Transfer rewards
+        IERC20(pizzaToken).safeTransfer(user, finalReward);
+
+        emit RewardsClaimed(user, pending, finalReward, outcome);
+    }
+
+    /**
+     * @notice Internal claim logic for a SPECIFIC position
+     * @param user Address claiming rewards
+     * @param lockType Which position to claim from
+     * @param applySpin Whether to apply spin mechanic
+     */
+    function _claimRewardsForPosition(address user, LockType lockType, bool applySpin) internal {
+        uint256 pending = _calculatePendingRewardsForPosition(user, lockType);
+        if (pending == 0) return;
+
+        SpinOutcome outcome = SpinOutcome.RegularSlice;
+        uint256 finalReward = pending;
+
+        // Apply spin if enabled and requested
+        if (applySpin && spinEnabled) {
+            // Check if user has already spun today (same gameId)
+            uint256 currentGameId = _getCurrentGameId();
+            if (lastSpinGameId[user] == currentGameId) {
+                revert AlreadySpunToday();
+            }
+
+            // Record this spin
+            lastSpinGameId[user] = currentGameId;
+
+            outcome = _spin();
+            uint256 multiplierBPS = _getSpinMultiplier(outcome);
+
+            if (multiplierBPS > BPS_DENOMINATOR) {
+                uint256 extraNeeded = (pending * (multiplierBPS - BPS_DENOMINATOR)) / BPS_DENOMINATOR;
+
+                if (bonusPool < extraNeeded) {
+                    _autoTopUpBonusPool(extraNeeded - bonusPool);
+                }
+
+                if (bonusPool >= extraNeeded) {
+                    bonusPool -= extraNeeded;
+                    finalReward = pending + extraNeeded;
+                }
+            }
+        }
+
+        // Update reward debt for this position only
+        StakePosition storage position = lockType == LockType.Locked
+            ? lockedStakes[user]
+            : flexibleStakes[user];
+
+        position.lastClaimTimestamp = block.timestamp;
+        position.rewardDebt = (position.stakedAmount * accRewardPerShare) / 1e18;
+
+        // Transfer rewards
+        IERC20(pizzaToken).safeTransfer(user, finalReward);
+
+        emit RewardsClaimed(user, pending, finalReward, outcome);
+    }
+
+    /**
+     * @notice Update reward debt for both positions
+     */
+    function _updateAllRewardDebts(address user) internal {
+        StakePosition storage flexible = flexibleStakes[user];
+        StakePosition storage locked = lockedStakes[user];
+
+        if (flexible.stakedAmount > 0) {
+            flexible.lastClaimTimestamp = block.timestamp;
+            flexible.rewardDebt = (flexible.stakedAmount * accRewardPerShare) / 1e18;
+        }
+
+        if (locked.stakedAmount > 0) {
+            locked.lastClaimTimestamp = block.timestamp;
+            locked.rewardDebt = (locked.stakedAmount * accRewardPerShare) / 1e18;
         }
     }
 
     /**
-     * @notice Calculate pending rewards for user
+     * @notice Get current game ID from PizzaParty contract
+     * @return Current daily game ID (0 if contract not set)
+     */
+    function _getCurrentGameId() internal view returns (uint256) {
+        if (pizzaPartyContract == address(0)) return 0;
+        return IPizzaPartyV2(pizzaPartyContract).dailyGameId();
+    }
+
+    /**
+     * @notice Check if user can spin today
+     * @param user Address to check
+     * @return true if user hasn't spun today, false otherwise
+     */
+    function canSpinToday(address user) external view returns (bool) {
+        if (!spinEnabled) return false;
+        uint256 currentGameId = _getCurrentGameId();
+        return lastSpinGameId[user] != currentGameId;
+    }
+
+    /**
+     * @notice Calculate total pending rewards from BOTH positions
      * @param user Address to calculate for
+     * @return Total pending reward amount with all bonuses applied
+     */
+    function _calculateTotalPendingRewards(address user) internal view returns (uint256) {
+        uint256 flexibleRewards = _calculatePendingRewardsForPosition(user, LockType.Flexible);
+        uint256 lockedRewards = _calculatePendingRewardsForPosition(user, LockType.Locked);
+        return flexibleRewards + lockedRewards;
+    }
+
+    /**
+     * @notice Calculate pending rewards for a specific position
+     * @param user Address to calculate for
+     * @param lockType Which position: Flexible (0) or Locked (1)
      * @return Pending reward amount with all bonuses applied (additive)
      *
      * FORMULA: finalReward = baseReward × (1 + tierBonus + lockBonus + earlyBonus)
      *
      * Example for Pizza Tycoon with lock and early boost:
      * - Base: 100 PIZZA
-     * - Tier bonus: +200% (Pizza Tycoon)
-     * - Lock bonus: +50%
-     * - Early bonus: +30%
-     * - Total multiplier: 1 + 2.0 + 0.5 + 0.3 = 3.8x
-     * - Final: 100 × 3.8 = 380 PIZZA
+     * - Tier bonus: +20% (Pizza Tycoon) - based on TOTAL staked
+     * - Lock bonus: +10% (if locked position)
+     * - Early bonus: +30% (if boost active)
+     * - Total multiplier: 1 + 0.2 + 0.1 + 0.3 = 1.6x
+     * - Final: 100 × 1.6 = 160 PIZZA
      */
-    function _calculatePendingRewards(address user) internal view returns (uint256) {
-        StakePosition storage position = stakes[user];
+    function _calculatePendingRewardsForPosition(address user, LockType lockType) internal view returns (uint256) {
+        StakePosition storage position = lockType == LockType.Locked
+            ? lockedStakes[user]
+            : flexibleStakes[user];
+
         if (position.stakedAmount == 0) return 0;
 
         // Base reward from pool share
@@ -829,11 +1055,11 @@ contract PizzaStakingV1Upgradeable is
         // Start with base (10000 BPS = 1x = 100%)
         uint256 totalBonusBPS = BPS_DENOMINATOR;
 
-        // Add tier bonus (+0%, +50%, +100%, or +200%)
+        // Add tier bonus (based on TOTAL staked across both positions)
         totalBonusBPS += _getTierBonus(getTier(user));
 
-        // Add lock bonus (+50% if locked, +0% if not locked)
-        if (position.lockType == LockType.Locked) {
+        // Add lock bonus (+10% if this is the locked position)
+        if (lockType == LockType.Locked) {
             totalBonusBPS += LOCK_BONUS_BPS;
         }
 

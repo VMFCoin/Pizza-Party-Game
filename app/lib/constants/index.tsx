@@ -10,6 +10,9 @@ export const PIZZA_PARTY_ADDRESS = "0xA1C31c3eF1448351da0b1D430148660982B6f3dD" 
 // PIZZA Token (proxy with EIP-2612 permit support)
 export const PIZZA_TOKEN_ADDRESS = "0xbD0e3768B9A7C3d53e7b92EDC4C38728E2fA9b69"
 
+// Pizza Staking Contract (UUPS proxy)
+export const PIZZA_STAKING_ADDRESS = "0xCbAf5bACe5419710C3852653d3DdEB831d7415be"
+
 // ==============================
 // PIZZA Token ABI (ERC20 with EIP-2612 Permit)
 // ==============================
@@ -92,6 +95,146 @@ export const PIZZA_TOKEN_ABI = [
     stateMutability: 'view',
     inputs: [],
     outputs: [{ type: 'bytes32' }]
+  }
+] as const
+
+// ==============================
+// Pizza Staking ABI
+// ==============================
+export const PIZZA_STAKING_ABI = [
+  // --- Constants ---
+  { type: 'function', name: 'MIN_STAKE', stateMutability: 'view', inputs: [], outputs: [{ type: 'uint256' }] },
+  { type: 'function', name: 'MAX_STAKE', stateMutability: 'view', inputs: [], outputs: [{ type: 'uint256' }] },
+  { type: 'function', name: 'LOCK_DURATION', stateMutability: 'view', inputs: [], outputs: [{ type: 'uint256' }] },
+  { type: 'function', name: 'EARLY_UNSTAKE_PENALTY_BPS', stateMutability: 'view', inputs: [], outputs: [{ type: 'uint256' }] },
+  { type: 'function', name: 'LOCK_BONUS_BPS', stateMutability: 'view', inputs: [], outputs: [{ type: 'uint256' }] },
+  { type: 'function', name: 'EARLY_BOOST_BPS', stateMutability: 'view', inputs: [], outputs: [{ type: 'uint256' }] },
+  { type: 'function', name: 'TIER1_THRESHOLD', stateMutability: 'view', inputs: [], outputs: [{ type: 'uint256' }] },
+  { type: 'function', name: 'TIER2_THRESHOLD', stateMutability: 'view', inputs: [], outputs: [{ type: 'uint256' }] },
+  { type: 'function', name: 'TIER3_THRESHOLD', stateMutability: 'view', inputs: [], outputs: [{ type: 'uint256' }] },
+
+  // --- State Variables ---
+  { type: 'function', name: 'totalStaked', stateMutability: 'view', inputs: [], outputs: [{ type: 'uint256' }] },
+  { type: 'function', name: 'boostEndTime', stateMutability: 'view', inputs: [], outputs: [{ type: 'uint256' }] },
+  { type: 'function', name: 'spinEnabled', stateMutability: 'view', inputs: [], outputs: [{ type: 'bool' }] },
+  { type: 'function', name: 'bonusPool', stateMutability: 'view', inputs: [], outputs: [{ type: 'uint256' }] },
+  { type: 'function', name: 'pizzaToken', stateMutability: 'view', inputs: [], outputs: [{ type: 'address' }] },
+  { type: 'function', name: 'pizzaPartyContract', stateMutability: 'view', inputs: [], outputs: [{ type: 'address' }] },
+  { type: 'function', name: 'stakingRewardsWallet', stateMutability: 'view', inputs: [], outputs: [{ type: 'address' }] },
+
+  // --- Position Mappings ---
+  {
+    type: 'function',
+    name: 'flexibleStakes',
+    stateMutability: 'view',
+    inputs: [{ type: 'address', name: 'user' }],
+    outputs: [
+      { type: 'uint256', name: 'stakedAmount' },
+      { type: 'uint256', name: 'stakeTimestamp' },
+      { type: 'uint256', name: 'lockEndTimestamp' },
+      { type: 'uint256', name: 'lastClaimTimestamp' },
+      { type: 'uint256', name: 'rewardDebt' },
+      { type: 'uint256', name: 'lastToppingClaimWeek' }
+    ]
+  },
+  {
+    type: 'function',
+    name: 'lockedStakes',
+    stateMutability: 'view',
+    inputs: [{ type: 'address', name: 'user' }],
+    outputs: [
+      { type: 'uint256', name: 'stakedAmount' },
+      { type: 'uint256', name: 'stakeTimestamp' },
+      { type: 'uint256', name: 'lockEndTimestamp' },
+      { type: 'uint256', name: 'lastClaimTimestamp' },
+      { type: 'uint256', name: 'rewardDebt' },
+      { type: 'uint256', name: 'lastToppingClaimWeek' }
+    ]
+  },
+  { type: 'function', name: 'lastSpinGameId', stateMutability: 'view', inputs: [{ type: 'address', name: 'user' }], outputs: [{ type: 'uint256' }] },
+
+  // --- View Functions ---
+  { type: 'function', name: 'getTier', stateMutability: 'view', inputs: [{ type: 'address', name: 'user' }], outputs: [{ type: 'uint8' }] },
+  { type: 'function', name: 'getTotalStaked', stateMutability: 'view', inputs: [{ type: 'address', name: 'user' }], outputs: [{ type: 'uint256' }] },
+  { type: 'function', name: 'getTierLevel', stateMutability: 'view', inputs: [{ type: 'address', name: 'user' }], outputs: [{ type: 'uint8' }] },
+  { type: 'function', name: 'getToppingBonus', stateMutability: 'view', inputs: [{ type: 'address', name: 'user' }], outputs: [{ type: 'uint256' }] },
+  { type: 'function', name: 'getTierYieldBoost', stateMutability: 'view', inputs: [{ type: 'address', name: 'user' }], outputs: [{ type: 'uint256' }] },
+  { type: 'function', name: 'getPendingRewards', stateMutability: 'view', inputs: [{ type: 'address', name: 'user' }], outputs: [{ type: 'uint256' }] },
+  { type: 'function', name: 'getPendingRewardsForPosition', stateMutability: 'view', inputs: [{ type: 'address', name: 'user' }, { type: 'uint8', name: 'lockType' }], outputs: [{ type: 'uint256' }] },
+  { type: 'function', name: 'canSpinToday', stateMutability: 'view', inputs: [{ type: 'address', name: 'user' }], outputs: [{ type: 'bool' }] },
+  {
+    type: 'function',
+    name: 'getStakeInfo',
+    stateMutability: 'view',
+    inputs: [{ type: 'address', name: 'user' }],
+    outputs: [
+      { type: 'uint256', name: 'totalStakedAmount' },
+      { type: 'uint256', name: 'flexibleAmount' },
+      { type: 'uint256', name: 'lockedAmount' },
+      { type: 'uint8', name: 'tier' },
+      { type: 'uint256', name: 'lockEndTimestamp' },
+      { type: 'uint256', name: 'totalPendingRewards' },
+      { type: 'bool', name: 'isEarlyBoostActive' }
+    ]
+  },
+  {
+    type: 'function',
+    name: 'getPositionInfo',
+    stateMutability: 'view',
+    inputs: [{ type: 'address', name: 'user' }, { type: 'uint8', name: 'lockType' }],
+    outputs: [
+      { type: 'uint256', name: 'stakedAmount' },
+      { type: 'uint256', name: 'stakeTimestamp' },
+      { type: 'uint256', name: 'lockEndTimestamp' },
+      { type: 'uint256', name: 'pendingRewards' }
+    ]
+  },
+
+  // --- Write Functions ---
+  { type: 'function', name: 'stake', stateMutability: 'nonpayable', inputs: [{ type: 'uint256', name: 'amount' }, { type: 'uint8', name: 'lockType' }], outputs: [] },
+  { type: 'function', name: 'unstake', stateMutability: 'nonpayable', inputs: [{ type: 'uint256', name: 'amount' }, { type: 'uint8', name: 'lockType' }], outputs: [] },
+  { type: 'function', name: 'claim', stateMutability: 'nonpayable', inputs: [], outputs: [] },
+  { type: 'function', name: 'claimFromPosition', stateMutability: 'nonpayable', inputs: [{ type: 'uint8', name: 'lockType' }], outputs: [] },
+  { type: 'function', name: 'restake', stateMutability: 'nonpayable', inputs: [{ type: 'uint8', name: 'lockType' }], outputs: [] },
+
+  // --- Events ---
+  {
+    type: 'event',
+    name: 'Staked',
+    inputs: [
+      { indexed: true, name: 'user', type: 'address' },
+      { indexed: false, name: 'amount', type: 'uint256' },
+      { indexed: false, name: 'lockType', type: 'uint8' },
+      { indexed: false, name: 'tier', type: 'uint8' }
+    ]
+  },
+  {
+    type: 'event',
+    name: 'Unstaked',
+    inputs: [
+      { indexed: true, name: 'user', type: 'address' },
+      { indexed: false, name: 'amount', type: 'uint256' },
+      { indexed: false, name: 'penalty', type: 'uint256' },
+      { indexed: false, name: 'earlyUnstake', type: 'bool' }
+    ]
+  },
+  {
+    type: 'event',
+    name: 'RewardsClaimed',
+    inputs: [
+      { indexed: true, name: 'user', type: 'address' },
+      { indexed: false, name: 'baseReward', type: 'uint256' },
+      { indexed: false, name: 'finalReward', type: 'uint256' },
+      { indexed: false, name: 'outcome', type: 'uint8' }
+    ]
+  },
+  {
+    type: 'event',
+    name: 'RewardsRestaked',
+    inputs: [
+      { indexed: true, name: 'user', type: 'address' },
+      { indexed: false, name: 'amount', type: 'uint256' }
+    ]
   }
 ] as const
 
@@ -521,6 +664,11 @@ export const CONTRACT_REGISTRY = {
   parlorManager: {
     address: PARLOR_MANAGER_ADDRESS as `0x${string}`,
     abi: PARLOR_MANAGER_ABI as unknown as Abi,
+    chainId: BASE_CHAIN_ID,
+  },
+  pizzaStaking: {
+    address: PIZZA_STAKING_ADDRESS as `0x${string}`,
+    abi: PIZZA_STAKING_ABI as unknown as Abi,
     chainId: BASE_CHAIN_ID,
   },
 } as const satisfies Record<string, ContractRegistryEntry>
