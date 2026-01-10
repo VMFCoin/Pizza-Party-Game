@@ -116,8 +116,20 @@ export async function POST(request: NextRequest) {
     })
 
     if (existingPosition) {
+      // If same wallet, allow (idempotent - maybe previous stake tx failed)
+      if (existingPosition.wallet.toLowerCase() === wallet.toLowerCase()) {
+        return json({
+          success: true,
+          position: {
+            fid: existingPosition.fid,
+            wallet: existingPosition.wallet,
+            stakedAt: existingPosition.stakedAt.toISOString(),
+          },
+        })
+      }
+      // Different wallet - block
       return json({
-        error: 'FID already has a staking position',
+        error: 'FID already has a staking position on a different wallet',
         existingWallet: existingPosition.wallet,
       }, 409) // Conflict
     }
