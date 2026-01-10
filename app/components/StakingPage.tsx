@@ -69,12 +69,19 @@ const formatPizzaWei = (amountWei: bigint | undefined): string => {
   return amount.toFixed(2)
 }
 
-// Format regular numbers
+// Format regular numbers (abbreviated)
 const formatPizza = (amount: number): string => {
   if (amount >= 1_000_000_000) return `${(amount / 1_000_000_000).toFixed(2)}B`
   if (amount >= 1_000_000) return `${(amount / 1_000_000).toFixed(2)}M`
   if (amount >= 1_000) return `${(amount / 1_000).toFixed(2)}K`
   return amount.toFixed(2)
+}
+
+// Format with commas for exact display (no rounding)
+const formatExact = (amount: string): string => {
+  const num = parseFloat(amount)
+  if (isNaN(num)) return amount
+  return num.toLocaleString('en-US', { maximumFractionDigits: 18 })
 }
 
 // Get tier from staked amount (in whole tokens, not wei)
@@ -1060,7 +1067,7 @@ export default function StakingPage({
                     Confirm Stake
                   </p>
                   <div className="bg-green-50 rounded-lg p-3 mb-4">
-                    <p className="text-green-700 text-sm">Amount: <span className="font-bold">{formatPizza(parseFloat(stakeAmount))} PIZZA</span></p>
+                    <p className="text-green-700 text-sm">Amount: <span className="font-bold">{formatExact(stakeAmount)} PIZZA</span></p>
                     <p className="text-green-700 text-sm">Lock Type: <span className="font-bold">{selectedLockType === 1 ? '7-Day Lock (+10%)' : 'Flexible'}</span></p>
                     {selectedLockType === 1 && (
                       <p className="text-orange-600 text-xs mt-2">
