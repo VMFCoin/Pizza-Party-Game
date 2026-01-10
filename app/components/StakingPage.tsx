@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback, useMemo } from 'react'
 import Image from 'next/image'
 import { Button } from './ui/button'
 import { Card } from './ui/card'
-import { ArrowLeft, Lock, Unlock, TrendingUp, Gift, Coins, AlertTriangle, Info, XCircle, Loader2 } from 'lucide-react'
+import { ArrowLeft, Lock, Unlock, TrendingUp, Gift, Coins, AlertTriangle, Info, XCircle, Loader2, ChevronDown, ChevronUp } from 'lucide-react'
 import { useAccount, useReadContract, useWriteContract, useWaitForTransactionReceipt } from 'wagmi'
 import { formatUnits, parseUnits } from 'viem'
 import {
@@ -125,6 +125,10 @@ export default function StakingPage({
   const [unstakeAmount, setUnstakeAmount] = useState('')
   const [unstakeLockType, setUnstakeLockType] = useState<0 | 1>(0)
   const [pendingApproval, setPendingApproval] = useState(false) // Track if we're waiting for approval to stake
+
+  // Collapsible section state
+  const [tiersOpen, setTiersOpen] = useState(false)
+  const [statsOpen, setStatsOpen] = useState(false)
 
   // Anti-sybil: Track if this FID already has a staking position
   const [stakingEligibility, setStakingEligibility] = useState<{
@@ -548,61 +552,70 @@ export default function StakingPage({
 
                 {userPosition ? (
                   <div className="space-y-2">
-                    {/* Current Tier Display */}
-                    <div className={`${currentTier.color} rounded-xl p-3 text-center text-white`}>
-                      <p className="text-2xl">{currentTier.emoji}</p>
-                      <p className="font-bold text-lg" style={customFontStyle}>{currentTier.name}</p>
-                      <p className="text-sm opacity-90">
-                        Yield: {currentTier.yieldBoost} | +{currentTier.toppingBonus} toppings/week
-                      </p>
+                    {/* Compact Tier + Bonuses Row */}
+                    <div className={`${currentTier.color} rounded-xl p-2 text-white`}>
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <span className="text-xl">{currentTier.emoji}</span>
+                          <div>
+                            <p className="font-bold text-sm" style={customFontStyle}>{currentTier.name}</p>
+                            <p className="text-xs opacity-90">+{currentTier.toppingBonus} toppings/week</p>
+                          </div>
+                        </div>
+                        <div className="flex flex-wrap gap-1 justify-end">
+                          <span className="bg-white/20 px-2 py-0.5 rounded text-xs">{currentTier.yieldBoost}</span>
+                          {userPosition.lockedAmount > 0n && <span className="bg-white/20 px-2 py-0.5 rounded text-xs">+10% Lock</span>}
+                          {userPosition.isEarlyBoostActive && <span className="bg-yellow-400/30 px-2 py-0.5 rounded text-xs">+30% Boost</span>}
+                        </div>
+                      </div>
                     </div>
 
-                    {/* Position Details - Flexible */}
-                    {userPosition.flexibleAmount > 0n && (
-                      <div className="bg-green-50 rounded-lg p-2 border border-green-200">
-                        <div className="flex items-center gap-1 text-green-600 text-xs mb-1">
-                          <Unlock size={14} />
-                          <span>Flexible Stake</span>
-                        </div>
-                        <p className="text-green-800 font-bold" style={customFontStyle}>
-                          {formatPizzaWei(userPosition.flexibleAmount)} PIZZA
-                        </p>
-                      </div>
-                    )}
-
-                    {/* Position Details - Locked */}
-                    {userPosition.lockedAmount > 0n && (
-                      <div className="bg-blue-50 rounded-lg p-2 border border-blue-200">
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-1 text-blue-600 text-xs mb-1">
-                            <Lock size={14} />
-                            <span>Locked Stake</span>
+                    {/* Staked Amounts - Compact Grid */}
+                    <div className="grid grid-cols-2 gap-2">
+                      {userPosition.flexibleAmount > 0n && (
+                        <div className="bg-green-50 rounded-lg p-2 border border-green-200">
+                          <div className="flex items-center gap-1 text-green-600 text-xs">
+                            <Unlock size={12} />
+                            <span>Flexible</span>
                           </div>
-                          <span className="text-blue-600 text-xs">{timeUntilUnlock}</span>
+                          <p className="text-green-800 font-bold text-sm" style={customFontStyle}>
+                            {formatPizzaWei(userPosition.flexibleAmount)}
+                          </p>
                         </div>
-                        <p className="text-blue-800 font-bold" style={customFontStyle}>
-                          {formatPizzaWei(userPosition.lockedAmount)} PIZZA
-                        </p>
-                      </div>
-                    )}
+                      )}
+                      {userPosition.lockedAmount > 0n && (
+                        <div className="bg-blue-50 rounded-lg p-2 border border-blue-200">
+                          <div className="flex items-center justify-between text-xs">
+                            <div className="flex items-center gap-1 text-blue-600">
+                              <Lock size={12} />
+                              <span>Locked</span>
+                            </div>
+                            <span className="text-blue-500">{timeUntilUnlock}</span>
+                          </div>
+                          <p className="text-blue-800 font-bold text-sm" style={customFontStyle}>
+                            {formatPizzaWei(userPosition.lockedAmount)}
+                          </p>
+                        </div>
+                      )}
+                    </div>
 
-                    {/* Pending Rewards */}
-                    <div className="bg-yellow-50 rounded-lg p-3 border-2 border-yellow-300">
+                    {/* Pending Rewards - Compact */}
+                    <div className="bg-yellow-50 rounded-lg p-2 border-2 border-yellow-300">
                       <div className="flex items-center justify-between">
                         <div>
-                          <p className="text-yellow-700 text-xs">Pending Rewards</p>
-                          <p className="text-yellow-800 font-bold text-xl" style={customFontStyle}>
+                          <p className="text-yellow-700 text-xs">Rewards</p>
+                          <p className="text-yellow-800 font-bold text-lg" style={customFontStyle}>
                             {formatPizzaWei(userPosition.totalPendingRewards)} PIZZA
                           </p>
                         </div>
                         <Button
                           onClick={() => setShowConfirmModal('claim')}
                           disabled={!hasPendingRewards || isWritePending || isConfirming}
-                          className="!bg-yellow-500 hover:!bg-yellow-600 text-white font-bold py-2 px-4 rounded-xl border-2 border-yellow-700 disabled:opacity-50"
+                          className="!bg-yellow-500 hover:!bg-yellow-600 text-white font-bold py-1.5 px-3 rounded-xl border-2 border-yellow-700 disabled:opacity-50 text-sm"
                           style={customFontStyle}
                         >
                           {isWritePending || isConfirming ? (
-                            <Loader2 className="animate-spin" size={16} />
+                            <Loader2 className="animate-spin" size={14} />
                           ) : spinEnabled && canSpinToday ? (
                             'SPIN & CLAIM'
                           ) : (
@@ -610,46 +623,12 @@ export default function StakingPage({
                           )}
                         </Button>
                       </div>
-                      {spinEnabled && canSpinToday && hasPendingRewards && (
-                        <p className="text-yellow-600 text-xs mt-1">Spin the wheel to multiply your rewards!</p>
-                      )}
-                      {spinEnabled && !canSpinToday && (
-                        <p className="text-yellow-600 text-xs mt-1">Already spun today - claim at 100%</p>
-                      )}
                     </div>
 
-                    {/* Yield Bonus Breakdown */}
-                    <div className="bg-gray-50 rounded-lg p-2 border border-gray-200">
-                      <p className="text-gray-600 text-xs mb-1 font-bold">Your Yield Bonuses (Additive):</p>
-                      <div className="flex flex-wrap gap-1 text-xs">
-                        <span className="bg-green-100 text-green-700 px-2 py-0.5 rounded">
-                          Tier: {currentTier.yieldBoost}
-                        </span>
-                        {userPosition.lockedAmount > 0n && (
-                          <span className="bg-blue-100 text-blue-700 px-2 py-0.5 rounded">
-                            Lock: +10%
-                          </span>
-                        )}
-                        {userPosition.isEarlyBoostActive && (
-                          <span className="bg-yellow-100 text-yellow-700 px-2 py-0.5 rounded">
-                            Early: +30%
-                          </span>
-                        )}
-                      </div>
-                    </div>
-
-                    {/* Balance Summary */}
-                    <div className="bg-purple-50 rounded-lg p-2 border border-purple-200">
-                      <div className="grid grid-cols-2 gap-2 text-xs">
-                        <div>
-                          <p className="text-purple-500">Available to Stake</p>
-                          <p className="text-purple-700 font-bold" style={customFontStyle}>{formatWeiExact(pizzaBalance as bigint)} PIZZA</p>
-                        </div>
-                        <div>
-                          <p className="text-purple-500">Your Total Staked</p>
-                          <p className="text-purple-700 font-bold" style={customFontStyle}>{formatWeiExact(userPosition.totalStakedAmount)} PIZZA</p>
-                        </div>
-                      </div>
+                    {/* Wallet Balance - Single Line */}
+                    <div className="flex justify-between items-center text-xs bg-gray-50 rounded-lg px-2 py-1.5 border border-gray-200">
+                      <span className="text-gray-500">Wallet:</span>
+                      <span className="text-gray-700 font-bold" style={customFontStyle}>{formatPizzaWei(pizzaBalance as bigint)} PIZZA</span>
                     </div>
 
                     {/* Stake More Input (shown when showStakeInput is true) */}
@@ -1026,117 +1005,121 @@ export default function StakingPage({
               </div>
             </div>
 
-            {/* Staking Tiers */}
-            <Card className="border-4 border-orange-600 rounded-2xl bg-white/95 !py-0">
-              <div className="px-3 py-2">
-                <p
-                  className="text-orange-600 text-center mb-2"
-                  style={{ fontFamily: 'var(--font-luckiest-guy)', fontSize: '32px', lineHeight: '1' }}
-                >
-                  Staking Tiers
-                </p>
-                <div className="space-y-2">
-                  {STAKING_TIERS.map((tier) => {
-                    const isCurrentTier = userPosition && currentTier.id === tier.id
-                    return (
-                      <div
-                        key={tier.id}
-                        className={`rounded-lg p-2 border-2 transition-all ${
-                          isCurrentTier
-                            ? `${tier.color} border-white text-white`
-                            : 'bg-orange-50 border-orange-300'
-                        }`}
-                      >
-                        <div className="flex justify-between items-center">
-                          <span
-                            className={`font-bold flex items-center gap-1 ${isCurrentTier ? 'text-white' : 'text-orange-700'}`}
-                            style={{ fontFamily: 'var(--font-luckiest-guy)', fontSize: 14 }}
-                          >
-                            <span>{tier.emoji}</span>
-                            {tier.name}
-                            {isCurrentTier && <span className="text-xs ml-1">(YOU)</span>}
-                          </span>
-                          <span
-                            className={`text-xs ${isCurrentTier ? 'text-white/90' : 'text-orange-500'}`}
-                            style={{ fontFamily: 'var(--font-luckiest-guy)' }}
-                          >
-                            {tier.minStake > 0 ? `${formatPizza(tier.minStake)}+ PIZZA` : 'Any amount'}
-                          </span>
+            {/* Staking Tiers - Collapsible */}
+            <div className="tiers-dropdown">
+              <Button
+                onClick={() => setTiersOpen(!tiersOpen)}
+                className={`w-full !bg-orange-500 hover:!bg-orange-600 text-white font-bold py-2 border-4 border-orange-800 uppercase flex items-center justify-between ${tiersOpen ? 'rounded-t-xl rounded-b-none' : 'rounded-xl'}`}
+                style={{ ...customFontStyle, fontSize: isMobile ? 16 : 18 }}
+              >
+                <span className="flex-1 text-center">📊 STAKING TIERS</span>
+                {tiersOpen ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
+              </Button>
+              {tiersOpen && (
+                <div className="bg-orange-100 border-4 border-t-0 border-orange-800 rounded-b-xl p-3">
+                  <div className="space-y-2">
+                    {STAKING_TIERS.map((tier) => {
+                      const isCurrentTier = userPosition && currentTier.id === tier.id
+                      return (
+                        <div
+                          key={tier.id}
+                          className={`rounded-lg p-2 border-2 transition-all ${
+                            isCurrentTier
+                              ? `${tier.color} border-white text-white`
+                              : 'bg-white border-orange-300'
+                          }`}
+                        >
+                          <div className="flex justify-between items-center">
+                            <span
+                              className={`font-bold flex items-center gap-1 ${isCurrentTier ? 'text-white' : 'text-orange-700'}`}
+                              style={{ fontFamily: 'var(--font-luckiest-guy)', fontSize: 14 }}
+                            >
+                              <span>{tier.emoji}</span>
+                              {tier.name}
+                              {isCurrentTier && <span className="text-xs ml-1">(YOU)</span>}
+                            </span>
+                            <span
+                              className={`text-xs ${isCurrentTier ? 'text-white/90' : 'text-orange-500'}`}
+                              style={{ fontFamily: 'var(--font-luckiest-guy)' }}
+                            >
+                              {tier.minStake > 0 ? `${formatPizza(tier.minStake)}+ PIZZA` : 'Any amount'}
+                            </span>
+                          </div>
+                          <div className={`flex justify-between text-xs mt-1 ${isCurrentTier ? 'text-white/80' : 'text-orange-600'}`} style={{ fontFamily: 'var(--font-luckiest-guy)' }}>
+                            <span>Yield: {tier.yieldBoost}</span>
+                            <span>+{tier.toppingBonus} toppings/week</span>
+                          </div>
                         </div>
-                        <div className={`flex justify-between text-xs mt-1 ${isCurrentTier ? 'text-white/80' : 'text-orange-600'}`} style={{ fontFamily: 'var(--font-luckiest-guy)' }}>
-                          <span>Yield: {tier.yieldBoost}</span>
-                          <span>+{tier.toppingBonus} toppings/week</span>
-                        </div>
-                      </div>
-                    )
-                  })}
-                </div>
-              </div>
-            </Card>
-
-            {/* Staking Stats */}
-            <Card className="border-4 border-blue-500 rounded-2xl bg-white/95 !py-0">
-              <div className="px-3 py-2">
-                <p
-                  className="text-blue-600 text-center mb-2"
-                  style={{ fontFamily: 'var(--font-luckiest-guy)', fontSize: '32px', lineHeight: '1' }}
-                >
-                  Staking Pool Stats
-                </p>
-                <div className="grid grid-cols-2 gap-2">
-                  <div className="bg-blue-50 rounded-lg p-2 text-center border border-blue-200">
-                    <p className="text-blue-500 text-xs" style={{ fontFamily: 'var(--font-luckiest-guy)' }}>Total Pool Staked</p>
-                    <p className="text-blue-700 font-bold text-sm" style={{ fontFamily: 'var(--font-luckiest-guy)' }}>{formatWeiExact(totalStakedPool as bigint)} PIZZA</p>
-                  </div>
-                  <div className="bg-blue-50 rounded-lg p-2 text-center border border-blue-200">
-                    <p className="text-blue-500 text-xs" style={{ fontFamily: 'var(--font-luckiest-guy)' }}>Daily Pot Share</p>
-                    <p className="text-blue-700 font-bold" style={{ fontFamily: 'var(--font-luckiest-guy)' }}>1%</p>
-                  </div>
-                  <div className="bg-blue-50 rounded-lg p-2 text-center border border-blue-200">
-                    <p className="text-blue-500 text-xs" style={{ fontFamily: 'var(--font-luckiest-guy)' }}>Bonus Pool</p>
-                    <p className="text-blue-700 font-bold text-sm" style={{ fontFamily: 'var(--font-luckiest-guy)' }}>{formatWeiExact(bonusPool as bigint)} PIZZA</p>
-                  </div>
-                  <div className="bg-blue-50 rounded-lg p-2 text-center border border-blue-200">
-                    <p className="text-blue-500 text-xs" style={{ fontFamily: 'var(--font-luckiest-guy)' }}>Boost Days Left</p>
-                    <p className="text-blue-700 font-bold" style={{ fontFamily: 'var(--font-luckiest-guy)' }}>{boostDaysRemaining}</p>
+                      )
+                    })}
                   </div>
                 </div>
-              </div>
-            </Card>
+              )}
+            </div>
 
-            {/* How It Works */}
+            {/* Staking Stats - Collapsible */}
+            <div className="stats-dropdown">
+              <Button
+                onClick={() => setStatsOpen(!statsOpen)}
+                className={`w-full !bg-blue-500 hover:!bg-blue-600 text-white font-bold py-2 border-4 border-blue-800 uppercase flex items-center justify-between ${statsOpen ? 'rounded-t-xl rounded-b-none' : 'rounded-xl'}`}
+                style={{ ...customFontStyle, fontSize: isMobile ? 16 : 18 }}
+              >
+                <span className="flex-1 text-center">📈 POOL STATS</span>
+                {statsOpen ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
+              </Button>
+              {statsOpen && (
+                <div className="bg-blue-100 border-4 border-t-0 border-blue-800 rounded-b-xl p-3">
+                  <div className="grid grid-cols-2 gap-2">
+                    <div className="bg-white rounded-lg p-2 text-center border border-blue-200">
+                      <p className="text-blue-500 text-xs" style={{ fontFamily: 'var(--font-luckiest-guy)' }}>Total Pool Staked</p>
+                      <p className="text-blue-700 font-bold text-sm" style={{ fontFamily: 'var(--font-luckiest-guy)' }}>{formatWeiExact(totalStakedPool as bigint)} PIZZA</p>
+                    </div>
+                    <div className="bg-white rounded-lg p-2 text-center border border-blue-200">
+                      <p className="text-blue-500 text-xs" style={{ fontFamily: 'var(--font-luckiest-guy)' }}>Daily Pot Share</p>
+                      <p className="text-blue-700 font-bold" style={{ fontFamily: 'var(--font-luckiest-guy)' }}>1%</p>
+                    </div>
+                    <div className="bg-white rounded-lg p-2 text-center border border-blue-200">
+                      <p className="text-blue-500 text-xs" style={{ fontFamily: 'var(--font-luckiest-guy)' }}>Bonus Pool</p>
+                      <p className="text-blue-700 font-bold text-sm" style={{ fontFamily: 'var(--font-luckiest-guy)' }}>{formatWeiExact(bonusPool as bigint)} PIZZA</p>
+                    </div>
+                    <div className="bg-white rounded-lg p-2 text-center border border-blue-200">
+                      <p className="text-blue-500 text-xs" style={{ fontFamily: 'var(--font-luckiest-guy)' }}>Boost Days Left</p>
+                      <p className="text-blue-700 font-bold" style={{ fontFamily: 'var(--font-luckiest-guy)' }}>{boostDaysRemaining}</p>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* How It Works - Always Visible */}
             <Card className="border-4 border-green-600 rounded-2xl bg-white/95 !py-0">
               <div className="px-3 py-2">
                 <p
                   className="text-green-600 text-center mb-2"
-                  style={{ fontFamily: 'var(--font-luckiest-guy)', fontSize: '32px', lineHeight: '1' }}
+                  style={{ fontFamily: 'var(--font-luckiest-guy)', fontSize: '24px', lineHeight: '1' }}
                 >
                   How Staking Works
                 </p>
-                <div className="space-y-2">
-                  <div className="flex items-start gap-2 text-sm text-green-800" style={{ fontFamily: 'var(--font-luckiest-guy)' }}>
-                    <Coins size={16} className="text-green-600 mt-0.5 flex-shrink-0" />
-                    <span>Stake PIZZA tokens to earn 1% of every daily lottery pot</span>
+                <div className="space-y-1.5">
+                  <div className="flex items-start gap-2 text-xs text-green-800" style={{ fontFamily: 'var(--font-luckiest-guy)' }}>
+                    <Coins size={14} className="text-green-600 mt-0.5 flex-shrink-0" />
+                    <span>Stake PIZZA to earn 1% of every daily pot</span>
                   </div>
-                  <div className="flex items-start gap-2 text-sm text-green-800" style={{ fontFamily: 'var(--font-luckiest-guy)' }}>
-                    <TrendingUp size={16} className="text-green-600 mt-0.5 flex-shrink-0" />
-                    <span>Higher tiers = more yield boost + bonus weekly toppings</span>
+                  <div className="flex items-start gap-2 text-xs text-green-800" style={{ fontFamily: 'var(--font-luckiest-guy)' }}>
+                    <TrendingUp size={14} className="text-green-600 mt-0.5 flex-shrink-0" />
+                    <span>Higher tiers = more yield + bonus toppings</span>
                   </div>
-                  <div className="flex items-start gap-2 text-sm text-green-800" style={{ fontFamily: 'var(--font-luckiest-guy)' }}>
-                    <Lock size={16} className="text-green-600 mt-0.5 flex-shrink-0" />
-                    <span>7-day lock adds +10% bonus (No lock = tier bonus only)</span>
+                  <div className="flex items-start gap-2 text-xs text-green-800" style={{ fontFamily: 'var(--font-luckiest-guy)' }}>
+                    <Lock size={14} className="text-green-600 mt-0.5 flex-shrink-0" />
+                    <span>7-day lock = +10% bonus</span>
                   </div>
-                  <div className="flex items-start gap-2 text-sm text-green-800" style={{ fontFamily: 'var(--font-luckiest-guy)' }}>
-                    <AlertTriangle size={16} className="text-orange-500 mt-0.5 flex-shrink-0" />
-                    <span>Early unstake from locked position = 15% penalty</span>
+                  <div className="flex items-start gap-2 text-xs text-green-800" style={{ fontFamily: 'var(--font-luckiest-guy)' }}>
+                    <AlertTriangle size={14} className="text-orange-500 mt-0.5 flex-shrink-0" />
+                    <span>Early unstake = 15% penalty</span>
                   </div>
-                  <div className="flex items-start gap-2 text-sm text-green-800" style={{ fontFamily: 'var(--font-luckiest-guy)' }}>
-                    <Gift size={16} className="text-yellow-500 mt-0.5 flex-shrink-0" />
-                    <span>First 60 days: Early staker boost (+30% rewards!)</span>
-                  </div>
-                  <div className="flex items-start gap-2 text-sm text-green-800" style={{ fontFamily: 'var(--font-luckiest-guy)' }}>
-                    <Info size={16} className="text-blue-500 mt-0.5 flex-shrink-0" />
-                    <span>Spin the Pie when claiming for bonus multipliers</span>
+                  <div className="flex items-start gap-2 text-xs text-green-800" style={{ fontFamily: 'var(--font-luckiest-guy)' }}>
+                    <Gift size={14} className="text-yellow-500 mt-0.5 flex-shrink-0" />
+                    <span>Early staker boost: +30% for {boostDaysRemaining} days</span>
                   </div>
                 </div>
               </div>
