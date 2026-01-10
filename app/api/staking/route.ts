@@ -127,14 +127,12 @@ export async function POST(request: NextRequest) {
           },
         })
       }
-      // Different wallet - block
-      return json({
-        error: 'FID already has a staking position on a different wallet',
-        existingWallet: existingPosition.wallet,
-      }, 409) // Conflict
+      // Different wallet - delete old and allow new (user changed wallets)
+      // This is safe because on-chain state is the source of truth
+      await prisma.stakingPosition.delete({ where: { fid } })
     }
 
-    // Create the staking position
+    // Create the staking position (or re-create with new wallet)
     const position = await prisma.stakingPosition.create({
       data: { fid, wallet },
     })
