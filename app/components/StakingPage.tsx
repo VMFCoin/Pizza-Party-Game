@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback, useMemo } from 'react'
 import Image from 'next/image'
 import { Button } from './ui/button'
 import { Card } from './ui/card'
-import { ArrowLeft, Lock, Unlock, TrendingUp, Gift, Coins, AlertTriangle, Info, XCircle, CheckCircle, Loader2 } from 'lucide-react'
+import { ArrowLeft, Lock, Unlock, TrendingUp, Gift, Coins, AlertTriangle, Info, XCircle, Loader2 } from 'lucide-react'
 import { useAccount, useReadContract, useWriteContract, useWaitForTransactionReceipt } from 'wagmi'
 import { formatUnits, parseUnits } from 'viem'
 import {
@@ -38,7 +38,7 @@ const STAKING_TIERS = [
 
 // Staking limits for 10M supply testing. Change for 10B supply.
 const MIN_STAKE = 100 // 100 PIZZA minimum
-const MAX_STAKE = 1_000_000 // 1M PIZZA maximum (10% of supply)
+const _MAX_STAKE = 1_000_000 // 1M PIZZA maximum (10% of supply) - enforced by contract
 
 // Spin the Pie outcomes
 const SPIN_OUTCOMES = [
@@ -325,7 +325,7 @@ export default function StakingPage({
   }
 
   // Register staking position with API (for anti-sybil tracking)
-  const registerStakingPosition = async (wallet: string): Promise<boolean> => {
+  const registerStakingPosition = useCallback(async (wallet: string): Promise<boolean> => {
     if (!authToken) return false
     try {
       const response = await fetch('/api/staking', {
@@ -342,7 +342,7 @@ export default function StakingPage({
       console.error('[Staking] Failed to register position:', error)
       return false
     }
-  }
+  }, [authToken])
 
   // Handle approve + stake
   const handleStake = async () => {
@@ -407,7 +407,7 @@ export default function StakingPage({
       }
     }
     performStakeAfterApproval()
-  }, [isConfirmed, allowance, stakeAmount, selectedLockType, showConfirmModal, address, userPosition, resetWrite, writeContract])
+  }, [isConfirmed, allowance, stakeAmount, selectedLockType, showConfirmModal, address, userPosition, resetWrite, writeContract, registerStakingPosition])
 
   // Handle unstake
   const handleUnstake = () => {
