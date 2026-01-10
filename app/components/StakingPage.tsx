@@ -14,7 +14,7 @@ import {
   PIZZA_TOKEN_ABI,
   PIZZA_PARTY_ADDRESS,
   PIZZA_PARTY_ABI,
-} from '@/lib/constants'
+} from '@/app/lib/constants'
 
 interface StakingPageProps {
   onBack?: () => void
