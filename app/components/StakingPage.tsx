@@ -325,8 +325,8 @@ export default function StakingPage({
   }
 
   // Register staking position with API (for anti-sybil tracking)
-  const registerStakingPosition = useCallback(async (wallet: string): Promise<boolean> => {
-    if (!authToken) return false
+  const registerStakingPosition = useCallback(async (wallet: string): Promise<{ success: boolean; error?: string }> => {
+    if (!authToken) return { success: false, error: 'No auth token' }
     try {
       const response = await fetch('/api/staking', {
         method: 'POST',
@@ -337,10 +337,14 @@ export default function StakingPage({
         body: JSON.stringify({ wallet }),
       })
       const data = await response.json()
-      return data.success === true
+      console.log('[Staking] API registration response:', data)
+      if (data.success === true) {
+        return { success: true }
+      }
+      return { success: false, error: data.error || 'Registration failed' }
     } catch (error) {
       console.error('[Staking] Failed to register position:', error)
-      return false
+      return { success: false, error: 'Network error' }
     }
   }, [authToken])
 
@@ -365,9 +369,9 @@ export default function StakingPage({
     } else {
       // Already approved, stake directly
       // Register with API first
-      const registered = await registerStakingPosition(address)
-      if (!registered && !userPosition) {
-        alert('Failed to register staking position. You may already have a position on another wallet.')
+      const result = await registerStakingPosition(address)
+      if (!result.success && !userPosition) {
+        alert(`Failed to register staking position: ${result.error}`)
         await checkStakingEligibility()
         return
       }
@@ -390,9 +394,9 @@ export default function StakingPage({
 
         if (currentAllowance >= amountWei && address) {
           // Register with API first
-          const registered = await registerStakingPosition(address)
-          if (!registered && !userPosition) {
-            alert('Failed to register staking position.')
+          const result = await registerStakingPosition(address)
+          if (!result.success && !userPosition) {
+            alert(`Failed to register staking position: ${result.error}`)
             return
           }
 
