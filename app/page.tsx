@@ -340,21 +340,27 @@ export default function HomePage() {
                 🍍 OWN A PARLOR 🍍
               </Button>
 
-              {/* Staking Button - Visible to all, only FID 1013491 can access */}
-              <Button
-                onClick={userFid === 1013491 ? handleNavigateToStaking : undefined}
-                className={`w-full !bg-green-600 text-white font-bold py-3 px-6 rounded-xl border-4 border-green-900 shadow-lg uppercase transform transition-all touch-manipulation ${
-                  userFid === 1013491 ? 'hover:!bg-green-700 hover:scale-105 cursor-pointer' : 'cursor-not-allowed opacity-90'
-                }`}
-                style={{
-                  ...customFontStyle,
-                  letterSpacing: "1px",
-                  fontSize: isMobile ? 18 : 20
-                }}
-                disabled={userFid !== 1013491}
-              >
-                ???
-              </Button>
+              {/* Staking Button - Visible to all, only whitelisted FIDs can access */}
+              {(() => {
+                const STAKING_WHITELIST_FIDS = [1013491, 1060809, 963422]
+                const canAccessStaking = userFid && STAKING_WHITELIST_FIDS.includes(userFid)
+                return (
+                  <Button
+                    onClick={canAccessStaking ? handleNavigateToStaking : undefined}
+                    className={`w-full !bg-green-600 text-white font-bold py-3 px-6 rounded-xl border-4 border-green-900 shadow-lg uppercase transform transition-all touch-manipulation ${
+                      canAccessStaking ? 'hover:!bg-green-700 hover:scale-105 cursor-pointer' : 'cursor-not-allowed opacity-90'
+                    }`}
+                    style={{
+                      ...customFontStyle,
+                      letterSpacing: "1px",
+                      fontSize: isMobile ? 18 : 20
+                    }}
+                    disabled={!canAccessStaking}
+                  >
+                    ???
+                  </Button>
+                )
+              })()}
 
             </div>
 
