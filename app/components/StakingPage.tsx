@@ -459,13 +459,24 @@ export default function StakingPage({
     })
   }
 
-  // Handle claim (includes spin if enabled)
+  // Handle claim or restake based on user's lock type selection
   const handleClaim = () => {
-    writeContract({
-      address: PIZZA_STAKING_ADDRESS as `0x${string}`,
-      abi: PIZZA_STAKING_ABI,
-      functionName: 'claim',
-    })
+    if (claimLockType === 1) {
+      // User chose "7-Day Lock" - restake rewards into locked position
+      writeContract({
+        address: PIZZA_STAKING_ADDRESS as `0x${string}`,
+        abi: PIZZA_STAKING_ABI,
+        functionName: 'restake',
+        args: [1], // 1 = Locked position
+      })
+    } else {
+      // User chose "No Lock" - claim rewards to wallet
+      writeContract({
+        address: PIZZA_STAKING_ADDRESS as `0x${string}`,
+        abi: PIZZA_STAKING_ABI,
+        functionName: 'claim',
+      })
+    }
   }
 
   // Spin animation for the wheel

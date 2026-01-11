@@ -427,10 +427,18 @@ contract PizzaPartyV2Upgradeable is OwnableUpgradeable, UUPSUpgradeable, Reentra
         hasPlayedDaily[gameId][player] = true;
         game.players.push(player);
 
-        // Award 1 topping
+        // Award 1 topping + 3 bonus on 7th day (full week = 10 total)
         weekly.toppingsEarned += 1;
         weekly.dailyPlays += 1;
         playerStats[player].lifetimeToppings += 1;
+        emit ToppingsEarned(weeklyGameId, player, 1, "daily_play");
+
+        // 7-day streak bonus: +3 toppings for completing full week
+        if (weekly.dailyPlays == 7) {
+            weekly.toppingsEarned += 3;
+            playerStats[player].lifetimeToppings += 3;
+            emit ToppingsEarned(weeklyGameId, player, 3, "weekly_streak_bonus");
+        }
 
         // Auto-register referral code on first entry
         if (bytes(playerReferralCode[player]).length == 0) {
@@ -441,7 +449,6 @@ contract PizzaPartyV2Upgradeable is OwnableUpgradeable, UUPSUpgradeable, Reentra
         }
 
         emit DailyGameEntered(gameId, player, isFirst, amount);
-        emit ToppingsEarned(weeklyGameId, player, 1, "daily_play");
     }
 
     function _enterDaily(address player, uint256 amount) internal {
@@ -479,12 +486,18 @@ contract PizzaPartyV2Upgradeable is OwnableUpgradeable, UUPSUpgradeable, Reentra
         hasPlayedDaily[gameId][player] = true;
         game.players.push(player);
 
-        // Award 1 topping
+        // Award 1 topping + 3 bonus on 7th day
         weekly.toppingsEarned += 1;
         weekly.dailyPlays += 1;
         playerStats[player].lifetimeToppings += 1;
+        emit ToppingsEarned(weeklyGameId, player, 1, "daily_play");
 
-        // Auto-register referral code on first entry
+        if (weekly.dailyPlays == 7) {
+            weekly.toppingsEarned += 3;
+            playerStats[player].lifetimeToppings += 3;
+            emit ToppingsEarned(weeklyGameId, player, 3, "weekly_streak_bonus");
+        }
+
         if (bytes(playerReferralCode[player]).length == 0) {
             string memory myCode = _generateCode(player);
             playerReferralCode[player] = myCode;
@@ -493,11 +506,10 @@ contract PizzaPartyV2Upgradeable is OwnableUpgradeable, UUPSUpgradeable, Reentra
         }
 
         emit DailyGameEntered(gameId, player, isFirst, amount);
-        emit ToppingsEarned(weeklyGameId, player, 1, "daily_play");
     }
 
     /**
-     * @dev Settle daily game (anyone can call after end time)
+     * @dev Settle daily game
      * No parameters needed - USD value is calculated on frontend from pot and PIZZA price
      */
     function settleDailyGame() external nonReentrant {
