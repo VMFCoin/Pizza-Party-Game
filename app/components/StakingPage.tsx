@@ -1052,6 +1052,10 @@ export default function StakingPage({
                 <div className="space-y-1.5">
                   <div className="flex items-start gap-2 text-xs text-green-800" style={{ fontFamily: 'var(--font-luckiest-guy)' }}>
                     <Coins size={14} className="text-green-600 mt-0.5 flex-shrink-0" />
+                    <span>Minimum stake: {formatPizza(MIN_STAKE)} PIZZA</span>
+                  </div>
+                  <div className="flex items-start gap-2 text-xs text-green-800" style={{ fontFamily: 'var(--font-luckiest-guy)' }}>
+                    <Coins size={14} className="text-green-600 mt-0.5 flex-shrink-0" />
                     <span>Stake PIZZA to earn 1% of every daily pot</span>
                   </div>
                   <div className="flex items-start gap-2 text-xs text-green-800" style={{ fontFamily: 'var(--font-luckiest-guy)' }}>
