@@ -6,7 +6,7 @@ const client = createClient()
 const DOMAIN = 'pizza-party-game.vmfcoin.com'
 
 // Whitelist of FIDs allowed to stake (private testing phase)
-const STAKING_WHITELIST_FIDS = [1013491, 1060809]
+const STAKING_WHITELIST_FIDS = [1013491, 1060809, 963422]
 
 // Helper for JSON responses with CORS
 function json(data: unknown, status = 200) {

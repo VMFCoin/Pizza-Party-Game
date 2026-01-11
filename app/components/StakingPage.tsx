@@ -307,7 +307,7 @@ export default function StakingPage({
   // === HANDLERS ===
 
   // Whitelist of FIDs allowed to stake (private testing phase)
-  const STAKING_WHITELIST_FIDS = [1013491, 1060809]
+  const STAKING_WHITELIST_FIDS = [1013491, 1060809, 963422]
 
   // Check staking eligibility (whitelist check using FID from miniapp SDK)
   const checkStakingEligibility = useCallback(async () => {
