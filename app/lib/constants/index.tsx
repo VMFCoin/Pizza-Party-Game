@@ -245,7 +245,7 @@ export const PIZZA_STAKING_ABI = [
 // ==============================
 export const PIZZA_PARTY_ABI = [
   // --- Core Gameplay ---
-  { type: 'function', name: 'enterDailyGame', stateMutability: 'nonpayable', inputs: [{ type: 'uint256', name: 'amountPaid' }], outputs: [] },
+  { type: 'function', name: 'enterDailyGame', stateMutability: 'nonpayable', inputs: [{ type: 'uint256', name: 'amountPaid' }, { type: 'string', name: 'referralCode' }], outputs: [] },
   // Single-transaction entry with EIP-2612 permit (no prior approval needed)
   {
     type: 'function',
