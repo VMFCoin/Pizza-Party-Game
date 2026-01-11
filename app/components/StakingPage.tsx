@@ -116,12 +116,14 @@ export default function StakingPage({
   const [isSpinning, setIsSpinning] = useState(false)
   const [spinRotation, setSpinRotation] = useState(0)
   const [spinResult, setSpinResult] = useState<typeof SPIN_OUTCOMES[0] | null>(null)
+  const [hasSpunThisSession, setHasSpunThisSession] = useState(false) // Track if user has spun in current modal session
 
   // UI state
   const [stakeAmount, setStakeAmount] = useState('')
   const [selectedLockType, setSelectedLockType] = useState<0 | 1>(1) // 0 = flexible, 1 = locked
   const [showStakeInput, setShowStakeInput] = useState(false)
-  const [showConfirmModal, setShowConfirmModal] = useState<'stake' | 'unstake' | 'claim' | null>(null)
+  const [showConfirmModal, setShowConfirmModal] = useState<'stake' | 'unstake' | 'spin-claim' | null>(null)
+  const [claimLockType, setClaimLockType] = useState<0 | 1>(0) // Lock type for claimed rewards
   const [unstakeAmount, setUnstakeAmount] = useState('')
   const [unstakeLockType, setUnstakeLockType] = useState<0 | 1>(0)
   const [pendingApproval, setPendingApproval] = useState(false) // Track if we're waiting for approval to stake
@@ -226,13 +228,19 @@ export default function StakingPage({
       refetchBalance()
       refetchAllowance()
       refetchStakeInfo()
+      // Reset spin modal state if it was a claim
+      if (showConfirmModal === 'spin-claim') {
+        setSpinResult(null)
+        setHasSpunThisSession(false)
+        setClaimLockType(0)
+      }
       setShowConfirmModal(null)
       setStakeAmount('')
       setUnstakeAmount('')
       setShowStakeInput(false)
       resetWrite()
     }
-  }, [isConfirmed, pendingApproval, refetchBalance, refetchAllowance, refetchStakeInfo, resetWrite])
+  }, [isConfirmed, pendingApproval, showConfirmModal, refetchBalance, refetchAllowance, refetchStakeInfo, resetWrite])
 
   // === COMPUTED VALUES ===
 
@@ -460,9 +468,9 @@ export default function StakingPage({
     })
   }
 
-  // Demo spin animation (visual only)
-  const handleDemoSpin = () => {
-    if (isSpinning) return
+  // Spin animation for the wheel
+  const handleSpin = () => {
+    if (isSpinning || hasSpunThisSession) return
     setIsSpinning(true)
     setSpinResult(null)
 
@@ -480,7 +488,16 @@ export default function StakingPage({
     setTimeout(() => {
       setIsSpinning(false)
       setSpinResult(outcome)
+      setHasSpunThisSession(true)
     }, 3000)
+  }
+
+  // Reset spin state when modal closes
+  const closeSpinModal = () => {
+    setShowConfirmModal(null)
+    setSpinResult(null)
+    setHasSpunThisSession(false)
+    setClaimLockType(0)
   }
 
   // Derived values for display (abbreviated format for compact areas)
@@ -609,7 +626,7 @@ export default function StakingPage({
                           </p>
                         </div>
                         <Button
-                          onClick={() => setShowConfirmModal('claim')}
+                          onClick={() => setShowConfirmModal('spin-claim')}
                           disabled={!hasPendingRewards || isWritePending || isConfirming}
                           className="!bg-yellow-500 hover:!bg-yellow-600 text-white font-bold py-1.5 px-3 rounded-xl border-2 border-yellow-700 disabled:opacity-50 text-sm"
                           style={customFontStyle}
@@ -926,85 +943,6 @@ export default function StakingPage({
               </div>
             </Card>
 
-            {/* Spin the Pie Wheel */}
-            <div className="bg-black rounded-2xl p-4 border-4 border-red-800">
-              <p
-                className="text-center mb-3"
-                style={{ fontFamily: 'var(--font-luckiest-guy)', fontSize: '48px', lineHeight: '1', color: '#FFA500' }}
-              >
-                Spin the Pie
-              </p>
-
-              {/* Wheel Container */}
-              <div className="relative mx-auto" style={{ width: isMobile ? 240 : 300, height: isMobile ? 240 : 300 }}>
-                {/* Outer Ring (static - behind) */}
-                <div className="absolute inset-0 flex items-center justify-center">
-                  <Image
-                    src="/images/Pizza-Ring.png"
-                    alt="Spin Ring"
-                    width={isMobile ? 240 : 300}
-                    height={isMobile ? 240 : 300}
-                    priority
-                  />
-                </div>
-
-                {/* Pizza Wheel (spins - on top) */}
-                <div
-                  className="absolute inset-0 flex items-center justify-center transition-transform z-10"
-                  style={{
-                    transform: `rotate(${spinRotation}deg)`,
-                    transitionDuration: isSpinning ? '3s' : '0s',
-                    transitionTimingFunction: 'cubic-bezier(0.17, 0.67, 0.12, 0.99)',
-                  }}
-                >
-                  <Image
-                    src="/images/Pizza-Wheel.png"
-                    alt="Pizza Wheel"
-                    width={isMobile ? 190 : 240}
-                    height={isMobile ? 190 : 240}
-                    priority
-                  />
-                </div>
-              </div>
-
-              {/* Spin Result */}
-              {spinResult && !isSpinning && (
-                <div className="bg-red-500 rounded-xl p-3 mt-3 text-center text-white border-4 border-red-700">
-                  <p className="font-bold text-lg" style={customFontStyle}>{spinResult.name}!</p>
-                  <p className="text-sm">You get {spinResult.multiplier} of your rewards!</p>
-                </div>
-              )}
-
-              {/* Spin Button (demo mode for non-stakers) */}
-              {!userPosition && (
-                <Button
-                  onClick={handleDemoSpin}
-                  disabled={isSpinning}
-                  className="w-full mt-4 !bg-yellow-500 hover:!bg-yellow-600 text-white font-bold py-2 rounded-xl border-4 border-yellow-700"
-                  style={{ ...customFontStyle, fontSize: 16 }}
-                >
-                  {isSpinning ? 'SPINNING...' : 'TRY DEMO SPIN'}
-                </Button>
-              )}
-
-              {/* Spin Outcomes Legend */}
-              <div className="mt-3 grid grid-cols-2 gap-2">
-                {SPIN_OUTCOMES.map((outcome) => (
-                  <div
-                    key={outcome.name}
-                    className={`${outcome.color} rounded-lg px-2 py-1 text-center`}
-                  >
-                    <p className="text-white text-xs font-bold" style={customFontStyle}>
-                      {outcome.name}
-                    </p>
-                    <p className="text-white/90 text-xs">
-                      {outcome.chance} | {outcome.multiplier}
-                    </p>
-                  </div>
-                ))}
-              </div>
-            </div>
-
             {/* Staking Tiers - Collapsible */}
             <div className="tiers-dropdown">
               <Button
@@ -1274,44 +1212,251 @@ export default function StakingPage({
                 </>
               )}
 
-              {showConfirmModal === 'claim' && (
-                <>
-                  <p className="text-xl font-bold text-center mb-4" style={{ fontFamily: 'var(--font-luckiest-guy)' }}>
-                    Claim Rewards
-                  </p>
-                  <div className="bg-yellow-50 rounded-lg p-3 mb-4">
-                    <p className="text-yellow-700 text-sm">
-                      Pending Rewards: <span className="font-bold">{userPosition ? formatPizzaWei(userPosition.totalPendingRewards) : '0'} PIZZA</span>
+            </Card>
+          </div>
+        )}
+
+        {/* SPIN & CLAIM Modal - Full Screen Overlay */}
+        {showConfirmModal === 'spin-claim' && (
+          <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
+            <div className="bg-black rounded-2xl p-4 border-4 border-red-800 max-w-md w-full max-h-[90vh] overflow-y-auto">
+              {/* Title */}
+              <p
+                className="text-center mb-3"
+                style={{ fontFamily: 'var(--font-luckiest-guy)', fontSize: '36px', lineHeight: '1', color: '#FFA500' }}
+              >
+                Spin the Pie
+              </p>
+
+              {/* Pending Rewards Display */}
+              <div className="bg-yellow-500/20 rounded-xl p-3 mb-4 border-2 border-yellow-500">
+                <p className="text-yellow-400 text-sm text-center" style={customFontStyle}>
+                  Base Rewards: <span className="text-white font-bold">{userPosition ? formatPizzaWei(userPosition.totalPendingRewards) : '0'} PIZZA</span>
+                </p>
+              </div>
+
+              {/* Wheel Container */}
+              <div className="relative mx-auto mb-4" style={{ width: 260, height: 260 }}>
+                {/* Outer Ring (static - behind) */}
+                <div className="absolute inset-0 flex items-center justify-center">
+                  <Image
+                    src="/images/Pizza-Ring.png"
+                    alt="Spin Ring"
+                    width={260}
+                    height={260}
+                    priority
+                  />
+                </div>
+
+                {/* Pizza Wheel (spins - on top) */}
+                <div
+                  className="absolute inset-0 flex items-center justify-center transition-transform z-10"
+                  style={{
+                    transform: `rotate(${spinRotation}deg)`,
+                    transitionDuration: isSpinning ? '3s' : '0s',
+                    transitionTimingFunction: 'cubic-bezier(0.17, 0.67, 0.12, 0.99)',
+                  }}
+                >
+                  <Image
+                    src="/images/Pizza-Wheel.png"
+                    alt="Pizza Wheel"
+                    width={210}
+                    height={210}
+                    priority
+                  />
+                </div>
+              </div>
+
+              {/* Pre-spin: Show SPIN button */}
+              {!hasSpunThisSession && !isSpinning && spinEnabled && canSpinToday && (
+                <Button
+                  onClick={handleSpin}
+                  className="w-full !bg-yellow-500 hover:!bg-yellow-600 text-white font-bold py-3 rounded-xl border-4 border-yellow-700"
+                  style={{ ...customFontStyle, fontSize: 20 }}
+                >
+                  SPIN THE PIE!
+                </Button>
+              )}
+
+              {/* During spin */}
+              {isSpinning && (
+                <div className="text-center">
+                  <p className="text-yellow-400 text-xl" style={customFontStyle}>SPINNING...</p>
+                </div>
+              )}
+
+              {/* Post-spin: Show result + lock selection + claim button */}
+              {hasSpunThisSession && !isSpinning && spinResult && (
+                <div className="space-y-4">
+                  {/* Spin Result */}
+                  <div className={`${spinResult.color} rounded-xl p-4 text-center text-white border-4 border-white/30`}>
+                    <p className="font-bold text-2xl" style={customFontStyle}>{spinResult.name}!</p>
+                    <p className="text-lg">{spinResult.multiplier} of your rewards!</p>
+                    <p className="text-sm mt-2 opacity-90">
+                      Final: ~{userPosition ? formatPizzaWei((userPosition.totalPendingRewards * BigInt(parseInt(spinResult.multiplier))) / 100n) : '0'} PIZZA
                     </p>
-                    {spinEnabled && canSpinToday && (
-                      <p className="text-yellow-600 text-xs mt-2">
-                        Spin the wheel to multiply your rewards!
-                      </p>
-                    )}
                   </div>
+
+                  {/* Lock Type Selection for Claimed Rewards */}
+                  <div className="bg-gray-800 rounded-xl p-3">
+                    <p className="text-white text-sm font-bold mb-2 text-center" style={customFontStyle}>
+                      Restake Rewards?
+                    </p>
+                    <div className="grid grid-cols-2 gap-2">
+                      <button
+                        onClick={() => setClaimLockType(0)}
+                        className={`p-3 rounded-xl border-2 transition-all ${
+                          claimLockType === 0
+                            ? 'border-green-500 bg-green-900/50'
+                            : 'border-gray-600 bg-gray-700 hover:border-gray-500'
+                        }`}
+                      >
+                        <Unlock size={20} className={claimLockType === 0 ? 'text-green-400 mx-auto' : 'text-gray-400 mx-auto'} />
+                        <p className={`font-bold text-sm mt-1 ${claimLockType === 0 ? 'text-green-400' : 'text-gray-400'}`} style={customFontStyle}>
+                          No Lock
+                        </p>
+                        <p className={`text-xs ${claimLockType === 0 ? 'text-green-300' : 'text-gray-500'}`}>
+                          Claim to wallet
+                        </p>
+                      </button>
+                      <button
+                        onClick={() => setClaimLockType(1)}
+                        className={`p-3 rounded-xl border-2 transition-all ${
+                          claimLockType === 1
+                            ? 'border-blue-500 bg-blue-900/50'
+                            : 'border-gray-600 bg-gray-700 hover:border-gray-500'
+                        }`}
+                      >
+                        <Lock size={20} className={claimLockType === 1 ? 'text-blue-400 mx-auto' : 'text-gray-400 mx-auto'} />
+                        <p className={`font-bold text-sm mt-1 ${claimLockType === 1 ? 'text-blue-400' : 'text-gray-400'}`} style={customFontStyle}>
+                          7-Day Lock
+                        </p>
+                        <p className={`text-xs ${claimLockType === 1 ? 'text-blue-300' : 'text-gray-500'}`}>
+                          +10% bonus
+                        </p>
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Action Buttons */}
                   <div className="flex gap-2">
                     <Button
-                      onClick={() => setShowConfirmModal(null)}
-                      className="flex-1 !bg-gray-300 hover:!bg-gray-400 text-gray-700 font-bold py-2 rounded-xl"
+                      onClick={closeSpinModal}
+                      className="flex-1 !bg-gray-600 hover:!bg-gray-700 text-white font-bold py-3 rounded-xl border-2 border-gray-500"
                       disabled={isWritePending || isConfirming}
+                      style={customFontStyle}
                     >
                       Cancel
                     </Button>
                     <Button
                       onClick={handleClaim}
-                      className="flex-1 !bg-yellow-500 hover:!bg-yellow-600 text-white font-bold py-2 rounded-xl"
+                      className="flex-1 !bg-green-500 hover:!bg-green-600 text-white font-bold py-3 rounded-xl border-2 border-green-700"
                       disabled={isWritePending || isConfirming}
+                      style={customFontStyle}
                     >
                       {isWritePending || isConfirming ? (
                         <Loader2 className="animate-spin mx-auto" size={20} />
                       ) : (
-                        'Claim'
+                        'CLAIM!'
                       )}
                     </Button>
                   </div>
-                </>
+                </div>
               )}
-            </Card>
+
+              {/* No spin available - direct claim */}
+              {(!spinEnabled || !canSpinToday) && !hasSpunThisSession && (
+                <div className="space-y-4">
+                  <div className="bg-gray-800 rounded-xl p-3 text-center">
+                    <p className="text-gray-400 text-sm" style={customFontStyle}>
+                      {!canSpinToday ? "You've already spun today!" : "Spin is currently disabled"}
+                    </p>
+                  </div>
+
+                  {/* Lock Type Selection */}
+                  <div className="bg-gray-800 rounded-xl p-3">
+                    <p className="text-white text-sm font-bold mb-2 text-center" style={customFontStyle}>
+                      Restake Rewards?
+                    </p>
+                    <div className="grid grid-cols-2 gap-2">
+                      <button
+                        onClick={() => setClaimLockType(0)}
+                        className={`p-3 rounded-xl border-2 transition-all ${
+                          claimLockType === 0
+                            ? 'border-green-500 bg-green-900/50'
+                            : 'border-gray-600 bg-gray-700 hover:border-gray-500'
+                        }`}
+                      >
+                        <Unlock size={20} className={claimLockType === 0 ? 'text-green-400 mx-auto' : 'text-gray-400 mx-auto'} />
+                        <p className={`font-bold text-sm mt-1 ${claimLockType === 0 ? 'text-green-400' : 'text-gray-400'}`} style={customFontStyle}>
+                          No Lock
+                        </p>
+                        <p className={`text-xs ${claimLockType === 0 ? 'text-green-300' : 'text-gray-500'}`}>
+                          Claim to wallet
+                        </p>
+                      </button>
+                      <button
+                        onClick={() => setClaimLockType(1)}
+                        className={`p-3 rounded-xl border-2 transition-all ${
+                          claimLockType === 1
+                            ? 'border-blue-500 bg-blue-900/50'
+                            : 'border-gray-600 bg-gray-700 hover:border-gray-500'
+                        }`}
+                      >
+                        <Lock size={20} className={claimLockType === 1 ? 'text-blue-400 mx-auto' : 'text-gray-400 mx-auto'} />
+                        <p className={`font-bold text-sm mt-1 ${claimLockType === 1 ? 'text-blue-400' : 'text-gray-400'}`} style={customFontStyle}>
+                          7-Day Lock
+                        </p>
+                        <p className={`text-xs ${claimLockType === 1 ? 'text-blue-300' : 'text-gray-500'}`}>
+                          +10% bonus
+                        </p>
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Action Buttons */}
+                  <div className="flex gap-2">
+                    <Button
+                      onClick={closeSpinModal}
+                      className="flex-1 !bg-gray-600 hover:!bg-gray-700 text-white font-bold py-3 rounded-xl border-2 border-gray-500"
+                      disabled={isWritePending || isConfirming}
+                      style={customFontStyle}
+                    >
+                      Cancel
+                    </Button>
+                    <Button
+                      onClick={handleClaim}
+                      className="flex-1 !bg-green-500 hover:!bg-green-600 text-white font-bold py-3 rounded-xl border-2 border-green-700"
+                      disabled={isWritePending || isConfirming}
+                      style={customFontStyle}
+                    >
+                      {isWritePending || isConfirming ? (
+                        <Loader2 className="animate-spin mx-auto" size={20} />
+                      ) : (
+                        'CLAIM!'
+                      )}
+                    </Button>
+                  </div>
+                </div>
+              )}
+
+              {/* Spin Outcomes Legend */}
+              <div className="mt-4 grid grid-cols-2 gap-2">
+                {SPIN_OUTCOMES.map((outcome) => (
+                  <div
+                    key={outcome.name}
+                    className={`${outcome.color} rounded-lg px-2 py-1 text-center`}
+                  >
+                    <p className="text-white text-xs font-bold" style={customFontStyle}>
+                      {outcome.name}
+                    </p>
+                    <p className="text-white/90 text-xs">
+                      {outcome.chance} | {outcome.multiplier}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            </div>
           </div>
         )}
       </div>
