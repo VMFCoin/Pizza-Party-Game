@@ -38,10 +38,8 @@ contract UpgradeStaking is Script {
         console.log("Current Owner:", staking.owner());
         console.log("");
 
-        // Show current values before upgrade
+        // Show current values before upgrade (note: new functions won't exist yet)
         console.log("--- BEFORE UPGRADE ---");
-        console.log("MIN_STAKE (fallback):", staking.MIN_STAKE_FALLBACK() / 1e18, "PIZZA");
-        console.log("MIN_STAKE (current):", staking.getMinStake() / 1e18, "PIZZA");
         console.log("MAX_STAKE:", staking.MAX_STAKE() / 1e18, "PIZZA");
         console.log("TIER1_THRESHOLD:", staking.TIER1_THRESHOLD() / 1e18, "PIZZA");
         console.log("TIER2_THRESHOLD:", staking.TIER2_THRESHOLD() / 1e18, "PIZZA");

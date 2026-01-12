@@ -36,8 +36,9 @@ const STAKING_TIERS = [
   { id: 3, name: 'Pizza Tycoon', minStake: 500_000, yieldBoost: '+20%', toppingBonus: 5, color: 'bg-red-600', emoji: '👑' },
 ]
 
-// Staking limits for 10M supply testing. Change for 10B supply.
-const MIN_STAKE = 100 // 100 PIZZA minimum
+// Staking limits - MIN_STAKE is now dynamic ($1 worth of PIZZA)
+// Fallback used if contract call fails (100 PIZZA)
+const MIN_STAKE_FALLBACK = 100
 const _MAX_STAKE = 1_000_000 // 1M PIZZA maximum (10% of supply) - enforced by contract
 
 // Spin the Pie outcomes
@@ -196,6 +197,35 @@ export default function StakingPage({
     abi: PIZZA_STAKING_ABI,
     functionName: 'spinEnabled',
   })
+
+  // Fetch live PIZZA price from DexScreener API for dynamic $1 minimum
+  const [pizzaPrice, setPizzaPrice] = useState<number | null>(null)
+
+  useEffect(() => {
+    const fetchPrice = async () => {
+      try {
+        const response = await fetch('/api/price')
+        const data = await response.json()
+        if (data.success && data.priceUsd) {
+          setPizzaPrice(data.priceUsd)
+        }
+      } catch (error) {
+        console.error('[Staking] Failed to fetch PIZZA price:', error)
+      }
+    }
+
+    // Fetch immediately and then every 60 seconds
+    fetchPrice()
+    const interval = setInterval(fetchPrice, 60000)
+    return () => clearInterval(interval)
+  }, [])
+
+  // Calculate minStake dynamically: $1 / current price
+  // This ensures the minimum is always exactly $1 worth at current market price
+  const minStake = useMemo(() => {
+    if (!pizzaPrice || pizzaPrice <= 0) return MIN_STAKE_FALLBACK
+    return Math.ceil(1 / pizzaPrice) // $1 divided by price per token, rounded up
+  }, [pizzaPrice])
 
   // Read current game ID (for spin tracking)
   const { data: currentGameId } = useReadContract({
@@ -371,7 +401,7 @@ export default function StakingPage({
   const handleStake = async () => {
     if (!address) return
     const amountNum = parseFloat(stakeAmount)
-    if (isNaN(amountNum) || amountNum < MIN_STAKE) return
+    if (isNaN(amountNum) || amountNum < minStake) return
 
     const amountWei = parseUnits(stakeAmount, 18)
 
@@ -674,7 +704,7 @@ export default function StakingPage({
                               type="number"
                               value={stakeAmount}
                               onChange={(e) => setStakeAmount(e.target.value)}
-                              placeholder={`Min: ${formatPizza(MIN_STAKE)} PIZZA`}
+                              placeholder={`Min: $1 (~${formatPizza(minStake)} PIZZA)`}
                               className="flex-1 px-3 py-2 border-2 border-green-300 rounded-xl focus:border-green-500 focus:outline-none"
                               style={{ fontFamily: 'var(--font-luckiest-guy)' }}
                             />
@@ -746,7 +776,7 @@ export default function StakingPage({
                           </Button>
                           <Button
                             onClick={() => setShowConfirmModal('stake')}
-                            disabled={!stakeAmount || parseFloat(stakeAmount) < MIN_STAKE || isWritePending || isConfirming}
+                            disabled={!stakeAmount || parseFloat(stakeAmount) < minStake || isWritePending || isConfirming}
                             className="flex-1 !bg-green-500 hover:!bg-green-600 text-white font-bold py-2 rounded-xl border-2 border-green-700 disabled:opacity-50"
                             style={customFontStyle}
                           >
@@ -854,7 +884,7 @@ export default function StakingPage({
                               type="number"
                               value={stakeAmount}
                               onChange={(e) => setStakeAmount(e.target.value)}
-                              placeholder={`Min: ${formatPizza(MIN_STAKE)} PIZZA`}
+                              placeholder={`Min: $1 (~${formatPizza(minStake)} PIZZA)`}
                               className="flex-1 px-3 py-2 border-2 border-green-300 rounded-xl focus:border-green-500 focus:outline-none"
                               style={{ fontFamily: 'var(--font-luckiest-guy)' }}
                             />
@@ -876,7 +906,7 @@ export default function StakingPage({
                         </div>
 
                         {/* Preview Tier */}
-                        {stakeAmount && parseFloat(stakeAmount) >= MIN_STAKE && (
+                        {stakeAmount && parseFloat(stakeAmount) >= minStake && (
                           <div className="bg-green-50 rounded-lg p-2 border border-green-200">
                             <p className="text-green-600 text-xs mb-1" style={{ fontFamily: 'var(--font-luckiest-guy)' }}>Your tier will be:</p>
                             <div className="flex items-center gap-2">
@@ -936,7 +966,7 @@ export default function StakingPage({
                           </Button>
                           <Button
                             onClick={() => setShowConfirmModal('stake')}
-                            disabled={!stakeAmount || parseFloat(stakeAmount) < MIN_STAKE || isWritePending || isConfirming}
+                            disabled={!stakeAmount || parseFloat(stakeAmount) < minStake || isWritePending || isConfirming}
                             className="flex-1 !bg-green-500 hover:!bg-green-600 text-white font-bold py-2 rounded-xl border-2 border-green-700 disabled:opacity-50"
                             style={customFontStyle}
                           >
@@ -1052,7 +1082,7 @@ export default function StakingPage({
                 <div className="space-y-1.5">
                   <div className="flex items-start gap-2 text-xs text-green-800" style={{ fontFamily: 'var(--font-luckiest-guy)' }}>
                     <Coins size={14} className="text-green-600 mt-0.5 flex-shrink-0" />
-                    <span>Minimum stake: {formatPizza(MIN_STAKE)} PIZZA</span>
+                    <span>Minimum stake: $1 (~{formatPizza(minStake)} PIZZA)</span>
                   </div>
                   <div className="flex items-start gap-2 text-xs text-green-800" style={{ fontFamily: 'var(--font-luckiest-guy)' }}>
                     <Coins size={14} className="text-green-600 mt-0.5 flex-shrink-0" />

@@ -103,7 +103,8 @@ export const PIZZA_TOKEN_ABI = [
 // ==============================
 export const PIZZA_STAKING_ABI = [
   // --- Constants ---
-  { type: 'function', name: 'MIN_STAKE', stateMutability: 'view', inputs: [], outputs: [{ type: 'uint256' }] },
+  { type: 'function', name: 'MIN_STAKE_MICRO_USD', stateMutability: 'view', inputs: [], outputs: [{ type: 'uint256' }] },
+  { type: 'function', name: 'MIN_STAKE_FALLBACK', stateMutability: 'view', inputs: [], outputs: [{ type: 'uint256' }] },
   { type: 'function', name: 'MAX_STAKE', stateMutability: 'view', inputs: [], outputs: [{ type: 'uint256' }] },
   { type: 'function', name: 'LOCK_DURATION', stateMutability: 'view', inputs: [], outputs: [{ type: 'uint256' }] },
   { type: 'function', name: 'EARLY_UNSTAKE_PENALTY_BPS', stateMutability: 'view', inputs: [], outputs: [{ type: 'uint256' }] },
@@ -121,6 +122,7 @@ export const PIZZA_STAKING_ABI = [
   { type: 'function', name: 'pizzaToken', stateMutability: 'view', inputs: [], outputs: [{ type: 'address' }] },
   { type: 'function', name: 'pizzaPartyContract', stateMutability: 'view', inputs: [], outputs: [{ type: 'address' }] },
   { type: 'function', name: 'stakingRewardsWallet', stateMutability: 'view', inputs: [], outputs: [{ type: 'address' }] },
+  { type: 'function', name: 'pizzaPriceMicroUsd', stateMutability: 'view', inputs: [], outputs: [{ type: 'uint256' }] },
 
   // --- Position Mappings ---
   {
@@ -162,6 +164,7 @@ export const PIZZA_STAKING_ABI = [
   { type: 'function', name: 'getPendingRewards', stateMutability: 'view', inputs: [{ type: 'address', name: 'user' }], outputs: [{ type: 'uint256' }] },
   { type: 'function', name: 'getPendingRewardsForPosition', stateMutability: 'view', inputs: [{ type: 'address', name: 'user' }, { type: 'uint8', name: 'lockType' }], outputs: [{ type: 'uint256' }] },
   { type: 'function', name: 'canSpinToday', stateMutability: 'view', inputs: [{ type: 'address', name: 'user' }], outputs: [{ type: 'bool' }] },
+  { type: 'function', name: 'getMinStake', stateMutability: 'view', inputs: [], outputs: [{ type: 'uint256' }] },
   {
     type: 'function',
     name: 'getStakeInfo',
