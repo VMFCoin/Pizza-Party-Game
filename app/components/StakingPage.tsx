@@ -1197,28 +1197,49 @@ export default function StakingPage({
                   <div className="space-y-3 mb-4">
                     <div>
                       <label className="text-sm font-bold text-gray-700 block mb-1">Amount to Unstake</label>
-                      <input
-                        type="number"
-                        value={unstakeAmount}
-                        onChange={(e) => setUnstakeAmount(e.target.value)}
-                        placeholder="Amount"
-                        className="w-full px-3 py-2 border-2 border-gray-300 rounded-xl focus:border-red-500 focus:outline-none"
-                      />
+                      <div className="flex gap-2">
+                        <input
+                          type="number"
+                          value={unstakeAmount}
+                          onChange={(e) => setUnstakeAmount(e.target.value)}
+                          placeholder="Amount"
+                          className="flex-1 px-3 py-2 border-2 border-gray-300 rounded-xl focus:border-red-500 focus:outline-none"
+                        />
+                        <button
+                          onClick={() => {
+                            const maxAmount = unstakeLockType === 0
+                              ? userPosition?.flexibleAmount
+                              : userPosition?.lockedAmount
+                            if (maxAmount) {
+                              setUnstakeAmount(formatUnits(maxAmount, 18))
+                            }
+                          }}
+                          className="px-4 py-2 bg-red-500 hover:bg-red-600 text-white font-bold rounded-xl text-sm"
+                        >
+                          MAX
+                        </button>
+                      </div>
                     </div>
                     <div>
                       <label className="text-sm font-bold text-gray-700 block mb-1">From Position</label>
                       <div className="flex gap-2">
                         <button
                           onClick={() => setUnstakeLockType(0)}
-                          className={`flex-1 py-2 rounded-lg border-2 ${unstakeLockType === 0 ? 'bg-green-100 border-green-500' : 'border-gray-300'}`}
+                          className={`flex-1 py-2 px-3 rounded-lg border-2 ${unstakeLockType === 0 ? 'bg-green-100 border-green-500' : 'border-gray-300'}`}
                         >
-                          Flexible
+                          <div className="font-bold">Flexible</div>
+                          <div className="text-xs text-gray-600">
+                            {userPosition?.flexibleAmount ? formatPizzaWei(userPosition.flexibleAmount) : '0'} PIZZA
+                          </div>
                         </button>
                         <button
                           onClick={() => setUnstakeLockType(1)}
-                          className={`flex-1 py-2 rounded-lg border-2 ${unstakeLockType === 1 ? 'bg-blue-100 border-blue-500' : 'border-gray-300'}`}
+                          className={`flex-1 py-2 px-3 rounded-lg border-2 ${unstakeLockType === 1 ? 'bg-blue-100 border-blue-500' : 'border-gray-300'}`}
                         >
-                          Locked
+                          <div className="font-bold">Locked</div>
+                          <div className="text-xs text-gray-600">
+                            {userPosition?.lockedAmount ? formatPizzaWei(userPosition.lockedAmount) : '0'} PIZZA
+                          </div>
                         </button>
                       </div>
                     </div>
