@@ -7,6 +7,7 @@ import { X } from 'lucide-react'
 interface ToppingBreakdownModalProps {
   isOpen: boolean
   onClose: () => void
+  dailyPlays: number
   dailyPlayToppings: number
   referralToppings: number
   holdingsToppings: number
@@ -24,6 +25,7 @@ const customFontStyle = {
 export default function ToppingBreakdownModal({
   isOpen,
   onClose,
+  dailyPlays,
   dailyPlayToppings,
   referralToppings,
   holdingsToppings,
@@ -32,6 +34,7 @@ export default function ToppingBreakdownModal({
   onClaim,
   isMobile = false,
 }: ToppingBreakdownModalProps) {
+  const hasStreakBonus = dailyPlays === 7
   if (!isOpen) return null
 
   const handleBackdropClick = (e: React.MouseEvent<HTMLDivElement>) => {
@@ -79,7 +82,13 @@ export default function ToppingBreakdownModal({
                 Daily Plays
               </span>
             </div>
-            <span className={`text-black font-black flex-shrink-0 ${isMobile ? 'text-base' : 'text-lg'}`}>{dailyPlayToppings}</span>
+            <span className={`text-black font-black flex-shrink-0 ${isMobile ? 'text-base' : 'text-lg'}`}>
+              {hasStreakBonus ? (
+                <>{dailyPlays} <span className="text-green-700">+3</span></>
+              ) : (
+                dailyPlayToppings
+              )}
+            </span>
           </div>
 
           {/* Referrals */}

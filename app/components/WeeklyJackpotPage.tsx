@@ -170,7 +170,8 @@ export default function WeeklyJackpotPage({
     : 'Connect wallet to claim'
 
   // Calculate topping breakdown
-  const dailyPlayToppings = Number(playerWeekly?.dailyPlays ?? 0n) * 1
+  const dailyPlays = Number(playerWeekly?.dailyPlays ?? 0n)
+  const dailyPlayToppings = dailyPlays + (dailyPlays === 7 ? 3 : 0) // 1 per play + 3 streak bonus
   const referralToppings = Number(playerWeekly?.referralsUsed ?? 0n) * 2
   const holdingsToppings = Number(playerWeekly?.projectedHoldingsBonus ?? 0n)
   const totalToppingsBeforeClaim = dailyPlayToppings + referralToppings + holdingsToppings
@@ -369,6 +370,7 @@ export default function WeeklyJackpotPage({
       <ToppingBreakdownModal
         isOpen={showToppingBreakdown}
         onClose={() => setShowToppingBreakdown(false)}
+        dailyPlays={dailyPlays}
         dailyPlayToppings={dailyPlayToppings}
         referralToppings={referralToppings}
         holdingsToppings={holdingsToppings}
