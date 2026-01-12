@@ -1,193 +1,358 @@
-# Daily Settlement → Staking Rewards Workflow
+# Daily Settlement → Staking Rewards → Claim/Spin Complete Workflow
 
-## Flow Diagram
+## Complete Flow Diagram
 
 ```
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                         DAILY GAME SETTLEMENT                                │
-│                    (PizzaPartyV2._settleDailyGame)                          │
-└─────────────────────────────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────────────────────────┐
+│                              PART 1: DAILY SETTLEMENT                            │
+│                         (Happens at 12:00 PM PT each day)                        │
+└─────────────────────────────────────────────────────────────────────────────────┘
+
+                              DAILY GAME ENDS
                                     │
                                     ▼
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                          CALCULATE POT SPLIT                                 │
-│                                                                              │
-│   Total Pot: 100%                                                            │
-│   ├── Winners: 93% (PLAYERS_POOL_BPS = 9300)                                │
-│   ├── Staking: 1%  (stakingFeeBPS = 100)                                    │
-│   ├── Parlor Owners: 4% (parlorFeeBPS = 400)                                │
-│   └── Owner/Treasury: 2% (ownerFeeBPS = 200)                                │
-└─────────────────────────────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────────────────────────┐
+│                    PizzaPartyV2._settleDailyGame()                               │
+│                                                                                  │
+│   Total Pot Example: 10,000 PIZZA                                               │
+│   ┌───────────────────────────────────────────────────────────────────────────┐ │
+│   │  93% → Winners Pool (9,300 PIZZA)                                         │ │
+│   │   4% → Parlor Owners (400 PIZZA)                                          │ │
+│   │   2% → Treasury (200 PIZZA)                                               │ │
+│   │   1% → STAKING CONTRACT (100 PIZZA) ◄─── This goes to stakers!           │ │
+│   └───────────────────────────────────────────────────────────────────────────┘ │
+└─────────────────────────────────────────────────────────────────────────────────┘
                                     │
-                    ┌───────────────┼───────────────┐
-                    │               │               │
-                    ▼               ▼               ▼
-            ┌───────────┐   ┌───────────┐   ┌───────────────┐
-            │  Winners  │   │  Parlor   │   │  Staking      │
-            │   (93%)   │   │  Owners   │   │  Contract     │
-            │           │   │   (4%)    │   │    (1%)       │
-            └───────────┘   └───────────┘   └───────┬───────┘
-                                                    │
-                                                    ▼
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                    STAKING CONTRACT RECEIVES 1%                              │
-│                 (PizzaStakingV1.notifyRewardAmount)                         │
-│                                                                              │
-│   Called by PizzaPartyV2 during _settleDailyGame:                           │
-│   stakingContract.notifyRewardAmount(stakingFee)                            │
-└─────────────────────────────────────────────────────────────────────────────┘
+                                    │ stakingContract.notifyRewardAmount(100 PIZZA)
+                                    ▼
+┌─────────────────────────────────────────────────────────────────────────────────┐
+│                    STAKING CONTRACT RECEIVES 1%                                  │
+│                 PizzaStakingV1.notifyRewardAmount()                              │
+│                                                                                  │
+│   if (stakerCount == 0):                                                        │
+│       → Add to bonusPool (saved for later)                                      │
+│   else:                                                                          │
+│       accRewardPerStaker += (100 PIZZA × 1e18) ÷ stakerCount                    │
+│                                                                                  │
+│   ┌─────────────────────────────────────────────────────────────────────────┐   │
+│   │  EQUAL DISTRIBUTION EXAMPLE                                             │   │
+│   │                                                                         │   │
+│   │  100 PIZZA ÷ 3 stakers = 33.33 PIZZA each (base reward)                │   │
+│   │                                                                         │   │
+│   │  Staker A: 33.33 PIZZA (staked 100 PIZZA)                              │   │
+│   │  Staker B: 33.33 PIZZA (staked 1,000 PIZZA)                            │   │
+│   │  Staker C: 33.33 PIZZA (staked 500,000 PIZZA)                          │   │
+│   │                                                                         │   │
+│   │  ► ALL GET SAME BASE AMOUNT regardless of stake size!                  │   │
+│   └─────────────────────────────────────────────────────────────────────────┘   │
+└─────────────────────────────────────────────────────────────────────────────────┘
+                                    │
+                                    │ Rewards accumulate in accRewardPerStaker
+                                    ▼
+┌─────────────────────────────────────────────────────────────────────────────────┐
+│                         REWARDS ACCUMULATE DAILY                                 │
+│                                                                                  │
+│   Day 1: Pot = 10,000 → Staking = 100 → Each staker: +33.33 PIZZA              │
+│   Day 2: Pot = 15,000 → Staking = 150 → Each staker: +50.00 PIZZA              │
+│   Day 3: Pot = 12,000 → Staking = 120 → Each staker: +40.00 PIZZA              │
+│   Day 4: Pot = 8,000  → Staking = 80  → Each staker: +26.67 PIZZA              │
+│   ───────────────────────────────────────────────────────────────────────────   │
+│   TOTAL ACCUMULATED (if not claimed): 150 PIZZA per staker                      │
+│                                                                                  │
+│   ► Rewards DO NOT expire! Skip days = rewards pile up for later claim         │
+└─────────────────────────────────────────────────────────────────────────────────┘
+
+
+┌─────────────────────────────────────────────────────────────────────────────────┐
+│                           PART 2: USER CLAIMS REWARDS                            │
+│                          (User clicks SPIN & CLAIM button)                       │
+└─────────────────────────────────────────────────────────────────────────────────┘
+
+                         USER OPENS SPIN & CLAIM MODAL
                                     │
                                     ▼
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                      EQUAL REWARD DISTRIBUTION                               │
-│                                                                              │
-│   if (stakerCount == 0):                                                    │
-│       → Add to bonusPool (no stakers to pay)                                │
-│   else:                                                                      │
-│       accRewardPerStaker += (amount × 1e18) ÷ stakerCount                   │
-│                                                                              │
-│   Example with 3 stakers and 100 PIZZA:                                     │
-│   accRewardPerStaker += (100 × 1e18) ÷ 3 = ~33.33 PIZZA per staker         │
-└─────────────────────────────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────────────────────────┐
+│                    STEP 1: CALCULATE BASE REWARD                                 │
+│                 _calculateTotalPendingRewards(user)                             │
+│                                                                                  │
+│   baseReward = (accRewardPerStaker - stakerRewardDebt[user]) ÷ 1e18            │
+│                                                                                  │
+│   Example: User hasn't claimed in 4 days                                        │
+│   baseReward = 150 PIZZA                                                        │
+└─────────────────────────────────────────────────────────────────────────────────┘
                                     │
                                     ▼
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                    REWARDS ACCUMULATE PER STAKER                             │
-│                                                                              │
-│   Each staker's pending reward = accRewardPerStaker - stakerRewardDebt      │
-│   Rewards ACCUMULATE if not claimed (no "use it or lose it")                │
-│                                                                              │
-│   Day 1: Pot = 10,000 PIZZA → Staking = 100 → Each staker: 33.33 PIZZA     │
-│   Day 2: Pot = 15,000 PIZZA → Staking = 150 → Each staker: +50 PIZZA       │
-│   Day 3: Pot = 12,000 PIZZA → Staking = 120 → Each staker: +40 PIZZA       │
-│   ────────────────────────────────────────────────────────────────────      │
-│   If didn't claim Days 1-3, each staker has: 123.33 PIZZA pending          │
-└─────────────────────────────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────────────────────────┐
+│                    STEP 2: APPLY BONUS MULTIPLIERS                               │
+│                      (Bonuses are ADDITIVE, not multiplicative)                  │
+│                                                                                  │
+│   Start with: 100% (10000 BPS)                                                  │
+│                                                                                  │
+│   ┌─────────────────────────────────────────────────────────────────────────┐   │
+│   │  + TIER BONUS (based on total staked amount)                            │   │
+│   │                                                                         │   │
+│   │    🍕 Slice Runner    (0 - 49,999 PIZZA):     +1.5%                     │   │
+│   │    🔥 Oven Operator   (50,000 - 199,999):     +5%                       │   │
+│   │    👨‍🍳 Pie Boss        (200,000 - 499,999):    +10%                      │   │
+│   │    👑 Pizza Tycoon    (500,000+):             +20%                      │   │
+│   └─────────────────────────────────────────────────────────────────────────┘   │
+│                                                                                  │
+│   ┌─────────────────────────────────────────────────────────────────────────┐   │
+│   │  + LOCK BONUS (if user has ANY locked position)                         │   │
+│   │                                                                         │   │
+│   │    No Lock:   +0%                                                       │   │
+│   │    7-Day Lock: +10%                                                     │   │
+│   └─────────────────────────────────────────────────────────────────────────┘   │
+│                                                                                  │
+│   ┌─────────────────────────────────────────────────────────────────────────┐   │
+│   │  + EARLY STAKER BONUS (first 60 days after staking launch)              │   │
+│   │                                                                         │   │
+│   │    Active:   +30%                                                       │   │
+│   │    Expired:  +0%                                                        │   │
+│   └─────────────────────────────────────────────────────────────────────────┘   │
+│                                                                                  │
+│   FORMULA: finalReward = baseReward × (totalBonusBPS ÷ 10000)                   │
+└─────────────────────────────────────────────────────────────────────────────────┘
                                     │
                                     ▼
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                        STAKER CLAIMS REWARDS                                 │
-│                     (PizzaStakingV1.claim)                                  │
-└─────────────────────────────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────────────────────────┐
+│                         BONUS CALCULATION EXAMPLE                                │
+│                                                                                  │
+│   User: Pizza Tycoon tier, has 7-day lock, early boost active                   │
+│   Base Reward: 150 PIZZA                                                        │
+│                                                                                  │
+│   ┌─────────────────────────────────────────────────────────────────────────┐   │
+│   │  Base:         100%   (10000 BPS)                                       │   │
+│   │  + Tier:       +20%   (2000 BPS)   ← Pizza Tycoon                       │   │
+│   │  + Lock:       +10%   (1000 BPS)   ← 7-day lock                         │   │
+│   │  + Early:      +30%   (3000 BPS)   ← First 60 days                      │   │
+│   │  ─────────────────────────────────────────────────────────              │   │
+│   │  TOTAL:        160%   (16000 BPS)                                       │   │
+│   └─────────────────────────────────────────────────────────────────────────┘   │
+│                                                                                  │
+│   Pre-Spin Reward = 150 PIZZA × 160% = 240 PIZZA                                │
+└─────────────────────────────────────────────────────────────────────────────────┘
                                     │
                                     ▼
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                    CALCULATE TOTAL PENDING REWARDS                           │
-│                (_calculateTotalPendingRewards)                              │
-│                                                                              │
-│   baseReward = (accRewardPerStaker - stakerRewardDebt[user]) ÷ 1e18        │
-│                                                                              │
-│   Apply Bonuses (ADDITIVE, not multiplicative):                             │
-│   ┌─────────────────────────────────────────────────────────────────────┐   │
-│   │ totalBonusBPS = 10000 (base = 100%)                                 │   │
-│   │ + tierBonus   (Slice Runner: +1.5%, Oven: +5%, Boss: +10%, Tyc: +20%)│  │
-│   │ + lockBonus   (+10% if has locked position)                         │   │
-│   │ + earlyBonus  (+30% during first 60 days)                           │   │
-│   └─────────────────────────────────────────────────────────────────────┘   │
-│                                                                              │
-│   finalReward = (baseReward × totalBonusBPS) ÷ 10000                        │
-└─────────────────────────────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────────────────────────┐
+│                         STEP 3: SPIN THE PIE                                     │
+│                    (If spinEnabled = true AND hasn't spun today)                 │
+│                                                                                  │
+│   ┌─────────────────────────────────────────────────────────────────────────┐   │
+│   │                                                                         │   │
+│   │                        🍕 SPIN THE PIE 🍕                               │   │
+│   │                                                                         │   │
+│   │    ┌────────────────────────────────────────────────────────────┐      │   │
+│   │    │                                                            │      │   │
+│   │    │     🟡 Regular Slice    73% chance    100% payout         │      │   │
+│   │    │     🟠 Loaded Slice     20% chance    110% payout         │      │   │
+│   │    │     🔴 Hot Out the Oven  5% chance    125% payout         │      │   │
+│   │    │     🟢 JACKPOT           2% chance    200% payout         │      │   │
+│   │    │                                                            │      │   │
+│   │    └────────────────────────────────────────────────────────────┘      │   │
+│   │                                                                         │   │
+│   │    One spin per day per staker (tracked by lastSpinGameId)              │   │
+│   │    Payouts above 100% funded from bonusPool                             │   │
+│   │                                                                         │   │
+│   └─────────────────────────────────────────────────────────────────────────┘   │
+└─────────────────────────────────────────────────────────────────────────────────┘
                                     │
                                     ▼
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                         SPIN THE PIE (Optional)                              │
-│                    (if spinEnabled = true)                                  │
-│                                                                              │
-│   One spin per game day per staker (tracked by lastSpinGameId)              │
-│                                                                              │
-│   Spin Outcomes:                                                             │
-│   ├── Regular Slice (73%): 100% payout                                      │
-│   ├── Loaded Slice (20%): 110% payout                                       │
-│   ├── Hot Out the Oven (5%): 125% payout                                    │
-│   └── Jackpot (2%): 200% payout                                             │
-│                                                                              │
-│   Payouts above 100% come from bonusPool                                    │
-└─────────────────────────────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────────────────────────┐
+│                         SPIN OUTCOME EXAMPLES                                    │
+│                                                                                  │
+│   Pre-Spin Reward: 240 PIZZA                                                    │
+│                                                                                  │
+│   ┌─────────────────────────────────────────────────────────────────────────┐   │
+│   │  🟡 Regular Slice (73% chance)                                          │   │
+│   │     240 × 100% = 240 PIZZA                                              │   │
+│   │                                                                         │   │
+│   │  🟠 Loaded Slice (20% chance)                                           │   │
+│   │     240 × 110% = 264 PIZZA (+24 from bonusPool)                         │   │
+│   │                                                                         │   │
+│   │  🔴 Hot Out the Oven (5% chance)                                        │   │
+│   │     240 × 125% = 300 PIZZA (+60 from bonusPool)                         │   │
+│   │                                                                         │   │
+│   │  🟢 JACKPOT (2% chance)                                                 │   │
+│   │     240 × 200% = 480 PIZZA (+240 from bonusPool)                        │   │
+│   └─────────────────────────────────────────────────────────────────────────┘   │
+└─────────────────────────────────────────────────────────────────────────────────┘
                                     │
                                     ▼
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                        TRANSFER REWARDS TO USER                              │
-│                                                                              │
-│   IERC20(pizzaToken).safeTransfer(user, finalReward)                        │
-│   stakerRewardDebt[user] = accRewardPerStaker  (reset for next claim)       │
-│                                                                              │
-│   emit RewardsClaimed(user, baseReward, finalReward, spinOutcome)           │
-└─────────────────────────────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────────────────────────┐
+│                    STEP 4: CHOOSE CLAIM OR RESTAKE                               │
+│                                                                                  │
+│   After spinning, user sees their final reward and chooses:                      │
+│                                                                                  │
+│   ┌─────────────────────────────────────────────────────────────────────────┐   │
+│   │                                                                         │   │
+│   │   ┌─────────────────────┐    ┌─────────────────────┐                   │   │
+│   │   │                     │    │                     │                   │   │
+│   │   │   🔓 NO LOCK        │    │   🔒 7-DAY LOCK     │                   │   │
+│   │   │                     │    │                     │                   │   │
+│   │   │   Claim to wallet   │    │   Restake rewards   │                   │   │
+│   │   │                     │    │   +10% lock bonus   │                   │   │
+│   │   │   Tokens sent to    │    │   on FUTURE claims  │                   │   │
+│   │   │   your wallet       │    │                     │                   │   │
+│   │   │                     │    │   Compounds your    │                   │   │
+│   │   │                     │    │   staking position  │                   │   │
+│   │   │                     │    │                     │                   │   │
+│   │   └─────────────────────┘    └─────────────────────┘                   │   │
+│   │                                                                         │   │
+│   └─────────────────────────────────────────────────────────────────────────┘   │
+└─────────────────────────────────────────────────────────────────────────────────┘
+                                    │
+                    ┌───────────────┴───────────────┐
+                    │                               │
+                    ▼                               ▼
+┌───────────────────────────────────┐   ┌───────────────────────────────────┐
+│      USER CHOOSES "NO LOCK"       │   │    USER CHOOSES "7-DAY LOCK"      │
+│                                   │   │                                   │
+│   Contract calls: claim()         │   │   Contract calls: restake(1)      │
+│                                   │   │                                   │
+│   ┌─────────────────────────────┐ │   │   ┌─────────────────────────────┐ │
+│   │                             │ │   │   │                             │ │
+│   │  PIZZA tokens transferred   │ │   │   │  Rewards added to locked    │ │
+│   │  to user's wallet           │ │   │   │  staking position           │ │
+│   │                             │ │   │   │                             │ │
+│   │  User can spend, sell,      │ │   │   │  Lock timer resets to       │ │
+│   │  trade, or manually         │ │   │   │  7 days from now            │ │
+│   │  restake later              │ │   │   │                             │ │
+│   │                             │ │   │   │  Increases tier progress    │ │
+│   │                             │ │   │   │  (if enough to level up)    │ │
+│   │                             │ │   │   │                             │ │
+│   │                             │ │   │   │  Gets +10% lock bonus on    │ │
+│   │                             │ │   │   │  ALL future reward claims   │ │
+│   │                             │ │   │   │                             │ │
+│   └─────────────────────────────┘ │   │   └─────────────────────────────┘ │
+└───────────────────────────────────┘   └───────────────────────────────────┘
+                    │                               │
+                    └───────────────┬───────────────┘
+                                    ▼
+┌─────────────────────────────────────────────────────────────────────────────────┐
+│                         STEP 5: UPDATE STATE                                     │
+│                                                                                  │
+│   • stakerRewardDebt[user] = accRewardPerStaker (reset for next claim)          │
+│   • lastSpinGameId[user] = currentGameId (can't spin again today)               │
+│   • If restaked: position.stakedAmount increased, totalStaked increased         │
+│   • emit RewardsClaimed(user, baseReward, finalReward, spinOutcome)             │
+└─────────────────────────────────────────────────────────────────────────────────┘
 
 
-## Example Calculation
+┌─────────────────────────────────────────────────────────────────────────────────┐
+│                           COMPLETE EXAMPLE WALKTHROUGH                           │
+└─────────────────────────────────────────────────────────────────────────────────┘
 
-### Scenario
-- Daily pot: 10,000 PIZZA
-- 3 stakers with varying amounts (doesn't matter - equal distribution!)
-- All stakers have early boost active (+30%)
-- Staker A: Slice Runner tier (+1.5%), no lock
-- Staker B: Oven Operator tier (+5%), has lock (+10%)
-- Staker C: Pizza Tycoon tier (+20%), has lock (+10%)
+SCENARIO:
+- User has 500,000 PIZZA staked (Pizza Tycoon tier 👑)
+- User has a 7-day locked position
+- Early staker boost is still active
+- User hasn't claimed in 4 days
+- Total accumulated base reward: 150 PIZZA
 
-### Step 1: Distribution from Pot
-```
-Staking fee = 10,000 PIZZA × 1% = 100 PIZZA
-Per staker base = 100 PIZZA ÷ 3 = 33.33 PIZZA
-```
+┌─────────────────────────────────────────────────────────────────────────────────┐
+│ STEP 1: Base Reward                                                             │
+│         150 PIZZA (accumulated over 4 days)                                     │
+└─────────────────────────────────────────────────────────────────────────────────┘
+                                    │
+                                    ▼
+┌─────────────────────────────────────────────────────────────────────────────────┐
+│ STEP 2: Apply Bonuses                                                           │
+│                                                                                  │
+│    Base:    100%                                                                │
+│    +Tier:   +20%  (Pizza Tycoon)                                                │
+│    +Lock:   +10%  (7-day lock)                                                  │
+│    +Early:  +30%  (first 60 days)                                               │
+│    ─────────────                                                                │
+│    Total:   160%                                                                │
+│                                                                                  │
+│    150 PIZZA × 160% = 240 PIZZA                                                 │
+└─────────────────────────────────────────────────────────────────────────────────┘
+                                    │
+                                    ▼
+┌─────────────────────────────────────────────────────────────────────────────────┐
+│ STEP 3: Spin the Pie                                                            │
+│                                                                                  │
+│    User spins and lands on... 🟢 JACKPOT! (2% chance)                           │
+│                                                                                  │
+│    240 PIZZA × 200% = 480 PIZZA                                                 │
+│    (Extra 240 PIZZA comes from bonusPool)                                       │
+└─────────────────────────────────────────────────────────────────────────────────┘
+                                    │
+                                    ▼
+┌─────────────────────────────────────────────────────────────────────────────────┐
+│ STEP 4: User Chooses "7-Day Lock" (Restake)                                     │
+│                                                                                  │
+│    Contract calls restake(1)                                                    │
+│                                                                                  │
+│    Before: 500,000 PIZZA staked                                                 │
+│    After:  500,480 PIZZA staked (+480 from rewards)                             │
+│                                                                                  │
+│    Lock timer reset to 7 days from now                                          │
+│    Still Pizza Tycoon tier (500,000+ threshold)                                 │
+└─────────────────────────────────────────────────────────────────────────────────┘
+                                    │
+                                    ▼
+┌─────────────────────────────────────────────────────────────────────────────────┐
+│ RESULT                                                                          │
+│                                                                                  │
+│    Started with: 150 PIZZA base reward                                          │
+│    After bonuses: 240 PIZZA                                                     │
+│    After JACKPOT spin: 480 PIZZA                                                │
+│    Restaked into locked position: +480 PIZZA staked                             │
+│                                                                                  │
+│    Total multiplier: 150 → 480 = 3.2x the base reward!                          │
+│                                                                                  │
+│    Breakdown:                                                                    │
+│    • 1.6x from bonuses (tier + lock + early)                                    │
+│    • 2.0x from Jackpot spin                                                     │
+│    • 1.6 × 2.0 = 3.2x total                                                     │
+└─────────────────────────────────────────────────────────────────────────────────┘
 
-### Step 2: Apply Bonuses
 
-**Staker A (Slice Runner, no lock):**
-```
-Base:        100%  (10000 BPS)
-+ Tier:      +1.5% (150 BPS)
-+ Lock:      +0%   (0 BPS)
-+ Early:     +30%  (3000 BPS)
-───────────────────────────────
-Total:       131.5% (13150 BPS)
+┌─────────────────────────────────────────────────────────────────────────────────┐
+│                              QUICK REFERENCE                                     │
+└─────────────────────────────────────────────────────────────────────────────────┘
 
-Reward = 33.33 × 131.5% = 43.83 PIZZA
-```
+TIER BONUSES (based on total staked):
+┌────────────────┬─────────────────────┬────────────┬─────────────────┐
+│ Tier           │ Minimum Stake       │ Yield Bonus│ Topping Bonus   │
+├────────────────┼─────────────────────┼────────────┼─────────────────┤
+│ 🍕 Slice Runner │ 0 PIZZA             │ +1.5%      │ +0/week         │
+│ 🔥 Oven Operator│ 50,000 PIZZA        │ +5%        │ +1/week         │
+│ 👨‍🍳 Pie Boss     │ 200,000 PIZZA       │ +10%       │ +3/week         │
+│ 👑 Pizza Tycoon │ 500,000 PIZZA       │ +20%       │ +5/week         │
+└────────────────┴─────────────────────┴────────────┴─────────────────┘
 
-**Staker B (Oven Operator, locked):**
-```
-Base:        100%  (10000 BPS)
-+ Tier:      +5%   (500 BPS)
-+ Lock:      +10%  (1000 BPS)
-+ Early:     +30%  (3000 BPS)
-───────────────────────────────
-Total:       145% (14500 BPS)
+LOCK BONUS:
+┌─────────────────┬────────────┬─────────────────────────────────────┐
+│ Lock Type       │ Bonus      │ Notes                               │
+├─────────────────┼────────────┼─────────────────────────────────────┤
+│ Flexible        │ +0%        │ Withdraw anytime, no penalty        │
+│ 7-Day Locked    │ +10%       │ 15% penalty if unstake early        │
+└─────────────────┴────────────┴─────────────────────────────────────┘
 
-Reward = 33.33 × 145% = 48.33 PIZZA
-```
+EARLY STAKER BONUS:
+┌─────────────────┬────────────┬─────────────────────────────────────┐
+│ Period          │ Bonus      │ Notes                               │
+├─────────────────┼────────────┼─────────────────────────────────────┤
+│ First 60 days   │ +30%       │ Applies to ALL stakers during period│
+│ After 60 days   │ +0%        │ Bonus expires for everyone          │
+└─────────────────┴────────────┴─────────────────────────────────────┘
 
-**Staker C (Pizza Tycoon, locked):**
-```
-Base:        100%  (10000 BPS)
-+ Tier:      +20%  (2000 BPS)
-+ Lock:      +10%  (1000 BPS)
-+ Early:     +30%  (3000 BPS)
-───────────────────────────────
-Total:       160% (16000 BPS)
+SPIN THE PIE:
+┌─────────────────┬────────────┬────────────┬────────────────────────┐
+│ Outcome         │ Chance     │ Multiplier │ Funded By              │
+├─────────────────┼────────────┼────────────┼────────────────────────┤
+│ 🟡 Regular Slice │ 73%        │ 100%       │ Normal rewards         │
+│ 🟠 Loaded Slice  │ 20%        │ 110%       │ +10% from bonusPool    │
+│ 🔴 Hot Out Oven  │ 5%         │ 125%       │ +25% from bonusPool    │
+│ 🟢 JACKPOT      │ 2%         │ 200%       │ +100% from bonusPool   │
+└─────────────────┴────────────┴────────────┴────────────────────────┘
 
-Reward = 33.33 × 160% = 53.33 PIZZA
-```
-
-### Step 3: Spin (if enabled)
-If Staker C spins and hits Jackpot (2% chance):
-```
-Spin multiplier = 200%
-Final reward = 53.33 × 200% = 106.66 PIZZA
-(Extra 53.33 PIZZA comes from bonusPool)
-```
-
-
-## Key Points
-
-1. **Equal Base Distribution**: All stakers get the same base reward from the daily pot, regardless of stake size.
-
-2. **Bonuses Are Additive**: Tier, lock, and early bonuses ADD to 100%, not multiply. A +10% tier + +30% early = 140% total, not 143%.
-
-3. **Rewards Accumulate**: If a staker doesn't claim, rewards pile up. There's no "daily reset" that loses unclaimed rewards.
-
-4. **One Spin Per Day**: Each staker can spin once per game day. Spin is tracked by `lastSpinGameId` matching the current daily game.
-
-5. **Staker Count Matters**: The equal distribution divides by `stakerCount`. More stakers = smaller individual share.
-
-6. **Auto-Tracking**: New stakers are automatically added to `stakerCount` when they stake. `stakerCount` decrements when someone fully unstakes.
+KEY POINTS:
+• Rewards distributed EQUALLY among all stakers (not proportional to stake)
+• Bonuses are ADDITIVE (100% + 20% + 10% + 30% = 160%, not multiplicative)
+• Rewards ACCUMULATE if not claimed - no expiration
+• One spin per day per staker
+• Restaking compounds your position and maintains lock bonus
