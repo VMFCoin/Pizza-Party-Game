@@ -997,7 +997,13 @@ export default function PizzaParlorPage({
             {/* ============ SEND A SLICE - Expandable ============ */}
             <div className="send-slice-dropdown">
             <Button
-                onClick={() => setSendSliceOpen(!sendSliceOpen)}
+                onClick={() => {
+                  setSendSliceOpen(!sendSliceOpen)
+                  // Fetch slice history when opening to show correct pending/claimed counts
+                  if (!sendSliceOpen) {
+                    fetchSliceHistory()
+                  }
+                }}
                 className={`w-full !bg-blue-500 hover:!bg-blue-600 text-white font-bold py-2.5 border-4 border-blue-800 uppercase flex items-center justify-between ${sendSliceOpen ? 'rounded-t-xl rounded-b-none' : 'rounded-xl'}`}
                 style={{ ...customFontStyle, fontSize: isMobile ? 18 : 20 }}
             >
