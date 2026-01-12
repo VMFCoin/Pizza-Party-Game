@@ -13,84 +13,34 @@ interface IPizzaParlorManager {
     function allocateFees() external;
 }
 
-/**
- * @title PizzaPartyV2Upgradeable
- * @dev Daily lottery + Weekly jackpot with topping-based tickets (UUPS Upgradeable)
- *
- * Daily Game:
- * - Pay PIZZA amount within MIN/MAX bounds to enter (frontend targets ~$1 USD)
- * - Entry fee is validated by bounds only; USD value is a frontend convention
- * - 8 winners split the daily pot (94% to winners, 3% charity, 3% owner fee)
- * - Games without entries are skipped
- *
- * Weekly Game:
- * - Claim window: Sunday 12pm PT → Monday 12pm PT (24 hours)
- * - PIZZA balance snapshot taken at claim time
- * - Players claim toppings once per week during window
- * - Jackpot = totalClaimedToppings × toppingUnitPizza (1 topping = $0.10 of PIZZA)
- * - 10 winners, weighted by claimed toppings
- * - Paid from treasury wallet
- *
- * Toppings earned:
- * - Daily play: 1 topping (max 7/week)
- * - Referrals: 2 toppings per successful referral (max 3/week)
- * - Holdings: 1 topping per $10 worth of PIZZA held (max 5 toppings, ~$50 worth)
- *
- * Parlor System:
- * - Parlor owners can tip slices (free entries) to new players
- * - If new player wins, sponsor gets 50% split (daily: same day, weekly: that week only)
- * - Dust and remainder also split 50/50 with sponsor
- */
+/// @title PizzaPartyV2Upgradeable - Daily lottery + Weekly jackpot (UUPS)
 contract PizzaPartyV2Upgradeable is OwnableUpgradeable, UUPSUpgradeable, ReentrancyGuardUpgradeable {
     using SafeERC20 for IERC20;
 
-    // ============ Constants ============
-
-    // ✅ Dynamic entry fee: Always $1 USD, but PIZZA amount varies with price
-    // At $0.001/PIZZA: need 1000 PIZZA for $1 entry
-    // Safety bounds prevent extreme prices
-    uint256 public constant MIN_ENTRY_FEE = 1e16;     // 0.01 PIZZA minimum
-    uint256 public constant MAX_ENTRY_FEE = 1000e18;  // 1000 PIZZA maximum
+    uint256 public constant MIN_ENTRY_FEE = 1e16;
+    uint256 public constant MAX_ENTRY_FEE = 1000e18;
     uint256 public constant DAILY_WINNERS = 8;
     uint256 public constant WEEKLY_WINNERS = 10;
-
-    // Daily pot split (100% total):
-    // - 93% → PLAYERS_POOL_BPS (distributed equally among winners)
-    // - 3%  → CHARITY_TOTAL_BPS (charity distribution)
-    // - 3%  → Owner fee (flows to PizzaParlorManager)
-    // - 1%  → STAKING_POOL_BPS (distributed to stakers via PizzaStaking contract)
-    // NOTE: All percentages are expressed in basis points (BPS), where 10000 = 100%.
-    uint256 public constant FIRST_PLAYER_BONUS_BPS = 0;   // No first player bonus
-    uint256 public constant CHARITY_TOTAL_BPS = 300;      // 3% = 300 basis points
-    uint256 public constant PLAYERS_POOL_BPS = 9300;      // 93% = 9300 basis points (1% goes to staking)
-    uint256 public constant MAX_OWNER_FEE_BPS = 300;      // Maximum 3% owner fee
-    uint256 public constant STAKING_POOL_BPS = 100;       // 1% = 100 basis points to staking pool
+    uint256 public constant FIRST_PLAYER_BONUS_BPS = 0;
+    uint256 public constant CHARITY_TOTAL_BPS = 300;
+    uint256 public constant PLAYERS_POOL_BPS = 9300;
+    uint256 public constant MAX_OWNER_FEE_BPS = 300;
+    uint256 public constant STAKING_POOL_BPS = 100;
     uint256 public constant BPS_DENOMINATOR = 10000;
     uint256 public constant MAX_CHARITIES = 20;
     uint256 public constant MAX_REFERRALS_PER_WEEK = 3;
-
-    // Holdings bonus constants (toppings per unit)
-    uint256 public constant HOLDINGS_TOPPINGS = 1;        // 1 topping per $10 unit
-    uint256 public constant HOLDINGS_MAX_TOPPINGS = 5;    // cap at $50 worth (5 toppings)
-
-    // ============ State Variables ============
+    uint256 public constant HOLDINGS_TOPPINGS = 1;
+    uint256 public constant HOLDINGS_MAX_TOPPINGS = 5;
 
     IERC20 public pizzaToken;
     address public treasuryWallet;
     address[] public charityWallets;
-
-    uint256 public ownerFeeBPS; // Default 3%, flows to PizzaParlorManager
-    address public ownerFeeRecipient; // Address to receive owner fees (default: owner())
-
-    // DST handling: 19 = PDT (March-November), 20 = PST (November-March)
-    uint256 public noonPacificUtcHour; // Hour in UTC that corresponds to 12pm Pacific
-
+    uint256 public ownerFeeBPS;
+    address public ownerFeeRecipient;
+    uint256 public noonPacificUtcHour;
     uint256 public dailyGameId;
     uint256 public weeklyGameId;
     uint256 public currentDailyPot;
-
-    // Holdings unit: how many PIZZA tokens equal $10 (set by owner based on market price)
-    // Default: 10,000 PIZZA at $0.001/PIZZA = $10
     uint256 public holdingsUnitPizza;
 
     struct DailyGame {

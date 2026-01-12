@@ -74,9 +74,12 @@ contract PizzaStakingV1Upgradeable is
     /// @notice Basis points denominator (10000 = 100%)
     uint256 public constant BPS_DENOMINATOR = 10000;
 
-    /// @notice Minimum stake amount: 100 PIZZA (with 18 decimals)
-    /// @dev For 10M supply testing. Change to 100_000 for 10B supply.
-    uint256 public constant MIN_STAKE = 100 * 1e18;
+    /// @notice Minimum stake value in micro-dollars (1e6 = $1)
+    /// @dev Used with pizzaPriceMicroUsd to calculate dynamic MIN_STAKE
+    uint256 public constant MIN_STAKE_MICRO_USD = 1_000_000; // $1.00
+
+    /// @notice Fallback minimum stake if price not set: 100 PIZZA
+    uint256 public constant MIN_STAKE_FALLBACK = 100 * 1e18;
 
     /// @notice Maximum stake per wallet: 1,000,000 PIZZA (10% of 10M supply)
     /// @dev For 10M supply testing. Change to 1_000_000_000 for 10B supply.
@@ -264,6 +267,11 @@ contract PizzaStakingV1Upgradeable is
     /// @notice Tracks the last gameId a user spun on (one spin per game day)
     mapping(address => uint256) public lastSpinGameId;
 
+    /// @notice PIZZA price in micro-dollars (e.g., 10000 = $0.01, 1000000 = $1.00)
+    /// @dev Updated by admin from DexScreener price feed. Used to calculate dynamic MIN_STAKE.
+    ///      Micro-dollars provide 6 decimal precision which is sufficient for crypto prices.
+    uint256 public pizzaPriceMicroUsd;
+
     // ==================================================================================
     // EVENTS
     // ==================================================================================
@@ -324,6 +332,9 @@ contract PizzaStakingV1Upgradeable is
 
     /// @notice Emitted when early staker boost time is set
     event BoostEndTimeSet(uint256 endTime);
+
+    /// @notice Emitted when PIZZA price is updated
+    event PizzaPriceUpdated(uint256 priceMicroUsd, uint256 newMinStake);
 
     // ==================================================================================
     // ERRORS
@@ -409,8 +420,8 @@ contract PizzaStakingV1Upgradeable is
             if (totalUserStaked + amount > MAX_STAKE) revert ExceedsMaximumStake();
             _addToPosition(msg.sender, amount, lockType);
         } else {
-            // New position of this lock type
-            if (amount < MIN_STAKE) revert BelowMinimumStake();
+            // New position of this lock type - use dynamic minimum based on price
+            if (amount < getMinStake()) revert BelowMinimumStake();
             if (totalUserStaked + amount > MAX_STAKE) revert ExceedsMaximumStake();
             _createPosition(msg.sender, amount, lockType);
         }
@@ -790,6 +801,24 @@ contract PizzaStakingV1Upgradeable is
     }
 
     /**
+     * @notice Update the PIZZA price in micro-dollars (6 decimal precision)
+     * @dev Called periodically by admin/bot to sync with DexScreener price.
+     *      Price is stored in micro-dollars for precision:
+     *      - $1.00 = 1,000,000 micro-USD
+     *      - $0.01 = 10,000 micro-USD
+     *      - $0.001 = 1,000 micro-USD
+     *      - $0.0001 = 100 micro-USD
+     *
+     *      To convert from USD: priceMicroUsd = priceUsd * 1e6
+     *      Example: $0.0123 → 0.0123 * 1000000 = 12300 micro-USD
+     * @param _priceMicroUsd Price of 1 PIZZA in micro-dollars
+     */
+    function adminSetPizzaPrice(uint256 _priceMicroUsd) external onlyOwner {
+        pizzaPriceMicroUsd = _priceMicroUsd;
+        emit PizzaPriceUpdated(_priceMicroUsd, getMinStake());
+    }
+
+    /**
      * @notice Pause the contract in case of emergency
      */
     function adminPause() external onlyOwner {
@@ -1011,6 +1040,27 @@ contract PizzaStakingV1Upgradeable is
         if (!spinEnabled) return false;
         uint256 currentGameId = _getCurrentGameId();
         return lastSpinGameId[user] != currentGameId;
+    }
+
+    /**
+     * @notice Get the current minimum stake amount based on PIZZA price
+     * @dev Calculates $1 worth of PIZZA. Falls back to MIN_STAKE_FALLBACK if price not set.
+     * @return Minimum stake amount in PIZZA (with 18 decimals)
+     *
+     * Formula: minStake = ($1.00 / pricePerPizza) * 1e18
+     *        = (MIN_STAKE_MICRO_USD / pizzaPriceMicroUsd) * 1e18
+     *        = (1_000_000 / priceMicroUsd) * 1e18
+     *
+     * Example: If PIZZA = $0.01 (10000 micro-USD), then minStake = 1000000/10000 * 1e18 = 100 PIZZA
+     * Example: If PIZZA = $0.001 (1000 micro-USD), then minStake = 1000000/1000 * 1e18 = 1000 PIZZA
+     * Example: If PIZZA = $0.0001 (100 micro-USD), then minStake = 1000000/100 * 1e18 = 10000 PIZZA
+     */
+    function getMinStake() public view returns (uint256) {
+        if (pizzaPriceMicroUsd == 0) {
+            return MIN_STAKE_FALLBACK;
+        }
+        // Calculate: $1 worth of PIZZA = (1_000_000 micro-USD / price in micro-USD) * 1e18
+        return (MIN_STAKE_MICRO_USD * 1e18) / pizzaPriceMicroUsd;
     }
 
     /**

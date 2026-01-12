@@ -40,7 +40,8 @@ contract UpgradeStaking is Script {
 
         // Show current values before upgrade
         console.log("--- BEFORE UPGRADE ---");
-        console.log("MIN_STAKE:", staking.MIN_STAKE() / 1e18, "PIZZA");
+        console.log("MIN_STAKE (fallback):", staking.MIN_STAKE_FALLBACK() / 1e18, "PIZZA");
+        console.log("MIN_STAKE (current):", staking.getMinStake() / 1e18, "PIZZA");
         console.log("MAX_STAKE:", staking.MAX_STAKE() / 1e18, "PIZZA");
         console.log("TIER1_THRESHOLD:", staking.TIER1_THRESHOLD() / 1e18, "PIZZA");
         console.log("TIER2_THRESHOLD:", staking.TIER2_THRESHOLD() / 1e18, "PIZZA");
@@ -65,12 +66,14 @@ contract UpgradeStaking is Script {
         console.log("===========================================");
         console.log("");
         console.log("--- AFTER UPGRADE ---");
-        console.log("MIN_STAKE:", staking.MIN_STAKE() / 1e18, "PIZZA");
+        console.log("MIN_STAKE (fallback):", staking.MIN_STAKE_FALLBACK() / 1e18, "PIZZA");
+        console.log("MIN_STAKE (current):", staking.getMinStake() / 1e18, "PIZZA");
         console.log("MAX_STAKE:", staking.MAX_STAKE() / 1e18, "PIZZA");
         console.log("TIER1_THRESHOLD:", staking.TIER1_THRESHOLD() / 1e18, "PIZZA");
         console.log("TIER2_THRESHOLD:", staking.TIER2_THRESHOLD() / 1e18, "PIZZA");
         console.log("TIER3_THRESHOLD:", staking.TIER3_THRESHOLD() / 1e18, "PIZZA");
         console.log("");
+        console.log("Pizza price (micro-USD):", staking.pizzaPriceMicroUsd());
         console.log("Staking rewards wallet:", staking.stakingRewardsWallet());
         console.log("Spin enabled:", staking.spinEnabled());
     }
