@@ -553,6 +553,8 @@ contract PizzaStakingV1Upgradeable is
         uint256 pending = _calculateTotalPendingRewards(msg.sender);
 
         if (pending > 0) {
+            // Track lifetime claimed for UI display (restaked rewards count as claimed)
+            lifetimeClaimed[msg.sender] += pending;
             // Get target position
             StakePosition storage targetPosition = lockType == LockType.Locked
                 ? lockedStakes[msg.sender]
