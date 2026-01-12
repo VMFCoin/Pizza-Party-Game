@@ -230,6 +230,11 @@ export default function PizzaParlorPage({
   const claimableFeesFormatted = claimableBalanceRaw ? Number(formatUnits(claimableBalanceRaw, 18)) : 0
   const parlorPriceFormatted = parlorPriceInPizza ? Math.ceil(parlorPriceInPizza) : null
 
+  // Calculate pending and claimed slices for today from slice history
+  const todaySlices = sliceHistory.filter(entry => dailyGameId && entry.dailyGameId === dailyGameId)
+  const pendingTodayCount = todaySlices.filter(entry => !entry.claimed).length
+  const claimedTodayCount = todaySlices.filter(entry => entry.claimed).length
+
   // Check if approval is needed
   const needsApproval = parlorPriceWei && currentAllowance !== undefined && currentAllowance < parlorPriceWei
 
@@ -873,8 +878,8 @@ export default function PizzaParlorPage({
                       <span className="text-orange-900" style={{ ...customFontStyle, fontSize: 14 }}>{slicesThisWeekNum} / {weeklyAllowanceNum}</span>
                     </div>
                     <div className="flex justify-between items-center">
-                      <span className="text-orange-800" style={{ ...customFontStyle, fontSize: 14 }}>Can Send Today:</span>
-                      <span className="text-orange-900" style={{ ...customFontStyle, fontSize: 14 }}>{slicesTodayNum > 0 ? 'Yes' : 'No'}</span>
+                      <span className="text-orange-800" style={{ ...customFontStyle, fontSize: 14 }}>Today&apos;s Slices:</span>
+                      <span className="text-orange-900" style={{ ...customFontStyle, fontSize: 14 }}>{pendingTodayCount} pending, {claimedTodayCount} claimed</span>
                     </div>
 
                     {/* Price Info */}
@@ -991,16 +996,16 @@ export default function PizzaParlorPage({
                       <span className="text-blue-900" style={{ ...customFontStyle, fontSize: 16 }}>{slicesThisWeekNum} / {weeklyAllowanceNum}</span>
                     </div>
                     <div className="flex justify-between items-center">
-                      <span className="text-blue-800" style={{ ...customFontStyle, fontSize: 14 }}>Can Send Today:</span>
-                      <span className={`${slicesTodayNum > 0 ? 'text-green-600' : 'text-red-600'}`} style={{ ...customFontStyle, fontSize: 14 }}>
-                        {slicesTodayNum > 0 ? 'Yes (1 max/day)' : 'Already sent today'}
+                      <span className="text-blue-800" style={{ ...customFontStyle, fontSize: 14 }}>Today&apos;s Slices:</span>
+                      <span className="text-blue-900" style={{ ...customFontStyle, fontSize: 14 }}>
+                        {pendingTodayCount} pending, {claimedTodayCount} claimed
                       </span>
                     </div>
 
                     {/* Info Box */}
                     <div className="bg-blue-200 rounded-lg p-2 text-center">
                       <p className="text-blue-700" style={{ ...customFontStyle, fontSize: 10 }}>
-                        {parlorsOwned >= 5 ? '7 slices/week (5 parlor bonus!)' : '1 slice per parlor per WEEK'} | Max 1/day | Resets Monday
+                        {parlorsOwned >= 5 ? '7 slices/week (5 parlor bonus!)' : '1 slice per parlor per WEEK'} | Max 1 claimed/day | Resets Monday
                       </p>
                     </div>
 
@@ -1118,7 +1123,7 @@ export default function PizzaParlorPage({
                         : parlorsOwned === 0
                           ? '🍕 OWN A PARLOR FIRST 🍕'
                           : slicesTodayNum <= 0
-                            ? '🍕 SENT TODAY ALREADY 🍕'
+                            ? '🍕 SLICE CLAIMED TODAY 🍕'
                             : slicesThisWeekNum <= 0
                               ? '🍕 WEEKLY LIMIT REACHED 🍕'
                               : '🍕 SEND SLICE 🍕'}
