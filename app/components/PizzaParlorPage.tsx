@@ -103,6 +103,7 @@ export default function PizzaParlorPage({
   const [sliceHistoryOpen, setSliceHistoryOpen] = useState(false)
   const [sliceHistory, setSliceHistory] = useState<SliceHistoryEntry[]>([])
   const [isLoadingHistory, setIsLoadingHistory] = useState(false)
+  const [refreshHistoryTrigger, setRefreshHistoryTrigger] = useState(0)
 
   // Transaction states
   const [isPurchasing, setIsPurchasing] = useState(false)
@@ -314,10 +315,12 @@ export default function PizzaParlorPage({
         setPendingSliceUser(null)
       }
 
-      // Clear slice input on success
+      // Clear slice input on success and refresh history
       if (isSendingSlice) {
         setRecipientInput('')
         setSelectedUser(null)
+        // Trigger slice history refresh to update pending/claimed counts
+        setRefreshHistoryTrigger(prev => prev + 1)
       }
       setIsSendingSlice(false)
       resetWrite()
@@ -680,6 +683,13 @@ export default function PizzaParlorPage({
       setIsLoadingHistory(false)
     }
   }, [publicClient, userAddress, recentRecipients])
+
+  // Refresh slice history when triggered (after successful slice send)
+  useEffect(() => {
+    if (refreshHistoryTrigger > 0) {
+      fetchSliceHistory()
+    }
+  }, [refreshHistoryTrigger, fetchSliceHistory])
 
   // ============ Effects ============
 
