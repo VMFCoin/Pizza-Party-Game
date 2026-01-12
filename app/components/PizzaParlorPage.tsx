@@ -691,6 +691,23 @@ export default function PizzaParlorPage({
     }
   }, [refreshHistoryTrigger, fetchSliceHistory])
 
+  // Listen for SliceClaimed events where we are the sponsor - updates instantly when claimed
+  useEffect(() => {
+    if (!publicClient || !userAddress) return
+
+    const unwatch = publicClient.watchEvent({
+      address: PARLOR_MANAGER_ADDRESS as `0x${string}`,
+      event: parseAbiItem('event SliceClaimed(address indexed recipient, address indexed sponsor, uint256 indexed dailyGameId)'),
+      args: { sponsor: userAddress },
+      onLogs: () => {
+        // Our slice was claimed - refresh history
+        fetchSliceHistory()
+      },
+    })
+
+    return () => unwatch()
+  }, [publicClient, userAddress, fetchSliceHistory])
+
   // ============ Effects ============
 
   // Fetch live PIZZA price from DEX
