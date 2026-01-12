@@ -73,83 +73,37 @@
                                     ▼
 ┌─────────────────────────────────────────────────────────────────────────────────┐
 │                    STEP 1: CALCULATE BASE REWARD                                 │
-│                 _calculateTotalPendingRewards(user)                             │
+│                        _calculateBaseReward(user)                                │
 │                                                                                  │
 │   baseReward = (accRewardPerStaker - stakerRewardDebt[user]) ÷ 1e18            │
 │                                                                                  │
 │   Example: User hasn't claimed in 4 days                                        │
-│   baseReward = 150 PIZZA                                                        │
+│   baseReward = 150 PIZZA (raw 1% daily pot split equally)                       │
+│                                                                                  │
+│   ► This is the RAW base reward - NO bonuses applied yet!                      │
 └─────────────────────────────────────────────────────────────────────────────────┘
                                     │
                                     ▼
 ┌─────────────────────────────────────────────────────────────────────────────────┐
-│                    STEP 2: APPLY BONUS MULTIPLIERS                               │
-│                      (Bonuses are ADDITIVE, not multiplicative)                  │
-│                                                                                  │
-│   Start with: 100% (10000 BPS)                                                  │
-│                                                                                  │
-│   ┌─────────────────────────────────────────────────────────────────────────┐   │
-│   │  + TIER BONUS (based on total staked amount)                            │   │
-│   │                                                                         │   │
-│   │    🍕 Slice Runner    (0 - 49,999 PIZZA):     +1.5%                     │   │
-│   │    🔥 Oven Operator   (50,000 - 199,999):     +5%                       │   │
-│   │    👨‍🍳 Pie Boss        (200,000 - 499,999):    +10%                      │   │
-│   │    👑 Pizza Tycoon    (500,000+):             +20%                      │   │
-│   └─────────────────────────────────────────────────────────────────────────┘   │
-│                                                                                  │
-│   ┌─────────────────────────────────────────────────────────────────────────┐   │
-│   │  + LOCK BONUS (if user has ANY locked position)                         │   │
-│   │                                                                         │   │
-│   │    No Lock:   +0%                                                       │   │
-│   │    7-Day Lock: +10%                                                     │   │
-│   └─────────────────────────────────────────────────────────────────────────┘   │
-│                                                                                  │
-│   ┌─────────────────────────────────────────────────────────────────────────┐   │
-│   │  + EARLY STAKER BONUS (first 60 days after staking launch)              │   │
-│   │                                                                         │   │
-│   │    Active:   +30%                                                       │   │
-│   │    Expired:  +0%                                                        │   │
-│   └─────────────────────────────────────────────────────────────────────────┘   │
-│                                                                                  │
-│   FORMULA: finalReward = baseReward × (totalBonusBPS ÷ 10000)                   │
-└─────────────────────────────────────────────────────────────────────────────────┘
-                                    │
-                                    ▼
-┌─────────────────────────────────────────────────────────────────────────────────┐
-│                         BONUS CALCULATION EXAMPLE                                │
-│                                                                                  │
-│   User: Pizza Tycoon tier, has 7-day lock, early boost active                   │
-│   Base Reward: 150 PIZZA                                                        │
-│                                                                                  │
-│   ┌─────────────────────────────────────────────────────────────────────────┐   │
-│   │  Base:         100%   (10000 BPS)                                       │   │
-│   │  + Tier:       +20%   (2000 BPS)   ← Pizza Tycoon                       │   │
-│   │  + Lock:       +10%   (1000 BPS)   ← 7-day lock                         │   │
-│   │  + Early:      +30%   (3000 BPS)   ← First 60 days                      │   │
-│   │  ─────────────────────────────────────────────────────────              │   │
-│   │  TOTAL:        160%   (16000 BPS)                                       │   │
-│   └─────────────────────────────────────────────────────────────────────────┘   │
-│                                                                                  │
-│   Pre-Spin Reward = 150 PIZZA × 160% = 240 PIZZA                                │
-└─────────────────────────────────────────────────────────────────────────────────┘
-                                    │
-                                    ▼
-┌─────────────────────────────────────────────────────────────────────────────────┐
-│                         STEP 3: SPIN THE PIE                                     │
+│                         STEP 2: SPIN THE PIE                                     │
+│                    *** THIS IS THE ONLY MULTIPLICATION ***                       │
 │                    (If spinEnabled = true AND hasn't spun today)                 │
 │                                                                                  │
 │   ┌─────────────────────────────────────────────────────────────────────────┐   │
 │   │                                                                         │   │
-│   │                        🍕 SPIN THE PIE 🍕                               │   │
+│   │                        SPIN THE PIE                                     │   │
+│   │              Multiplies the BASE reward (1% daily pot)                  │   │
 │   │                                                                         │   │
 │   │    ┌────────────────────────────────────────────────────────────┐      │   │
 │   │    │                                                            │      │   │
-│   │    │     🟡 Regular Slice    73% chance    100% payout         │      │   │
-│   │    │     🟠 Loaded Slice     20% chance    110% payout         │      │   │
-│   │    │     🔴 Hot Out the Oven  5% chance    125% payout         │      │   │
-│   │    │     🟢 JACKPOT           2% chance    200% payout         │      │   │
+│   │    │     Regular Slice    73% chance    100% of base            │      │   │
+│   │    │     Loaded Slice     20% chance    110% of base            │      │   │
+│   │    │     Hot Out the Oven  5% chance    125% of base            │      │   │
+│   │    │     JACKPOT           2% chance    200% of base            │      │   │
 │   │    │                                                            │      │   │
 │   │    └────────────────────────────────────────────────────────────┘      │   │
+│   │                                                                         │   │
+│   │    spunReward = baseReward × spinMultiplier                             │   │
 │   │                                                                         │   │
 │   │    One spin per day per staker (tracked by lastSpinGameId)              │   │
 │   │    Payouts above 100% funded from bonusPool                             │   │
@@ -161,20 +115,78 @@
 ┌─────────────────────────────────────────────────────────────────────────────────┐
 │                         SPIN OUTCOME EXAMPLES                                    │
 │                                                                                  │
-│   Pre-Spin Reward: 240 PIZZA                                                    │
+│   Base Reward: 150 PIZZA                                                        │
 │                                                                                  │
 │   ┌─────────────────────────────────────────────────────────────────────────┐   │
-│   │  🟡 Regular Slice (73% chance)                                          │   │
-│   │     240 × 100% = 240 PIZZA                                              │   │
+│   │  Regular Slice (73% chance)                                             │   │
+│   │     spunReward = 150 × 100% = 150 PIZZA                                 │   │
 │   │                                                                         │   │
-│   │  🟠 Loaded Slice (20% chance)                                           │   │
-│   │     240 × 110% = 264 PIZZA (+24 from bonusPool)                         │   │
+│   │  Loaded Slice (20% chance)                                              │   │
+│   │     spunReward = 150 × 110% = 165 PIZZA (+15 from bonusPool)            │   │
 │   │                                                                         │   │
-│   │  🔴 Hot Out the Oven (5% chance)                                        │   │
-│   │     240 × 125% = 300 PIZZA (+60 from bonusPool)                         │   │
+│   │  Hot Out the Oven (5% chance)                                           │   │
+│   │     spunReward = 150 × 125% = 187.5 PIZZA (+37.5 from bonusPool)        │   │
 │   │                                                                         │   │
-│   │  🟢 JACKPOT (2% chance)                                                 │   │
-│   │     240 × 200% = 480 PIZZA (+240 from bonusPool)                        │   │
+│   │  JACKPOT (2% chance)                                                    │   │
+│   │     spunReward = 150 × 200% = 300 PIZZA (+150 from bonusPool)           │   │
+│   └─────────────────────────────────────────────────────────────────────────┘   │
+└─────────────────────────────────────────────────────────────────────────────────┘
+                                    │
+                                    ▼
+┌─────────────────────────────────────────────────────────────────────────────────┐
+│                    STEP 3: ADD BONUSES TO SPUN RESULT                            │
+│                      (Bonuses are ADDED, not multiplied)                         │
+│                                                                                  │
+│   Bonuses are calculated as a % of the spunReward and ADDED to it              │
+│                                                                                  │
+│   ┌─────────────────────────────────────────────────────────────────────────┐   │
+│   │  + TIER BONUS (based on total staked amount)                            │   │
+│   │                                                                         │   │
+│   │    Slice Runner    (0 - 49,999 PIZZA):     +1.5% of spunReward          │   │
+│   │    Oven Operator   (50,000 - 199,999):     +5% of spunReward            │   │
+│   │    Pie Boss        (200,000 - 499,999):    +10% of spunReward           │   │
+│   │    Pizza Tycoon    (500,000+):             +20% of spunReward           │   │
+│   └─────────────────────────────────────────────────────────────────────────┘   │
+│                                                                                  │
+│   ┌─────────────────────────────────────────────────────────────────────────┐   │
+│   │  + LOCK BONUS (if user has ANY locked position)                         │   │
+│   │                                                                         │   │
+│   │    No Lock:   +0%                                                       │   │
+│   │    7-Day Lock: +10% of spunReward                                       │   │
+│   └─────────────────────────────────────────────────────────────────────────┘   │
+│                                                                                  │
+│   ┌─────────────────────────────────────────────────────────────────────────┐   │
+│   │  + EARLY STAKER BONUS (first 60 days after staking launch)              │   │
+│   │                                                                         │   │
+│   │    Active:   +30% of spunReward                                         │   │
+│   │    Expired:  +0%                                                        │   │
+│   └─────────────────────────────────────────────────────────────────────────┘   │
+│                                                                                  │
+│   FORMULA:                                                                      │
+│   bonusAmount = spunReward × (tierBonus + lockBonus + earlyBonus)              │
+│   finalReward = spunReward + bonusAmount                                        │
+└─────────────────────────────────────────────────────────────────────────────────┘
+                                    │
+                                    ▼
+┌─────────────────────────────────────────────────────────────────────────────────┐
+│                         BONUS CALCULATION EXAMPLE                                │
+│                                                                                  │
+│   User: Pizza Tycoon tier, has 7-day lock, early boost active                   │
+│   Base Reward: 150 PIZZA                                                        │
+│   Spin Result: JACKPOT (2x)                                                     │
+│   Spun Reward: 150 × 2.0 = 300 PIZZA                                            │
+│                                                                                  │
+│   ┌─────────────────────────────────────────────────────────────────────────┐   │
+│   │  Spun Reward:  300 PIZZA                                                │   │
+│   │                                                                         │   │
+│   │  Bonuses (calculated on spun reward):                                   │   │
+│   │    + Tier:     300 × 20% = +60 PIZZA   (Pizza Tycoon)                   │   │
+│   │    + Lock:     300 × 10% = +30 PIZZA   (7-day lock)                     │   │
+│   │    + Early:    300 × 30% = +90 PIZZA   (first 60 days)                  │   │
+│   │    ─────────────────────────────────────────────────────────            │   │
+│   │    Total Bonus:           +180 PIZZA   (60% of spun reward)             │   │
+│   │                                                                         │   │
+│   │  FINAL REWARD: 300 + 180 = 480 PIZZA                                    │   │
 │   └─────────────────────────────────────────────────────────────────────────┘   │
 └─────────────────────────────────────────────────────────────────────────────────┘
                                     │
@@ -188,7 +200,7 @@
 │   │                                                                         │   │
 │   │   ┌─────────────────────┐    ┌─────────────────────┐                   │   │
 │   │   │                     │    │                     │                   │   │
-│   │   │   🔓 NO LOCK        │    │   🔒 7-DAY LOCK     │                   │   │
+│   │   │   NO LOCK           │    │   7-DAY LOCK        │                   │   │
 │   │   │                     │    │                     │                   │   │
 │   │   │   Claim to wallet   │    │   Restake rewards   │                   │   │
 │   │   │                     │    │   +10% lock bonus   │                   │   │
@@ -244,7 +256,7 @@
 └─────────────────────────────────────────────────────────────────────────────────┘
 
 SCENARIO:
-- User has 500,000 PIZZA staked (Pizza Tycoon tier 👑)
+- User has 500,000 PIZZA staked (Pizza Tycoon tier)
 - User has a 7-day locked position
 - Early staker boost is still active
 - User hasn't claimed in 4 days
@@ -252,31 +264,35 @@ SCENARIO:
 
 ┌─────────────────────────────────────────────────────────────────────────────────┐
 │ STEP 1: Base Reward                                                             │
-│         150 PIZZA (accumulated over 4 days)                                     │
+│         150 PIZZA (raw 1% daily pot share, accumulated over 4 days)             │
+│                                                                                  │
+│         This is BEFORE any spin or bonuses!                                     │
 └─────────────────────────────────────────────────────────────────────────────────┘
                                     │
                                     ▼
 ┌─────────────────────────────────────────────────────────────────────────────────┐
-│ STEP 2: Apply Bonuses                                                           │
+│ STEP 2: Spin the Pie (ONLY MULTIPLICATION)                                      │
 │                                                                                  │
-│    Base:    100%                                                                │
-│    +Tier:   +20%  (Pizza Tycoon)                                                │
-│    +Lock:   +10%  (7-day lock)                                                  │
-│    +Early:  +30%  (first 60 days)                                               │
-│    ─────────────                                                                │
-│    Total:   160%                                                                │
+│    User spins and lands on... JACKPOT! (2% chance)                              │
 │                                                                                  │
-│    150 PIZZA × 160% = 240 PIZZA                                                 │
+│    spunReward = 150 PIZZA × 200% = 300 PIZZA                                    │
+│    (Extra 150 PIZZA comes from bonusPool)                                       │
 └─────────────────────────────────────────────────────────────────────────────────┘
                                     │
                                     ▼
 ┌─────────────────────────────────────────────────────────────────────────────────┐
-│ STEP 3: Spin the Pie                                                            │
+│ STEP 3: Add Bonuses (ADDITIVE, applied to spun result)                          │
 │                                                                                  │
-│    User spins and lands on... 🟢 JACKPOT! (2% chance)                           │
+│    Spun Reward: 300 PIZZA                                                       │
 │                                                                                  │
-│    240 PIZZA × 200% = 480 PIZZA                                                 │
-│    (Extra 240 PIZZA comes from bonusPool)                                       │
+│    Bonuses (% of spun reward):                                                  │
+│      +Tier:   300 × 20% = +60 PIZZA  (Pizza Tycoon)                             │
+│      +Lock:   300 × 10% = +30 PIZZA  (7-day lock)                               │
+│      +Early:  300 × 30% = +90 PIZZA  (first 60 days)                            │
+│      ─────────────────────────────────                                          │
+│      Total Bonus: +180 PIZZA                                                    │
+│                                                                                  │
+│    FINAL REWARD = 300 + 180 = 480 PIZZA                                         │
 └─────────────────────────────────────────────────────────────────────────────────┘
                                     │
                                     ▼
@@ -294,19 +310,19 @@ SCENARIO:
                                     │
                                     ▼
 ┌─────────────────────────────────────────────────────────────────────────────────┐
-│ RESULT                                                                          │
+│ RESULT BREAKDOWN                                                                │
 │                                                                                  │
 │    Started with: 150 PIZZA base reward                                          │
-│    After bonuses: 240 PIZZA                                                     │
-│    After JACKPOT spin: 480 PIZZA                                                │
+│    After JACKPOT spin (2x): 300 PIZZA                                           │
+│    After bonuses (+60%): 480 PIZZA                                              │
 │    Restaked into locked position: +480 PIZZA staked                             │
 │                                                                                  │
 │    Total multiplier: 150 → 480 = 3.2x the base reward!                          │
 │                                                                                  │
 │    Breakdown:                                                                    │
-│    • 1.6x from bonuses (tier + lock + early)                                    │
-│    • 2.0x from Jackpot spin                                                     │
-│    • 1.6 × 2.0 = 3.2x total                                                     │
+│    • 2.0x from Jackpot spin (MULTIPLICATION - Step 2)                           │
+│    • +60% from bonuses (ADDITION - Step 3)                                      │
+│    • 150 × 2.0 = 300, then 300 + (300 × 0.6) = 480                              │
 └─────────────────────────────────────────────────────────────────────────────────┘
 
 
@@ -314,14 +330,21 @@ SCENARIO:
 │                              QUICK REFERENCE                                     │
 └─────────────────────────────────────────────────────────────────────────────────┘
 
+REWARD CALCULATION ORDER (CRITICAL):
+┌────────────────────────────────────────────────────────────────────────────────┐
+│ STEP 1: baseReward = 1% daily pot ÷ stakerCount                                │
+│ STEP 2: spunReward = baseReward × spinMultiplier  (ONLY MULTIPLICATION)        │
+│ STEP 3: finalReward = spunReward + (spunReward × bonusPercent)  (ADDITION)     │
+└────────────────────────────────────────────────────────────────────────────────┘
+
 TIER BONUSES (based on total staked):
 ┌────────────────┬─────────────────────┬────────────┬─────────────────┐
 │ Tier           │ Minimum Stake       │ Yield Bonus│ Topping Bonus   │
 ├────────────────┼─────────────────────┼────────────┼─────────────────┤
-│ 🍕 Slice Runner │ 0 PIZZA             │ +1.5%      │ +0/week         │
-│ 🔥 Oven Operator│ 50,000 PIZZA        │ +5%        │ +1/week         │
-│ 👨‍🍳 Pie Boss     │ 200,000 PIZZA       │ +10%       │ +3/week         │
-│ 👑 Pizza Tycoon │ 500,000 PIZZA       │ +20%       │ +5/week         │
+│ Slice Runner   │ 0 PIZZA             │ +1.5%      │ +0/week         │
+│ Oven Operator  │ 50,000 PIZZA        │ +5%        │ +1/week         │
+│ Pie Boss       │ 200,000 PIZZA       │ +10%       │ +3/week         │
+│ Pizza Tycoon   │ 500,000 PIZZA       │ +20%       │ +5/week         │
 └────────────────┴─────────────────────┴────────────┴─────────────────┘
 
 LOCK BONUS:
@@ -340,19 +363,20 @@ EARLY STAKER BONUS:
 │ After 60 days   │ +0%        │ Bonus expires for everyone          │
 └─────────────────┴────────────┴─────────────────────────────────────┘
 
-SPIN THE PIE:
+SPIN THE PIE (Step 2 - ONLY MULTIPLICATION):
 ┌─────────────────┬────────────┬────────────┬────────────────────────┐
 │ Outcome         │ Chance     │ Multiplier │ Funded By              │
 ├─────────────────┼────────────┼────────────┼────────────────────────┤
-│ 🟡 Regular Slice │ 73%        │ 100%       │ Normal rewards         │
-│ 🟠 Loaded Slice  │ 20%        │ 110%       │ +10% from bonusPool    │
-│ 🔴 Hot Out Oven  │ 5%         │ 125%       │ +25% from bonusPool    │
-│ 🟢 JACKPOT      │ 2%         │ 200%       │ +100% from bonusPool   │
+│ Regular Slice   │ 73%        │ 100%       │ Normal rewards         │
+│ Loaded Slice    │ 20%        │ 110%       │ +10% from bonusPool    │
+│ Hot Out Oven    │ 5%         │ 125%       │ +25% from bonusPool    │
+│ JACKPOT         │ 2%         │ 200%       │ +100% from bonusPool   │
 └─────────────────┴────────────┴────────────┴────────────────────────┘
 
 KEY POINTS:
 • Rewards distributed EQUALLY among all stakers (not proportional to stake)
-• Bonuses are ADDITIVE (100% + 20% + 10% + 30% = 160%, not multiplicative)
+• SPIN is the ONLY multiplication - applied to base reward FIRST (Step 2)
+• Bonuses are ADDITIVE - applied to spun result AFTER spin (Step 3)
 • Rewards ACCUMULATE if not claimed - no expiration
 • One spin per day per staker
 • Restaking compounds your position and maintains lock bonus

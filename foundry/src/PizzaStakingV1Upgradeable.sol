@@ -8,21 +8,31 @@ pragma solidity ^0.8.24;
  *
  * PURPOSE:
  * This contract allows users to stake $PIZZA tokens to earn yield rewards.
- * Stakers receive a portion of the daily lottery pot (4%) distributed via
+ * Stakers receive a portion of the daily lottery pot (1%) distributed via
  * PizzaPartyV2Upgradeable, plus any bonus pool rewards from Spin the Pie.
  *
  * KEY FEATURES:
  * - 4 staking tiers based on amount staked (Slice Runner, Oven Operator, Pie Boss, Pizza Tycoon)
- * - 2 lock periods: No Lock (tier bonus only) or 7-day Lock (+50% bonus)
+ * - 2 lock periods: No Lock (tier bonus only) or 7-day Lock (+10% bonus)
  * - Early staker boost (+30% for first 60 days)
  * - Spin the Pie mechanic for claiming (toggleable, disabled by default)
- * - Single position per wallet (simplifies accounting)
+ * - EQUAL distribution: all stakers get same base reward regardless of stake amount
  *
- * YIELD FORMULA (additive bonuses):
- * finalReward = baseReward × (1 + tierBonus + lockBonus + earlyBonus)
- * - Tier bonuses: +0% / +50% / +100% / +200%
- * - Lock bonus: +0% (no lock) or +50% (7-day lock)
- * - Early bonus: +30% (first 60 days)
+ * REWARD CALCULATION FLOW:
+ * Step 1: BASE REWARD - 1% daily pot split EQUALLY among all stakers
+ * Step 2: SPIN THE PIE - multiplies base reward (ONLY multiplication in system)
+ *         - Regular Slice (73%): 100% of base
+ *         - Loaded Slice (20%): 110% of base
+ *         - Hot Out Oven (5%): 125% of base
+ *         - Jackpot (2%): 200% of base
+ * Step 3: ADD BONUSES - added to spun result (NOT multiplied)
+ *         - Tier bonus: +1.5% / +5% / +10% / +20%
+ *         - Lock bonus: +10% (if has locked position)
+ *         - Early bonus: +30% (first 60 days)
+ *
+ * EXAMPLE: 100 PIZZA base, Jackpot spin (2x), Tier1 (+5%), Lock (+10%), Early (+30%)
+ * - Step 2: 100 × 2.0 = 200 PIZZA (after spin)
+ * - Step 3: 200 + (200 × 45%) = 200 + 90 = 290 PIZZA final
  *
  * INTEGRATION:
  * - PizzaPartyV2Upgradeable calls notifyRewardAmount() when settling daily games
@@ -30,9 +40,10 @@ pragma solidity ^0.8.24;
  * - Uses same UUPS upgradeable pattern as other Pizza Party contracts
  *
  * FUNDING:
- * - 4% of daily pot comes from PizzaPartyV2 settlement
- * - Bonus pool for Spin the Pie funded by early unstake penalties
- * - Bonus pool can be topped up from Staking Wallet (NOT Treasury)
+ * - BASE rewards: from contract balance (1% daily pot transferred by PizzaPartyV2)
+ * - EXTRAS (spin >100% + tier/lock/early bonuses): from stakingRewardsWallet
+ * - stakingRewardsWallet must approve this contract to spend PIZZA
+ * - Early unstake penalties go to bonusPool (legacy, not currently used)
  *
  * ==================================================================================
  */
@@ -957,20 +968,30 @@ contract PizzaStakingV1Upgradeable is
      * @param user Address claiming rewards
      * @param applySpin Whether to apply spin mechanic (false for internal claims)
      *
-     * SPIN FLOW (when spinEnabled):
-     * - User can spin once per game day (tracked by lastSpinGameId)
-     * - Spin determines multiplier: 73% (1x), 20% (1.1x), 5% (1.25x), 2% (2x)
-     * - One spin applies to total rewards from both positions
-     * - Rewards accumulate until claimed - skipping days doesn't lose rewards
+     * CORRECT REWARD FLOW:
+     * 1. Get BASE reward (1% daily pot / staker count)
+     * 2. SPIN THE PIE - multiplies base reward (ONLY multiplication in system)
+     *    - Regular (73%): 100% of base
+     *    - Loaded (20%): 110% of base
+     *    - Hot (5%): 125% of base
+     *    - Jackpot (2%): 200% of base
+     * 3. ADD BONUSES to spun result (tier + lock + early are ADDITIVE)
+     *
+     * Example: 100 PIZZA base, Jackpot spin (2x), Tier1 (+5%), Lock (+10%), Early (+30%)
+     * Step 2: 100 × 2.0 = 200 PIZZA (after spin)
+     * Step 3: 200 + (200 × 45%) = 200 + 90 = 290 PIZZA final
+     *
+     * ALL REWARDS ARE PAID FROM stakingRewardsWallet (not contract balance)
      */
     function _claimAllRewards(address user, bool applySpin) internal {
-        uint256 pending = _calculateTotalPendingRewards(user);
-        if (pending == 0) return;
+        // Step 1: Get BASE reward (before any modifiers)
+        uint256 baseReward = _calculateBaseReward(user);
+        if (baseReward == 0) return;
 
         SpinOutcome outcome = SpinOutcome.RegularSlice;
-        uint256 finalReward = pending;
+        uint256 spunReward = baseReward; // Default: 100% of base
 
-        // Apply spin if enabled and requested
+        // Step 2: SPIN THE PIE - multiply base reward
         if (applySpin && spinEnabled) {
             // Check if user has already spun today (same gameId)
             uint256 currentGameId = _getCurrentGameId();
@@ -984,30 +1005,33 @@ contract PizzaStakingV1Upgradeable is
             outcome = _spin();
             uint256 multiplierBPS = _getSpinMultiplier(outcome);
 
-            if (multiplierBPS > BPS_DENOMINATOR) {
-                // Payout is above 100%, need bonus pool
-                uint256 extraNeeded = (pending * (multiplierBPS - BPS_DENOMINATOR)) / BPS_DENOMINATOR;
-
-                // Check bonus pool and top up from staking wallet if needed
-                if (bonusPool < extraNeeded) {
-                    _autoTopUpBonusPool(extraNeeded - bonusPool);
-                }
-
-                if (bonusPool >= extraNeeded) {
-                    bonusPool -= extraNeeded;
-                    finalReward = pending + extraNeeded;
-                }
-                // If still not enough, just pay base reward
-            }
+            // Calculate spun reward (base × spin multiplier)
+            spunReward = (baseReward * multiplierBPS) / BPS_DENOMINATOR;
         }
+
+        // Step 3: ADD BONUSES to spun result (tier + lock + early)
+        uint256 bonusAmount = _calculateBonusAmount(user, spunReward);
+        uint256 finalReward = spunReward + bonusAmount;
 
         // Update reward debt for BOTH positions
         _updateAllRewardDebts(user);
 
-        // Transfer rewards
-        IERC20(pizzaToken).safeTransfer(user, finalReward);
+        // Calculate what comes from where:
+        // - baseReward: from contract balance (1% daily pot transferred by PizzaPartyV2)
+        // - extras (spin bonus + tier/lock/early): from stakingRewardsWallet
+        uint256 extrasFromWallet = finalReward - baseReward;
 
-        emit RewardsClaimed(user, pending, finalReward, outcome);
+        // Transfer base reward from contract balance (funded by daily pot)
+        if (baseReward > 0) {
+            IERC20(pizzaToken).safeTransfer(user, baseReward);
+        }
+
+        // Transfer extras from staking wallet (spin bonus + tier/lock/early bonuses)
+        if (extrasFromWallet > 0 && stakingRewardsWallet != address(0)) {
+            IERC20(pizzaToken).safeTransferFrom(stakingRewardsWallet, user, extrasFromWallet);
+        }
+
+        emit RewardsClaimed(user, baseReward, finalReward, outcome);
     }
 
     /**
@@ -1015,15 +1039,35 @@ contract PizzaStakingV1Upgradeable is
      * @param user Address claiming rewards
      * @param lockType Which position to claim from
      * @param applySpin Whether to apply spin mechanic
+     *
+     * CORRECT REWARD FLOW (same as _claimAllRewards):
+     * 1. Get BASE reward for this position
+     * 2. SPIN multiplies base (ONLY multiplication)
+     * 3. ADD BONUSES to spun result
+     *
+     * ALL REWARDS ARE PAID FROM stakingRewardsWallet (not contract balance)
      */
     function _claimRewardsForPosition(address user, LockType lockType, bool applySpin) internal {
-        uint256 pending = _calculatePendingRewardsForPosition(user, lockType);
-        if (pending == 0) return;
+        // Step 1: Get BASE reward for this specific position
+        // Calculate proportional share of base reward for this position type
+        uint256 totalBaseReward = _calculateBaseReward(user);
+        if (totalBaseReward == 0) return;
+
+        StakePosition storage position = lockType == LockType.Locked
+            ? lockedStakes[user]
+            : flexibleStakes[user];
+
+        if (position.stakedAmount == 0) return;
+
+        // Calculate this position's share of the base reward
+        uint256 userTotalStaked = flexibleStakes[user].stakedAmount + lockedStakes[user].stakedAmount;
+        uint256 baseReward = (totalBaseReward * position.stakedAmount) / userTotalStaked;
+        if (baseReward == 0) return;
 
         SpinOutcome outcome = SpinOutcome.RegularSlice;
-        uint256 finalReward = pending;
+        uint256 spunReward = baseReward; // Default: 100% of base
 
-        // Apply spin if enabled and requested
+        // Step 2: SPIN THE PIE - multiply base reward
         if (applySpin && spinEnabled) {
             // Check if user has already spun today (same gameId)
             uint256 currentGameId = _getCurrentGameId();
@@ -1037,35 +1081,37 @@ contract PizzaStakingV1Upgradeable is
             outcome = _spin();
             uint256 multiplierBPS = _getSpinMultiplier(outcome);
 
-            if (multiplierBPS > BPS_DENOMINATOR) {
-                uint256 extraNeeded = (pending * (multiplierBPS - BPS_DENOMINATOR)) / BPS_DENOMINATOR;
-
-                if (bonusPool < extraNeeded) {
-                    _autoTopUpBonusPool(extraNeeded - bonusPool);
-                }
-
-                if (bonusPool >= extraNeeded) {
-                    bonusPool -= extraNeeded;
-                    finalReward = pending + extraNeeded;
-                }
-            }
+            // Calculate spun reward (base × spin multiplier)
+            spunReward = (baseReward * multiplierBPS) / BPS_DENOMINATOR;
         }
 
-        // Update reward debt for this position only
-        StakePosition storage position = lockType == LockType.Locked
-            ? lockedStakes[user]
-            : flexibleStakes[user];
+        // Step 3: ADD BONUSES to spun result (tier + lock + early)
+        uint256 bonusAmount = _calculateBonusAmount(user, spunReward);
+        uint256 finalReward = spunReward + bonusAmount;
 
+        // Update reward debt for this position
         position.lastClaimTimestamp = block.timestamp;
         position.rewardDebt = (position.stakedAmount * accRewardPerShare) / 1e18;
 
         // Update equal distribution reward debt
         stakerRewardDebt[user] = accRewardPerStaker;
 
-        // Transfer rewards
-        IERC20(pizzaToken).safeTransfer(user, finalReward);
+        // Calculate what comes from where:
+        // - baseReward: from contract balance (1% daily pot transferred by PizzaPartyV2)
+        // - extras (spin bonus + tier/lock/early): from stakingRewardsWallet
+        uint256 extrasFromWallet = finalReward - baseReward;
 
-        emit RewardsClaimed(user, pending, finalReward, outcome);
+        // Transfer base reward from contract balance (funded by daily pot)
+        if (baseReward > 0) {
+            IERC20(pizzaToken).safeTransfer(user, baseReward);
+        }
+
+        // Transfer extras from staking wallet (spin bonus + tier/lock/early bonuses)
+        if (extrasFromWallet > 0 && stakingRewardsWallet != address(0)) {
+            IERC20(pizzaToken).safeTransferFrom(stakingRewardsWallet, user, extrasFromWallet);
+        }
+
+        emit RewardsClaimed(user, baseReward, finalReward, outcome);
     }
 
     /**
@@ -1131,15 +1177,14 @@ contract PizzaStakingV1Upgradeable is
     }
 
     /**
-     * @notice Calculate total pending rewards for a user (EQUAL distribution)
+     * @notice Calculate BASE pending rewards for a user (before spin & bonuses)
      * @param user Address to calculate for
-     * @return Total pending reward amount with all bonuses applied
+     * @return Base reward amount (1% daily pot split equally, before any modifiers)
      *
-     * NEW SYSTEM: Rewards are split EQUALLY among all stakers, not proportionally.
-     * Each staker gets the same base reward regardless of stake amount.
-     * Tier and lock bonuses still apply as multipliers on top of the base.
+     * EQUAL DISTRIBUTION: Rewards split equally among all stakers.
+     * This returns the RAW base reward - spin and bonuses applied separately during claim.
      */
-    function _calculateTotalPendingRewards(address user) internal view returns (uint256) {
+    function _calculateBaseReward(address user) internal view returns (uint256) {
         // User must have at least one position to receive rewards
         uint256 userTotalStaked = flexibleStakes[user].stakedAmount + lockedStakes[user].stakedAmount;
         if (userTotalStaked == 0) return 0;
@@ -1147,12 +1192,26 @@ contract PizzaStakingV1Upgradeable is
         // Base reward from EQUAL distribution (same for all stakers)
         uint256 baseReward = accRewardPerStaker - stakerRewardDebt[user];
         // Convert from scaled to actual tokens
-        baseReward = baseReward / 1e18;
+        return baseReward / 1e18;
+    }
 
-        if (baseReward == 0) return 0;
+    /**
+     * @notice Calculate bonus amount (tier + lock + early) to ADD to spun reward
+     * @param user Address to calculate for
+     * @param spunReward The reward amount AFTER spin is applied
+     * @return Bonus amount to ADD to spun reward (NOT a multiplier)
+     *
+     * BONUS CALCULATION:
+     * - Tier bonus: +1.5% / +5% / +10% / +20% of spun reward
+     * - Lock bonus: +10% of spun reward (if has locked position)
+     * - Early bonus: +30% of spun reward (if within boost period)
+     *
+     * These are ADDITIVE bonuses applied AFTER spin, not before.
+     */
+    function _calculateBonusAmount(address user, uint256 spunReward) internal view returns (uint256) {
+        if (spunReward == 0) return 0;
 
-        // Start with base (10000 BPS = 1x = 100%)
-        uint256 totalBonusBPS = BPS_DENOMINATOR;
+        uint256 totalBonusBPS = 0;
 
         // Add tier bonus (based on TOTAL staked across both positions)
         totalBonusBPS += _getTierBonus(getTier(user));
@@ -1167,8 +1226,26 @@ contract PizzaStakingV1Upgradeable is
             totalBonusBPS += EARLY_BOOST_BPS;
         }
 
-        // Apply total bonus to base reward
-        return (baseReward * totalBonusBPS) / BPS_DENOMINATOR;
+        // Return bonus amount (bonuses are % of spun reward)
+        return (spunReward * totalBonusBPS) / BPS_DENOMINATOR;
+    }
+
+    /**
+     * @notice Calculate total pending rewards for display (base + expected bonuses at 100% spin)
+     * @param user Address to calculate for
+     * @return Total pending reward amount (what user would get with regular spin)
+     *
+     * For UI display: shows base reward + bonuses assuming 100% (regular) spin.
+     * Actual claim may be higher if spin outcome is > 100%.
+     */
+    function _calculateTotalPendingRewards(address user) internal view returns (uint256) {
+        uint256 baseReward = _calculateBaseReward(user);
+        if (baseReward == 0) return 0;
+
+        // For display purposes, assume 100% spin (regular slice)
+        // Final = base + bonuses on base
+        uint256 bonusAmount = _calculateBonusAmount(user, baseReward);
+        return baseReward + bonusAmount;
     }
 
     /**
