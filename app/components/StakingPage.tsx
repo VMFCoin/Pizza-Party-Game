@@ -64,7 +64,7 @@ const LOCK_TYPES = [
 ]
 
 const customFontStyle = {
-  fontFamily: '"Comic Sans MS", "Marker Felt", "Chalkduster", "Kalam", "Caveat"',
+  fontFamily: 'var(--font-luckiest-guy)',
   fontWeight: 'bold' as const,
 }
 
@@ -179,7 +179,7 @@ export default function StakingPage({
   })
 
   // Read user's lifetime claimed rewards
-  const { data: lifetimeClaimed } = useReadContract({
+  const { data: lifetimeClaimed, refetch: refetchLifetimeClaimed } = useReadContract({
     address: PIZZA_STAKING_ADDRESS as `0x${string}`,
     abi: PIZZA_STAKING_ABI,
     functionName: 'lifetimeClaimed',
@@ -286,6 +286,7 @@ export default function StakingPage({
       refetchBalance()
       refetchAllowance()
       refetchStakeInfo()
+      refetchLifetimeClaimed() // Update lifetime claimed after claim/restake
       // Reset spin modal state if it was a claim
       if (showConfirmModal === 'spin-claim') {
         setSpinResult(null)
@@ -298,7 +299,7 @@ export default function StakingPage({
       setShowStakeInput(false)
       resetWrite()
     }
-  }, [isConfirmed, pendingApproval, showConfirmModal, refetchBalance, refetchAllowance, refetchStakeInfo, resetWrite])
+  }, [isConfirmed, pendingApproval, showConfirmModal, refetchBalance, refetchAllowance, refetchStakeInfo, refetchLifetimeClaimed, resetWrite])
 
   // === COMPUTED VALUES ===
 
@@ -361,6 +362,22 @@ export default function StakingPage({
     if (!userPosition || userPosition.lockedAmount === 0n) return false
     return userPosition.lockEndTimestamp > Date.now()
   }, [userPosition])
+
+  // Calculate the BASE reward (before any bonuses) for display on staking card
+  // The contract's totalPendingRewards already includes bonuses, so we work backwards
+  // This is what we show BEFORE spin - then bonuses get added AFTER spin for excitement
+  const baseRewardOnly = useMemo(() => {
+    if (!userPosition || userPosition.totalPendingRewards === 0n) return 0n
+
+    // Calculate total bonus BPS that was applied
+    let totalBonusBPS = currentTier.yieldBoostBPS // Tier bonus
+    if (userPosition.lockedAmount > 0n) totalBonusBPS += LOCK_BONUS_BPS // +10% lock
+    if (userPosition.isEarlyBoostActive) totalBonusBPS += EARLY_BOOST_BPS // +30% early
+
+    // Work backwards: totalPendingRewards = baseOnly × (1 + totalBonusBPS/10000)
+    // So baseOnly = totalPendingRewards × 10000 / (10000 + totalBonusBPS)
+    return (userPosition.totalPendingRewards * 10000n) / (10000n + BigInt(totalBonusBPS))
+  }, [userPosition, currentTier])
 
   // Calculate reward breakdown for display after spin
   // This mirrors the contract's _calculateBonusAmount logic
@@ -733,16 +750,16 @@ export default function StakingPage({
                     <div className="bg-yellow-50 rounded-lg p-2 border-2 border-yellow-300">
                       <div className="flex items-center justify-between">
                         <div>
-                          <p className="text-yellow-700 text-xs">Rewards</p>
-                          <p className="text-yellow-800 font-bold text-lg" style={customFontStyle}>
-                            {formatPizzaWei(userPosition.totalPendingRewards)} PIZZA
+                          <p className="text-black text-xs" style={{ fontFamily: 'var(--font-luckiest-guy)' }}>Rewards</p>
+                          <p className="text-black font-bold text-lg" style={{ fontFamily: 'var(--font-luckiest-guy)' }}>
+                            {formatPizzaWei(baseRewardOnly)} PIZZA
                           </p>
                         </div>
                         <Button
                           onClick={() => setShowConfirmModal('spin-claim')}
                           disabled={!hasPendingRewards || isWritePending || isConfirming}
                           className="!bg-yellow-500 hover:!bg-yellow-600 text-white font-bold py-1.5 px-3 rounded-xl border-2 border-yellow-700 disabled:opacity-50 text-sm"
-                          style={customFontStyle}
+                          style={{ fontFamily: 'var(--font-luckiest-guy)' }}
                         >
                           {isWritePending || isConfirming ? (
                             <Loader2 className="animate-spin" size={14} />
@@ -753,7 +770,7 @@ export default function StakingPage({
                       </div>
                       {/* Lifetime Claimed */}
                       <div className="mt-1 pt-1 border-t border-yellow-200">
-                        <p className="text-yellow-600 text-xs text-center" style={customFontStyle}>
+                        <p className="text-black text-xs text-center" style={{ fontFamily: 'var(--font-luckiest-guy)' }}>
                           Lifetime Claimed: {formatPizzaWei(lifetimeClaimed as bigint)} PIZZA
                         </p>
                       </div>
@@ -1373,7 +1390,7 @@ export default function StakingPage({
               {/* Pending Rewards Display */}
               <div className="bg-yellow-500/20 rounded-xl p-3 mb-4 border-2 border-yellow-500">
                 <p className="text-yellow-400 text-sm text-center" style={customFontStyle}>
-                  Base Rewards: <span className="text-white font-bold">{userPosition ? formatPizzaWei(userPosition.totalPendingRewards) : '0'} PIZZA</span>
+                  Rewards: <span className="text-white font-bold">{formatPizzaWei(baseRewardOnly)} PIZZA</span>
                 </p>
               </div>
 
