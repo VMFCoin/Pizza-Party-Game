@@ -6,21 +6,23 @@ import {PizzaStakingV1Upgradeable} from "../src/PizzaStakingV1Upgradeable.sol";
 
 /**
  * @title UpgradeStaking
- * @dev Upgrades PizzaStakingV1Upgradeable to new implementation with adjusted thresholds
+ * @dev Upgrades PizzaStakingV1Upgradeable to EQUAL reward distribution
  *
  * Usage:
  * - Dry run: forge script script/UpgradeStaking.s.sol --rpc-url https://mainnet.base.org
  * - Deploy: PRIVATE_KEY="0x..." BASESCAN_API_KEY="..." forge script script/UpgradeStaking.s.sol --rpc-url https://mainnet.base.org --broadcast --verify
  *
- * This upgrade adjusts thresholds for 10M PIZZA supply testing:
- * - MIN_STAKE: 100 PIZZA (was 100,000)
- * - MAX_STAKE: 1,000,000 PIZZA (was 1,000,000,000)
- * - TIER1: 50,000 PIZZA (was 50,000,000)
- * - TIER2: 200,000 PIZZA (was 200,000,000)
- * - TIER3: 500,000 PIZZA (was 500,000,000)
+ * This upgrade changes reward distribution from proportional to EQUAL:
+ * - All stakers get the same base reward from daily pot (split equally)
+ * - Tier bonuses, lock bonuses, and early boost still apply as multipliers
+ * - Rewards accumulate if not claimed (can claim multiple days at once)
  */
 contract UpgradeStaking is Script {
     address constant STAKING_PROXY = 0xCbAf5bACe5419710C3852653d3DdEB831d7415be;
+
+    // Existing stakers to initialize (2 current stakers)
+    address constant STAKER1 = 0x257Cbe89968495C3aE8C81BccB8BE7f257CD5f66; // Your wallet
+    address constant STAKER2 = 0x9157Feb12812b253e84447C6B52C38651fd67FcA; // Other tester
 
     function run() external {
         string memory keyStr = vm.envString("PRIVATE_KEY");
@@ -31,29 +33,33 @@ contract UpgradeStaking is Script {
         PizzaStakingV1Upgradeable staking = PizzaStakingV1Upgradeable(STAKING_PROXY);
 
         console.log("===========================================");
-        console.log("UPGRADING PIZZA STAKING - 10M SUPPLY THRESHOLDS");
+        console.log("UPGRADING PIZZA STAKING - EQUAL DISTRIBUTION");
         console.log("===========================================");
         console.log("Deployer:", deployer);
         console.log("Staking Proxy:", STAKING_PROXY);
         console.log("Current Owner:", staking.owner());
         console.log("");
 
-        // Show current values before upgrade (note: new functions won't exist yet)
+        // Show current values before upgrade
         console.log("--- BEFORE UPGRADE ---");
-        console.log("MAX_STAKE:", staking.MAX_STAKE() / 1e18, "PIZZA");
-        console.log("TIER1_THRESHOLD:", staking.TIER1_THRESHOLD() / 1e18, "PIZZA");
-        console.log("TIER2_THRESHOLD:", staking.TIER2_THRESHOLD() / 1e18, "PIZZA");
-        console.log("TIER3_THRESHOLD:", staking.TIER3_THRESHOLD() / 1e18, "PIZZA");
+        console.log("Total Staked:", staking.totalStaked() / 1e18, "PIZZA");
+        console.log("accRewardPerShare:", staking.accRewardPerShare());
         console.log("");
 
         vm.startBroadcast(deployerPrivateKey);
 
-        // Deploy new implementation with adjusted thresholds
+        // Deploy new implementation with equal distribution
         PizzaStakingV1Upgradeable newImpl = new PizzaStakingV1Upgradeable();
         console.log("New Implementation:", address(newImpl));
 
         // Upgrade proxy to new implementation
         staking.upgradeToAndCall(address(newImpl), "");
+
+        // Initialize staker count with existing stakers
+        address[] memory stakers = new address[](2);
+        stakers[0] = STAKER1;
+        stakers[1] = STAKER2;
+        staking.adminInitializeStakerCount(2, stakers);
 
         vm.stopBroadcast();
 
@@ -64,15 +70,14 @@ contract UpgradeStaking is Script {
         console.log("===========================================");
         console.log("");
         console.log("--- AFTER UPGRADE ---");
-        console.log("MIN_STAKE (fallback):", staking.MIN_STAKE_FALLBACK() / 1e18, "PIZZA");
-        console.log("MIN_STAKE (current):", staking.getMinStake() / 1e18, "PIZZA");
-        console.log("MAX_STAKE:", staking.MAX_STAKE() / 1e18, "PIZZA");
-        console.log("TIER1_THRESHOLD:", staking.TIER1_THRESHOLD() / 1e18, "PIZZA");
-        console.log("TIER2_THRESHOLD:", staking.TIER2_THRESHOLD() / 1e18, "PIZZA");
-        console.log("TIER3_THRESHOLD:", staking.TIER3_THRESHOLD() / 1e18, "PIZZA");
+        console.log("Staker Count:", staking.stakerCount());
+        console.log("accRewardPerStaker:", staking.accRewardPerStaker());
+        console.log("Total Staked:", staking.totalStaked() / 1e18, "PIZZA");
         console.log("");
-        console.log("Pizza price (micro-USD):", staking.pizzaPriceMicroUsd());
-        console.log("Staking rewards wallet:", staking.stakingRewardsWallet());
-        console.log("Spin enabled:", staking.spinEnabled());
+        console.log("Staker 1 reward debt:", staking.stakerRewardDebt(STAKER1));
+        console.log("Staker 2 reward debt:", staking.stakerRewardDebt(STAKER2));
+        console.log("");
+        console.log("Staker 1 pending rewards:", staking.getPendingRewards(STAKER1) / 1e18, "PIZZA");
+        console.log("Staker 2 pending rewards:", staking.getPendingRewards(STAKER2) / 1e18, "PIZZA");
     }
 }

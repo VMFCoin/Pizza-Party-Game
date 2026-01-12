@@ -272,6 +272,18 @@ contract PizzaStakingV1Upgradeable is
     ///      Micro-dollars provide 6 decimal precision which is sufficient for crypto prices.
     uint256 public pizzaPriceMicroUsd;
 
+    /// @notice Number of unique stakers (for equal reward distribution)
+    /// @dev Incremented on first stake, decremented on full unstake
+    uint256 public stakerCount;
+
+    /// @notice Accumulated rewards per staker (scaled by 1e18 for precision)
+    /// @dev Used for EQUAL distribution: each staker gets same amount regardless of stake size
+    uint256 public accRewardPerStaker;
+
+    /// @notice Tracks reward debt per staker for equal distribution
+    /// @dev Maps user address to their reward debt for the equal distribution system
+    mapping(address => uint256) public stakerRewardDebt;
+
     // ==================================================================================
     // EVENTS
     // ==================================================================================
@@ -481,6 +493,13 @@ contract PizzaStakingV1Upgradeable is
             }
         }
 
+        // Check if user has fully unstaked all positions (decrement staker count)
+        bool hasNoPositions = flexibleStakes[msg.sender].stakedAmount == 0 && lockedStakes[msg.sender].stakedAmount == 0;
+        if (hasNoPositions && stakerCount > 0) {
+            stakerCount--;
+            stakerRewardDebt[msg.sender] = 0;
+        }
+
         // Transfer tokens (minus penalty) to user
         uint256 amountAfterPenalty = amount - penalty;
         IERC20(pizzaToken).safeTransfer(msg.sender, amountAfterPenalty);
@@ -582,14 +601,14 @@ contract PizzaStakingV1Upgradeable is
 
         if (amount == 0) return;
 
-        if (totalStaked == 0) {
+        if (stakerCount == 0) {
             // No stakers, add to bonus pool
             bonusPool += amount;
             emit BonusPoolToppedUp(amount, bonusPool);
         } else {
-            // Distribute to stakers
-            accRewardPerShare += (amount * 1e18) / totalStaked;
-            emit RewardsNotified(amount, accRewardPerShare);
+            // EQUAL distribution: each staker gets same amount regardless of stake size
+            accRewardPerStaker += (amount * 1e18) / stakerCount;
+            emit RewardsNotified(amount, accRewardPerStaker);
         }
     }
 
@@ -819,6 +838,39 @@ contract PizzaStakingV1Upgradeable is
     }
 
     /**
+     * @notice Initialize staker count after upgrade (one-time migration)
+     * @dev Called once after upgrading to set stakerCount for existing stakers
+     * @param _stakerCount Number of existing stakers
+     * @param _stakers Array of existing staker addresses to set their reward debt
+     */
+    function adminInitializeStakerCount(uint256 _stakerCount, address[] calldata _stakers) external onlyOwner {
+        require(stakerCount == 0, "Already initialized");
+        stakerCount = _stakerCount;
+
+        // Set reward debt for existing stakers so they don't get rewards from before they staked
+        for (uint256 i = 0; i < _stakers.length; i++) {
+            stakerRewardDebt[_stakers[i]] = accRewardPerStaker;
+        }
+    }
+
+    /**
+     * @notice Add missing stakers that weren't included in initial migration
+     * @dev Used to fix staker count if some stakers were missed during adminInitializeStakerCount
+     * @param _stakers Array of staker addresses to add (must have active stakes)
+     */
+    function adminAddMissingStakers(address[] calldata _stakers) external onlyOwner {
+        for (uint256 i = 0; i < _stakers.length; i++) {
+            address staker = _stakers[i];
+            // Only add if they have an active stake and haven't been counted yet
+            uint256 userStaked = flexibleStakes[staker].stakedAmount + lockedStakes[staker].stakedAmount;
+            if (userStaked > 0 && stakerRewardDebt[staker] == 0) {
+                stakerCount++;
+                stakerRewardDebt[staker] = accRewardPerStaker;
+            }
+        }
+    }
+
+    /**
      * @notice Pause the contract in case of emergency
      */
     function adminPause() external onlyOwner {
@@ -843,6 +895,9 @@ contract PizzaStakingV1Upgradeable is
      * @param lockType Lock type (Flexible or Locked)
      */
     function _createPosition(address user, uint256 amount, LockType lockType) internal {
+        // Check if this is user's first position (increment staker count)
+        bool isFirstPosition = flexibleStakes[user].stakedAmount == 0 && lockedStakes[user].stakedAmount == 0;
+
         StakePosition storage position = lockType == LockType.Locked
             ? lockedStakes[user]
             : flexibleStakes[user];
@@ -858,10 +913,16 @@ contract PizzaStakingV1Upgradeable is
             position.lockEndTimestamp = 0;
         }
 
-        // Set initial reward debt
+        // Set initial reward debt (for legacy proportional system)
         position.rewardDebt = (amount * accRewardPerShare) / 1e18;
 
         totalStaked += amount;
+
+        // For EQUAL distribution: track staker count and set reward debt
+        if (isFirstPosition) {
+            stakerCount++;
+            stakerRewardDebt[user] = accRewardPerStaker;
+        }
     }
 
     /**
@@ -998,6 +1059,9 @@ contract PizzaStakingV1Upgradeable is
         position.lastClaimTimestamp = block.timestamp;
         position.rewardDebt = (position.stakedAmount * accRewardPerShare) / 1e18;
 
+        // Update equal distribution reward debt
+        stakerRewardDebt[user] = accRewardPerStaker;
+
         // Transfer rewards
         IERC20(pizzaToken).safeTransfer(user, finalReward);
 
@@ -1020,6 +1084,9 @@ contract PizzaStakingV1Upgradeable is
             locked.lastClaimTimestamp = block.timestamp;
             locked.rewardDebt = (locked.stakedAmount * accRewardPerShare) / 1e18;
         }
+
+        // Update equal distribution reward debt
+        stakerRewardDebt[user] = accRewardPerStaker;
     }
 
     /**
@@ -1064,41 +1131,23 @@ contract PizzaStakingV1Upgradeable is
     }
 
     /**
-     * @notice Calculate total pending rewards from BOTH positions
+     * @notice Calculate total pending rewards for a user (EQUAL distribution)
      * @param user Address to calculate for
      * @return Total pending reward amount with all bonuses applied
+     *
+     * NEW SYSTEM: Rewards are split EQUALLY among all stakers, not proportionally.
+     * Each staker gets the same base reward regardless of stake amount.
+     * Tier and lock bonuses still apply as multipliers on top of the base.
      */
     function _calculateTotalPendingRewards(address user) internal view returns (uint256) {
-        uint256 flexibleRewards = _calculatePendingRewardsForPosition(user, LockType.Flexible);
-        uint256 lockedRewards = _calculatePendingRewardsForPosition(user, LockType.Locked);
-        return flexibleRewards + lockedRewards;
-    }
+        // User must have at least one position to receive rewards
+        uint256 userTotalStaked = flexibleStakes[user].stakedAmount + lockedStakes[user].stakedAmount;
+        if (userTotalStaked == 0) return 0;
 
-    /**
-     * @notice Calculate pending rewards for a specific position
-     * @param user Address to calculate for
-     * @param lockType Which position: Flexible (0) or Locked (1)
-     * @return Pending reward amount with all bonuses applied (additive)
-     *
-     * FORMULA: finalReward = baseReward × (1 + tierBonus + lockBonus + earlyBonus)
-     *
-     * Example for Pizza Tycoon with lock and early boost:
-     * - Base: 100 PIZZA
-     * - Tier bonus: +20% (Pizza Tycoon) - based on TOTAL staked
-     * - Lock bonus: +10% (if locked position)
-     * - Early bonus: +30% (if boost active)
-     * - Total multiplier: 1 + 0.2 + 0.1 + 0.3 = 1.6x
-     * - Final: 100 × 1.6 = 160 PIZZA
-     */
-    function _calculatePendingRewardsForPosition(address user, LockType lockType) internal view returns (uint256) {
-        StakePosition storage position = lockType == LockType.Locked
-            ? lockedStakes[user]
-            : flexibleStakes[user];
-
-        if (position.stakedAmount == 0) return 0;
-
-        // Base reward from pool share
-        uint256 baseReward = ((position.stakedAmount * accRewardPerShare) / 1e18) - position.rewardDebt;
+        // Base reward from EQUAL distribution (same for all stakers)
+        uint256 baseReward = accRewardPerStaker - stakerRewardDebt[user];
+        // Convert from scaled to actual tokens
+        baseReward = baseReward / 1e18;
 
         if (baseReward == 0) return 0;
 
@@ -1108,8 +1157,8 @@ contract PizzaStakingV1Upgradeable is
         // Add tier bonus (based on TOTAL staked across both positions)
         totalBonusBPS += _getTierBonus(getTier(user));
 
-        // Add lock bonus (+10% if this is the locked position)
-        if (lockType == LockType.Locked) {
+        // Add lock bonus (+10% if user has ANY locked position)
+        if (lockedStakes[user].stakedAmount > 0) {
             totalBonusBPS += LOCK_BONUS_BPS;
         }
 
@@ -1120,6 +1169,29 @@ contract PizzaStakingV1Upgradeable is
 
         // Apply total bonus to base reward
         return (baseReward * totalBonusBPS) / BPS_DENOMINATOR;
+    }
+
+    /**
+     * @notice Calculate pending rewards for a specific position (DEPRECATED - now uses equal distribution)
+     * @dev Kept for compatibility but now just returns share of total
+     * @param user Address to calculate for
+     * @param lockType Which position: Flexible (0) or Locked (1)
+     * @return Pending reward amount for that position
+     */
+    function _calculatePendingRewardsForPosition(address user, LockType lockType) internal view returns (uint256) {
+        StakePosition storage position = lockType == LockType.Locked
+            ? lockedStakes[user]
+            : flexibleStakes[user];
+
+        if (position.stakedAmount == 0) return 0;
+
+        // For equal distribution, we calculate total rewards and split by position weight
+        uint256 totalRewards = _calculateTotalPendingRewards(user);
+        if (totalRewards == 0) return 0;
+
+        // Split rewards proportionally between flexible and locked positions
+        uint256 userTotalStaked = flexibleStakes[user].stakedAmount + lockedStakes[user].stakedAmount;
+        return (totalRewards * position.stakedAmount) / userTotalStaked;
     }
 
     /**
