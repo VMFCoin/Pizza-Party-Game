@@ -123,6 +123,7 @@ export const PIZZA_STAKING_ABI = [
   { type: 'function', name: 'pizzaPartyContract', stateMutability: 'view', inputs: [], outputs: [{ type: 'address' }] },
   { type: 'function', name: 'stakingRewardsWallet', stateMutability: 'view', inputs: [], outputs: [{ type: 'address' }] },
   { type: 'function', name: 'pizzaPriceMicroUsd', stateMutability: 'view', inputs: [], outputs: [{ type: 'uint256' }] },
+  { type: 'function', name: 'lifetimeClaimed', stateMutability: 'view', inputs: [{ type: 'address', name: 'user' }], outputs: [{ type: 'uint256' }] },
 
   // --- Position Mappings ---
   {

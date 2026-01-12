@@ -55,11 +55,8 @@ contract UpgradeStaking is Script {
         // Upgrade proxy to new implementation
         staking.upgradeToAndCall(address(newImpl), "");
 
-        // Initialize staker count with existing stakers
-        address[] memory stakers = new address[](2);
-        stakers[0] = STAKER1;
-        stakers[1] = STAKER2;
-        staking.adminInitializeStakerCount(2, stakers);
+        // Note: Staker count already initialized in previous upgrade
+        // No need to call adminInitializeStakerCount again
 
         vm.stopBroadcast();
 

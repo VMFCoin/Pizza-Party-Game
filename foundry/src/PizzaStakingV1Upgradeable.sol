@@ -295,6 +295,10 @@ contract PizzaStakingV1Upgradeable is
     /// @dev Maps user address to their reward debt for the equal distribution system
     mapping(address => uint256) public stakerRewardDebt;
 
+    /// @notice Tracks lifetime claimed rewards per user
+    /// @dev Accumulated total of all rewards claimed (for UI display)
+    mapping(address => uint256) public lifetimeClaimed;
+
     // ==================================================================================
     // EVENTS
     // ==================================================================================
@@ -1013,6 +1017,9 @@ contract PizzaStakingV1Upgradeable is
         uint256 bonusAmount = _calculateBonusAmount(user, spunReward);
         uint256 finalReward = spunReward + bonusAmount;
 
+        // Track lifetime claimed for UI display
+        lifetimeClaimed[user] += finalReward;
+
         // Update reward debt for BOTH positions
         _updateAllRewardDebts(user);
 
@@ -1088,6 +1095,9 @@ contract PizzaStakingV1Upgradeable is
         // Step 3: ADD BONUSES to spun result (tier + lock + early)
         uint256 bonusAmount = _calculateBonusAmount(user, spunReward);
         uint256 finalReward = spunReward + bonusAmount;
+
+        // Track lifetime claimed for UI display
+        lifetimeClaimed[user] += finalReward;
 
         // Update reward debt for this position
         position.lastClaimTimestamp = block.timestamp;

@@ -173,6 +173,15 @@ export default function StakingPage({
     query: { enabled: !!address },
   })
 
+  // Read user's lifetime claimed rewards
+  const { data: lifetimeClaimed } = useReadContract({
+    address: PIZZA_STAKING_ADDRESS as `0x${string}`,
+    abi: PIZZA_STAKING_ABI,
+    functionName: 'lifetimeClaimed',
+    args: address ? [address] : undefined,
+    query: { enabled: !!address },
+  })
+
   // Read boost end time
   const { data: boostEndTime } = useReadContract({
     address: PIZZA_STAKING_ADDRESS as `0x${string}`,
@@ -688,12 +697,16 @@ export default function StakingPage({
                         >
                           {isWritePending || isConfirming ? (
                             <Loader2 className="animate-spin" size={14} />
-                          ) : spinEnabled && canSpinToday ? (
-                            'SPIN & CLAIM'
                           ) : (
-                            'CLAIM'
+                            'SPIN & CLAIM'
                           )}
                         </Button>
+                      </div>
+                      {/* Lifetime Claimed */}
+                      <div className="mt-1 pt-1 border-t border-yellow-200">
+                        <p className="text-yellow-600 text-xs text-center" style={customFontStyle}>
+                          Lifetime Claimed: {formatPizzaWei(lifetimeClaimed as bigint)} PIZZA
+                        </p>
                       </div>
                     </div>
 
