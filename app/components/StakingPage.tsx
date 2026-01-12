@@ -42,11 +42,14 @@ const MIN_STAKE_FALLBACK = 100
 const _MAX_STAKE = 1_000_000 // 1M PIZZA maximum (10% of supply) - enforced by contract
 
 // Spin the Pie outcomes
+// multiplier: displayed to user (bonus multiplier)
+// multiplierValue: actual total multiplier in % (used for calculation)
+// Formula: (base × bonus) + base = total, so multiplierValue = (bonus + 1) × 100
 const SPIN_OUTCOMES = [
-  { name: 'Regular Slice', chance: '73%', multiplier: '100%', color: 'bg-yellow-400' },
-  { name: 'Loaded Slice', chance: '20%', multiplier: '110%', color: 'bg-orange-400' },
-  { name: 'Hot Out the Oven', chance: '5%', multiplier: '125%', color: 'bg-red-500' },
-  { name: 'JACKPOT', chance: '2%', multiplier: '200%', color: 'bg-green-600' },
+  { name: 'Regular Slice', multiplier: '1x', multiplierValue: 100, color: 'bg-yellow-400' },
+  { name: 'Loaded Slice', multiplier: '1.1x', multiplierValue: 110, color: 'bg-orange-400' },
+  { name: 'Hot Out the Oven', multiplier: '1.5x', multiplierValue: 150, color: 'bg-red-500' },
+  { name: 'JACKPOT', multiplier: '3x', multiplierValue: 400, color: 'bg-green-600' },
 ]
 
 // Lock Types - bonuses are ADDITIVE (not multiplicative)
@@ -1357,9 +1360,9 @@ export default function StakingPage({
                   {/* Spin Result */}
                   <div className={`${spinResult.color} rounded-xl p-4 text-center text-white border-4 border-white/30`}>
                     <p className="font-bold text-2xl" style={customFontStyle}>{spinResult.name}!</p>
-                    <p className="text-lg">{spinResult.multiplier} of your rewards!</p>
+                    <p className="text-lg">{spinResult.multiplier} rewards!</p>
                     <p className="text-sm mt-2 opacity-90">
-                      Final: ~{userPosition ? formatPizzaWei((userPosition.totalPendingRewards * BigInt(parseInt(spinResult.multiplier))) / 100n) : '0'} PIZZA
+                      Final: ~{userPosition ? formatPizzaWei((userPosition.totalPendingRewards * BigInt(spinResult.multiplierValue)) / 100n) : '0'} PIZZA
                     </p>
                   </div>
 
@@ -1517,7 +1520,7 @@ export default function StakingPage({
                       {outcome.name}
                     </p>
                     <p className="text-white/90 text-xs">
-                      {outcome.chance} | {outcome.multiplier}
+                      {outcome.multiplier} rewards
                     </p>
                   </div>
                 ))}

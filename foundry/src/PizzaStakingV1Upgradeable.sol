@@ -21,18 +21,18 @@ pragma solidity ^0.8.24;
  * REWARD CALCULATION FLOW:
  * Step 1: BASE REWARD - 1% daily pot split EQUALLY among all stakers
  * Step 2: SPIN THE PIE - multiplies base reward (ONLY multiplication in system)
- *         - Regular Slice (73%): 100% of base
- *         - Loaded Slice (20%): 110% of base
- *         - Hot Out Oven (5%): 125% of base
- *         - Jackpot (2%): 200% of base
+ *         - Regular Slice: 1x (100% of base)
+ *         - Loaded Slice: 1.1x (110% of base)
+ *         - Hot Out Oven: 1.5x (150% of base)
+ *         - Jackpot: 4x (400% of base)
  * Step 3: ADD BONUSES - added to spun result (NOT multiplied)
  *         - Tier bonus: +1.5% / +5% / +10% / +20%
  *         - Lock bonus: +10% (if has locked position)
  *         - Early bonus: +30% (first 60 days)
  *
- * EXAMPLE: 100 PIZZA base, Jackpot spin (2x), Tier1 (+5%), Lock (+10%), Early (+30%)
- * - Step 2: 100 × 2.0 = 200 PIZZA (after spin)
- * - Step 3: 200 + (200 × 45%) = 200 + 90 = 290 PIZZA final
+ * EXAMPLE: 100 PIZZA base, Jackpot spin (4x), Tier1 (+5%), Lock (+10%), Early (+30%)
+ * - Step 2: 100 × 4.0 = 400 PIZZA (after spin)
+ * - Step 3: 400 + (400 × 45%) = 400 + 180 = 580 PIZZA final
  *
  * INTEGRATION:
  * - PizzaPartyV2Upgradeable calls notifyRewardAmount() when settling daily games
@@ -166,13 +166,13 @@ contract PizzaStakingV1Upgradeable is
     uint256 public constant SPIN_LOADED_WEIGHT = 20;
     uint256 public constant SPIN_LOADED_MULTIPLIER_BPS = 11000;
 
-    /// @notice Hot Out the Oven: 5% chance, 125% payout
+    /// @notice Hot Out the Oven: 5% chance, 150% payout (1.5x)
     uint256 public constant SPIN_HOT_WEIGHT = 5;
-    uint256 public constant SPIN_HOT_MULTIPLIER_BPS = 12500;
+    uint256 public constant SPIN_HOT_MULTIPLIER_BPS = 15000;
 
-    /// @notice Jackpot: 2% chance, 200% payout
+    /// @notice Jackpot: 2% chance, 400% payout (4x)
     uint256 public constant SPIN_JACKPOT_WEIGHT = 2;
-    uint256 public constant SPIN_JACKPOT_MULTIPLIER_BPS = 20000;
+    uint256 public constant SPIN_JACKPOT_MULTIPLIER_BPS = 40000;
 
     /// @notice Total spin weight (must equal sum of all weights)
     uint256 public constant SPIN_TOTAL_WEIGHT = 100;
@@ -971,15 +971,15 @@ contract PizzaStakingV1Upgradeable is
      * CORRECT REWARD FLOW:
      * 1. Get BASE reward (1% daily pot / staker count)
      * 2. SPIN THE PIE - multiplies base reward (ONLY multiplication in system)
-     *    - Regular (73%): 100% of base
-     *    - Loaded (20%): 110% of base
-     *    - Hot (5%): 125% of base
-     *    - Jackpot (2%): 200% of base
+     *    - Regular: 1x (100% of base)
+     *    - Loaded: 1.1x (110% of base)
+     *    - Hot: 1.5x (150% of base)
+     *    - Jackpot: 4x (400% of base)
      * 3. ADD BONUSES to spun result (tier + lock + early are ADDITIVE)
      *
-     * Example: 100 PIZZA base, Jackpot spin (2x), Tier1 (+5%), Lock (+10%), Early (+30%)
-     * Step 2: 100 × 2.0 = 200 PIZZA (after spin)
-     * Step 3: 200 + (200 × 45%) = 200 + 90 = 290 PIZZA final
+     * Example: 100 PIZZA base, Jackpot spin (4x), Tier1 (+5%), Lock (+10%), Early (+30%)
+     * Step 2: 100 × 4.0 = 400 PIZZA (after spin)
+     * Step 3: 400 + (400 × 45%) = 400 + 180 = 580 PIZZA final
      *
      * ALL REWARDS ARE PAID FROM stakingRewardsWallet (not contract balance)
      */
