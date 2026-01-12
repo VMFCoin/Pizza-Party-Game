@@ -187,11 +187,22 @@ export default function StakingPage({
     functionName: 'totalStaked',
   })
 
-  // Read bonus pool
-  const { data: bonusPool } = useReadContract({
+  // Read staking rewards wallet address from contract
+  const { data: stakingRewardsWallet } = useReadContract({
     address: PIZZA_STAKING_ADDRESS as `0x${string}`,
     abi: PIZZA_STAKING_ABI,
-    functionName: 'bonusPool',
+    functionName: 'stakingRewardsWallet',
+  })
+
+  // Read staking rewards wallet PIZZA balance (this is the bonus pool for extras)
+  const { data: stakingWalletBalance } = useReadContract({
+    address: PIZZA_TOKEN_ADDRESS as `0x${string}`,
+    abi: PIZZA_TOKEN_ABI,
+    functionName: 'balanceOf',
+    args: stakingRewardsWallet ? [stakingRewardsWallet] : undefined,
+    query: {
+      enabled: !!stakingRewardsWallet,
+    },
   })
 
   // Read spin enabled status
@@ -1062,7 +1073,7 @@ export default function StakingPage({
                     </div>
                     <div className="bg-white rounded-lg p-2 text-center border border-blue-200">
                       <p className="text-blue-500 text-xs" style={{ fontFamily: 'var(--font-luckiest-guy)' }}>Bonus Pool</p>
-                      <p className="text-blue-700 font-bold text-sm" style={{ fontFamily: 'var(--font-luckiest-guy)' }}>{formatWeiExact(bonusPool as bigint)} PIZZA</p>
+                      <p className="text-blue-700 font-bold text-sm" style={{ fontFamily: 'var(--font-luckiest-guy)' }}>{formatPizzaWei(stakingWalletBalance as bigint)} PIZZA</p>
                     </div>
                     <div className="bg-white rounded-lg p-2 text-center border border-blue-200">
                       <p className="text-blue-500 text-xs" style={{ fontFamily: 'var(--font-luckiest-guy)' }}>Boost Days Left</p>
