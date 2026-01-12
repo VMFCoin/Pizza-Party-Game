@@ -84,7 +84,7 @@ export default function ToppingBreakdownModal({
             </div>
             <span className={`text-black font-black flex-shrink-0 ${isMobile ? 'text-base' : 'text-lg'}`}>
               {hasStreakBonus ? (
-                <>{dailyPlays} <span className="text-green-700">+3</span></>
+                <>{dailyPlays} <span className="text-yellow-500">+3</span></>
               ) : (
                 dailyPlayToppings
               )}
