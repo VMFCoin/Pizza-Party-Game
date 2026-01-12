@@ -29,12 +29,17 @@ interface StakingPageProps {
 
 // Staking Tiers - yield bonuses are ADDITIVE (not multiplicative)
 // NOTE: Thresholds are for 10M supply testing. Multiply by 1000 for 10B supply.
+// yieldBoostBPS: basis points for calculation (150 = 1.5%, 500 = 5%, etc.)
 const STAKING_TIERS = [
-  { id: 0, name: 'Slice Runner', minStake: 0, yieldBoost: '+1.5%', toppingBonus: 0, color: 'bg-gray-500', emoji: '🍕' },
-  { id: 1, name: 'Oven Operator', minStake: 50_000, yieldBoost: '+5%', toppingBonus: 1, color: 'bg-green-500', emoji: '🔥' },
-  { id: 2, name: 'Pie Boss', minStake: 200_000, yieldBoost: '+10%', toppingBonus: 3, color: 'bg-orange-500', emoji: '👨‍🍳' },
-  { id: 3, name: 'Pizza Tycoon', minStake: 500_000, yieldBoost: '+20%', toppingBonus: 5, color: 'bg-red-600', emoji: '👑' },
+  { id: 0, name: 'Slice Runner', minStake: 0, yieldBoost: '+1.5%', yieldBoostBPS: 150, toppingBonus: 0, color: 'bg-gray-500', emoji: '🍕' },
+  { id: 1, name: 'Oven Operator', minStake: 50_000, yieldBoost: '+5%', yieldBoostBPS: 500, toppingBonus: 1, color: 'bg-green-500', emoji: '🔥' },
+  { id: 2, name: 'Pie Boss', minStake: 200_000, yieldBoost: '+10%', yieldBoostBPS: 1000, toppingBonus: 3, color: 'bg-orange-500', emoji: '👨‍🍳' },
+  { id: 3, name: 'Pizza Tycoon', minStake: 500_000, yieldBoost: '+20%', yieldBoostBPS: 2000, toppingBonus: 5, color: 'bg-red-600', emoji: '👑' },
 ]
+
+// Bonus constants (must match contract)
+const LOCK_BONUS_BPS = 1000 // +10% for locked position
+const EARLY_BOOST_BPS = 3000 // +30% early staker boost
 
 // Staking limits - MIN_STAKE is now dynamic ($1 worth of PIZZA)
 // Fallback used if contract call fails (100 PIZZA)
@@ -356,6 +361,50 @@ export default function StakingPage({
     if (!userPosition || userPosition.lockedAmount === 0n) return false
     return userPosition.lockEndTimestamp > Date.now()
   }, [userPosition])
+
+  // Calculate reward breakdown for display after spin
+  // This mirrors the contract's _calculateBonusAmount logic
+  const rewardBreakdown = useMemo(() => {
+    if (!userPosition || !spinResult) return null
+
+    const baseReward = userPosition.totalPendingRewards
+    // The contract's getPendingRewards already includes bonuses, so we need to work backwards
+    // to show the breakdown. The totalPendingRewards = base + (base × totalBonusBPS / 10000)
+
+    // Calculate total bonus BPS
+    let totalBonusBPS = currentTier.yieldBoostBPS // Tier bonus
+    const hasLock = userPosition.lockedAmount > 0n
+    if (hasLock) totalBonusBPS += LOCK_BONUS_BPS // +10% lock
+    if (userPosition.isEarlyBoostActive) totalBonusBPS += EARLY_BOOST_BPS // +30% early
+
+    // Work backwards: totalPendingRewards = baseOnly × (1 + totalBonusBPS/10000)
+    // So baseOnly = totalPendingRewards / (1 + totalBonusBPS/10000)
+    // In bigint: baseOnly = totalPendingRewards × 10000 / (10000 + totalBonusBPS)
+    const baseOnly = (baseReward * 10000n) / (10000n + BigInt(totalBonusBPS))
+
+    // Now calculate spin result on base (before bonuses)
+    const spinMultiplier = BigInt(spinResult.multiplierValue)
+    const spunReward = (baseOnly * spinMultiplier) / 100n
+
+    // Calculate bonuses on spun reward (bonuses apply AFTER spin)
+    const bonusAmount = (spunReward * BigInt(totalBonusBPS)) / 10000n
+    const totalReward = spunReward + bonusAmount
+
+    return {
+      baseOnly,           // Raw base before any modifiers
+      spinMultiplier: spinResult.multiplierValue,
+      spunReward,         // After spin multiplier
+      tierBonus: currentTier.yieldBoost,
+      tierBonusBPS: currentTier.yieldBoostBPS,
+      hasLock,
+      lockBonusBPS: hasLock ? LOCK_BONUS_BPS : 0,
+      hasEarlyBoost: userPosition.isEarlyBoostActive,
+      earlyBoostBPS: userPosition.isEarlyBoostActive ? EARLY_BOOST_BPS : 0,
+      totalBonusBPS,
+      bonusAmount,        // Total bonus in PIZZA
+      totalReward,        // Final total
+    }
+  }, [userPosition, spinResult, currentTier])
 
   // === HANDLERS ===
 
@@ -1379,15 +1428,67 @@ export default function StakingPage({
               )}
 
               {/* Post-spin: Show result + lock selection + claim button */}
-              {hasSpunThisSession && !isSpinning && spinResult && (
+              {hasSpunThisSession && !isSpinning && spinResult && rewardBreakdown && (
                 <div className="space-y-4">
-                  {/* Spin Result */}
-                  <div className={`${spinResult.color} rounded-xl p-4 text-center text-white border-4 border-white/30`}>
+                  {/* Spin Result Header */}
+                  <div className={`${spinResult.color} rounded-xl p-3 text-center text-white border-4 border-white/30`}>
                     <p className="font-bold text-2xl" style={customFontStyle}>{spinResult.name}!</p>
-                    <p className="text-lg">{spinResult.multiplier} rewards!</p>
-                    <p className="text-sm mt-2 opacity-90">
-                      Final: ~{userPosition ? formatPizzaWei((userPosition.totalPendingRewards * BigInt(spinResult.multiplierValue)) / 100n) : '0'} PIZZA
+                    <p className="text-lg">{spinResult.multiplier} spin multiplier</p>
+                  </div>
+
+                  {/* Reward Breakdown */}
+                  <div className="bg-gray-900 rounded-xl p-3 border-2 border-gray-700">
+                    <p className="text-yellow-400 font-bold text-sm mb-2 text-center" style={customFontStyle}>
+                      Reward Breakdown
                     </p>
+                    <div className="space-y-1 text-sm">
+                      {/* Spin Result */}
+                      <div className="flex justify-between text-white">
+                        <span>Spin Result ({spinResult.multiplier})</span>
+                        <span className="font-bold">{formatPizzaWei(rewardBreakdown.spunReward)} PIZZA</span>
+                      </div>
+
+                      {/* Bonuses Section */}
+                      <div className="border-t border-gray-700 pt-1 mt-1">
+                        <p className="text-gray-400 text-xs mb-1">Bonuses Applied:</p>
+
+                        {/* Tier Bonus */}
+                        <div className="flex justify-between text-green-400 text-xs">
+                          <span>{currentTier.emoji} {currentTier.name} ({rewardBreakdown.tierBonus})</span>
+                          <span>+{(rewardBreakdown.tierBonusBPS / 100).toFixed(1)}%</span>
+                        </div>
+
+                        {/* Lock Bonus */}
+                        {rewardBreakdown.hasLock && (
+                          <div className="flex justify-between text-blue-400 text-xs">
+                            <span>7-Day Lock Bonus</span>
+                            <span>+10%</span>
+                          </div>
+                        )}
+
+                        {/* Early Boost */}
+                        {rewardBreakdown.hasEarlyBoost && (
+                          <div className="flex justify-between text-purple-400 text-xs">
+                            <span>Early Staker Boost</span>
+                            <span>+30%</span>
+                          </div>
+                        )}
+
+                        {/* Total Bonus Amount */}
+                        <div className="flex justify-between text-yellow-300 text-xs pt-1">
+                          <span>Total Bonuses (+{(rewardBreakdown.totalBonusBPS / 100).toFixed(1)}%)</span>
+                          <span>+{formatPizzaWei(rewardBreakdown.bonusAmount)} PIZZA</span>
+                        </div>
+                      </div>
+
+                      {/* Grand Total */}
+                      <div className="border-t-2 border-yellow-500 pt-2 mt-2">
+                        <div className="flex justify-between text-yellow-400">
+                          <span className="font-bold text-base" style={customFontStyle}>TOTAL</span>
+                          <span className="font-bold text-base" style={customFontStyle}>{formatPizzaWei(rewardBreakdown.totalReward)} PIZZA</span>
+                        </div>
+                      </div>
+                    </div>
                   </div>
 
                   {/* Lock Type Selection for Claimed Rewards */}
