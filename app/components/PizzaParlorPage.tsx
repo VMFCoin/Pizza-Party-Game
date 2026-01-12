@@ -879,7 +879,9 @@ export default function PizzaParlorPage({
                     </div>
                     <div className="flex justify-between items-center">
                       <span className="text-orange-800" style={{ ...customFontStyle, fontSize: 14 }}>Today&apos;s Slices:</span>
-                      <span className="text-orange-900" style={{ ...customFontStyle, fontSize: 14 }}>{pendingTodayCount} pending, {claimedTodayCount} claimed</span>
+                      <span className={`${claimedTodayCount > 0 ? 'text-green-600' : pendingTodayCount > 0 ? 'text-yellow-600' : 'text-orange-900'}`} style={{ ...customFontStyle, fontSize: 14 }}>
+                        {claimedTodayCount > 0 ? `${claimedTodayCount} Claimed` : pendingTodayCount > 0 ? `${pendingTodayCount} Pending` : '0 Sent'}
+                      </span>
                     </div>
 
                     {/* Price Info */}
@@ -997,8 +999,8 @@ export default function PizzaParlorPage({
                     </div>
                     <div className="flex justify-between items-center">
                       <span className="text-blue-800" style={{ ...customFontStyle, fontSize: 14 }}>Today&apos;s Slices:</span>
-                      <span className="text-blue-900" style={{ ...customFontStyle, fontSize: 14 }}>
-                        {pendingTodayCount} pending, {claimedTodayCount} claimed
+                      <span className={`${claimedTodayCount > 0 ? 'text-green-600' : pendingTodayCount > 0 ? 'text-yellow-600' : 'text-blue-900'}`} style={{ ...customFontStyle, fontSize: 14 }}>
+                        {claimedTodayCount > 0 ? `${claimedTodayCount} Claimed` : pendingTodayCount > 0 ? `${pendingTodayCount} Pending` : '0 Sent'}
                       </span>
                     </div>
 
