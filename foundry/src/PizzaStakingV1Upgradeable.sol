@@ -299,6 +299,10 @@ contract PizzaStakingV1Upgradeable is
     /// @dev Accumulated total of all rewards claimed (for UI display)
     mapping(address => uint256) public lifetimeClaimed;
 
+    /// @notice Tracks the last gameId that had a jackpot spin (max 1 jackpot per game day)
+    /// @dev If lastJackpotGameId == currentGameId, jackpot rolls are downgraded to HotOutTheOven
+    uint256 public lastJackpotGameId;
+
     // ==================================================================================
     // EVENTS
     // ==================================================================================
@@ -1298,21 +1302,30 @@ contract PizzaStakingV1Upgradeable is
     /**
      * @notice Perform spin to determine payout multiplier
      * @return SpinOutcome enum value
+     * @dev Jackpot can only be hit once per game day. If already hit, jackpot slice is locked
+     *      and the spin cannot land on it until the next daily game starts.
      */
     function _spin() internal returns (SpinOutcome) {
-        // Generate pseudo-random number
+        // Check if jackpot is available today
+        uint256 currentGameId = _getCurrentGameId();
+        bool jackpotAvailable = (lastJackpotGameId != currentGameId);
+
+        // Calculate effective total weight (exclude jackpot if already hit today)
+        uint256 effectiveWeight = jackpotAvailable
+            ? SPIN_TOTAL_WEIGHT
+            : SPIN_TOTAL_WEIGHT - SPIN_JACKPOT_WEIGHT;
+
+        // Generate pseudo-random number within effective range
         uint256 random = uint256(keccak256(abi.encodePacked(
             block.timestamp,
             block.prevrandao,
             msg.sender,
             spinNonce++
-        ))) % SPIN_TOTAL_WEIGHT;
+        ))) % effectiveWeight;
 
         // Determine outcome based on weights
-        // 0-72: Regular (73%)
-        // 73-92: Loaded (20%)
-        // 93-97: Hot (5%)
-        // 98-99: Jackpot (2%)
+        // When jackpot available (100 total):  0-72: Regular, 73-92: Loaded, 93-97: Hot, 98-99: Jackpot
+        // When jackpot locked (98 total):      0-72: Regular, 73-92: Loaded, 93-97: Hot (no jackpot possible)
 
         if (random < SPIN_REGULAR_WEIGHT) {
             return SpinOutcome.RegularSlice;
@@ -1321,6 +1334,8 @@ contract PizzaStakingV1Upgradeable is
         } else if (random < SPIN_REGULAR_WEIGHT + SPIN_LOADED_WEIGHT + SPIN_HOT_WEIGHT) {
             return SpinOutcome.HotOutTheOven;
         } else {
+            // Jackpot! (only reachable if jackpotAvailable is true)
+            lastJackpotGameId = currentGameId;
             return SpinOutcome.Jackpot;
         }
     }
