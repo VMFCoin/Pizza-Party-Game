@@ -26,13 +26,13 @@ pragma solidity ^0.8.24;
  *         - Hot Out Oven: 1.5x (150% of base)
  *         - Jackpot: 4x (400% of base)
  * Step 3: ADD BONUSES - added to spun result (NOT multiplied)
- *         - Tier bonus: +1.5% / +5% / +10% / +20%
+ *         - Tier bonus: +1.5% / +3% / +7% / +15%
  *         - Lock bonus: +10% (if has locked position)
  *         - Early bonus: +30% (first 60 days)
  *
- * EXAMPLE: 100 PIZZA base, Jackpot spin (4x), Tier1 (+5%), Lock (+10%), Early (+30%)
+ * EXAMPLE: 100 PIZZA base, Jackpot spin (4x), Tier1 (+3%), Lock (+10%), Early (+30%)
  * - Step 2: 100 × 4.0 = 400 PIZZA (after spin)
- * - Step 3: 400 + (400 × 45%) = 400 + 180 = 580 PIZZA final
+ * - Step 3: 400 + (400 × 43%) = 400 + 172 = 572 PIZZA final
  *
  * INTEGRATION:
  * - PizzaPartyV2Upgradeable calls notifyRewardAmount() when settling daily games
@@ -129,14 +129,14 @@ contract PizzaStakingV1Upgradeable is
     /// @notice Tier 0 (Slice Runner) yield bonus: +1.5%
     uint256 public constant TIER0_BONUS_BPS = 150;
 
-    /// @notice Tier 1 (Oven Operator) yield bonus: +5%
-    uint256 public constant TIER1_BONUS_BPS = 500;
+    /// @notice Tier 1 (Oven Operator) yield bonus: +3%
+    uint256 public constant TIER1_BONUS_BPS = 300;
 
-    /// @notice Tier 2 (Pie Boss) yield bonus: +10%
-    uint256 public constant TIER2_BONUS_BPS = 1000;
+    /// @notice Tier 2 (Pie Boss) yield bonus: +7%
+    uint256 public constant TIER2_BONUS_BPS = 700;
 
-    /// @notice Tier 3 (Pizza Tycoon) yield bonus: +20%
-    uint256 public constant TIER3_BONUS_BPS = 2000;
+    /// @notice Tier 3 (Pizza Tycoon) yield bonus: +15%
+    uint256 public constant TIER3_BONUS_BPS = 1500;
 
     // ==================================================================================
     // TIER TOPPING BONUSES (weekly bonus toppings for lottery)
@@ -187,9 +187,9 @@ contract PizzaStakingV1Upgradeable is
      */
     enum Tier {
         SliceRunner,    // 0: Any amount, +1.5% yield, +0 toppings
-        OvenOperator,   // 1: 50M+ PIZZA, +5% yield, +1 topping/week
-        PieBoss,        // 2: 200M+ PIZZA, +10% yield, +3 toppings/week
-        PizzaTycoon     // 3: 500M+ PIZZA, +20% yield, +5 toppings/week
+        OvenOperator,   // 1: 50K+ PIZZA, +3% yield, +1 topping/week
+        PieBoss,        // 2: 200K+ PIZZA, +7% yield, +3 toppings/week
+        PizzaTycoon     // 3: 500K+ PIZZA, +15% yield, +5 toppings/week
     }
 
     /**
@@ -983,9 +983,9 @@ contract PizzaStakingV1Upgradeable is
      *    - Jackpot: 4x (400% of base)
      * 3. ADD BONUSES to spun result (tier + lock + early are ADDITIVE)
      *
-     * Example: 100 PIZZA base, Jackpot spin (4x), Tier1 (+5%), Lock (+10%), Early (+30%)
+     * Example: 100 PIZZA base, Jackpot spin (4x), Tier1 (+3%), Lock (+10%), Early (+30%)
      * Step 2: 100 × 4.0 = 400 PIZZA (after spin)
-     * Step 3: 400 + (400 × 45%) = 400 + 180 = 580 PIZZA final
+     * Step 3: 400 + (400 × 43%) = 400 + 172 = 572 PIZZA final
      *
      * ALL REWARDS ARE PAID FROM stakingRewardsWallet (not contract balance)
      */
@@ -1214,7 +1214,7 @@ contract PizzaStakingV1Upgradeable is
      * @return Bonus amount to ADD to spun reward (NOT a multiplier)
      *
      * BONUS CALCULATION:
-     * - Tier bonus: +1.5% / +5% / +10% / +20% of spun reward
+     * - Tier bonus: +1.5% / +3% / +7% / +15% of spun reward
      * - Lock bonus: +10% of spun reward (if has locked position)
      * - Early bonus: +30% of spun reward (if within boost period)
      *

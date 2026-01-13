@@ -32,9 +32,9 @@ interface StakingPageProps {
 // yieldBoostBPS: basis points for calculation (150 = 1.5%, 500 = 5%, etc.)
 const STAKING_TIERS = [
   { id: 0, name: 'Slice Runner', minStake: 0, yieldBoost: '+1.5%', yieldBoostBPS: 150, toppingBonus: 0, color: 'bg-gray-500', emoji: '🍕' },
-  { id: 1, name: 'Oven Operator', minStake: 50_000, yieldBoost: '+5%', yieldBoostBPS: 500, toppingBonus: 1, color: 'bg-green-500', emoji: '🔥' },
-  { id: 2, name: 'Pie Boss', minStake: 200_000, yieldBoost: '+10%', yieldBoostBPS: 1000, toppingBonus: 3, color: 'bg-orange-500', emoji: '👨‍🍳' },
-  { id: 3, name: 'Pizza Tycoon', minStake: 500_000, yieldBoost: '+20%', yieldBoostBPS: 2000, toppingBonus: 5, color: 'bg-red-600', emoji: '👑' },
+  { id: 1, name: 'Oven Operator', minStake: 50_000, yieldBoost: '+3%', yieldBoostBPS: 300, toppingBonus: 1, color: 'bg-green-500', emoji: '🔥' },
+  { id: 2, name: 'Pie Boss', minStake: 200_000, yieldBoost: '+7%', yieldBoostBPS: 700, toppingBonus: 3, color: 'bg-orange-500', emoji: '👨‍🍳' },
+  { id: 3, name: 'Pizza Tycoon', minStake: 500_000, yieldBoost: '+15%', yieldBoostBPS: 1500, toppingBonus: 5, color: 'bg-red-600', emoji: '👑' },
 ]
 
 // Bonus constants (must match contract)
