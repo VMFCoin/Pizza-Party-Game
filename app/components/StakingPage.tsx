@@ -1148,7 +1148,7 @@ export default function StakingPage({
                     </div>
                     <div className="bg-white rounded-lg p-2 text-center border border-blue-200">
                       <p className="text-blue-500 text-xs" style={{ fontFamily: 'var(--font-luckiest-guy)' }}>Daily Pot Share</p>
-                      <p className="text-blue-700 font-bold" style={{ fontFamily: 'var(--font-luckiest-guy)' }}>1%</p>
+                      <p className="text-blue-700 font-bold" style={{ fontFamily: 'var(--font-luckiest-guy)' }}>10%</p>
                     </div>
                     <div className="bg-white rounded-lg p-2 text-center border border-blue-200">
                       <p className="text-blue-500 text-xs" style={{ fontFamily: 'var(--font-luckiest-guy)' }}>Bonus Pool</p>
