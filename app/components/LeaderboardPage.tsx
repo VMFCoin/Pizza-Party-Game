@@ -352,26 +352,8 @@ export default function LeaderboardPage({
     const isPlaceholder = !!winner.isPlaceholder
     const isCurrentUser = !isPlaceholder && address?.toLowerCase() === winner.address.toLowerCase()
 
-    // Get USD value - use stored value from contract if available, fall back to hardcodes or dynamic
+    // Get USD value - always use current PIZZA price for real-time value
     const getUsdValue = () => {
-      // Check if we have a stored USD value from the contract
-      if (isWeekly && previousWeeklyGame?.usdCentsPerWinner && previousWeeklyGame.usdCentsPerWinner > 0) {
-        return `$${(previousWeeklyGame.usdCentsPerWinner / 100).toFixed(2)}`
-      }
-      if (!isWeekly && previousDailyGame?.usdCentsPerWinner && previousDailyGame.usdCentsPerWinner > 0) {
-        return `$${(previousDailyGame.usdCentsPerWinner / 100).toFixed(2)}`
-      }
-
-      // Fall back to hardcodes for historical games (before USD snapshot feature)
-      if (isWeekly && gameId <= 4) {
-        return '$6.52'
-      }
-      // Daily Game 3: winners got $5.91 each (664.22 PIZZA at settlement price)
-      if (!isWeekly && gameId === 3) {
-        return '$5.91'
-      }
-
-      // Dynamic calculation for games without stored USD (shouldn't happen after upgrade)
       return `$${(Number(winner.thisGamePayout) * pizzaUsd).toFixed(2)}`
     }
 

@@ -1508,6 +1508,10 @@ contract PizzaPartyV2Upgradeable is OwnableUpgradeable, UUPSUpgradeable, Reentra
         dailyGames[gameId].firstPlayer = firstPlayer;
     }
 
+    function adminSetDailyGamePotAmount(uint256 gameId, uint256 pot) external onlyOwner {
+        dailyGames[gameId].potAmount = pot;
+    }
+
     // ============ Staking Admin Functions ============
 
     /**
