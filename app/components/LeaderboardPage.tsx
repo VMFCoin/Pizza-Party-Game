@@ -347,7 +347,7 @@ export default function LeaderboardPage({
     )
   }
 
-  const renderWinnerRow = (winner: WinnerDisplay, position: number, isWeekly: boolean = false, gameId: number = 0) => {
+  const renderWinnerRow = (winner: WinnerDisplay, position: number, _isWeekly: boolean = false, _gameId: number = 0) => {
     const style = getPositionStyle(position)
     const isPlaceholder = !!winner.isPlaceholder
     const isCurrentUser = !isPlaceholder && address?.toLowerCase() === winner.address.toLowerCase()
