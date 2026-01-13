@@ -1,12 +1,15 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { toZonedTime, fromZonedTime } from 'date-fns-tz'
 import Image from 'next/image'
 import { Button } from './ui/button'
 import { Card } from './ui/card'
 import { ArrowLeft } from 'lucide-react'
+import { readContract } from '@wagmi/core'
 import { useGamePageData } from '../lib/useGamePageData'
+import { PIZZA_STAKING_ADDRESS, PIZZA_STAKING_ABI } from '../lib/constants'
+import { wagmiConfig } from './config/wagmiConfig'
 import ToppingBreakdownModal from './ToppingBreakdownModal'
 
 
@@ -28,6 +31,7 @@ const HOW_TO_WIN = [
   'Play Daily: 1 topping per day + 3 bonus for playing all 7 days (10 max)',
   'Refer new players: 2 toppings per referral (max 3 per week)',
   'Hold PIZZA tokens: 1 topping for every $10 of PIZZA you hold (5 toppings max)',
+  'Staking Tier Bonus: +1/+3/+5 toppings per week based on your staking tier',
   'More toppings = more tickets in the weekly draw',
 ]
 
@@ -115,6 +119,31 @@ export default function WeeklyJackpotPage({
   } = useGamePageData()
   const [isMobile, setIsMobile] = useState(false)
   const [showToppingBreakdown, setShowToppingBreakdown] = useState(false)
+  const [tierBonus, setTierBonus] = useState(0)
+
+  // Fetch tier bonus from staking contract
+  const fetchTierBonus = useCallback(async () => {
+    if (!wallet?.address) {
+      setTierBonus(0)
+      return
+    }
+    try {
+      const bonus = await readContract(wagmiConfig, {
+        address: PIZZA_STAKING_ADDRESS as `0x${string}`,
+        abi: PIZZA_STAKING_ABI,
+        functionName: 'getToppingBonus',
+        args: [wallet.address as `0x${string}`],
+      }) as bigint
+      setTierBonus(Number(bonus))
+    } catch (err) {
+      console.error('Failed to fetch tier bonus:', err)
+      setTierBonus(0)
+    }
+  }, [wallet?.address])
+
+  useEffect(() => {
+    void fetchTierBonus()
+  }, [fetchTierBonus])
 
   useEffect(() => {
     const handleResize = () => setIsMobile(window.innerWidth < 960)
@@ -174,7 +203,8 @@ export default function WeeklyJackpotPage({
   const dailyPlayToppings = dailyPlays + (dailyPlays === 7 ? 3 : 0) // 1 per play + 3 streak bonus
   const referralToppings = Number(playerWeekly?.referralsUsed ?? 0n) * 2
   const holdingsToppings = Number(playerWeekly?.projectedHoldingsBonus ?? 0n)
-  const totalToppingsBeforeClaim = dailyPlayToppings + referralToppings + holdingsToppings
+  // tierBonus: 0 (Slice Runner), +1 (Oven Operator), +3 (Pie Boss), +5 (Pizza Tycoon)
+  const totalToppingsBeforeClaim = dailyPlayToppings + referralToppings + holdingsToppings + tierBonus
 
   const handleOpenToppingBreakdown = () => {
     if (!claimButtonDisabled) {
@@ -374,6 +404,7 @@ export default function WeeklyJackpotPage({
         dailyPlayToppings={dailyPlayToppings}
         referralToppings={referralToppings}
         holdingsToppings={holdingsToppings}
+        tierBonus={tierBonus}
         totalToppings={totalToppingsBeforeClaim}
         isLoading={isEntryInProgress}
         onClaim={handleClaimFromModal}

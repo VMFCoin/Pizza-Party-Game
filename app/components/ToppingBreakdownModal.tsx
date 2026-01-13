@@ -11,6 +11,7 @@ interface ToppingBreakdownModalProps {
   dailyPlayToppings: number
   referralToppings: number
   holdingsToppings: number
+  tierBonus: number
   totalToppings: number
   isLoading?: boolean
   onClaim: () => void
@@ -29,6 +30,7 @@ export default function ToppingBreakdownModal({
   dailyPlayToppings,
   referralToppings,
   holdingsToppings,
+  tierBonus,
   totalToppings,
   isLoading = false,
   onClaim,
@@ -111,6 +113,17 @@ export default function ToppingBreakdownModal({
               </span>
             </div>
             <span className={`text-black font-black flex-shrink-0 ${isMobile ? 'text-base' : 'text-lg'}`}>{holdingsToppings}</span>
+          </div>
+
+          {/* Tier Bonus (Staking) */}
+          <div className={`flex justify-between items-center bg-gradient-to-r from-amber-400 to-yellow-500 rounded-xl border-2 border-amber-600 ${isMobile ? 'p-2' : 'p-3'}`}>
+            <div className="flex items-center gap-2 min-w-0">
+              <span className={`${isMobile ? 'text-lg' : 'text-2xl'}`}>🍍</span>
+              <span className={`text-black font-bold truncate ${isMobile ? 'text-sm' : ''}`} style={customFontStyle}>
+                Tier Bonus
+              </span>
+            </div>
+            <span className={`text-black font-black flex-shrink-0 ${isMobile ? 'text-base' : 'text-lg'}`}>{tierBonus > 0 ? `+${tierBonus}` : tierBonus}</span>
           </div>
         </div>
 
