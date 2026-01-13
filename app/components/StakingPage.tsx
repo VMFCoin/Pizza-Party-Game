@@ -64,7 +64,7 @@ const LOCK_TYPES = [
 ]
 
 const customFontStyle = {
-  fontFamily: 'var(--font-luckiest-guy)',
+  fontFamily: '"Comic Sans MS", "Marker Felt", "Chalkduster", "Kalam", "Caveat"',
   fontWeight: 'bold' as const,
 }
 
@@ -1207,7 +1207,7 @@ export default function StakingPage({
               className="w-full !bg-green-600 hover:!bg-green-700 text-white font-bold py-2.5 rounded-xl border-4 border-green-800 uppercase"
               style={{ ...customFontStyle, fontSize: isMobile ? 18 : 20 }}
             >
-              GRAB A SLICE
+              🍕 GRAB A SLICE 🍕
             </Button>
 
             <Button
@@ -1216,7 +1216,7 @@ export default function StakingPage({
               style={{ ...customFontStyle, fontSize: isMobile ? 18 : 20 }}
             >
               <Image src="/images/pepperoni-art.png" alt="Pepperoni" width={20} height={20} className="inline mr-1" />
-              WEEKLY JACKPOT
+              Weekly Jackpot
               <Image src="/images/pepperoni-art.png" alt="Pepperoni" width={20} height={20} className="inline ml-1" />
             </Button>
 
@@ -1226,7 +1226,7 @@ export default function StakingPage({
               style={{ ...customFontStyle, fontSize: isMobile ? 18 : 20 }}
             >
               <Image src="/images/mushroom-icon2.png" alt="Mushroom" width={20} height={20} className="inline mr-1" style={{ backgroundColor: 'transparent', border: 'none' }} />
-              LEADERBOARD
+              Leaderboard
               <Image src="/images/mushroom-icon2.png" alt="Mushroom" width={20} height={20} className="inline ml-1" style={{ backgroundColor: 'transparent', border: 'none' }} />
             </Button>
 
@@ -1235,7 +1235,7 @@ export default function StakingPage({
               className="w-full !bg-orange-500 hover:!bg-orange-600 text-white font-bold py-2.5 rounded-xl border-4 border-orange-800 uppercase"
               style={{ ...customFontStyle, fontSize: isMobile ? 18 : 20 }}
             >
-              OWN A PARLOR
+              🍍 OWN A PARLOR 🍍
             </Button>
           </div>
         </Card>
