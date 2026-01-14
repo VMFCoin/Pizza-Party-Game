@@ -54,8 +54,52 @@ const SPIN_OUTCOMES = [
   { name: 'Regular Slice', multiplier: '1x', multiplierValue: 100, color: 'bg-yellow-400' },
   { name: 'Loaded Slice', multiplier: '1.1x', multiplierValue: 110, color: 'bg-orange-400' },
   { name: 'Hot Out the Oven', multiplier: '1.5x', multiplierValue: 150, color: 'bg-red-500' },
-  { name: 'JACKPOT', multiplier: '3x', multiplierValue: 400, color: 'bg-green-600' },
+  { name: 'JACKPOT', multiplier: '4x', multiplierValue: 400, color: 'bg-green-600' },
 ]
+
+// ==================================================================================
+// SPIN THE PIE - WHEEL GEOMETRY & SLICE MAPPING
+// ==================================================================================
+// The pizza wheel has 8 slices, pointer is at 12 o'clock (top)
+// Slices are numbered 0-7 clockwise starting from top
+//
+// Visual layout of pizza_wheel.png:
+//   Slice 0 (0°-45°):   JACKPOT 3x  - top
+//   Slice 1 (45°-90°):  1x Regular  - top-right
+//   Slice 2 (90°-135°): 1.10x Loaded - right
+//   Slice 3 (135°-180°): 1x Regular - bottom-right
+//   Slice 4 (180°-225°): 1.50x Hot  - bottom
+//   Slice 5 (225°-270°): 1x Regular - bottom-left
+//   Slice 6 (270°-315°): 1.10x Loaded - left
+//   Slice 7 (315°-360°): 1x Regular - top-left
+
+const SLICE_COUNT = 8
+const SLICE_ANGLE = 360 / SLICE_COUNT // 45° per slice
+
+// Maps each outcome to valid slice indices on the wheel
+// When outcome is determined, we pick one of these slices to land on
+const OUTCOME_TO_SLICES: Record<string, number[]> = {
+  'Regular Slice': [1, 3, 5, 7],      // Four 1x slices
+  'Loaded Slice': [2, 6],              // Two 1.10x slices
+  'Hot Out the Oven': [4],             // One 1.50x slice (bottom)
+  'JACKPOT': [0],                      // One 3x slice (top)
+}
+
+// Calculate the rotation needed to land a specific slice under the pointer (top)
+// sliceIndex: which slice (0-7) to land on
+// fullSpins: number of complete rotations for dramatic effect
+function getTargetRotation(sliceIndex: number, fullSpins: number = 4): number {
+  // Center of the target slice (in degrees from 0)
+  const sliceCenterAngle = sliceIndex * SLICE_ANGLE + SLICE_ANGLE / 2
+
+  // To land this slice at the top (pointer), we need to rotate the wheel
+  // so the slice center aligns with 0° (top)
+  // Since wheel rotates clockwise, we subtract from 360
+  const targetAngle = (360 - sliceCenterAngle + 360) % 360
+
+  // Add full rotations for visual effect
+  return fullSpins * 360 + targetAngle
+}
 
 // Lock Types - bonuses are ADDITIVE (not multiplicative)
 const LOCK_TYPES = [
@@ -598,23 +642,35 @@ export default function StakingPage({
     }
   }
 
-  // Spin animation for the wheel
+  // Spin animation for the wheel - deterministic rotation to match outcome
   const handleSpin = () => {
     if (isSpinning || hasSpunThisSession) return
     setIsSpinning(true)
     setSpinResult(null)
 
+    // Step 1: Determine outcome based on odds (73% Regular, 20% Loaded, 5% Hot, 2% Jackpot)
     const rand = Math.random() * 100
     let outcome: typeof SPIN_OUTCOMES[0]
-    if (rand < 73) outcome = SPIN_OUTCOMES[0]
-    else if (rand < 93) outcome = SPIN_OUTCOMES[1]
-    else if (rand < 98) outcome = SPIN_OUTCOMES[2]
-    else outcome = SPIN_OUTCOMES[3]
+    if (rand < 73) outcome = SPIN_OUTCOMES[0]       // Regular Slice
+    else if (rand < 93) outcome = SPIN_OUTCOMES[1]  // Loaded Slice
+    else if (rand < 98) outcome = SPIN_OUTCOMES[2]  // Hot Out the Oven
+    else outcome = SPIN_OUTCOMES[3]                 // JACKPOT
 
-    const fullRotations = (3 + Math.random() * 2) * 360
-    const extraRotation = Math.random() * 360
-    setSpinRotation(prev => prev + fullRotations + extraRotation)
+    // Step 2: Get valid slice indices for this outcome
+    const validSlices = OUTCOME_TO_SLICES[outcome.name]
 
+    // Step 3: Pick a random slice from valid options (for variety when multiple exist)
+    const targetSlice = validSlices[Math.floor(Math.random() * validSlices.length)]
+
+    // Step 4: Calculate deterministic rotation to land on that slice
+    // Use 3-5 full spins for dramatic effect
+    const fullSpins = 3 + Math.floor(Math.random() * 3)
+    const targetRotation = getTargetRotation(targetSlice, fullSpins)
+
+    // Step 5: Apply rotation (additive to maintain continuous spinning feel)
+    setSpinRotation(targetRotation)
+
+    // Step 6: After animation completes, show result
     setTimeout(() => {
       setIsSpinning(false)
       setSpinResult(outcome)
@@ -1417,7 +1473,7 @@ export default function StakingPage({
                   }}
                 >
                   <Image
-                    src="/images/Pizza-Wheel.png"
+                    src="/images/pizza_wheel.png"
                     alt="Pizza Wheel"
                     width={210}
                     height={210}
