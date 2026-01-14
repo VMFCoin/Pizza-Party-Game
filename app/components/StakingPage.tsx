@@ -38,7 +38,7 @@ const STAKING_TIERS = [
 ]
 
 // Bonus constants (must match contract)
-const LOCK_BONUS_BPS = 1000 // +10% for locked position
+const LOCK_BONUS_BPS = 500 // +5% for locked position
 const EARLY_BOOST_BPS = 3000 // +30% early staker boost
 
 // Staking limits - MIN_STAKE is now dynamic ($1 worth of PIZZA)
@@ -107,7 +107,7 @@ function getTargetRotation(sliceIndex: number, fullSpins: number = 4): number {
 // Lock Types - bonuses are ADDITIVE (not multiplicative)
 const LOCK_TYPES = [
   { id: 'flexible', name: 'No Lock', bonus: '+0%', duration: 'No lock', penalty: 'None', icon: Unlock, lockType: 0 },
-  { id: 'locked', name: '7-Day Lock', bonus: '+10%', duration: '7 days', penalty: '15% early exit', icon: Lock, lockType: 1 },
+  { id: 'locked', name: '7-Day Lock', bonus: '+5%', duration: '7 days', penalty: '15% early exit', icon: Lock, lockType: 1 },
 ]
 
 const customFontStyle = {
@@ -418,7 +418,7 @@ export default function StakingPage({
 
     // Calculate total bonus BPS that was applied
     let totalBonusBPS = currentTier.yieldBoostBPS // Tier bonus
-    if (userPosition.lockedAmount > 0n) totalBonusBPS += LOCK_BONUS_BPS // +10% lock
+    if (userPosition.lockedAmount > 0n) totalBonusBPS += LOCK_BONUS_BPS // +5% lock
     if (userPosition.isEarlyBoostActive) totalBonusBPS += EARLY_BOOST_BPS // +30% early
 
     // Work backwards: totalPendingRewards = baseOnly × (1 + totalBonusBPS/10000)
@@ -438,7 +438,7 @@ export default function StakingPage({
     // Calculate total bonus BPS
     let totalBonusBPS = currentTier.yieldBoostBPS // Tier bonus
     const hasLock = userPosition.lockedAmount > 0n
-    if (hasLock) totalBonusBPS += LOCK_BONUS_BPS // +10% lock
+    if (hasLock) totalBonusBPS += LOCK_BONUS_BPS // +5% lock
     if (userPosition.isEarlyBoostActive) totalBonusBPS += EARLY_BOOST_BPS // +30% early
 
     // Work backwards: totalPendingRewards = baseOnly × (1 + totalBonusBPS/10000)
@@ -770,7 +770,7 @@ export default function StakingPage({
                         </div>
                         <div className="flex flex-wrap gap-1 justify-end">
                           <span className="bg-white/20 px-2 py-0.5 rounded text-xs">{currentTier.yieldBoost}</span>
-                          {userPosition.lockedAmount > 0n && <span className="bg-white/20 px-2 py-0.5 rounded text-xs">+10% Lock</span>}
+                          {userPosition.lockedAmount > 0n && <span className="bg-white/20 px-2 py-0.5 rounded text-xs">+5% Lock</span>}
                           {userPosition.isEarlyBoostActive && <span className="bg-yellow-400/30 px-2 py-0.5 rounded text-xs">+30% Boost</span>}
                         </div>
                       </div>
@@ -1246,7 +1246,7 @@ export default function StakingPage({
                   </div>
                   <div className="flex items-start gap-2 text-xs text-green-800" style={{ fontFamily: 'var(--font-luckiest-guy)' }}>
                     <Lock size={14} className="text-green-600 mt-0.5 flex-shrink-0" />
-                    <span>7-day lock = +10% bonus</span>
+                    <span>7-day lock = +5% bonus</span>
                   </div>
                   <div className="flex items-start gap-2 text-xs text-green-800" style={{ fontFamily: 'var(--font-luckiest-guy)' }}>
                     <AlertTriangle size={14} className="text-orange-500 mt-0.5 flex-shrink-0" />
@@ -1310,7 +1310,7 @@ export default function StakingPage({
                   </p>
                   <div className="bg-green-50 rounded-lg p-3 mb-4">
                     <p className="text-green-700 text-sm">Amount: <span className="font-bold">{formatExact(stakeAmount)} PIZZA</span></p>
-                    <p className="text-green-700 text-sm">Lock Type: <span className="font-bold">{selectedLockType === 1 ? '7-Day Lock (+10%)' : 'Flexible'}</span></p>
+                    <p className="text-green-700 text-sm">Lock Type: <span className="font-bold">{selectedLockType === 1 ? '7-Day Lock (+5%)' : 'Flexible'}</span></p>
                     {selectedLockType === 1 && (
                       <p className="text-orange-600 text-xs mt-2">
                         <AlertTriangle size={12} className="inline mr-1" />
@@ -1539,7 +1539,7 @@ export default function StakingPage({
                         {rewardBreakdown.hasLock && (
                           <div className="flex justify-between text-blue-400 text-xs">
                             <span>7-Day Lock Bonus</span>
-                            <span>+10%</span>
+                            <span>+5%</span>
                           </div>
                         )}
 
@@ -1603,7 +1603,7 @@ export default function StakingPage({
                           7-Day Lock
                         </p>
                         <p className={`text-xs ${claimLockType === 1 ? 'text-blue-300' : 'text-gray-500'}`}>
-                          +10% bonus
+                          +5% bonus
                         </p>
                       </button>
                     </div>
@@ -1679,7 +1679,7 @@ export default function StakingPage({
                           7-Day Lock
                         </p>
                         <p className={`text-xs ${claimLockType === 1 ? 'text-blue-300' : 'text-gray-500'}`}>
-                          +10% bonus
+                          +5% bonus
                         </p>
                       </button>
                     </div>

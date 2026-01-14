@@ -13,7 +13,7 @@ pragma solidity ^0.8.24;
  *
  * KEY FEATURES:
  * - 4 staking tiers based on amount staked (Slice Runner, Oven Operator, Pie Boss, Pizza Tycoon)
- * - 2 lock periods: No Lock (tier bonus only) or 7-day Lock (+10% bonus)
+ * - 2 lock periods: No Lock (tier bonus only) or 7-day Lock (+5% bonus)
  * - Early staker boost (+30% for first 60 days)
  * - Spin the Pie mechanic for claiming (toggleable, disabled by default)
  * - EQUAL distribution: all stakers get same base reward regardless of stake amount
@@ -27,12 +27,12 @@ pragma solidity ^0.8.24;
  *         - Jackpot: 4x (400% of base)
  * Step 3: ADD BONUSES - added to spun result (NOT multiplied)
  *         - Tier bonus: +1.5% / +3% / +7% / +15%
- *         - Lock bonus: +10% (if has locked position)
+ *         - Lock bonus: +5% (if has locked position)
  *         - Early bonus: +30% (first 60 days)
  *
- * EXAMPLE: 100 PIZZA base, Jackpot spin (4x), Tier1 (+3%), Lock (+10%), Early (+30%)
+ * EXAMPLE: 100 PIZZA base, Jackpot spin (4x), Tier1 (+3%), Lock (+5%), Early (+30%)
  * - Step 2: 100 × 4.0 = 400 PIZZA (after spin)
- * - Step 3: 400 + (400 × 43%) = 400 + 172 = 572 PIZZA final
+ * - Step 3: 400 + (400 × 38%) = 400 + 152 = 552 PIZZA final
  *
  * INTEGRATION:
  * - PizzaPartyV2Upgradeable calls notifyRewardAmount() when settling daily games
@@ -102,8 +102,8 @@ contract PizzaStakingV1Upgradeable is
     /// @notice Early unstake penalty: 15% (1500 BPS)
     uint256 public constant EARLY_UNSTAKE_PENALTY_BPS = 1500;
 
-    /// @notice Lock bonus: +10% (1000 BPS) added to rewards when locked
-    uint256 public constant LOCK_BONUS_BPS = 1000;
+    /// @notice Lock bonus: +5% (500 BPS) added to rewards when locked
+    uint256 public constant LOCK_BONUS_BPS = 500;
 
     /// @notice Early staker boost: 30% (3000 BPS)
     uint256 public constant EARLY_BOOST_BPS = 3000;
@@ -194,11 +194,11 @@ contract PizzaStakingV1Upgradeable is
 
     /**
      * @notice Lock period options
-     * @dev No lock = tier bonus only; Locked = tier bonus + 10% lock bonus
+     * @dev No lock = tier bonus only; Locked = tier bonus + 5% lock bonus
      */
     enum LockType {
         Flexible,   // 0: No lock, no lock bonus, no penalty
-        Locked      // 1: 7-day lock, +10% lock bonus, 15% early exit penalty
+        Locked      // 1: 7-day lock, +5% lock bonus, 15% early exit penalty
     }
 
     /**
@@ -987,9 +987,9 @@ contract PizzaStakingV1Upgradeable is
      *    - Jackpot: 4x (400% of base)
      * 3. ADD BONUSES to spun result (tier + lock + early are ADDITIVE)
      *
-     * Example: 100 PIZZA base, Jackpot spin (4x), Tier1 (+3%), Lock (+10%), Early (+30%)
+     * Example: 100 PIZZA base, Jackpot spin (4x), Tier1 (+3%), Lock (+5%), Early (+30%)
      * Step 2: 100 × 4.0 = 400 PIZZA (after spin)
-     * Step 3: 400 + (400 × 43%) = 400 + 172 = 572 PIZZA final
+     * Step 3: 400 + (400 × 38%) = 400 + 152 = 552 PIZZA final
      *
      * ALL REWARDS ARE PAID FROM stakingRewardsWallet (not contract balance)
      */
@@ -1219,7 +1219,7 @@ contract PizzaStakingV1Upgradeable is
      *
      * BONUS CALCULATION:
      * - Tier bonus: +1.5% / +3% / +7% / +15% of spun reward
-     * - Lock bonus: +10% of spun reward (if has locked position)
+     * - Lock bonus: +5% of spun reward (if has locked position)
      * - Early bonus: +30% of spun reward (if within boost period)
      *
      * These are ADDITIVE bonuses applied AFTER spin, not before.
@@ -1232,7 +1232,7 @@ contract PizzaStakingV1Upgradeable is
         // Add tier bonus (based on TOTAL staked across both positions)
         totalBonusBPS += _getTierBonus(getTier(user));
 
-        // Add lock bonus (+10% if user has ANY locked position)
+        // Add lock bonus (+5% if user has ANY locked position)
         if (lockedStakes[user].stakedAmount > 0) {
             totalBonusBPS += LOCK_BONUS_BPS;
         }
