@@ -1465,21 +1465,31 @@ export default function StakingPage({
 
                 {/* Pizza Wheel (spins - on top) */}
                 <div
-                  className="absolute inset-0 flex items-center justify-center transition-transform z-10"
+                  className="absolute inset-0 flex items-center justify-center z-10"
                   style={{
                     transform: `rotate(${spinRotation}deg)`,
+                    transitionProperty: 'transform',
                     transitionDuration: isSpinning ? '3s' : '0s',
                     transitionTimingFunction: 'cubic-bezier(0.17, 0.67, 0.12, 0.99)',
                   }}
                 >
-                  <Image
-                    src="/images/pizza_wheel.png"
-                    alt="Pizza Wheel"
-                    width={230}
-                    height={230}
-                    priority
-                    style={{ borderRadius: '50%' }}
-                  />
+                  <div
+                    style={{
+                      width: 230,
+                      height: 230,
+                      borderRadius: '50%',
+                      overflow: 'hidden',
+                    }}
+                  >
+                    <Image
+                      src="/images/pizza_wheel.png"
+                      alt="Pizza Wheel"
+                      width={230}
+                      height={230}
+                      priority
+                      style={{ display: 'block' }}
+                    />
+                  </div>
                 </div>
               </div>
 
