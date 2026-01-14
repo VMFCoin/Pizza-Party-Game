@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback, useMemo } from 'react'
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import Image from 'next/image'
 import { Button } from './ui/button'
 import { Card } from './ui/card'
@@ -186,6 +186,7 @@ export default function StakingPage({
   const [unstakeAmount, setUnstakeAmount] = useState('')
   const [unstakeLockType, setUnstakeLockType] = useState<0 | 1>(0)
   const [pendingApproval, setPendingApproval] = useState(false) // Track if we're waiting for approval to stake
+  const [pendingRecordSpin, setPendingRecordSpin] = useState(false) // Track if we're waiting for recordSpin tx
 
   // Collapsible section state
   const [tiersOpen, setTiersOpen] = useState(false)
@@ -198,6 +199,51 @@ export default function StakingPage({
     existingWallet?: string
     loading: boolean
   }>({ canStake: true, loading: true })
+
+  // === SPIN TICK/HAPTIC REFS ===
+  const wheelRef = useRef<HTMLDivElement>(null)
+  const tickAudioRef = useRef<HTMLAudioElement | null>(null)
+  const lastTickSliceRef = useRef<number>(-1)
+  const animationFrameRef = useRef<number | null>(null)
+
+  // Preload tick sound on mount
+  useEffect(() => {
+    tickAudioRef.current = new Audio('/sounds/pizza-tick.mp3')
+    tickAudioRef.current.volume = 0.3
+    return () => {
+      if (animationFrameRef.current) {
+        cancelAnimationFrame(animationFrameRef.current)
+      }
+    }
+  }, [])
+
+  // Haptic feedback function (mobile only)
+  const triggerHaptic = useCallback(() => {
+    if (typeof navigator !== 'undefined' && 'vibrate' in navigator) {
+      navigator.vibrate(8) // Short 8ms vibration pulse
+    }
+  }, [])
+
+  // Play tick sound
+  const playTick = useCallback(() => {
+    if (tickAudioRef.current) {
+      // Clone and play for overlapping ticks
+      const tick = tickAudioRef.current.cloneNode() as HTMLAudioElement
+      tick.volume = 0.3
+      tick.play().catch(() => {}) // Ignore autoplay errors
+    }
+  }, [])
+
+  // Get current slice from rotation angle
+  const getSliceFromRotation = useCallback((rotation: number): number => {
+    // Normalize to 0-360
+    const normalizedAngle = ((rotation % 360) + 360) % 360
+    // Account for slice offset (22.5°) - the slice boundaries are at 0°, 45°, 90°, etc.
+    // But the slice centers are at 22.5°, 67.5°, etc.
+    // So slice 0 spans from -22.5° to 22.5° (or 337.5° to 22.5° after normalization)
+    const adjustedAngle = (normalizedAngle + SLICE_OFFSET) % 360
+    return Math.floor(adjustedAngle / SLICE_ANGLE) % SLICE_COUNT
+  }, [])
 
   // === CONTRACT READS ===
 
@@ -327,6 +373,13 @@ export default function StakingPage({
 
   const { isLoading: isConfirming, isSuccess: isConfirmed } = useWaitForTransactionReceipt({
     hash: writeHash,
+  })
+
+  // Separate writeContract hook for recordSpin to handle its own tx lifecycle
+  const { writeContract: writeRecordSpin, data: recordSpinHash, isPending: isRecordSpinPending, reset: resetRecordSpin } = useWriteContract()
+
+  const { isLoading: isRecordSpinConfirming, isSuccess: isRecordSpinConfirmed } = useWaitForTransactionReceipt({
+    hash: recordSpinHash,
   })
 
   // === COMPUTED VALUES ===
@@ -691,13 +744,25 @@ export default function StakingPage({
     })
   }
 
-  // Spin animation for the wheel - deterministic rotation to match outcome
+  // Step 1: Handle SPIN button click - record spin on-chain FIRST to prevent multi-device exploit
   const handleSpin = () => {
-    if (isSpinning || hasSpunThisGame) return
+    if (isSpinning || hasSpunThisGame || pendingRecordSpin || isRecordSpinPending || isRecordSpinConfirming) return
+
+    // Call recordSpin() on contract - this prevents spinning on multiple devices
+    setPendingRecordSpin(true)
+    writeRecordSpin({
+      address: PIZZA_STAKING_ADDRESS as `0x${string}`,
+      abi: PIZZA_STAKING_ABI,
+      functionName: 'recordSpin',
+    })
+  }
+
+  // Step 2: Run spin animation AFTER recordSpin tx confirms
+  const runSpinAnimation = useCallback(() => {
     setIsSpinning(true)
     setSpinResult(null)
 
-    // Step 1: Determine outcome based on odds (73% Regular, 20% Loaded, 5% Hot, 2% Jackpot)
+    // Determine outcome based on odds (73% Regular, 20% Loaded, 5% Hot, 2% Jackpot)
     const rand = Math.random() * 100
     let outcome: typeof SPIN_OUTCOMES[0]
     if (rand < 73) outcome = SPIN_OUTCOMES[0]       // Regular Slice
@@ -705,29 +770,88 @@ export default function StakingPage({
     else if (rand < 98) outcome = SPIN_OUTCOMES[2]  // Hot Out the Oven
     else outcome = SPIN_OUTCOMES[3]                 // JACKPOT
 
-    // Step 2: Get valid slice indices for this outcome
+    // Get valid slice indices for this outcome
     const validSlices = OUTCOME_TO_SLICES[outcome.name]
 
-    // Step 3: Pick a random slice from valid options (for variety when multiple exist)
+    // Pick a random slice from valid options (for variety when multiple exist)
     const targetSlice = validSlices[Math.floor(Math.random() * validSlices.length)]
 
-    // Step 4: Calculate deterministic rotation to land on that slice
+    // Calculate deterministic rotation to land on that slice
     // Use 3-5 full spins for dramatic effect
     const fullSpins = 3 + Math.floor(Math.random() * 3)
     const targetRotation = getTargetRotation(targetSlice, fullSpins)
 
-    // Step 5: Apply rotation (additive to maintain continuous spinning feel)
+    // Apply rotation (additive to maintain continuous spinning feel)
     setSpinRotation(targetRotation)
 
-    // Step 6: After animation completes, show result and persist to localStorage
+    // Start tick sound/haptic loop using requestAnimationFrame
+    // This polls the actual CSS transform during animation
+    lastTickSliceRef.current = -1 // Reset tick tracking
+    const startTime = performance.now()
+    const animationDuration = 3000 // 3 seconds
+
+    const tickLoop = () => {
+      const elapsed = performance.now() - startTime
+      if (elapsed >= animationDuration) {
+        // Animation complete - stop loop
+        animationFrameRef.current = null
+        return
+      }
+
+      // Get actual rotation from the wheel element's computed transform
+      if (wheelRef.current) {
+        const style = window.getComputedStyle(wheelRef.current)
+        const transform = style.transform
+        if (transform && transform !== 'none') {
+          // Extract rotation from matrix transform: matrix(cos, sin, -sin, cos, 0, 0)
+          const values = transform.match(/matrix\(([^)]+)\)/)
+          if (values) {
+            const parts = values[1].split(',').map(Number)
+            const angle = Math.atan2(parts[1], parts[0]) * (180 / Math.PI)
+            // atan2 returns -180 to 180, normalize to 0-360
+            const normalizedAngle = ((angle % 360) + 360) % 360
+            const currentSlice = getSliceFromRotation(normalizedAngle)
+
+            // Fire tick when crossing into a new slice
+            if (currentSlice !== lastTickSliceRef.current && lastTickSliceRef.current !== -1) {
+              playTick()
+              triggerHaptic()
+            }
+            lastTickSliceRef.current = currentSlice
+          }
+        }
+      }
+
+      animationFrameRef.current = requestAnimationFrame(tickLoop)
+    }
+
+    // Start the tick loop
+    animationFrameRef.current = requestAnimationFrame(tickLoop)
+
+    // After animation completes, show result and persist to localStorage
     setTimeout(() => {
+      // Stop tick loop if still running
+      if (animationFrameRef.current) {
+        cancelAnimationFrame(animationFrameRef.current)
+        animationFrameRef.current = null
+      }
       setIsSpinning(false)
       setSpinResult(outcome)
       setHasSpunThisGame(true)
       // Persist spin result so it survives app close/reopen
       saveSpinResult(outcome, targetRotation)
     }, 3000)
-  }
+  }, [playTick, triggerHaptic, getSliceFromRotation, saveSpinResult])
+
+  // After recordSpin tx confirms, run the spin animation
+  useEffect(() => {
+    if (isRecordSpinConfirmed && pendingRecordSpin) {
+      setPendingRecordSpin(false)
+      resetRecordSpin()
+      // Now run the actual spin animation
+      runSpinAnimation()
+    }
+  }, [isRecordSpinConfirmed, pendingRecordSpin, resetRecordSpin, runSpinAnimation])
 
   // Handle share cast after successful claim
   const handleShareCast = useCallback(async () => {
@@ -1532,6 +1656,7 @@ export default function StakingPage({
 
                 {/* Pizza Wheel (spins inside the ring) */}
                 <div
+                  ref={wheelRef}
                   className="absolute inset-0 flex items-center justify-center z-10"
                   style={{
                     transform: `rotate(${spinRotation}deg)`,
@@ -1554,10 +1679,18 @@ export default function StakingPage({
               {!hasSpunThisGame && !isSpinning && spinEnabled && canSpinToday && (
                 <Button
                   onClick={handleSpin}
-                  className="w-full !bg-yellow-500 hover:!bg-yellow-600 text-white font-bold py-3 rounded-xl border-4 border-yellow-700"
+                  disabled={pendingRecordSpin || isRecordSpinPending || isRecordSpinConfirming}
+                  className="w-full !bg-yellow-500 hover:!bg-yellow-600 text-white font-bold py-3 rounded-xl border-4 border-yellow-700 disabled:opacity-50"
                   style={{ fontFamily: 'var(--font-luckiest-guy)', fontSize: 20 }}
                 >
-                  SPIN THE PIE!
+                  {(pendingRecordSpin || isRecordSpinPending || isRecordSpinConfirming) ? (
+                    <span className="flex items-center justify-center gap-2">
+                      <Loader2 className="animate-spin" size={20} />
+                      {isRecordSpinConfirming ? 'CONFIRMING...' : 'RECORDING SPIN...'}
+                    </span>
+                  ) : (
+                    'SPIN THE PIE!'
+                  )}
                 </Button>
               )}
 

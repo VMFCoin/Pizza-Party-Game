@@ -200,6 +200,7 @@ export const PIZZA_STAKING_ABI = [
   { type: 'function', name: 'claim', stateMutability: 'nonpayable', inputs: [], outputs: [] },
   { type: 'function', name: 'claimFromPosition', stateMutability: 'nonpayable', inputs: [{ type: 'uint8', name: 'lockType' }], outputs: [] },
   { type: 'function', name: 'restake', stateMutability: 'nonpayable', inputs: [{ type: 'uint8', name: 'lockType' }], outputs: [] },
+  { type: 'function', name: 'recordSpin', stateMutability: 'nonpayable', inputs: [], outputs: [] },
 
   // --- Events ---
   {

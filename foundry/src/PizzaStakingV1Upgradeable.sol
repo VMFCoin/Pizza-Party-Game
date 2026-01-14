@@ -352,6 +352,9 @@ contract PizzaStakingV1Upgradeable is
     /// @notice Emitted when spin is enabled/disabled
     event SpinToggled(bool enabled);
 
+    /// @notice Emitted when a user records their spin (before animation)
+    event SpinRecorded(address indexed user, uint256 gameId);
+
     /// @notice Emitted when pizza token address is set
     event PizzaTokenSet(address indexed token);
 
@@ -542,6 +545,36 @@ contract PizzaStakingV1Upgradeable is
      */
     function claimFromPosition(LockType lockType) external nonReentrant whenNotPaused tokenSet {
         _claimRewardsForPosition(msg.sender, lockType, true);
+    }
+
+    /**
+     * @notice Record that user has spun today (prevents multi-device exploit)
+     * @dev Called by frontend BEFORE showing spin animation. This ensures:
+     *      1. User can only spin once per game day across all devices
+     *      2. Even if user has multiple tabs/devices, only first spin counts
+     *      3. The claim() function will then use this recorded spin
+     *
+     * IMPORTANT: This is a WRITE operation that changes state on-chain.
+     * The frontend should call this, wait for confirmation, then show animation.
+     */
+    function recordSpin() external nonReentrant whenNotPaused tokenSet {
+        // Must have a staking position to spin
+        uint256 userTotalStaked = flexibleStakes[msg.sender].stakedAmount + lockedStakes[msg.sender].stakedAmount;
+        if (userTotalStaked == 0) revert NoStakePosition();
+
+        // Must have spin enabled
+        if (!spinEnabled) revert Unauthorized();
+
+        // Check if user has already spun today
+        uint256 currentGameId = _getCurrentGameId();
+        if (lastSpinGameId[msg.sender] == currentGameId) {
+            revert AlreadySpunToday();
+        }
+
+        // Record the spin - this prevents spinning on other devices
+        lastSpinGameId[msg.sender] = currentGameId;
+
+        emit SpinRecorded(msg.sender, currentGameId);
     }
 
     /**
