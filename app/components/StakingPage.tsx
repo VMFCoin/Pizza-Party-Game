@@ -61,41 +61,44 @@ const SPIN_OUTCOMES = [
 // SPIN THE PIE - WHEEL GEOMETRY & SLICE MAPPING
 // ==================================================================================
 // The pizza wheel has 8 slices, pointer is at 12 o'clock (top)
-// Slices are numbered 0-7 clockwise starting from top
+// IMPORTANT: The 12 o'clock cut line is a slice BOUNDARY, not a slice center
+// The JACKPOT slice sits immediately to the RIGHT of that line
+// Therefore all slice centers are OFFSET by 22.5° (half a slice)
 //
-// Visual layout of pizza_wheel.png:
-//   Slice 0 (0°-45°):   JACKPOT 3x  - top
-//   Slice 1 (45°-90°):  1x Regular  - top-right
-//   Slice 2 (90°-135°): 1.10x Loaded - right
-//   Slice 3 (135°-180°): 1x Regular - bottom-right
-//   Slice 4 (180°-225°): 1.50x Hot  - bottom
-//   Slice 5 (225°-270°): 1x Regular - bottom-left
-//   Slice 6 (270°-315°): 1.10x Loaded - left
-//   Slice 7 (315°-360°): 1x Regular - top-left
+// Visual layout of pizza_wheel.png (slice centers, clockwise from top):
+//   Slice 0: JACKPOT 3x   - center @ 22.5°  (top-right area)
+//   Slice 1: 1x Regular   - center @ 67.5°  (right)
+//   Slice 2: 1.10x Loaded - center @ 112.5° (bottom-right)
+//   Slice 3: 1x Regular   - center @ 157.5° (bottom)
+//   Slice 4: 1.50x Hot    - center @ 202.5° (bottom-left)
+//   Slice 5: 1x Regular   - center @ 247.5° (left)
+//   Slice 6: 1.10x Loaded - center @ 292.5° (top-left)
+//   Slice 7: 1x Regular   - center @ 337.5° (near top)
 
 const SLICE_COUNT = 8
 const SLICE_ANGLE = 360 / SLICE_COUNT // 45° per slice
+const SLICE_OFFSET = SLICE_ANGLE / 2   // 22.5° - slices are offset from 12 o'clock
 
 // Maps each outcome to valid slice indices on the wheel
 // When outcome is determined, we pick one of these slices to land on
 const OUTCOME_TO_SLICES: Record<string, number[]> = {
   'Regular Slice': [1, 3, 5, 7],      // Four 1x slices
   'Loaded Slice': [2, 6],              // Two 1.10x slices
-  'Hot Out the Oven': [4],             // One 1.50x slice (bottom)
-  'JACKPOT': [0],                      // One 3x slice (top)
+  'Hot Out the Oven': [4],             // One 1.50x slice (bottom-left)
+  'JACKPOT': [0],                      // One 3x slice (top-right)
 }
 
 // Calculate the rotation needed to land a specific slice under the pointer (top)
 // sliceIndex: which slice (0-7) to land on
 // fullSpins: number of complete rotations for dramatic effect
 function getTargetRotation(sliceIndex: number, fullSpins: number = 4): number {
-  // Center of the target slice (in degrees from 0)
-  const sliceCenterAngle = sliceIndex * SLICE_ANGLE + SLICE_ANGLE / 2
+  // Center of the target slice - includes the 22.5° offset because
+  // the JACKPOT slice is to the RIGHT of 12 o'clock, not centered on it
+  const sliceCenterAngle = sliceIndex * SLICE_ANGLE + SLICE_OFFSET
 
-  // To land this slice at the top (pointer), we need to rotate the wheel
-  // so the slice center aligns with 0° (top)
-  // Since wheel rotates clockwise, we subtract from 360
-  const targetAngle = (360 - sliceCenterAngle + 360) % 360
+  // To land this slice at the top (pointer at 0°), rotate the wheel
+  // so the slice center aligns with the pointer
+  const targetAngle = 360 - sliceCenterAngle
 
   // Add full rotations for visual effect
   return fullSpins * 360 + targetAngle
@@ -1452,7 +1455,7 @@ export default function StakingPage({
 
               {/* Wheel Container */}
               <div className="relative mx-auto mb-4" style={{ width: 260, height: 260 }}>
-                {/* Outer Ring (static - behind) */}
+                {/* Outer Ring (static - contains pointer at top) */}
                 <div className="absolute inset-0 flex items-center justify-center">
                   <Image
                     src="/images/Pizza-Ring.png"
@@ -1463,7 +1466,7 @@ export default function StakingPage({
                   />
                 </div>
 
-                {/* Pizza Wheel (spins - on top) */}
+                {/* Pizza Wheel (spins inside the ring) */}
                 <div
                   className="absolute inset-0 flex items-center justify-center z-10"
                   style={{
@@ -1473,27 +1476,13 @@ export default function StakingPage({
                     transitionTimingFunction: 'cubic-bezier(0.17, 0.67, 0.12, 0.99)',
                   }}
                 >
-                  <div
-                    style={{
-                      width: 240,
-                      height: 240,
-                      borderRadius: '50%',
-                      overflow: 'hidden',
-                      backgroundColor: '#f5d6a8',
-                    }}
-                  >
-                    <Image
-                      src="/images/pizza_wheel.png"
-                      alt="Pizza Wheel"
-                      width={240}
-                      height={240}
-                      priority
-                      style={{
-                        display: 'block',
-                        objectFit: 'cover',
-                      }}
-                    />
-                  </div>
+                  <Image
+                    src="/images/pizza_wheel.png"
+                    alt="Pizza Wheel"
+                    width={208}
+                    height={208}
+                    priority
+                  />
                 </div>
               </div>
 
