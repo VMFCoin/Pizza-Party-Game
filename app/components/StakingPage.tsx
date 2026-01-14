@@ -1475,9 +1475,10 @@ export default function StakingPage({
                   <Image
                     src="/images/pizza_wheel.png"
                     alt="Pizza Wheel"
-                    width={210}
-                    height={210}
+                    width={230}
+                    height={230}
                     priority
+                    style={{ borderRadius: '50%' }}
                   />
                 </div>
               </div>
