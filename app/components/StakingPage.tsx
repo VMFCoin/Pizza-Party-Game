@@ -4,9 +4,10 @@ import { useState, useEffect, useCallback, useMemo } from 'react'
 import Image from 'next/image'
 import { Button } from './ui/button'
 import { Card } from './ui/card'
-import { ArrowLeft, Lock, Unlock, TrendingUp, Gift, Coins, AlertTriangle, XCircle, Loader2, ChevronDown, ChevronUp } from 'lucide-react'
+import { ArrowLeft, Lock, Unlock, TrendingUp, Gift, Coins, AlertTriangle, XCircle, Loader2, ChevronDown, ChevronUp, Share2 } from 'lucide-react'
 import { useAccount, useReadContract, useWriteContract, useWaitForTransactionReceipt } from 'wagmi'
 import { formatUnits, parseUnits } from 'viem'
+import { sdk } from '@farcaster/miniapp-sdk'
 import {
   PIZZA_STAKING_ADDRESS,
   PIZZA_STAKING_ABI,
@@ -172,7 +173,9 @@ export default function StakingPage({
   const [isSpinning, setIsSpinning] = useState(false)
   const [spinRotation, setSpinRotation] = useState(0)
   const [spinResult, setSpinResult] = useState<typeof SPIN_OUTCOMES[0] | null>(null)
-  const [hasSpunThisSession, setHasSpunThisSession] = useState(false) // Track if user has spun in current modal session
+  const [hasSpunThisGame, setHasSpunThisGame] = useState(false) // Track if user has spun for current game (persisted)
+  const [showShareModal, setShowShareModal] = useState(false) // Show share cast modal after claim
+  const [claimedAmount, setClaimedAmount] = useState<bigint>(0n) // Store claimed amount for share message
 
   // UI state
   const [stakeAmount, setStakeAmount] = useState('')
@@ -326,28 +329,6 @@ export default function StakingPage({
     hash: writeHash,
   })
 
-  // Refetch data after successful transaction (but not during approval->stake flow)
-  useEffect(() => {
-    if (isConfirmed && !pendingApproval) {
-      // Only cleanup when the final transaction is confirmed (not intermediate approval)
-      refetchBalance()
-      refetchAllowance()
-      refetchStakeInfo()
-      refetchLifetimeClaimed() // Update lifetime claimed after claim/restake
-      // Reset spin modal state if it was a claim
-      if (showConfirmModal === 'spin-claim') {
-        setSpinResult(null)
-        setHasSpunThisSession(false)
-        setClaimLockType(0)
-      }
-      setShowConfirmModal(null)
-      setStakeAmount('')
-      setUnstakeAmount('')
-      setShowStakeInput(false)
-      resetWrite()
-    }
-  }, [isConfirmed, pendingApproval, showConfirmModal, refetchBalance, refetchAllowance, refetchStakeInfo, refetchLifetimeClaimed, resetWrite])
-
   // === COMPUTED VALUES ===
 
   // Parse stake info tuple
@@ -374,12 +355,69 @@ export default function StakingPage({
     return STAKING_TIERS[userPosition.tier] || STAKING_TIERS[0]
   }, [userPosition])
 
-  // Check if user can spin today
+  // Check if user can spin today (from contract)
   const canSpinToday = useMemo(() => {
     if (!spinEnabled) return false
     if (!currentGameId || !lastSpinGameId) return true
     return lastSpinGameId !== currentGameId
   }, [spinEnabled, currentGameId, lastSpinGameId])
+
+  // localStorage key for persisting spin result
+  const spinStorageKey = useMemo(() => {
+    if (!address || !currentGameId) return null
+    return `spin_result_${address}_${currentGameId}`
+  }, [address, currentGameId])
+
+  // Load persisted spin result on mount or when gameId changes
+  useEffect(() => {
+    if (!spinStorageKey) return
+
+    try {
+      const stored = localStorage.getItem(spinStorageKey)
+      if (stored) {
+        const parsed = JSON.parse(stored)
+        // Find the matching outcome
+        const outcome = SPIN_OUTCOMES.find(o => o.name === parsed.outcomeName)
+        if (outcome) {
+          setSpinResult(outcome)
+          setHasSpunThisGame(true)
+          setSpinRotation(parsed.rotation || 0)
+        }
+      } else {
+        // No stored result for this game - reset state
+        setSpinResult(null)
+        setHasSpunThisGame(false)
+      }
+    } catch (e) {
+      console.error('Failed to load spin result from localStorage:', e)
+    }
+  }, [spinStorageKey])
+
+  // Save spin result to localStorage when spin completes
+  const saveSpinResult = useCallback((outcome: typeof SPIN_OUTCOMES[0], rotation: number) => {
+    if (!spinStorageKey) return
+    try {
+      localStorage.setItem(spinStorageKey, JSON.stringify({
+        outcomeName: outcome.name,
+        rotation,
+        timestamp: Date.now()
+      }))
+    } catch (e) {
+      console.error('Failed to save spin result to localStorage:', e)
+    }
+  }, [spinStorageKey])
+
+  // Clear spin result from localStorage after successful claim
+  const clearSpinResult = useCallback(() => {
+    if (!spinStorageKey) return
+    try {
+      localStorage.removeItem(spinStorageKey)
+      setSpinResult(null)
+      setHasSpunThisGame(false)
+    } catch (e) {
+      console.error('Failed to clear spin result from localStorage:', e)
+    }
+  }, [spinStorageKey])
 
   // Has pending rewards that can be claimed
   const hasPendingRewards = useMemo(() => {
@@ -469,6 +507,34 @@ export default function StakingPage({
       totalReward,        // Final total
     }
   }, [userPosition, spinResult, currentTier])
+
+  // Refetch data after successful transaction (but not during approval->stake flow)
+  useEffect(() => {
+    if (isConfirmed && !pendingApproval) {
+      // Only cleanup when the final transaction is confirmed (not intermediate approval)
+      refetchBalance()
+      refetchAllowance()
+      refetchStakeInfo()
+      refetchLifetimeClaimed() // Update lifetime claimed after claim/restake
+      // Handle claim completion - clear spin result and show share modal
+      if (showConfirmModal === 'spin-claim') {
+        // Store claimed amount for share message before clearing
+        if (rewardBreakdown?.totalReward) {
+          setClaimedAmount(rewardBreakdown.totalReward)
+        }
+        // Clear localStorage spin result
+        clearSpinResult()
+        setClaimLockType(0)
+        // Show share modal after successful claim
+        setShowShareModal(true)
+      }
+      setShowConfirmModal(null)
+      setStakeAmount('')
+      setUnstakeAmount('')
+      setShowStakeInput(false)
+      resetWrite()
+    }
+  }, [isConfirmed, pendingApproval, showConfirmModal, refetchBalance, refetchAllowance, refetchStakeInfo, refetchLifetimeClaimed, resetWrite, rewardBreakdown, clearSpinResult])
 
   // === HANDLERS ===
 
@@ -647,7 +713,7 @@ export default function StakingPage({
 
   // Spin animation for the wheel - deterministic rotation to match outcome
   const handleSpin = () => {
-    if (isSpinning || hasSpunThisSession) return
+    if (isSpinning || hasSpunThisGame) return
     setIsSpinning(true)
     setSpinResult(null)
 
@@ -673,21 +739,36 @@ export default function StakingPage({
     // Step 5: Apply rotation (additive to maintain continuous spinning feel)
     setSpinRotation(targetRotation)
 
-    // Step 6: After animation completes, show result
+    // Step 6: After animation completes, show result and persist to localStorage
     setTimeout(() => {
       setIsSpinning(false)
       setSpinResult(outcome)
-      setHasSpunThisSession(true)
+      setHasSpunThisGame(true)
+      // Persist spin result so it survives app close/reopen
+      saveSpinResult(outcome, targetRotation)
     }, 3000)
   }
 
-  // Reset spin state when modal closes
-  const closeSpinModal = () => {
-    setShowConfirmModal(null)
-    setSpinResult(null)
-    setHasSpunThisSession(false)
-    setClaimLockType(0)
-  }
+  // Handle share cast after successful claim
+  const handleShareCast = useCallback(async () => {
+    const shareText = `🍕 Just claimed ${formatPizzaWei(claimedAmount)} $PIZZA rewards from Spin the Pie!\n\nStake $PIZZA, spin the wheel, and boost your rewards!\n\n🎰 Join the party`
+    const shareUrl = 'https://pizza-party.lol'
+
+    try {
+      const actions = sdk.actions as {
+        composeCast?: (opts?: { text?: string; embeds?: string[] }) => Promise<void>
+      }
+      if (typeof actions.composeCast === 'function') {
+        await actions.composeCast({
+          text: shareText,
+          embeds: [shareUrl],
+        })
+      }
+    } catch (err) {
+      console.error('[Staking] Failed to compose cast:', err)
+    }
+    setShowShareModal(false)
+  }, [claimedAmount])
 
   // Derived values for display (abbreviated format for compact areas)
   const walletBalanceDisplay = formatPizzaWei(pizzaBalance as bigint | undefined)
@@ -1434,10 +1515,13 @@ export default function StakingPage({
           </div>
         )}
 
-        {/* SPIN & CLAIM Modal - Full Screen Overlay */}
+        {/* SPIN & CLAIM Modal - Full Screen Overlay (cannot be closed by clicking outside) */}
         {showConfirmModal === 'spin-claim' && (
           <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
-            <div className="bg-black rounded-2xl p-4 border-4 border-red-800 max-w-md w-full max-h-[90vh] overflow-y-auto">
+            <div
+              className="bg-black rounded-2xl p-4 border-4 border-red-800 max-w-md w-full max-h-[90vh] overflow-y-auto"
+              onClick={(e) => e.stopPropagation()}
+            >
               {/* Title */}
               <p
                 className="text-center mb-3"
@@ -1487,11 +1571,11 @@ export default function StakingPage({
               </div>
 
               {/* Pre-spin: Show SPIN button */}
-              {!hasSpunThisSession && !isSpinning && spinEnabled && canSpinToday && (
+              {!hasSpunThisGame && !isSpinning && spinEnabled && canSpinToday && (
                 <Button
                   onClick={handleSpin}
                   className="w-full !bg-yellow-500 hover:!bg-yellow-600 text-white font-bold py-3 rounded-xl border-4 border-yellow-700"
-                  style={{ ...customFontStyle, fontSize: 20 }}
+                  style={{ fontFamily: 'var(--font-luckiest-guy)', fontSize: 20 }}
                 >
                   SPIN THE PIE!
                 </Button>
@@ -1500,25 +1584,25 @@ export default function StakingPage({
               {/* During spin */}
               {isSpinning && (
                 <div className="text-center">
-                  <p className="text-yellow-400 text-xl" style={customFontStyle}>SPINNING...</p>
+                  <p className="text-yellow-400 text-xl" style={{ fontFamily: 'var(--font-luckiest-guy)' }}>SPINNING...</p>
                 </div>
               )}
 
               {/* Post-spin: Show result + lock selection + claim button */}
-              {hasSpunThisSession && !isSpinning && spinResult && rewardBreakdown && (
+              {hasSpunThisGame && !isSpinning && spinResult && rewardBreakdown && (
                 <div className="space-y-4">
                   {/* Spin Result Header */}
                   <div className={`${spinResult.color} rounded-xl p-3 text-center text-white border-4 border-white/30`}>
-                    <p className="font-bold text-2xl" style={customFontStyle}>{spinResult.name}!</p>
-                    <p className="text-lg">{spinResult.multiplier} spin multiplier</p>
+                    <p className="font-bold text-2xl" style={{ fontFamily: 'var(--font-luckiest-guy)' }}>{spinResult.name}!</p>
+                    <p className="text-lg" style={{ fontFamily: 'var(--font-luckiest-guy)' }}>{spinResult.multiplier} spin multiplier</p>
                   </div>
 
                   {/* Reward Breakdown */}
                   <div className="bg-gray-900 rounded-xl p-3 border-2 border-gray-700">
-                    <p className="text-yellow-400 font-bold text-sm mb-2 text-center" style={customFontStyle}>
+                    <p className="text-yellow-400 font-bold text-sm mb-2 text-center" style={{ fontFamily: 'var(--font-luckiest-guy)' }}>
                       Reward Breakdown
                     </p>
-                    <div className="space-y-1 text-sm">
+                    <div className="space-y-1 text-sm" style={{ fontFamily: 'var(--font-luckiest-guy)' }}>
                       {/* Spin Result */}
                       <div className="flex justify-between text-white">
                         <span>Spin Result ({spinResult.multiplier})</span>
@@ -1561,74 +1645,43 @@ export default function StakingPage({
                       {/* Grand Total */}
                       <div className="border-t-2 border-yellow-500 pt-2 mt-2">
                         <div className="flex justify-between text-yellow-400">
-                          <span className="font-bold text-base" style={customFontStyle}>TOTAL</span>
-                          <span className="font-bold text-base" style={customFontStyle}>{formatPizzaWei(rewardBreakdown.totalReward)} PIZZA</span>
+                          <span className="font-bold text-base" style={{ fontFamily: 'var(--font-luckiest-guy)' }}>TOTAL</span>
+                          <span className="font-bold text-base" style={{ fontFamily: 'var(--font-luckiest-guy)' }}>{formatPizzaWei(rewardBreakdown.totalReward)} PIZZA</span>
                         </div>
                       </div>
                     </div>
                   </div>
 
-                  {/* Lock Type Selection for Claimed Rewards */}
-                  <div className="bg-gray-800 rounded-xl p-3">
-                    <p className="text-white text-sm font-bold mb-2 text-center" style={customFontStyle}>
-                      Restake Rewards?
-                    </p>
-                    <div className="grid grid-cols-2 gap-2">
-                      <button
-                        onClick={() => setClaimLockType(0)}
-                        className={`p-3 rounded-xl border-2 transition-all ${
-                          claimLockType === 0
-                            ? 'border-green-500 bg-green-900/50'
-                            : 'border-gray-600 bg-gray-700 hover:border-gray-500'
-                        }`}
-                      >
-                        <Unlock size={20} className={claimLockType === 0 ? 'text-green-400 mx-auto' : 'text-gray-400 mx-auto'} />
-                        <p className={`font-bold text-sm mt-1 ${claimLockType === 0 ? 'text-green-400' : 'text-gray-400'}`} style={customFontStyle}>
-                          No Lock
-                        </p>
-                        <p className={`text-xs ${claimLockType === 0 ? 'text-green-300' : 'text-gray-500'}`}>
-                          Claim to wallet
-                        </p>
-                      </button>
-                      <button
-                        onClick={() => setClaimLockType(1)}
-                        className={`p-3 rounded-xl border-2 transition-all ${
-                          claimLockType === 1
-                            ? 'border-blue-500 bg-blue-900/50'
-                            : 'border-gray-600 bg-gray-700 hover:border-gray-500'
-                        }`}
-                      >
-                        <Lock size={20} className={claimLockType === 1 ? 'text-blue-400 mx-auto' : 'text-gray-400 mx-auto'} />
-                        <p className={`font-bold text-sm mt-1 ${claimLockType === 1 ? 'text-blue-400' : 'text-gray-400'}`} style={customFontStyle}>
-                          7-Day Lock
-                        </p>
-                        <p className={`text-xs ${claimLockType === 1 ? 'text-blue-300' : 'text-gray-500'}`}>
-                          +5% bonus
-                        </p>
-                      </button>
-                    </div>
-                  </div>
-
-                  {/* Action Buttons */}
+                  {/* Action Buttons - WALLET (claim to wallet) or STAKE (restake with lock) */}
                   <div className="flex gap-2">
                     <Button
-                      onClick={closeSpinModal}
-                      className="flex-1 !bg-gray-600 hover:!bg-gray-700 text-white font-bold py-3 rounded-xl border-2 border-gray-500"
-                      disabled={isWritePending || isConfirming}
-                      style={customFontStyle}
-                    >
-                      Cancel
-                    </Button>
-                    <Button
-                      onClick={handleClaim}
+                      onClick={() => {
+                        setClaimLockType(0) // Claim to wallet
+                        handleClaim()
+                      }}
                       className="flex-1 !bg-green-500 hover:!bg-green-600 text-white font-bold py-3 rounded-xl border-2 border-green-700"
                       disabled={isWritePending || isConfirming}
-                      style={customFontStyle}
+                      style={{ fontFamily: 'var(--font-luckiest-guy)' }}
                     >
                       {isWritePending || isConfirming ? (
                         <Loader2 className="animate-spin mx-auto" size={20} />
                       ) : (
-                        'CLAIM!'
+                        'WALLET'
+                      )}
+                    </Button>
+                    <Button
+                      onClick={() => {
+                        setClaimLockType(1) // Restake with 7-day lock (+5% bonus)
+                        handleClaim()
+                      }}
+                      className="flex-1 !bg-blue-500 hover:!bg-blue-600 text-white font-bold py-3 rounded-xl border-2 border-blue-700"
+                      disabled={isWritePending || isConfirming}
+                      style={{ fontFamily: 'var(--font-luckiest-guy)' }}
+                    >
+                      {isWritePending || isConfirming ? (
+                        <Loader2 className="animate-spin mx-auto" size={20} />
+                      ) : (
+                        'STAKE'
                       )}
                     </Button>
                   </div>
@@ -1636,96 +1689,107 @@ export default function StakingPage({
               )}
 
               {/* No spin available - direct claim */}
-              {(!spinEnabled || !canSpinToday) && !hasSpunThisSession && (
+              {(!spinEnabled || !canSpinToday) && !hasSpunThisGame && (
                 <div className="space-y-4">
                   <div className="bg-gray-800 rounded-xl p-3 text-center">
-                    <p className="text-gray-400 text-sm" style={customFontStyle}>
+                    <p className="text-gray-400 text-sm" style={{ fontFamily: 'var(--font-luckiest-guy)' }}>
                       {!canSpinToday ? "You've already spun today!" : "Spin is currently disabled"}
                     </p>
                   </div>
 
-                  {/* Lock Type Selection */}
-                  <div className="bg-gray-800 rounded-xl p-3">
-                    <p className="text-white text-sm font-bold mb-2 text-center" style={customFontStyle}>
-                      Restake Rewards?
-                    </p>
-                    <div className="grid grid-cols-2 gap-2">
-                      <button
-                        onClick={() => setClaimLockType(0)}
-                        className={`p-3 rounded-xl border-2 transition-all ${
-                          claimLockType === 0
-                            ? 'border-green-500 bg-green-900/50'
-                            : 'border-gray-600 bg-gray-700 hover:border-gray-500'
-                        }`}
-                      >
-                        <Unlock size={20} className={claimLockType === 0 ? 'text-green-400 mx-auto' : 'text-gray-400 mx-auto'} />
-                        <p className={`font-bold text-sm mt-1 ${claimLockType === 0 ? 'text-green-400' : 'text-gray-400'}`} style={customFontStyle}>
-                          No Lock
-                        </p>
-                        <p className={`text-xs ${claimLockType === 0 ? 'text-green-300' : 'text-gray-500'}`}>
-                          Claim to wallet
-                        </p>
-                      </button>
-                      <button
-                        onClick={() => setClaimLockType(1)}
-                        className={`p-3 rounded-xl border-2 transition-all ${
-                          claimLockType === 1
-                            ? 'border-blue-500 bg-blue-900/50'
-                            : 'border-gray-600 bg-gray-700 hover:border-gray-500'
-                        }`}
-                      >
-                        <Lock size={20} className={claimLockType === 1 ? 'text-blue-400 mx-auto' : 'text-gray-400 mx-auto'} />
-                        <p className={`font-bold text-sm mt-1 ${claimLockType === 1 ? 'text-blue-400' : 'text-gray-400'}`} style={customFontStyle}>
-                          7-Day Lock
-                        </p>
-                        <p className={`text-xs ${claimLockType === 1 ? 'text-blue-300' : 'text-gray-500'}`}>
-                          +5% bonus
-                        </p>
-                      </button>
-                    </div>
-                  </div>
-
-                  {/* Action Buttons */}
+                  {/* Action Buttons - WALLET (claim to wallet) or STAKE (restake with lock) */}
                   <div className="flex gap-2">
                     <Button
-                      onClick={closeSpinModal}
-                      className="flex-1 !bg-gray-600 hover:!bg-gray-700 text-white font-bold py-3 rounded-xl border-2 border-gray-500"
-                      disabled={isWritePending || isConfirming}
-                      style={customFontStyle}
-                    >
-                      Cancel
-                    </Button>
-                    <Button
-                      onClick={handleClaim}
+                      onClick={() => {
+                        setClaimLockType(0) // Claim to wallet
+                        handleClaim()
+                      }}
                       className="flex-1 !bg-green-500 hover:!bg-green-600 text-white font-bold py-3 rounded-xl border-2 border-green-700"
                       disabled={isWritePending || isConfirming}
-                      style={customFontStyle}
+                      style={{ fontFamily: 'var(--font-luckiest-guy)' }}
                     >
                       {isWritePending || isConfirming ? (
                         <Loader2 className="animate-spin mx-auto" size={20} />
                       ) : (
-                        'CLAIM!'
+                        'WALLET'
+                      )}
+                    </Button>
+                    <Button
+                      onClick={() => {
+                        setClaimLockType(1) // Restake with 7-day lock (+5% bonus)
+                        handleClaim()
+                      }}
+                      className="flex-1 !bg-blue-500 hover:!bg-blue-600 text-white font-bold py-3 rounded-xl border-2 border-blue-700"
+                      disabled={isWritePending || isConfirming}
+                      style={{ fontFamily: 'var(--font-luckiest-guy)' }}
+                    >
+                      {isWritePending || isConfirming ? (
+                        <Loader2 className="animate-spin mx-auto" size={20} />
+                      ) : (
+                        'STAKE'
                       )}
                     </Button>
                   </div>
                 </div>
               )}
 
-              {/* Spin Outcomes Legend */}
-              <div className="mt-4 grid grid-cols-2 gap-2">
-                {SPIN_OUTCOMES.map((outcome) => (
-                  <div
-                    key={outcome.name}
-                    className={`${outcome.color} rounded-lg px-2 py-1 text-center`}
-                  >
-                    <p className="text-white text-xs font-bold" style={customFontStyle}>
-                      {outcome.name}
-                    </p>
-                    <p className="text-white/90 text-xs">
-                      {outcome.multiplier} rewards
-                    </p>
-                  </div>
-                ))}
+              {/* Spin Outcomes Legend - only show before spin */}
+              {!hasSpunThisGame && !isSpinning && (
+                <div className="mt-4 grid grid-cols-2 gap-2">
+                  {SPIN_OUTCOMES.map((outcome) => (
+                    <div
+                      key={outcome.name}
+                      className={`${outcome.color} rounded-lg px-2 py-1 text-center`}
+                    >
+                      <p className="text-white text-xs font-bold" style={{ fontFamily: 'var(--font-luckiest-guy)' }}>
+                        {outcome.name}
+                      </p>
+                      <p className="text-white/90 text-xs">
+                        {outcome.multiplier} rewards
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Share Cast Modal - shown after successful claim */}
+        {showShareModal && (
+          <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
+            <div
+              className="bg-black rounded-2xl p-6 border-4 border-green-600 max-w-sm w-full"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <p
+                className="text-center mb-4"
+                style={{ fontFamily: 'var(--font-luckiest-guy)', fontSize: '28px', lineHeight: '1', color: '#22C55E' }}
+              >
+                🎉 Claim Successful!
+              </p>
+              <p className="text-white text-center mb-4" style={{ fontFamily: 'var(--font-luckiest-guy)' }}>
+                You claimed {formatPizzaWei(claimedAmount)} PIZZA
+              </p>
+              <p className="text-gray-400 text-sm text-center mb-6">
+                Share your win with the community!
+              </p>
+              <div className="flex gap-3">
+                <Button
+                  onClick={() => setShowShareModal(false)}
+                  className="flex-1 !bg-gray-600 hover:!bg-gray-700 text-white font-bold py-3 rounded-xl border-2 border-gray-500"
+                  style={{ fontFamily: 'var(--font-luckiest-guy)' }}
+                >
+                  SKIP
+                </Button>
+                <Button
+                  onClick={handleShareCast}
+                  className="flex-1 !bg-purple-500 hover:!bg-purple-600 text-white font-bold py-3 rounded-xl border-2 border-purple-700 flex items-center justify-center gap-2"
+                  style={{ fontFamily: 'var(--font-luckiest-guy)' }}
+                >
+                  <Share2 size={18} />
+                  SHARE
+                </Button>
               </div>
             </div>
           </div>
