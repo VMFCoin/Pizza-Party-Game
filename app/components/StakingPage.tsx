@@ -1479,8 +1479,8 @@ export default function StakingPage({
                   <Image
                     src="/images/pizza_wheel.png"
                     alt="Pizza Wheel"
-                    width={208}
-                    height={208}
+                    width={232}
+                    height={232}
                     priority
                   />
                 </div>
