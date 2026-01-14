@@ -1652,12 +1652,57 @@ export default function StakingPage({
                     </div>
                   </div>
 
-                  {/* Action Buttons - WALLET (claim to wallet) or STAKE (restake with lock) */}
+                  {/* Stake Lock Type Selection */}
+                  <div className="bg-gray-800 rounded-xl p-3">
+                    <p className="text-white text-sm font-bold mb-2 text-center" style={{ fontFamily: 'var(--font-luckiest-guy)' }}>
+                      Stake Lock Type
+                    </p>
+                    <div className="grid grid-cols-2 gap-2">
+                      <button
+                        onClick={() => setClaimLockType(0)}
+                        className={`p-3 rounded-xl border-2 transition-all ${
+                          claimLockType === 0
+                            ? 'border-green-500 bg-green-900/50'
+                            : 'border-gray-600 bg-gray-700 hover:border-gray-500'
+                        }`}
+                      >
+                        <Unlock size={20} className={claimLockType === 0 ? 'text-green-400 mx-auto' : 'text-gray-400 mx-auto'} />
+                        <p className={`font-bold text-sm mt-1 ${claimLockType === 0 ? 'text-green-400' : 'text-gray-400'}`} style={{ fontFamily: 'var(--font-luckiest-guy)' }}>
+                          FLEXIBLE
+                        </p>
+                        <p className={`text-xs ${claimLockType === 0 ? 'text-green-300' : 'text-gray-500'}`}>
+                          No lock bonus
+                        </p>
+                      </button>
+                      <button
+                        onClick={() => setClaimLockType(1)}
+                        className={`p-3 rounded-xl border-2 transition-all ${
+                          claimLockType === 1
+                            ? 'border-blue-500 bg-blue-900/50'
+                            : 'border-gray-600 bg-gray-700 hover:border-gray-500'
+                        }`}
+                      >
+                        <Lock size={20} className={claimLockType === 1 ? 'text-blue-400 mx-auto' : 'text-gray-400 mx-auto'} />
+                        <p className={`font-bold text-sm mt-1 ${claimLockType === 1 ? 'text-blue-400' : 'text-gray-400'}`} style={{ fontFamily: 'var(--font-luckiest-guy)' }}>
+                          7-DAY LOCK
+                        </p>
+                        <p className={`text-xs ${claimLockType === 1 ? 'text-blue-300' : 'text-gray-500'}`}>
+                          +5% bonus
+                        </p>
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Action Buttons - WALLET (claim to wallet) or STAKE (restake with selected lock type) */}
                   <div className="flex gap-2">
                     <Button
                       onClick={() => {
-                        setClaimLockType(0) // Claim to wallet
-                        handleClaim()
+                        // Claim rewards directly to wallet
+                        writeContract({
+                          address: PIZZA_STAKING_ADDRESS as `0x${string}`,
+                          abi: PIZZA_STAKING_ABI,
+                          functionName: 'claim',
+                        })
                       }}
                       className="flex-1 !bg-green-500 hover:!bg-green-600 text-white font-bold py-3 rounded-xl border-2 border-green-700"
                       disabled={isWritePending || isConfirming}
@@ -1671,10 +1716,15 @@ export default function StakingPage({
                     </Button>
                     <Button
                       onClick={() => {
-                        setClaimLockType(1) // Restake with 7-day lock (+5% bonus)
-                        handleClaim()
+                        // Restake rewards with selected lock type (claimLockType: 0=flexible, 1=locked)
+                        writeContract({
+                          address: PIZZA_STAKING_ADDRESS as `0x${string}`,
+                          abi: PIZZA_STAKING_ABI,
+                          functionName: 'restake',
+                          args: [claimLockType],
+                        })
                       }}
-                      className="flex-1 !bg-blue-500 hover:!bg-blue-600 text-white font-bold py-3 rounded-xl border-2 border-blue-700"
+                      className="flex-1 !bg-red-500 hover:!bg-red-600 text-white font-bold py-3 rounded-xl border-2 border-red-700"
                       disabled={isWritePending || isConfirming}
                       style={{ fontFamily: 'var(--font-luckiest-guy)' }}
                     >
@@ -1697,12 +1747,57 @@ export default function StakingPage({
                     </p>
                   </div>
 
-                  {/* Action Buttons - WALLET (claim to wallet) or STAKE (restake with lock) */}
+                  {/* Stake Lock Type Selection */}
+                  <div className="bg-gray-800 rounded-xl p-3">
+                    <p className="text-white text-sm font-bold mb-2 text-center" style={{ fontFamily: 'var(--font-luckiest-guy)' }}>
+                      Stake Lock Type
+                    </p>
+                    <div className="grid grid-cols-2 gap-2">
+                      <button
+                        onClick={() => setClaimLockType(0)}
+                        className={`p-3 rounded-xl border-2 transition-all ${
+                          claimLockType === 0
+                            ? 'border-green-500 bg-green-900/50'
+                            : 'border-gray-600 bg-gray-700 hover:border-gray-500'
+                        }`}
+                      >
+                        <Unlock size={20} className={claimLockType === 0 ? 'text-green-400 mx-auto' : 'text-gray-400 mx-auto'} />
+                        <p className={`font-bold text-sm mt-1 ${claimLockType === 0 ? 'text-green-400' : 'text-gray-400'}`} style={{ fontFamily: 'var(--font-luckiest-guy)' }}>
+                          FLEXIBLE
+                        </p>
+                        <p className={`text-xs ${claimLockType === 0 ? 'text-green-300' : 'text-gray-500'}`}>
+                          No lock bonus
+                        </p>
+                      </button>
+                      <button
+                        onClick={() => setClaimLockType(1)}
+                        className={`p-3 rounded-xl border-2 transition-all ${
+                          claimLockType === 1
+                            ? 'border-blue-500 bg-blue-900/50'
+                            : 'border-gray-600 bg-gray-700 hover:border-gray-500'
+                        }`}
+                      >
+                        <Lock size={20} className={claimLockType === 1 ? 'text-blue-400 mx-auto' : 'text-gray-400 mx-auto'} />
+                        <p className={`font-bold text-sm mt-1 ${claimLockType === 1 ? 'text-blue-400' : 'text-gray-400'}`} style={{ fontFamily: 'var(--font-luckiest-guy)' }}>
+                          7-DAY LOCK
+                        </p>
+                        <p className={`text-xs ${claimLockType === 1 ? 'text-blue-300' : 'text-gray-500'}`}>
+                          +5% bonus
+                        </p>
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Action Buttons - WALLET (claim to wallet) or STAKE (restake with selected lock type) */}
                   <div className="flex gap-2">
                     <Button
                       onClick={() => {
-                        setClaimLockType(0) // Claim to wallet
-                        handleClaim()
+                        // Claim rewards directly to wallet
+                        writeContract({
+                          address: PIZZA_STAKING_ADDRESS as `0x${string}`,
+                          abi: PIZZA_STAKING_ABI,
+                          functionName: 'claim',
+                        })
                       }}
                       className="flex-1 !bg-green-500 hover:!bg-green-600 text-white font-bold py-3 rounded-xl border-2 border-green-700"
                       disabled={isWritePending || isConfirming}
@@ -1716,10 +1811,15 @@ export default function StakingPage({
                     </Button>
                     <Button
                       onClick={() => {
-                        setClaimLockType(1) // Restake with 7-day lock (+5% bonus)
-                        handleClaim()
+                        // Restake rewards with selected lock type (claimLockType: 0=flexible, 1=locked)
+                        writeContract({
+                          address: PIZZA_STAKING_ADDRESS as `0x${string}`,
+                          abi: PIZZA_STAKING_ABI,
+                          functionName: 'restake',
+                          args: [claimLockType],
+                        })
                       }}
-                      className="flex-1 !bg-blue-500 hover:!bg-blue-600 text-white font-bold py-3 rounded-xl border-2 border-blue-700"
+                      className="flex-1 !bg-red-500 hover:!bg-red-600 text-white font-bold py-3 rounded-xl border-2 border-red-700"
                       disabled={isWritePending || isConfirming}
                       style={{ fontFamily: 'var(--font-luckiest-guy)' }}
                     >
