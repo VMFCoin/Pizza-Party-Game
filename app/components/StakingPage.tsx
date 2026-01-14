@@ -54,7 +54,7 @@ const SPIN_OUTCOMES = [
   { name: 'Regular Slice', multiplier: '1x', multiplierValue: 100, color: 'bg-yellow-400' },
   { name: 'Loaded Slice', multiplier: '1.1x', multiplierValue: 110, color: 'bg-orange-400' },
   { name: 'Hot Out the Oven', multiplier: '1.5x', multiplierValue: 150, color: 'bg-red-500' },
-  { name: 'JACKPOT', multiplier: '4x', multiplierValue: 400, color: 'bg-green-600' },
+  { name: 'JACKPOT', multiplier: '3x', multiplierValue: 300, color: 'bg-green-600' },
 ]
 
 // ==================================================================================
