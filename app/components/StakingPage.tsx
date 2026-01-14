@@ -1475,19 +1475,23 @@ export default function StakingPage({
                 >
                   <div
                     style={{
-                      width: 230,
-                      height: 230,
+                      width: 240,
+                      height: 240,
                       borderRadius: '50%',
                       overflow: 'hidden',
+                      backgroundColor: '#f5d6a8',
                     }}
                   >
                     <Image
                       src="/images/pizza_wheel.png"
                       alt="Pizza Wheel"
-                      width={230}
-                      height={230}
+                      width={240}
+                      height={240}
                       priority
-                      style={{ display: 'block' }}
+                      style={{
+                        display: 'block',
+                        objectFit: 'cover',
+                      }}
                     />
                   </div>
                 </div>
