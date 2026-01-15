@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import Image from 'next/image'
 import { Button } from './ui/button'
 import { Card } from './ui/card'
-import { ArrowLeft, Lock, Unlock, TrendingUp, Gift, Coins, AlertTriangle, XCircle, Loader2, ChevronDown, ChevronUp, Share2 } from 'lucide-react'
+import { ArrowLeft, Lock, Unlock, TrendingUp, Gift, Coins, AlertTriangle, XCircle, Loader2, ChevronDown, ChevronUp, Share2, Users, RotateCw } from 'lucide-react'
 import { useAccount, useReadContract, useWriteContract, useWaitForTransactionReceipt } from 'wagmi'
 import { formatUnits, parseUnits } from 'viem'
 import { sdk } from '@farcaster/miniapp-sdk'
@@ -1418,28 +1418,44 @@ export default function StakingPage({
                 </p>
                 <div className="space-y-1.5">
                   <div className="flex items-start gap-2 text-xs text-green-800" style={{ fontFamily: 'var(--font-luckiest-guy)' }}>
-                    <Coins size={14} className="text-green-600 mt-0.5 flex-shrink-0" />
+                    <span className="flex-shrink-0">🍅</span>
                     <span>Minimum stake: $1 (~{formatPizza(minStake)} PIZZA)</span>
                   </div>
                   <div className="flex items-start gap-2 text-xs text-green-800" style={{ fontFamily: 'var(--font-luckiest-guy)' }}>
-                    <Coins size={14} className="text-green-600 mt-0.5 flex-shrink-0" />
+                    <span className="flex-shrink-0">🍅</span>
                     <span>Stake PIZZA to earn 10% of every daily pot</span>
                   </div>
                   <div className="flex items-start gap-2 text-xs text-green-800" style={{ fontFamily: 'var(--font-luckiest-guy)' }}>
-                    <TrendingUp size={14} className="text-green-600 mt-0.5 flex-shrink-0" />
+                    <span className="flex-shrink-0">🍅</span>
                     <span>Higher tiers = more yield + bonus toppings</span>
                   </div>
                   <div className="flex items-start gap-2 text-xs text-green-800" style={{ fontFamily: 'var(--font-luckiest-guy)' }}>
-                    <Lock size={14} className="text-green-600 mt-0.5 flex-shrink-0" />
+                    <span className="flex-shrink-0">🍅</span>
                     <span>7-day lock = +5% bonus</span>
                   </div>
                   <div className="flex items-start gap-2 text-xs text-green-800" style={{ fontFamily: 'var(--font-luckiest-guy)' }}>
-                    <AlertTriangle size={14} className="text-orange-500 mt-0.5 flex-shrink-0" />
+                    <span className="flex-shrink-0">🍅</span>
                     <span>Early unstake = 15% penalty</span>
                   </div>
                   <div className="flex items-start gap-2 text-xs text-green-800" style={{ fontFamily: 'var(--font-luckiest-guy)' }}>
-                    <Gift size={14} className="text-yellow-500 mt-0.5 flex-shrink-0" />
+                    <span className="flex-shrink-0">🍅</span>
                     <span>Early staker boost: +30% for {boostDaysRemaining} days</span>
+                  </div>
+                  <div className="flex items-start gap-2 text-xs text-green-800" style={{ fontFamily: 'var(--font-luckiest-guy)' }}>
+                    <span className="flex-shrink-0">🍅</span>
+                    <span>All stakers share the pot equally</span>
+                  </div>
+                  <div className="flex items-start gap-2 text-xs text-green-800" style={{ fontFamily: 'var(--font-luckiest-guy)' }}>
+                    <span className="flex-shrink-0">🍅</span>
+                    <span>Spin the Pie daily to claim (1x-4x multiplier)</span>
+                  </div>
+                  <div className="flex items-start gap-2 text-xs text-green-800" style={{ fontFamily: 'var(--font-luckiest-guy)' }}>
+                    <span className="flex-shrink-0">🍅</span>
+                    <span>Can only spin once per game day</span>
+                  </div>
+                  <div className="flex items-start gap-2 text-xs text-green-800" style={{ fontFamily: 'var(--font-luckiest-guy)' }}>
+                    <span className="flex-shrink-0">🍅</span>
+                    <span>Max stake: 1,000,000 PIZZA per wallet</span>
                   </div>
                 </div>
               </div>
