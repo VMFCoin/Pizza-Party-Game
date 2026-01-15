@@ -888,7 +888,7 @@ export default function StakingPage({
 
   // Handle share cast after successful claim
   const handleShareCast = useCallback(async () => {
-    const shareText = `🍕 Just claimed ${formatPizzaWei(claimedAmount)} $PIZZA rewards from Spin the Pie!\n\nStake $PIZZA, spin the wheel, and boost your rewards!\n\n🎰 Join the party:`
+    const shareText = `🍕 That spin was cheesy good — ${formatPizzaWei(claimedAmount)} $PIZZA claimed!\n\nStake $PIZZA, spin the pie, and slice into bigger rewards.\n\nJoin the party:`
     const embedUrl = 'https://farcaster.xyz/miniapps/wgY6OPqYoIkz/pizza-party'
 
     // Use Farcaster SDK composeCast to stay in-app
