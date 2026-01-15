@@ -18,6 +18,7 @@ interface LeaderboardPageProps {
   onNavigateToWeekly?: () => void
   onNavigateToHome?: () => void
   onNavigateToParlor?: () => void
+  onNavigateToStaking?: () => void
   userFid?: number | null
 }
 
@@ -88,7 +89,8 @@ export default function LeaderboardPage({
   onNavigateToWeekly,
   onNavigateToHome,
   onNavigateToParlor,
-  userFid: _userFid,
+  onNavigateToStaking,
+  userFid,
 }: LeaderboardPageProps) {
   const { address } = useAccount()
   const [dailyWinners, setDailyWinners] = useState<WinnerDisplay[]>([])
@@ -556,6 +558,24 @@ export default function LeaderboardPage({
             >
               🍍 OWN A PARLOR 🍍
             </Button>
+
+            {/* Staking Button - Only whitelisted FIDs can access */}
+            {(() => {
+              const STAKING_WHITELIST_FIDS = [1013491, 1060809, 963422]
+              const canAccessStaking = userFid && STAKING_WHITELIST_FIDS.includes(userFid)
+              return (
+                <Button
+                  onClick={canAccessStaking ? onNavigateToStaking : undefined}
+                  className={`w-full !bg-green-600 text-white font-bold py-2.5 rounded-xl border-4 border-green-900 uppercase ${
+                    canAccessStaking ? 'hover:!bg-green-700 cursor-pointer' : 'cursor-not-allowed opacity-90'
+                  }`}
+                  style={{ ...customFontStyle, fontSize: 20 }}
+                  disabled={!canAccessStaking}
+                >
+                  ???
+                </Button>
+              )
+            })()}
 
             <Card className="border-4 border-red-500 rounded-2xl bg-white/95">
               <div className="px-3 pb-3 pt-1.5">

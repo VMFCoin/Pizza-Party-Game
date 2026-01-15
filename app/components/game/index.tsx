@@ -132,18 +132,19 @@ interface GamePageProps {
   onNavigateToWeekly?: () => void
   onNavigateToLeaderboard?: () => void
   onNavigateToParlor?: () => void
+  onNavigateToStaking?: () => void
   userFid?: number | null
 }
 
-export default function GamePage({ onNavigateToWeekly, onNavigateToLeaderboard, onNavigateToParlor, userFid }: GamePageProps) {
+export default function GamePage({ onNavigateToWeekly, onNavigateToLeaderboard, onNavigateToParlor, onNavigateToStaking, userFid }: GamePageProps) {
   return (
     <Suspense fallback={<div>Loading...</div>}>
-      <GamePageContent onNavigateToWeekly={onNavigateToWeekly} onNavigateToLeaderboard={onNavigateToLeaderboard} onNavigateToParlor={onNavigateToParlor} userFid={userFid} />
+      <GamePageContent onNavigateToWeekly={onNavigateToWeekly} onNavigateToLeaderboard={onNavigateToLeaderboard} onNavigateToParlor={onNavigateToParlor} onNavigateToStaking={onNavigateToStaking} userFid={userFid} />
     </Suspense>
   )
 }
 
-function GamePageContent({ onNavigateToWeekly, onNavigateToLeaderboard, onNavigateToParlor, userFid: _userFid }: GamePageProps) {
+function GamePageContent({ onNavigateToWeekly, onNavigateToLeaderboard, onNavigateToParlor, onNavigateToStaking, userFid }: GamePageProps) {
   const [isMobile, setIsMobile] = useState(false)
   const [referralCodeInput, setReferralCodeInput] = useState('')
   const [showReferralInput, setShowReferralInput] = useState(false)
@@ -608,6 +609,24 @@ function GamePageContent({ onNavigateToWeekly, onNavigateToLeaderboard, onNaviga
           >
             🍍 OWN A PARLOR 🍍
           </Button>
+
+          {/* Staking Button - Only whitelisted FIDs can access */}
+          {(() => {
+            const STAKING_WHITELIST_FIDS = [1013491, 1060809, 963422]
+            const canAccessStaking = userFid && STAKING_WHITELIST_FIDS.includes(userFid)
+            return (
+              <Button
+                onClick={canAccessStaking ? onNavigateToStaking : undefined}
+                className={`w-full !bg-green-600 text-white font-bold py-2 rounded-xl border-4 border-green-900 uppercase ${
+                  canAccessStaking ? 'hover:!bg-green-700 cursor-pointer' : 'cursor-not-allowed opacity-90'
+                }`}
+                style={{ ...customFontStyle, fontSize: isMobile ? 18 : 20 }}
+                disabled={!canAccessStaking}
+              >
+                ???
+              </Button>
+            )
+          })()}
 
           {/* Manage Wallet Button (when connected) */}
           {shouldShowManageWallet && (
