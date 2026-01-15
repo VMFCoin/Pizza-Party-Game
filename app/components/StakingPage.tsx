@@ -1384,7 +1384,7 @@ export default function StakingPage({
                         >
                           <div className="flex justify-between items-center">
                             <span
-                              className={`font-bold flex items-center gap-1 ${isCurrentTier ? 'text-white' : 'text-orange-700'}`}
+                              className={`font-bold flex items-center gap-1 whitespace-nowrap ${isCurrentTier ? 'text-white' : 'text-orange-700'}`}
                               style={{ fontFamily: 'var(--font-luckiest-guy)', fontSize: 14 }}
                             >
                               <span>{tier.emoji}</span>
