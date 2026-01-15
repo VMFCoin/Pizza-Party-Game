@@ -367,6 +367,15 @@ export default function StakingPage({
     query: { enabled: !!address },
   })
 
+  // Read pending APY reward for locked position
+  const { data: pendingApyReward, refetch: refetchApyReward } = useReadContract({
+    address: PIZZA_STAKING_ADDRESS as `0x${string}`,
+    abi: PIZZA_STAKING_ABI,
+    functionName: 'getPendingApyReward',
+    args: address ? [address] : undefined,
+    query: { enabled: !!address },
+  })
+
   // === CONTRACT WRITES ===
 
   const { writeContract, data: writeHash, isPending: isWritePending, reset: resetWrite } = useWriteContract()
@@ -523,8 +532,11 @@ export default function StakingPage({
     if (!userPosition || !spinResult) return null
 
     const baseReward = userPosition.totalPendingRewards
-    // The contract's getPendingRewards already includes bonuses, so we need to work backwards
-    // to show the breakdown. The totalPendingRewards = base + (base × totalBonusBPS / 10000)
+    // The contract's getPendingRewards already includes bonuses and APY, so we need to work backwards
+    // to show the breakdown. The totalPendingRewards = base + (base × totalBonusBPS / 10000) + APY
+
+    // Get APY reward from contract (separate from base reward calculation)
+    const apyReward = (pendingApyReward as bigint) || 0n
 
     // Calculate total bonus BPS
     let totalBonusBPS = currentTier.yieldBoostBPS // Tier bonus
@@ -532,10 +544,13 @@ export default function StakingPage({
     if (hasLock) totalBonusBPS += LOCK_BONUS_BPS // +5% lock
     if (userPosition.isEarlyBoostActive) totalBonusBPS += EARLY_BOOST_BPS // +30% early
 
-    // Work backwards: totalPendingRewards = baseOnly × (1 + totalBonusBPS/10000)
-    // So baseOnly = totalPendingRewards / (1 + totalBonusBPS/10000)
-    // In bigint: baseOnly = totalPendingRewards × 10000 / (10000 + totalBonusBPS)
-    const baseOnly = (baseReward * 10000n) / (10000n + BigInt(totalBonusBPS))
+    // Work backwards: totalPendingRewards = baseOnly × (1 + totalBonusBPS/10000) + APY
+    // So: baseOnly × (1 + totalBonusBPS/10000) = totalPendingRewards - APY
+    // baseOnly = (totalPendingRewards - APY) × 10000 / (10000 + totalBonusBPS)
+    const baseWithBonuses = baseReward > apyReward ? baseReward - apyReward : 0n
+    const baseOnly = baseWithBonuses > 0n
+      ? (baseWithBonuses * 10000n) / (10000n + BigInt(totalBonusBPS))
+      : 0n
 
     // Now calculate spin result on base (before bonuses)
     const spinMultiplier = BigInt(spinResult.multiplierValue)
@@ -543,7 +558,7 @@ export default function StakingPage({
 
     // Calculate bonuses on spun reward (bonuses apply AFTER spin)
     const bonusAmount = (spunReward * BigInt(totalBonusBPS)) / 10000n
-    const totalReward = spunReward + bonusAmount
+    const totalReward = spunReward + bonusAmount + apyReward
 
     return {
       baseOnly,           // Raw base before any modifiers
@@ -557,9 +572,10 @@ export default function StakingPage({
       earlyBoostBPS: userPosition.isEarlyBoostActive ? EARLY_BOOST_BPS : 0,
       totalBonusBPS,
       bonusAmount,        // Total bonus in PIZZA
+      apyReward,          // 20% APY reward for locked position
       totalReward,        // Final total
     }
-  }, [userPosition, spinResult, currentTier])
+  }, [userPosition, spinResult, currentTier, pendingApyReward])
 
   // Refetch data after successful transaction (but not during approval->stake flow)
   useEffect(() => {
@@ -569,6 +585,7 @@ export default function StakingPage({
       refetchAllowance()
       refetchStakeInfo()
       refetchLifetimeClaimed() // Update lifetime claimed after claim/restake
+      refetchApyReward() // Update APY reward after claim
       // Handle claim completion - clear spin result and show share modal
       if (showConfirmModal === 'spin-claim') {
         // Store claimed amount for share message before clearing
@@ -587,7 +604,7 @@ export default function StakingPage({
       setShowStakeInput(false)
       resetWrite()
     }
-  }, [isConfirmed, pendingApproval, showConfirmModal, refetchBalance, refetchAllowance, refetchStakeInfo, refetchLifetimeClaimed, resetWrite, rewardBreakdown, clearSpinResult])
+  }, [isConfirmed, pendingApproval, showConfirmModal, refetchBalance, refetchAllowance, refetchStakeInfo, refetchLifetimeClaimed, refetchApyReward, resetWrite, rewardBreakdown, clearSpinResult])
 
   // === HANDLERS ===
 
@@ -979,7 +996,7 @@ export default function StakingPage({
                           <div className="flex items-center justify-between text-xs">
                             <div className="flex items-center gap-1 text-blue-600">
                               <Lock size={12} />
-                              <span>Locked</span>
+                              <span>Locked 20% APY</span>
                             </div>
                             <span className="text-blue-500">{timeUntilUnlock}</span>
                           </div>
@@ -1431,7 +1448,11 @@ export default function StakingPage({
                   </div>
                   <div className="flex items-start gap-2 text-xs text-green-800" style={{ fontFamily: 'var(--font-luckiest-guy)' }}>
                     <span className="flex-shrink-0">🍅</span>
-                    <span>7-day lock = +5% bonus</span>
+                    <span>7-day lock = +5% bonus + 20% APY</span>
+                  </div>
+                  <div className="flex items-start gap-2 text-xs text-green-800" style={{ fontFamily: 'var(--font-luckiest-guy)' }}>
+                    <span className="flex-shrink-0">🍅</span>
+                    <span>Locked stakers earn 20% APY on their locked amount</span>
                   </div>
                   <div className="flex items-start gap-2 text-xs text-green-800" style={{ fontFamily: 'var(--font-luckiest-guy)' }}>
                     <span className="flex-shrink-0">🍅</span>
@@ -1761,6 +1782,14 @@ export default function StakingPage({
                           <div className="flex justify-between text-purple-400 text-xs">
                             <span>Early Staker Boost</span>
                             <span>+30%</span>
+                          </div>
+                        )}
+
+                        {/* 20% APY Reward */}
+                        {rewardBreakdown.apyReward > 0n && (
+                          <div className="flex justify-between text-cyan-400 text-xs">
+                            <span>Locked Staking APY (20%)</span>
+                            <span>+{formatPizzaWei(rewardBreakdown.apyReward)} PIZZA</span>
                           </div>
                         )}
 

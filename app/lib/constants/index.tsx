@@ -110,6 +110,8 @@ export const PIZZA_STAKING_ABI = [
   { type: 'function', name: 'EARLY_UNSTAKE_PENALTY_BPS', stateMutability: 'view', inputs: [], outputs: [{ type: 'uint256' }] },
   { type: 'function', name: 'LOCK_BONUS_BPS', stateMutability: 'view', inputs: [], outputs: [{ type: 'uint256' }] },
   { type: 'function', name: 'EARLY_BOOST_BPS', stateMutability: 'view', inputs: [], outputs: [{ type: 'uint256' }] },
+  { type: 'function', name: 'LOCKED_APY_BPS', stateMutability: 'view', inputs: [], outputs: [{ type: 'uint256' }] },
+  { type: 'function', name: 'DAYS_PER_YEAR', stateMutability: 'view', inputs: [], outputs: [{ type: 'uint256' }] },
   { type: 'function', name: 'TIER1_THRESHOLD', stateMutability: 'view', inputs: [], outputs: [{ type: 'uint256' }] },
   { type: 'function', name: 'TIER2_THRESHOLD', stateMutability: 'view', inputs: [], outputs: [{ type: 'uint256' }] },
   { type: 'function', name: 'TIER3_THRESHOLD', stateMutability: 'view', inputs: [], outputs: [{ type: 'uint256' }] },
@@ -155,6 +157,7 @@ export const PIZZA_STAKING_ABI = [
     ]
   },
   { type: 'function', name: 'lastSpinGameId', stateMutability: 'view', inputs: [{ type: 'address', name: 'user' }], outputs: [{ type: 'uint256' }] },
+  { type: 'function', name: 'lastApyClaimTimestamp', stateMutability: 'view', inputs: [{ type: 'address', name: 'user' }], outputs: [{ type: 'uint256' }] },
 
   // --- View Functions ---
   { type: 'function', name: 'getTier', stateMutability: 'view', inputs: [{ type: 'address', name: 'user' }], outputs: [{ type: 'uint8' }] },
@@ -166,6 +169,7 @@ export const PIZZA_STAKING_ABI = [
   { type: 'function', name: 'getPendingRewardsForPosition', stateMutability: 'view', inputs: [{ type: 'address', name: 'user' }, { type: 'uint8', name: 'lockType' }], outputs: [{ type: 'uint256' }] },
   { type: 'function', name: 'canSpinToday', stateMutability: 'view', inputs: [{ type: 'address', name: 'user' }], outputs: [{ type: 'bool' }] },
   { type: 'function', name: 'getMinStake', stateMutability: 'view', inputs: [], outputs: [{ type: 'uint256' }] },
+  { type: 'function', name: 'getPendingApyReward', stateMutability: 'view', inputs: [{ type: 'address', name: 'user' }], outputs: [{ type: 'uint256' }] },
   {
     type: 'function',
     name: 'getStakeInfo',

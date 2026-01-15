@@ -108,6 +108,12 @@ contract PizzaStakingV1Upgradeable is
     /// @notice Early staker boost: 30% (3000 BPS)
     uint256 public constant EARLY_BOOST_BPS = 3000;
 
+    /// @notice Locked staking APY: 20% (2000 BPS)
+    uint256 public constant LOCKED_APY_BPS = 2000;
+
+    /// @notice Days per year for APY calculation
+    uint256 public constant DAYS_PER_YEAR = 365;
+
     // ==================================================================================
     // TIER THRESHOLDS (in tokens with 18 decimals)
     // @dev For 10M supply testing. Multiply by 1000 for 10B supply.
@@ -302,6 +308,10 @@ contract PizzaStakingV1Upgradeable is
     /// @notice Tracks the last gameId that had a jackpot spin (max 1 jackpot per game day)
     /// @dev If lastJackpotGameId == currentGameId, jackpot rolls are downgraded to HotOutTheOven
     uint256 public lastJackpotGameId;
+
+    /// @notice Tracks the last timestamp when APY rewards were claimed for locked position
+    /// @dev Used to calculate accumulated APY since last claim (20% annual on locked principal)
+    mapping(address => uint256) public lastApyClaimTimestamp;
 
     // ==================================================================================
     // EVENTS
@@ -963,6 +973,8 @@ contract PizzaStakingV1Upgradeable is
 
         if (lockType == LockType.Locked) {
             position.lockEndTimestamp = block.timestamp + LOCK_DURATION;
+            // Initialize APY timestamp for new locked positions
+            lastApyClaimTimestamp[user] = block.timestamp;
         } else {
             position.lockEndTimestamp = 0;
         }
@@ -1029,13 +1041,18 @@ contract PizzaStakingV1Upgradeable is
     function _claimAllRewards(address user, bool applySpin) internal {
         // Step 1: Get BASE reward (before any modifiers)
         uint256 baseReward = _calculateBaseReward(user);
-        if (baseReward == 0) return;
+
+        // Step 1.5: Calculate APY reward for locked position (separate from base)
+        uint256 apyReward = _calculateApyReward(user);
+
+        // If both are zero, nothing to claim
+        if (baseReward == 0 && apyReward == 0) return;
 
         SpinOutcome outcome = SpinOutcome.RegularSlice;
         uint256 spunReward = baseReward; // Default: 100% of base
 
-        // Step 2: SPIN THE PIE - multiply base reward
-        if (applySpin && spinEnabled) {
+        // Step 2: SPIN THE PIE - multiply base reward (only if there's base reward)
+        if (baseReward > 0 && applySpin && spinEnabled) {
             // Check if user has already spun today (same gameId)
             uint256 currentGameId = _getCurrentGameId();
             if (lastSpinGameId[user] == currentGameId) {
@@ -1053,8 +1070,10 @@ contract PizzaStakingV1Upgradeable is
         }
 
         // Step 3: ADD BONUSES to spun result (tier + lock + early)
-        uint256 bonusAmount = _calculateBonusAmount(user, spunReward);
-        uint256 finalReward = spunReward + bonusAmount;
+        uint256 bonusAmount = baseReward > 0 ? _calculateBonusAmount(user, spunReward) : 0;
+
+        // Step 4: Calculate final reward (spun + bonuses + APY)
+        uint256 finalReward = spunReward + bonusAmount + apyReward;
 
         // Track lifetime claimed for UI display
         lifetimeClaimed[user] += finalReward;
@@ -1062,9 +1081,14 @@ contract PizzaStakingV1Upgradeable is
         // Update reward debt for BOTH positions
         _updateAllRewardDebts(user);
 
+        // Update APY claim timestamp for locked position
+        if (lockedStakes[user].stakedAmount > 0) {
+            lastApyClaimTimestamp[user] = block.timestamp;
+        }
+
         // Calculate what comes from where:
         // - baseReward: from contract balance (1% daily pot transferred by PizzaPartyV2)
-        // - extras (spin bonus + tier/lock/early): from stakingRewardsWallet
+        // - extras (spin bonus + tier/lock/early + APY): from stakingRewardsWallet
         uint256 extrasFromWallet = finalReward - baseReward;
 
         // Transfer base reward from contract balance (funded by daily pot)
@@ -1072,7 +1096,7 @@ contract PizzaStakingV1Upgradeable is
             IERC20(pizzaToken).safeTransfer(user, baseReward);
         }
 
-        // Transfer extras from staking wallet (spin bonus + tier/lock/early bonuses)
+        // Transfer extras from staking wallet (spin bonus + tier/lock/early bonuses + APY)
         if (extrasFromWallet > 0 && stakingRewardsWallet != address(0)) {
             IERC20(pizzaToken).safeTransferFrom(stakingRewardsWallet, user, extrasFromWallet);
         }
@@ -1090,6 +1114,7 @@ contract PizzaStakingV1Upgradeable is
      * 1. Get BASE reward for this position
      * 2. SPIN multiplies base (ONLY multiplication)
      * 3. ADD BONUSES to spun result
+     * 4. ADD APY for locked position (separate calculation)
      *
      * ALL REWARDS ARE PAID FROM stakingRewardsWallet (not contract balance)
      */
@@ -1097,7 +1122,6 @@ contract PizzaStakingV1Upgradeable is
         // Step 1: Get BASE reward for this specific position
         // Calculate proportional share of base reward for this position type
         uint256 totalBaseReward = _calculateBaseReward(user);
-        if (totalBaseReward == 0) return;
 
         StakePosition storage position = lockType == LockType.Locked
             ? lockedStakes[user]
@@ -1105,16 +1129,24 @@ contract PizzaStakingV1Upgradeable is
 
         if (position.stakedAmount == 0) return;
 
+        // Step 1.5: Calculate APY reward if this is the locked position
+        uint256 apyReward = 0;
+        if (lockType == LockType.Locked) {
+            apyReward = _calculateApyReward(user);
+        }
+
+        // If no base reward and no APY, nothing to claim
+        if (totalBaseReward == 0 && apyReward == 0) return;
+
         // Calculate this position's share of the base reward
         uint256 userTotalStaked = flexibleStakes[user].stakedAmount + lockedStakes[user].stakedAmount;
-        uint256 baseReward = (totalBaseReward * position.stakedAmount) / userTotalStaked;
-        if (baseReward == 0) return;
+        uint256 baseReward = totalBaseReward > 0 ? (totalBaseReward * position.stakedAmount) / userTotalStaked : 0;
 
         SpinOutcome outcome = SpinOutcome.RegularSlice;
         uint256 spunReward = baseReward; // Default: 100% of base
 
-        // Step 2: SPIN THE PIE - multiply base reward
-        if (applySpin && spinEnabled) {
+        // Step 2: SPIN THE PIE - multiply base reward (only if there's base reward)
+        if (baseReward > 0 && applySpin && spinEnabled) {
             // Check if user has already spun today (same gameId)
             uint256 currentGameId = _getCurrentGameId();
             if (lastSpinGameId[user] == currentGameId) {
@@ -1132,8 +1164,10 @@ contract PizzaStakingV1Upgradeable is
         }
 
         // Step 3: ADD BONUSES to spun result (tier + lock + early)
-        uint256 bonusAmount = _calculateBonusAmount(user, spunReward);
-        uint256 finalReward = spunReward + bonusAmount;
+        uint256 bonusAmount = baseReward > 0 ? _calculateBonusAmount(user, spunReward) : 0;
+
+        // Step 4: Calculate final reward (spun + bonuses + APY)
+        uint256 finalReward = spunReward + bonusAmount + apyReward;
 
         // Track lifetime claimed for UI display
         lifetimeClaimed[user] += finalReward;
@@ -1145,9 +1179,14 @@ contract PizzaStakingV1Upgradeable is
         // Update equal distribution reward debt
         stakerRewardDebt[user] = accRewardPerStaker;
 
+        // Update APY claim timestamp if claiming from locked position
+        if (lockType == LockType.Locked && lockedStakes[user].stakedAmount > 0) {
+            lastApyClaimTimestamp[user] = block.timestamp;
+        }
+
         // Calculate what comes from where:
         // - baseReward: from contract balance (1% daily pot transferred by PizzaPartyV2)
-        // - extras (spin bonus + tier/lock/early): from stakingRewardsWallet
+        // - extras (spin bonus + tier/lock/early + APY): from stakingRewardsWallet
         uint256 extrasFromWallet = finalReward - baseReward;
 
         // Transfer base reward from contract balance (funded by daily pot)
@@ -1155,7 +1194,7 @@ contract PizzaStakingV1Upgradeable is
             IERC20(pizzaToken).safeTransfer(user, baseReward);
         }
 
-        // Transfer extras from staking wallet (spin bonus + tier/lock/early bonuses)
+        // Transfer extras from staking wallet (spin bonus + tier/lock/early bonuses + APY)
         if (extrasFromWallet > 0 && stakingRewardsWallet != address(0)) {
             IERC20(pizzaToken).safeTransferFrom(stakingRewardsWallet, user, extrasFromWallet);
         }
@@ -1280,21 +1319,68 @@ contract PizzaStakingV1Upgradeable is
     }
 
     /**
-     * @notice Calculate total pending rewards for display (base + expected bonuses at 100% spin)
+     * @notice Calculate accumulated APY rewards for locked position
+     * @param user Address to calculate for
+     * @return APY reward amount based on locked principal and time since last claim
+     *
+     * APY CALCULATION:
+     * - 20% annual on locked principal
+     * - Daily rate = lockedAmount × 2000 / (365 × 10000)
+     * - Accumulates based on seconds since last APY claim (or stake creation)
+     *
+     * Example: 100,000 PIZZA locked for 7 days
+     * Daily = 100,000 × 2000 / (365 × 10000) = 54.79 PIZZA
+     * 7 days = 54.79 × 7 = 383.56 PIZZA
+     */
+    function _calculateApyReward(address user) internal view returns (uint256) {
+        StakePosition storage locked = lockedStakes[user];
+        if (locked.stakedAmount == 0) return 0;
+
+        // Get the start time for APY calculation
+        // Use lastApyClaimTimestamp if set, otherwise use stake creation time
+        uint256 apyStartTime = lastApyClaimTimestamp[user];
+        if (apyStartTime == 0) {
+            apyStartTime = locked.stakeTimestamp;
+        }
+
+        // Calculate seconds elapsed since last APY claim
+        uint256 secondsElapsed = block.timestamp - apyStartTime;
+        if (secondsElapsed == 0) return 0;
+
+        // APY formula: (lockedAmount × APY_BPS × secondsElapsed) / (DAYS_PER_YEAR × 1 day × BPS_DENOMINATOR)
+        // This gives us the proportional APY for the exact time elapsed
+        return (locked.stakedAmount * LOCKED_APY_BPS * secondsElapsed) /
+               (DAYS_PER_YEAR * 1 days * BPS_DENOMINATOR);
+    }
+
+    /**
+     * @notice Get user's pending APY reward for locked position
+     * @param user Address to check
+     * @return Pending APY reward amount
+     */
+    function getPendingApyReward(address user) external view returns (uint256) {
+        return _calculateApyReward(user);
+    }
+
+    /**
+     * @notice Calculate total pending rewards for display (base + expected bonuses at 100% spin + APY)
      * @param user Address to calculate for
      * @return Total pending reward amount (what user would get with regular spin)
      *
-     * For UI display: shows base reward + bonuses assuming 100% (regular) spin.
+     * For UI display: shows base reward + bonuses assuming 100% (regular) spin + APY.
      * Actual claim may be higher if spin outcome is > 100%.
      */
     function _calculateTotalPendingRewards(address user) internal view returns (uint256) {
         uint256 baseReward = _calculateBaseReward(user);
-        if (baseReward == 0) return 0;
+        uint256 apyReward = _calculateApyReward(user);
+
+        // If no base reward and no APY, nothing pending
+        if (baseReward == 0 && apyReward == 0) return 0;
 
         // For display purposes, assume 100% spin (regular slice)
-        // Final = base + bonuses on base
-        uint256 bonusAmount = _calculateBonusAmount(user, baseReward);
-        return baseReward + bonusAmount;
+        // Final = base + bonuses on base + APY
+        uint256 bonusAmount = baseReward > 0 ? _calculateBonusAmount(user, baseReward) : 0;
+        return baseReward + bonusAmount + apyReward;
     }
 
     /**
