@@ -1361,7 +1361,11 @@ export default function StakingPage({
                 className={`w-full !bg-orange-500 hover:!bg-orange-600 text-white font-bold py-2 border-4 border-orange-800 uppercase flex items-center justify-between ${tiersOpen ? 'rounded-t-xl rounded-b-none' : 'rounded-xl'}`}
                 style={{ ...customFontStyle, fontSize: isMobile ? 16 : 18 }}
               >
-                <span className="flex-1 text-center">📊 STAKING TIERS</span>
+                <span className="flex-1 text-center flex items-center justify-center gap-2">
+                  <Image src="/images/pepperoni-art.png" alt="" width={20} height={20} />
+                  STAKING TIERS
+                  <Image src="/images/pepperoni-art.png" alt="" width={20} height={20} />
+                </span>
                 {tiersOpen ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
               </Button>
               {tiersOpen && (
@@ -1413,7 +1417,11 @@ export default function StakingPage({
                 className={`w-full !bg-blue-500 hover:!bg-blue-600 text-white font-bold py-2 border-4 border-blue-800 uppercase flex items-center justify-between ${statsOpen ? 'rounded-t-xl rounded-b-none' : 'rounded-xl'}`}
                 style={{ ...customFontStyle, fontSize: isMobile ? 16 : 18 }}
               >
-                <span className="flex-1 text-center">📈 POOL STATS</span>
+                <span className="flex-1 text-center flex items-center justify-center gap-2">
+                  <Image src="/images/mushroom-icon2.png" alt="" width={20} height={20} />
+                  POOL STATS
+                  <Image src="/images/mushroom-icon2.png" alt="" width={20} height={20} />
+                </span>
                 {statsOpen ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
               </Button>
               {statsOpen && (
