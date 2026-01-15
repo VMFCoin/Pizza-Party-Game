@@ -580,12 +580,19 @@ export default function StakingPage({
   // Refetch data after successful transaction (but not during approval->stake flow)
   useEffect(() => {
     if (isConfirmed && !pendingApproval) {
-      // Only cleanup when the final transaction is confirmed (not intermediate approval)
-      refetchBalance()
-      refetchAllowance()
-      refetchStakeInfo()
-      refetchLifetimeClaimed() // Update lifetime claimed after claim/restake
-      refetchApyReward() // Update APY reward after claim
+      // Small delay to ensure RPC node has the latest state after tx confirmation
+      const refetchData = async () => {
+        await new Promise(resolve => setTimeout(resolve, 1000))
+        await Promise.all([
+          refetchBalance(),
+          refetchAllowance(),
+          refetchStakeInfo(),
+          refetchLifetimeClaimed(),
+          refetchApyReward(),
+        ])
+      }
+      refetchData()
+
       // Handle claim completion - clear spin result and show share modal
       if (showConfirmModal === 'spin-claim') {
         // Store claimed amount for share message before clearing
@@ -717,8 +724,11 @@ export default function StakingPage({
       if (!pendingApproval) return
       if (!isConfirmed || !stakeAmount || showConfirmModal !== 'stake') return
 
+      // Refetch allowance to get the updated value after approval
+      const { data: freshAllowance } = await refetchAllowance()
+
       const amountWei = parseUnits(stakeAmount, 18)
-      const currentAllowance = allowance as bigint || 0n
+      const currentAllowance = (freshAllowance as bigint) || 0n
 
       if (currentAllowance >= amountWei && address) {
         // Clear pending approval flag BEFORE sending stake tx
@@ -743,7 +753,7 @@ export default function StakingPage({
       }
     }
     performStakeAfterApproval()
-  }, [isConfirmed, allowance, stakeAmount, selectedLockType, showConfirmModal, address, authToken, pendingApproval, resetWrite, writeContract, registerStakingPosition])
+  }, [isConfirmed, allowance, stakeAmount, selectedLockType, showConfirmModal, address, authToken, pendingApproval, resetWrite, writeContract, registerStakingPosition, refetchAllowance])
 
   // Handle unstake
   const handleUnstake = () => {
