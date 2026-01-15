@@ -888,22 +888,15 @@ export default function StakingPage({
 
   // Handle share cast after successful claim
   const handleShareCast = useCallback(async () => {
-    const shareText = `🍕 Just claimed ${formatPizzaWei(claimedAmount)} $PIZZA rewards from Spin the Pie!\n\nStake $PIZZA, spin the wheel, and boost your rewards!\n\n🎰 Join the party`
-    const shareUrl = 'https://pizza-party.lol'
+    const shareText = `🍕 Just claimed ${formatPizzaWei(claimedAmount)} $PIZZA rewards from Spin the Pie!\n\nStake $PIZZA, spin the wheel, and boost your rewards!\n\n🎰 Join the party:`
+    const embedUrl = 'https://farcaster.xyz/miniapps/wgY6OPqYoIkz/pizza-party'
 
-    try {
-      const actions = sdk.actions as {
-        composeCast?: (opts?: { text?: string; embeds?: string[] }) => Promise<void>
-      }
-      if (typeof actions.composeCast === 'function') {
-        await actions.composeCast({
-          text: shareText,
-          embeds: [shareUrl],
-        })
-      }
-    } catch (err) {
-      console.error('[Staking] Failed to compose cast:', err)
-    }
+    // Use Farcaster SDK composeCast to stay in-app
+    sdk.actions.composeCast({
+      text: shareText,
+      embeds: [embedUrl],
+    }).catch(err => console.error('[Staking] composeCast failed:', err))
+
     setShowShareModal(false)
   }, [claimedAmount])
 
