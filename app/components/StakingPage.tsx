@@ -174,6 +174,7 @@ export default function StakingPage({
   const [spinRotation, setSpinRotation] = useState(0)
   const [spinResult, setSpinResult] = useState<typeof SPIN_OUTCOMES[0] | null>(null)
   const [hasSpunThisGame, setHasSpunThisGame] = useState(false) // Track if user has spun for current game (persisted)
+  const [spinStorageChecked, setSpinStorageChecked] = useState(false) // Track if we've checked localStorage for spin result
   const [showShareModal, setShowShareModal] = useState(false) // Show share cast modal after claim
   const [claimedAmount, setClaimedAmount] = useState<bigint>(0n) // Store claimed amount for share message
 
@@ -432,7 +433,10 @@ export default function StakingPage({
 
   // Load persisted spin result on mount or when gameId changes
   useEffect(() => {
-    if (!spinStorageKey) return
+    if (!spinStorageKey) {
+      setSpinStorageChecked(false)
+      return
+    }
 
     try {
       const stored = localStorage.getItem(spinStorageKey)
@@ -450,8 +454,10 @@ export default function StakingPage({
         setSpinResult(null)
         setHasSpunThisGame(false)
       }
+      setSpinStorageChecked(true)
     } catch (e) {
       console.error('Failed to load spin result from localStorage:', e)
+      setSpinStorageChecked(true)
     }
   }, [spinStorageKey])
 
@@ -1914,8 +1920,8 @@ export default function StakingPage({
                 </div>
               )}
 
-              {/* No spin available - direct claim */}
-              {(!spinEnabled || !canSpinToday) && !hasSpunThisGame && (
+              {/* No spin available - direct claim (only show after localStorage check) */}
+              {(!spinEnabled || !canSpinToday) && !hasSpunThisGame && spinStorageChecked && (
                 <div className="space-y-4">
                   <div className="bg-gray-800 rounded-xl p-3 text-center">
                     <p className="text-gray-400 text-sm" style={{ fontFamily: 'var(--font-luckiest-guy)' }}>
@@ -2009,8 +2015,18 @@ export default function StakingPage({
                 </div>
               )}
 
+              {/* Loading state while checking localStorage */}
+              {!canSpinToday && !hasSpunThisGame && !spinStorageChecked && (
+                <div className="text-center py-4">
+                  <Loader2 className="animate-spin mx-auto text-yellow-400" size={24} />
+                  <p className="text-gray-400 text-sm mt-2" style={{ fontFamily: 'var(--font-luckiest-guy)' }}>
+                    Loading your spin...
+                  </p>
+                </div>
+              )}
+
               {/* Spin Outcomes Legend - only show before spin */}
-              {!hasSpunThisGame && !isSpinning && (
+              {!hasSpunThisGame && !isSpinning && spinStorageChecked && (
                 <div className="mt-4 grid grid-cols-2 gap-2">
                   {SPIN_OUTCOMES.map((outcome) => (
                     <div
