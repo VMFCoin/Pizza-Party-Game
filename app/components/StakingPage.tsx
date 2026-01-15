@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import Image from 'next/image'
 import { Button } from './ui/button'
 import { Card } from './ui/card'
-import { ArrowLeft, Lock, Unlock, TrendingUp, Gift, AlertTriangle, XCircle, Loader2, ChevronDown, ChevronUp, Share2 } from 'lucide-react'
+import { ArrowLeft, Lock, Unlock, TrendingUp, Gift, AlertTriangle, XCircle, Loader2, ChevronDown, ChevronUp, Share2, X } from 'lucide-react'
 import { useAccount, useReadContract, useWriteContract, useWaitForTransactionReceipt } from 'wagmi'
 import { formatUnits, parseUnits } from 'viem'
 import { sdk } from '@farcaster/miniapp-sdk'
@@ -1670,9 +1670,17 @@ export default function StakingPage({
         {showConfirmModal === 'spin-claim' && (
           <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
             <div
-              className="bg-black rounded-2xl p-4 border-4 border-red-800 max-w-md w-full max-h-[90vh] overflow-y-auto"
+              className="bg-black rounded-2xl p-4 border-4 border-red-800 max-w-md w-full max-h-[90vh] overflow-y-auto relative"
               onClick={(e) => e.stopPropagation()}
             >
+              {/* Close Button */}
+              <button
+                onClick={() => setShowConfirmModal(null)}
+                className="absolute top-3 right-3 w-8 h-8 bg-white rounded-full flex items-center justify-center hover:bg-gray-200 transition-colors z-10"
+              >
+                <X size={18} className="text-gray-700" />
+              </button>
+
               {/* Title */}
               <p
                 className="text-center mb-3"
