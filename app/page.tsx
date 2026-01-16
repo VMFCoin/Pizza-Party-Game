@@ -276,7 +276,7 @@ export default function HomePage() {
             <div className="mb-6 border-4 border-black rounded-2xl relative overflow-hidden" style={{ width: '100%' }}>
               <div className="relative w-full" style={{ paddingBottom: '25%', minHeight: '90px' }}>
                 <Image
-                  src="/images/PlayToWin.png"
+                  src="/images/Play_to_Win.png"
                   alt="PLAY TO WIN A SLICE!"
                   fill
                   className="object-cover"
