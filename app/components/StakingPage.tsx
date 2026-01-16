@@ -983,21 +983,21 @@ export default function StakingPage({
                             <Unlock size={12} />
                             <span>Flexible</span>
                           </div>
-                          <p className="text-green-800 font-bold text-sm" style={customFontStyle}>
+                          <p className="text-green-800 font-bold text-sm" style={{ fontFamily: 'var(--font-luckiest-guy)' }}>
                             {formatPizzaWei(userPosition.flexibleAmount)}
                           </p>
                         </div>
                       )}
                       {userPosition.lockedAmount > 0n && (
                         <div className="bg-blue-50 rounded-lg p-2 border border-blue-200">
-                          <div className="flex items-center justify-between" style={{ fontSize: '10px' }}>
+                          <div className="flex items-center justify-between text-xs">
                             <div className="flex items-center gap-1 text-blue-600">
-                              <Lock size={10} />
+                              <Lock size={12} />
                               <span>Lock 20% APY</span>
                             </div>
                             <span className="text-blue-500">{timeUntilUnlock}</span>
                           </div>
-                          <p className="text-blue-800 font-bold text-sm" style={customFontStyle}>
+                          <p className="text-blue-800 font-bold text-sm" style={{ fontFamily: 'var(--font-luckiest-guy)' }}>
                             {formatPizzaWei(userPosition.lockedAmount)}
                           </p>
                         </div>
