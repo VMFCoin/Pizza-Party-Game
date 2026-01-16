@@ -275,13 +275,13 @@ export default function HomePage() {
             {/* Action Buttons */}
             <div className="flex flex-col mt-[-12px]" style={{ gap: "12px" }}>
               {/* Call-to-Action */}
-              <div className="w-full" style={{ margin: '8px 0' }}>
+              <div className="w-full" style={{ marginTop: '8px', marginBottom: '8px' }}>
                 <Image
                   src="/images/Play_to_Win.png"
                   alt="PLAY TO WIN A SLICE!"
                   width={1872}
                   height={400}
-                  className="w-full h-auto"
+                  className="w-full h-auto block"
                   priority
                   sizes="100vw"
                 />
