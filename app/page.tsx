@@ -279,7 +279,7 @@ export default function HomePage() {
                 src="/images/Play_to_Win.png"
                 alt="PLAY TO WIN A SLICE!"
                 width={1872}
-                height={1248}
+                height={400}
                 className="w-full h-auto"
                 priority
                 sizes="100vw"
