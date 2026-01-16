@@ -276,7 +276,14 @@ export default function HomePage() {
             <div className="flex flex-col mt-[-12px]" style={{ gap: "12px" }}>
               {/* Call-to-Action */}
               <div className="w-full rounded-2xl relative overflow-hidden" style={{ marginTop: '8px', marginBottom: '8px' }}>
-                <div className="relative w-full" style={{ paddingBottom: isMobile ? '29.75%' : '35%', minHeight: isMobile ? '109px' : '140px' }}>
+                {/* Play_to_Win.png is 1872×400 (~4.68:1). Use matching aspect ratio so it can be full-width without cropping. */}
+                <div
+                  className="relative w-full"
+                  style={{
+                    paddingBottom: '21.37%',
+                    minHeight: isMobile ? '86px' : '96px',
+                  }}
+                >
                   <Image
                     src="/images/Play_to_Win.png"
                     alt="PLAY TO WIN A SLICE!"
