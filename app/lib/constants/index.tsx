@@ -118,6 +118,7 @@ export const PIZZA_STAKING_ABI = [
 
   // --- State Variables ---
   { type: 'function', name: 'totalStaked', stateMutability: 'view', inputs: [], outputs: [{ type: 'uint256' }] },
+  { type: 'function', name: 'stakerCount', stateMutability: 'view', inputs: [], outputs: [{ type: 'uint256' }] },
   { type: 'function', name: 'boostEndTime', stateMutability: 'view', inputs: [], outputs: [{ type: 'uint256' }] },
   { type: 'function', name: 'spinEnabled', stateMutability: 'view', inputs: [], outputs: [{ type: 'bool' }] },
   { type: 'function', name: 'bonusPool', stateMutability: 'view', inputs: [], outputs: [{ type: 'uint256' }] },

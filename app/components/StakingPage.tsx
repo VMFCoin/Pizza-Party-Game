@@ -298,6 +298,12 @@ export default function StakingPage({
     functionName: 'totalStaked',
   })
 
+  const { data: stakerCount } = useReadContract({
+    address: PIZZA_STAKING_ADDRESS as `0x${string}`,
+    abi: PIZZA_STAKING_ABI,
+    functionName: 'stakerCount',
+  })
+
   // Read staking rewards wallet address from contract
   const { data: stakingRewardsWallet } = useReadContract({
     address: PIZZA_STAKING_ADDRESS as `0x${string}`,
@@ -1429,8 +1435,8 @@ export default function StakingPage({
                       <p className="text-blue-700 font-bold" style={{ fontFamily: 'var(--font-luckiest-guy)' }}>10%</p>
                     </div>
                     <div className="bg-white rounded-lg p-2 text-center border border-blue-200">
-                      <p className="text-blue-500 text-xs" style={{ fontFamily: 'var(--font-luckiest-guy)' }}>Bonus Pool</p>
-                      <p className="text-blue-700 font-bold text-sm" style={{ fontFamily: 'var(--font-luckiest-guy)' }}>{formatPizzaWei(stakingWalletBalance as bigint)} PIZZA</p>
+                      <p className="text-blue-500 text-xs" style={{ fontFamily: 'var(--font-luckiest-guy)' }}>Players Staking</p>
+                      <p className="text-blue-700 font-bold text-sm" style={{ fontFamily: 'var(--font-luckiest-guy)' }}>{stakerCount?.toString() ?? '0'}</p>
                     </div>
                     <div className="bg-white rounded-lg p-2 text-center border border-blue-200">
                       <p className="text-blue-500 text-xs" style={{ fontFamily: 'var(--font-luckiest-guy)' }}>Boost Days Left</p>
