@@ -990,9 +990,9 @@ export default function StakingPage({
                       )}
                       {userPosition.lockedAmount > 0n && (
                         <div className="bg-blue-50 rounded-lg p-2 border border-blue-200">
-                          <div className="flex items-center justify-between text-xs">
-                            <div className="flex items-center gap-1 text-blue-600">
-                              <Lock size={12} />
+                          <div className="flex items-center justify-between text-[10px] whitespace-nowrap">
+                            <div className="flex items-center gap-0.5 text-blue-600">
+                              <Lock size={10} />
                               <span>Lock 20% APY</span>
                             </div>
                             <span className="text-blue-500">{timeUntilUnlock}</span>
