@@ -1453,7 +1453,7 @@ export default function StakingPage({
                   </div>
                   <div className="flex items-start gap-2 text-xs text-green-800" style={{ fontFamily: 'var(--font-luckiest-guy)' }}>
                     <span className="flex-shrink-0">🍅</span>
-                    <span>7-day lock = +5% bonus + 20% APY</span>
+                    <span>7-day lock = +5% spin bonus + 20% APY</span>
                   </div>
                   <div className="flex items-start gap-2 text-xs text-green-800" style={{ fontFamily: 'var(--font-luckiest-guy)' }}>
                     <span className="flex-shrink-0">🍅</span>
