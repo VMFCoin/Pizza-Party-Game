@@ -275,7 +275,7 @@ export default function HomePage() {
             {/* Action Buttons */}
             <div className="flex flex-col mt-[-12px]" style={{ gap: "12px" }}>
               {/* Call-to-Action */}
-              <div className="w-full" style={{ transform: 'scale(1.45, 1.6)', transformOrigin: 'center', margin: '-20px 0' }}>
+              <div className="w-full" style={{ transform: 'scale(1.45, 1.6)', transformOrigin: 'center', margin: '20px 0 26px 0' }}>
                 <Image
                   src="/images/Play_to_Win.png"
                   alt="PLAY TO WIN A SLICE!"
