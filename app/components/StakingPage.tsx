@@ -1864,6 +1864,9 @@ export default function StakingPage({
                         <p className={`text-xs ${claimLockType === 1 ? 'text-blue-300' : 'text-gray-500'}`}>
                           +5% bonus
                         </p>
+                        <p className={`text-xs ${claimLockType === 1 ? 'text-cyan-400' : 'text-gray-500'}`}>
+                          +20% APY
+                        </p>
                       </button>
                     </div>
                   </div>
@@ -1958,6 +1961,9 @@ export default function StakingPage({
                         </p>
                         <p className={`text-xs ${claimLockType === 1 ? 'text-blue-300' : 'text-gray-500'}`}>
                           +5% bonus
+                        </p>
+                        <p className={`text-xs ${claimLockType === 1 ? 'text-cyan-400' : 'text-gray-500'}`}>
+                          +20% APY
                         </p>
                       </button>
                     </div>
