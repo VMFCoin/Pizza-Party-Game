@@ -1055,7 +1055,7 @@ export default function StakingPage({
                     {/* Stake More Input (shown when showStakeInput is true) */}
                     {showStakeInput ? (
                       <div className="space-y-2 bg-green-50 rounded-lg p-3 border-2 border-green-300">
-                        <p className="text-green-700 font-bold text-center" style={customFontStyle}>Add to Your Stake</p>
+                        <p className="text-green-700 font-bold text-center" style={{ fontFamily: 'var(--font-luckiest-guy)' }}>Add to Your Stake</p>
 
                         {/* Stake Amount Input */}
                         <div>
