@@ -272,8 +272,9 @@ export default function HomePage() {
               </div>
             </div>
 
-            {/* Call-to-Action */}
-            <div className="mb-2 w-full">
+            {/* Action Buttons */}
+            <div className="flex flex-col mt-[-12px]" style={{ gap: "12px" }}>
+              {/* Call-to-Action */}
               <Image
                 src="/images/Play_to_Win.png"
                 alt="PLAY TO WIN A SLICE!"
@@ -283,10 +284,6 @@ export default function HomePage() {
                 priority
                 sizes="100vw"
               />
-            </div>
-
-            {/* Action Buttons */}
-            <div className="flex flex-col mt-[-12px]" style={{ gap: "12px" }}>
               <Button
                 onClick={handleStartPlaying}
                 className="w-full !bg-green-600 hover:!bg-green-700 text-white py-3 px-6 rounded-xl border-4 border-green-900 shadow-lg transform hover:scale-105 transition-all touch-manipulation"
