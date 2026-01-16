@@ -281,7 +281,7 @@ export default function HomePage() {
                     src="/images/Play_to_Win.png"
                     alt="PLAY TO WIN A SLICE!"
                     fill
-                    className="object-cover"
+                    className="object-contain"
                     priority
                     sizes="100vw"
                     style={{ objectPosition: 'center center' }}
