@@ -1376,7 +1376,7 @@ export default function StakingPage({
                               className={`text-xs ${isCurrentTier ? 'text-white/90' : 'text-orange-500'}`}
                               style={{ fontFamily: 'var(--font-luckiest-guy)' }}
                             >
-                              {tier.minStake > 0 ? `${formatPizza(tier.minStake)}+ PIZZA` : '0-199.99K PIZZA'}
+                              {tier.minStake > 0 ? `${formatPizza(tier.minStake)}+ PIZZA` : '0-49.99K PIZZA'}
                             </span>
                           </div>
                           <div className={`flex justify-between text-xs mt-1 ${isCurrentTier ? 'text-white/80' : 'text-orange-600'}`} style={{ fontFamily: 'var(--font-luckiest-guy)' }}>
