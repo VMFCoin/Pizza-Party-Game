@@ -203,6 +203,7 @@ export const PIZZA_STAKING_ABI = [
   { type: 'function', name: 'stake', stateMutability: 'nonpayable', inputs: [{ type: 'uint256', name: 'amount' }, { type: 'uint8', name: 'lockType' }], outputs: [] },
   { type: 'function', name: 'unstake', stateMutability: 'nonpayable', inputs: [{ type: 'uint256', name: 'amount' }, { type: 'uint8', name: 'lockType' }], outputs: [] },
   { type: 'function', name: 'claim', stateMutability: 'nonpayable', inputs: [], outputs: [] },
+  { type: 'function', name: 'claimAfterSpin', stateMutability: 'nonpayable', inputs: [], outputs: [] },
   { type: 'function', name: 'claimFromPosition', stateMutability: 'nonpayable', inputs: [{ type: 'uint8', name: 'lockType' }], outputs: [] },
   { type: 'function', name: 'restake', stateMutability: 'nonpayable', inputs: [{ type: 'uint8', name: 'lockType' }], outputs: [] },
   { type: 'function', name: 'recordSpin', stateMutability: 'nonpayable', inputs: [], outputs: [] },

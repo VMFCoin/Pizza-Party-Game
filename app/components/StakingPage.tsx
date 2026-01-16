@@ -174,6 +174,7 @@ export default function StakingPage({
   const [spinRotation, setSpinRotation] = useState(0)
   const [spinResult, setSpinResult] = useState<typeof SPIN_OUTCOMES[0] | null>(null)
   const [hasSpunThisGame, setHasSpunThisGame] = useState(false) // Track if user has spun for current game (persisted)
+  const [hasClaimedThisGame, setHasClaimedThisGame] = useState(false) // Track if user has claimed for current game
   const [spinStorageChecked, setSpinStorageChecked] = useState(false) // Track if we've checked localStorage for spin result
   const [showShareModal, setShowShareModal] = useState(false) // Show share cast modal after claim
   const [claimedAmount, setClaimedAmount] = useState<bigint>(0n) // Store claimed amount for share message
@@ -348,7 +349,7 @@ export default function StakingPage({
   })
 
   // Read last spin game ID for user
-  const { data: lastSpinGameId } = useReadContract({
+  const { data: lastSpinGameId, refetch: refetchLastSpinGameId } = useReadContract({
     address: PIZZA_STAKING_ADDRESS as `0x${string}`,
     abi: PIZZA_STAKING_ABI,
     functionName: 'lastSpinGameId',
@@ -441,6 +442,7 @@ export default function StakingPage({
         // No stored result for this game - reset state
         setSpinResult(null)
         setHasSpunThisGame(false)
+        setHasClaimedThisGame(false)
       }
       setSpinStorageChecked(true)
     } catch (e) {
@@ -460,18 +462,6 @@ export default function StakingPage({
       }))
     } catch (e) {
       console.error('Failed to save spin result to localStorage:', e)
-    }
-  }, [spinStorageKey])
-
-  // Clear spin result from localStorage after successful claim
-  const clearSpinResult = useCallback(() => {
-    if (!spinStorageKey) return
-    try {
-      localStorage.removeItem(spinStorageKey)
-      setSpinResult(null)
-      setHasSpunThisGame(false)
-    } catch (e) {
-      console.error('Failed to clear spin result from localStorage:', e)
     }
   }, [spinStorageKey])
 
@@ -583,19 +573,20 @@ export default function StakingPage({
           refetchStakeInfo(),
           refetchLifetimeClaimed(),
           refetchApyReward(),
+          refetchLastSpinGameId(),
         ])
       }
       refetchData()
 
-      // Handle claim completion - clear spin result and show share modal
+      // Handle claim completion - show share modal (keep localStorage for admin audit)
       if (showConfirmModal === 'spin-claim') {
-        // Store claimed amount for share message before clearing
+        // Store claimed amount for share message
         if (rewardBreakdown?.totalReward) {
           setClaimedAmount(rewardBreakdown.totalReward)
         }
-        // Clear localStorage spin result
-        clearSpinResult()
         setClaimLockType(0)
+        // Mark as claimed for this game (disables spin button until next game)
+        setHasClaimedThisGame(true)
         // Show share modal after successful claim
         setShowShareModal(true)
       }
@@ -605,7 +596,7 @@ export default function StakingPage({
       setShowStakeInput(false)
       resetWrite()
     }
-  }, [isConfirmed, pendingApproval, showConfirmModal, refetchBalance, refetchAllowance, refetchStakeInfo, refetchLifetimeClaimed, refetchApyReward, resetWrite, rewardBreakdown, clearSpinResult])
+  }, [isConfirmed, pendingApproval, showConfirmModal, refetchBalance, refetchAllowance, refetchStakeInfo, refetchLifetimeClaimed, refetchApyReward, refetchLastSpinGameId, resetWrite, rewardBreakdown])
 
   // === HANDLERS ===
 
@@ -1015,12 +1006,14 @@ export default function StakingPage({
                         </div>
                         <Button
                           onClick={() => setShowConfirmModal('spin-claim')}
-                          disabled={!hasPendingRewards || isWritePending || isConfirming}
+                          disabled={!hasPendingRewards || isWritePending || isConfirming || hasClaimedThisGame || !canSpinToday}
                           className="!bg-yellow-500 hover:!bg-yellow-600 text-white font-bold py-1.5 px-3 rounded-xl border-2 border-yellow-700 disabled:opacity-50 text-sm"
                           style={{ fontFamily: 'var(--font-luckiest-guy)' }}
                         >
                           {isWritePending || isConfirming ? (
                             <Loader2 className="animate-spin" size={14} />
+                          ) : hasClaimedThisGame || !canSpinToday ? (
+                            'CLAIMED ✓'
                           ) : (
                             'SPIN & CLAIM'
                           )}
@@ -1730,7 +1723,7 @@ export default function StakingPage({
               </div>
 
               {/* Pre-spin: Show SPIN button */}
-              {!hasSpunThisGame && !isSpinning && spinEnabled && canSpinToday && (
+              {!hasSpunThisGame && !hasClaimedThisGame && !isSpinning && spinEnabled && canSpinToday && (
                 <Button
                   onClick={handleSpin}
                   disabled={pendingRecordSpin || isRecordSpinPending || isRecordSpinConfirming}
@@ -1875,11 +1868,11 @@ export default function StakingPage({
                   <div className="flex gap-2">
                     <Button
                       onClick={() => {
-                        // Claim rewards directly to wallet
+                        // Claim rewards directly to wallet (use claimAfterSpin since spin already recorded)
                         writeContract({
                           address: PIZZA_STAKING_ADDRESS as `0x${string}`,
                           abi: PIZZA_STAKING_ABI,
-                          functionName: 'claim',
+                          functionName: 'claimAfterSpin',
                         })
                       }}
                       className="flex-1 !bg-green-500 hover:!bg-green-600 text-white font-bold py-3 rounded-xl border-2 border-green-700"
@@ -1916,8 +1909,20 @@ export default function StakingPage({
                 </div>
               )}
 
+              {/* Already claimed this game - show success message */}
+              {hasClaimedThisGame && !isSpinning && spinStorageChecked && (
+                <div className="bg-green-900/50 rounded-xl p-4 text-center border-2 border-green-500">
+                  <p className="text-green-400 font-bold text-lg" style={{ fontFamily: 'var(--font-luckiest-guy)' }}>
+                    ✓ Claimed!
+                  </p>
+                  <p className="text-green-300 text-sm mt-1" style={{ fontFamily: 'var(--font-luckiest-guy)' }}>
+                    Come back after the next daily game settles to spin again
+                  </p>
+                </div>
+              )}
+
               {/* No spin available - direct claim (only show after localStorage check) */}
-              {(!spinEnabled || !canSpinToday) && !hasSpunThisGame && spinStorageChecked && (
+              {(!spinEnabled || !canSpinToday) && !hasSpunThisGame && !hasClaimedThisGame && spinStorageChecked && (
                 <div className="space-y-4">
                   <div className="bg-gray-800 rounded-xl p-3 text-center">
                     <p className="text-gray-400 text-sm" style={{ fontFamily: 'var(--font-luckiest-guy)' }}>
@@ -1973,11 +1978,11 @@ export default function StakingPage({
                   <div className="flex gap-2">
                     <Button
                       onClick={() => {
-                        // Claim rewards directly to wallet
+                        // Claim rewards directly to wallet (use claimAfterSpin since spin already recorded)
                         writeContract({
                           address: PIZZA_STAKING_ADDRESS as `0x${string}`,
                           abi: PIZZA_STAKING_ABI,
-                          functionName: 'claim',
+                          functionName: 'claimAfterSpin',
                         })
                       }}
                       className="flex-1 !bg-green-500 hover:!bg-green-600 text-white font-bold py-3 rounded-xl border-2 border-green-700"
@@ -2025,7 +2030,7 @@ export default function StakingPage({
               )}
 
               {/* Spin Outcomes Legend - only show before spin */}
-              {!hasSpunThisGame && !isSpinning && spinStorageChecked && (
+              {!hasSpunThisGame && !hasClaimedThisGame && !isSpinning && spinStorageChecked && (
                 <div className="mt-4 grid grid-cols-2 gap-2">
                   {SPIN_OUTCOMES.map((outcome) => (
                     <div

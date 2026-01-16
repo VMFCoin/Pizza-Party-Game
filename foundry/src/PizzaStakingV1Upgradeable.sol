@@ -558,6 +558,16 @@ contract PizzaStakingV1Upgradeable is
     }
 
     /**
+     * @notice Claim rewards after spin has already been recorded via recordSpin()
+     * @dev This function does NOT spin - it just claims at 100% (regular slice).
+     *      Use this after calling recordSpin() and showing the spin animation.
+     *      The spin result was already determined by recordSpin().
+     */
+    function claimAfterSpin() external nonReentrant whenNotPaused tokenSet {
+        _claimAllRewards(msg.sender, false);
+    }
+
+    /**
      * @notice Record that user has spun today (prevents multi-device exploit)
      * @dev Called by frontend BEFORE showing spin animation. This ensures:
      *      1. User can only spin once per game day across all devices
