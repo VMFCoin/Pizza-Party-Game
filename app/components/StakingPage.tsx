@@ -304,24 +304,6 @@ export default function StakingPage({
     functionName: 'stakerCount',
   })
 
-  // Read staking rewards wallet address from contract
-  const { data: stakingRewardsWallet } = useReadContract({
-    address: PIZZA_STAKING_ADDRESS as `0x${string}`,
-    abi: PIZZA_STAKING_ABI,
-    functionName: 'stakingRewardsWallet',
-  })
-
-  // Read staking rewards wallet PIZZA balance (this is the bonus pool for extras)
-  const { data: stakingWalletBalance } = useReadContract({
-    address: PIZZA_TOKEN_ADDRESS as `0x${string}`,
-    abi: PIZZA_TOKEN_ABI,
-    functionName: 'balanceOf',
-    args: stakingRewardsWallet ? [stakingRewardsWallet] : undefined,
-    query: {
-      enabled: !!stakingRewardsWallet,
-    },
-  })
-
   // Read spin enabled status
   const { data: spinEnabled } = useReadContract({
     address: PIZZA_STAKING_ADDRESS as `0x${string}`,
