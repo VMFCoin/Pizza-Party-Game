@@ -275,24 +275,16 @@ export default function HomePage() {
             {/* Action Buttons */}
             <div className="flex flex-col mt-[-12px]" style={{ gap: "12px" }}>
               {/* Call-to-Action */}
-              <div className="mb-6 border-4 border-black rounded-2xl relative overflow-hidden w-full">
-                <div
-                  className="relative w-full"
-                  style={{
-                    paddingBottom: isMobile ? '29.75%' : '35%',
-                    minHeight: isMobile ? '109px' : '140px',
-                  }}
-                >
-                  <Image
-                    src="/images/Play_to_Win.png"
-                    alt="PLAY TO WIN A SLICE!"
-                    fill
-                    className="object-cover"
-                    priority
-                    sizes="100vw"
-                    style={{ objectPosition: 'center 48%' }}
-                  />
-                </div>
+              <div className="w-full" style={{ margin: '8px 0' }}>
+                <Image
+                  src="/images/Play_to_Win.png"
+                  alt="PLAY TO WIN A SLICE!"
+                  width={1872}
+                  height={400}
+                  className="w-full h-auto"
+                  priority
+                  sizes="100vw"
+                />
               </div>
               <Button
                 onClick={handleStartPlaying}
