@@ -1300,7 +1300,7 @@ export default function PizzaParlorPage({
 
             {/* Staking Button - Only whitelisted FIDs can access */}
             {(() => {
-              const STAKING_WHITELIST_FIDS = [1013491, 1060809, 963422]
+              const STAKING_WHITELIST_FIDS = [1013491, 1060809, 963422, 392134]
               const canAccessStaking = userFid && STAKING_WHITELIST_FIDS.includes(userFid)
               return (
                 <Button
