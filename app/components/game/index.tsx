@@ -401,8 +401,8 @@ function GamePageContent({ onNavigateToWeekly, onNavigateToLeaderboard, onNaviga
               ? 'Loading entries...'
               : `Total entries: ${daily.totalEntries} • Game #${daily.dailyGameId}`}
           </p>
-          <p className="text-blue-600 text-xs text-center" style={{ fontFamily: 'var(--font-luckiest-guy)', marginTop: '2px' }}>
-            🇺🇸 Every entry donates to Veteran charities
+          <p className="text-blue-600 text-xs text-center" style={{ fontFamily: 'var(--font-luckiest-guy)', marginTop: '0px' }}>
+            Every entry donates to Veteran charities
           </p>
 
           {daily.isCompleted && !daily.loading && (
