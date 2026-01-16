@@ -402,7 +402,7 @@ function GamePageContent({ onNavigateToWeekly, onNavigateToLeaderboard, onNaviga
               : `Total entries: ${daily.totalEntries} • Game #${daily.dailyGameId}`}
           </p>
           <p className="text-blue-600 text-xs text-center" style={{ fontFamily: 'var(--font-luckiest-guy)', marginTop: '0px' }}>
-            Every entry donates to Veteran charities
+            Every entry donates 3% to Veteran charities
           </p>
 
           {daily.isCompleted && !daily.loading && (
@@ -670,7 +670,7 @@ function GamePageContent({ onNavigateToWeekly, onNavigateToLeaderboard, onNaviga
         <div className="bg-white/80 backdrop-blur-sm rounded-xl border-4 border-black p-3 w-full text-center text-xs text-black" style={{ fontFamily: 'var(--font-luckiest-guy)' }}>
           <p className="mb-1">🎮 Entry Fee: ${(Number(pizzaAmount) * pizzaUsd).toFixed(2)} (~{Number(pizzaAmount).toFixed(4)} PIZZA)</p>
           <p className="mb-1">🍕 Earn 1 topping per entry • Toppings = Weekly Jackpot tickets!</p>
-          <p>🇺🇸 Every entry donates to Veteran charities</p>
+          <p>🇺🇸 Every entry donates 3% to Veteran charities</p>
         </div>
 
       </div>
