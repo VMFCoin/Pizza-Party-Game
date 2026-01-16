@@ -273,12 +273,13 @@ export default function HomePage() {
             </div>
 
             {/* Call-to-Action */}
-            <div className="mb-2 relative overflow-hidden w-full" style={{ height: '120px' }}>
+            <div className="mb-2 w-full">
               <Image
                 src="/images/Play_to_Win.png"
                 alt="PLAY TO WIN A SLICE!"
-                fill
-                className="object-cover object-center"
+                width={1872}
+                height={1248}
+                className="w-full h-auto"
                 priority
                 sizes="100vw"
               />
