@@ -1444,7 +1444,11 @@ export default function StakingPage({
                   </div>
                   <div className="flex items-start gap-2 text-xs text-green-800" style={{ fontFamily: 'var(--font-luckiest-guy)' }}>
                     <span className="flex-shrink-0">🍅</span>
-                    <span>Stake PIZZA to earn 10% of every daily pot</span>
+                    <span>Stake PIZZA to earn 10% of every daily pot (evenly split between all stakers)</span>
+                  </div>
+                  <div className="flex items-start gap-2 text-xs text-green-800" style={{ fontFamily: 'var(--font-luckiest-guy)' }}>
+                    <span className="flex-shrink-0">🍅</span>
+                    <span>Spin the Pie once per day to claim rewards (1x-3x multiplier)</span>
                   </div>
                   <div className="flex items-start gap-2 text-xs text-green-800" style={{ fontFamily: 'var(--font-luckiest-guy)' }}>
                     <span className="flex-shrink-0">🍅</span>
@@ -1460,27 +1464,11 @@ export default function StakingPage({
                   </div>
                   <div className="flex items-start gap-2 text-xs text-green-800" style={{ fontFamily: 'var(--font-luckiest-guy)' }}>
                     <span className="flex-shrink-0">🍅</span>
-                    <span>Early unstake = 15% penalty</span>
+                    <span>Early unstake = 15% penalty from amount being unstaked</span>
                   </div>
                   <div className="flex items-start gap-2 text-xs text-green-800" style={{ fontFamily: 'var(--font-luckiest-guy)' }}>
                     <span className="flex-shrink-0">🍅</span>
                     <span>Early staker boost: +30% for {boostDaysRemaining} days</span>
-                  </div>
-                  <div className="flex items-start gap-2 text-xs text-green-800" style={{ fontFamily: 'var(--font-luckiest-guy)' }}>
-                    <span className="flex-shrink-0">🍅</span>
-                    <span>All stakers share the pot equally</span>
-                  </div>
-                  <div className="flex items-start gap-2 text-xs text-green-800" style={{ fontFamily: 'var(--font-luckiest-guy)' }}>
-                    <span className="flex-shrink-0">🍅</span>
-                    <span>Spin the Pie daily to claim (1x-3x multiplier)</span>
-                  </div>
-                  <div className="flex items-start gap-2 text-xs text-green-800" style={{ fontFamily: 'var(--font-luckiest-guy)' }}>
-                    <span className="flex-shrink-0">🍅</span>
-                    <span>Can only spin once per game day</span>
-                  </div>
-                  <div className="flex items-start gap-2 text-xs text-green-800" style={{ fontFamily: 'var(--font-luckiest-guy)' }}>
-                    <span className="flex-shrink-0">🍅</span>
-                    <span>Players can Spin & Claim next daily game after staking first</span>
                   </div>
                   <div className="flex items-start gap-2 text-xs text-green-800" style={{ fontFamily: 'var(--font-luckiest-guy)' }}>
                     <span className="flex-shrink-0">🍅</span>
