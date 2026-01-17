@@ -1000,14 +1000,16 @@ export default function StakingPage({
                         </div>
                         <Button
                           onClick={() => setShowConfirmModal('spin-claim')}
-                          disabled={!hasPendingRewards || isWritePending || isConfirming || hasClaimedThisGame || (!canSpinToday && !hasSpunThisGame)}
+                          disabled={!hasPendingRewards || isWritePending || isConfirming || hasClaimedThisGame}
                           className="!bg-yellow-500 hover:!bg-yellow-600 text-white font-bold py-1.5 px-3 rounded-xl border-2 border-yellow-700 disabled:opacity-50 text-sm"
                           style={{ fontFamily: 'var(--font-luckiest-guy)' }}
                         >
                           {isWritePending || isConfirming ? (
                             <Loader2 className="animate-spin" size={14} />
-                          ) : hasClaimedThisGame || (!canSpinToday && !hasSpunThisGame) ? (
+                          ) : hasClaimedThisGame ? (
                             'CLAIMED ✓'
+                          ) : !canSpinToday ? (
+                            'CLAIM'
                           ) : (
                             'SPIN & CLAIM'
                           )}
