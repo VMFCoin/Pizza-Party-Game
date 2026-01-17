@@ -94,8 +94,7 @@ contract PizzaParlorManagerUpgradeable is
 
     // Slice tracking - DAILY limit (max 1 per day, resets when dailyGameId changes)
     mapping(address => uint256) public lastSliceDayId;       // sponsor => last dailyGameId a slice was CLAIMED
-    mapping(address => uint256) public lastSliceSentDayId;   // sponsor => last dailyGameId a slice was SENT
-    mapping(address => uint256) public slicesSentToday;      // sponsor => count of slices sent today (resets on new day)
+    // NOTE: DO NOT add new storage variables here - add them at the end before __gap
 
     // LEGACY - keep for storage layout compatibility (no longer used)
     mapping(address => uint256) public lastSliceGameId;      // LEGACY: was daily tracking
@@ -119,8 +118,13 @@ contract PizzaParlorManagerUpgradeable is
     }
     mapping(address => PendingSlice) public pendingSlices;  // recipient => pending slice info
 
+    // ===== NEW STORAGE VARIABLES - Added at end to preserve slot layout =====
+    // Slice tracking for SENT slices (prevents multiple sends per day)
+    mapping(address => uint256) public lastSliceSentDayId;   // sponsor => last dailyGameId a slice was SENT
+    mapping(address => uint256) public slicesSentToday;      // sponsor => count of slices sent today (resets on new day)
+
     // Upgrade safety gap - reserves storage slots for future upgrades
-    uint256[41] private __gap;  // Reduced by 5 for weekly/daily slice tracking (added 2 for sent tracking)
+    uint256[41] private __gap;  // Reduced by 2 for sent tracking (lastSliceSentDayId + slicesSentToday)
 
     // ============ Events ============
 
