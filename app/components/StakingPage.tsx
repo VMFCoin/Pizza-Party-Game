@@ -336,10 +336,26 @@ export default function StakingPage({
 
   // Calculate minStake dynamically: $1 / current price
   // This ensures the minimum is always exactly $1 worth at current market price
-  const minStake = useMemo(() => {
+  // ONLY applies to first-time stakers - existing stakers can stake any amount
+  const minStakeFirstTime = useMemo(() => {
     if (!pizzaPrice || pizzaPrice <= 0) return MIN_STAKE_FALLBACK
     return Math.ceil(1 / pizzaPrice) // $1 divided by price per token, rounded up
   }, [pizzaPrice])
+
+  // Effective minimum: $1 worth for first stake, 1 PIZZA for additional stakes
+  const minStake = useMemo(() => {
+    // If user already has a staking position, minimum is just 1 PIZZA
+    if (userPosition && (userPosition.flexibleAmount > 0n || userPosition.lockedAmount > 0n)) {
+      return 1
+    }
+    // First-time stakers must stake at least $1 worth
+    return minStakeFirstTime
+  }, [userPosition, minStakeFirstTime])
+
+  // Check if this is a first-time staker (for display purposes)
+  const isFirstTimeStaker = useMemo(() => {
+    return !userPosition || (userPosition.flexibleAmount === 0n && userPosition.lockedAmount === 0n)
+  }, [userPosition])
 
   // Read current game ID (for spin tracking)
   const { data: currentGameId } = useReadContract({
@@ -1044,7 +1060,7 @@ export default function StakingPage({
                               type="number"
                               value={stakeAmount}
                               onChange={(e) => setStakeAmount(e.target.value)}
-                              placeholder={`Min: $1 (~${formatPizza(minStake)} PIZZA)`}
+                              placeholder="Enter amount"
                               className="flex-1 px-3 py-2 border-2 border-green-300 rounded-xl focus:border-green-500 focus:outline-none"
                               style={{ fontFamily: 'var(--font-luckiest-guy)' }}
                             />
@@ -1061,7 +1077,7 @@ export default function StakingPage({
                             </Button>
                           </div>
                           <p className="text-gray-500 text-xs mt-1" style={{ fontFamily: 'var(--font-luckiest-guy)' }}>
-                            Available: {formatWeiExact(pizzaBalance as bigint)} PIZZA
+                            Available: {formatWeiExact(pizzaBalance as bigint)} PIZZA (Min: 1 PIZZA)
                           </p>
                         </div>
 
@@ -1430,7 +1446,7 @@ export default function StakingPage({
                 <div className="space-y-1.5">
                   <div className="flex items-start gap-2 text-xs text-green-800" style={{ fontFamily: 'var(--font-luckiest-guy)' }}>
                     <span className="flex-shrink-0">🍅</span>
-                    <span>Minimum stake: $1 (~{formatPizza(minStake)} PIZZA)</span>
+                    <span>First stake minimum: $1 (~{formatPizza(minStakeFirstTime)} PIZZA)</span>
                   </div>
                   <div className="flex items-start gap-2 text-xs text-green-800" style={{ fontFamily: 'var(--font-luckiest-guy)' }}>
                     <span className="flex-shrink-0">🍅</span>
