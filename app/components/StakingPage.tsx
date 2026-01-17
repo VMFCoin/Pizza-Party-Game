@@ -352,11 +352,6 @@ export default function StakingPage({
     return minStakeFirstTime
   }, [userPosition, minStakeFirstTime])
 
-  // Check if this is a first-time staker (for display purposes)
-  const isFirstTimeStaker = useMemo(() => {
-    return !userPosition || (userPosition.flexibleAmount === 0n && userPosition.lockedAmount === 0n)
-  }, [userPosition])
-
   // Read current game ID (for spin tracking)
   const { data: currentGameId } = useReadContract({
     address: PIZZA_PARTY_ADDRESS as `0x${string}`,
