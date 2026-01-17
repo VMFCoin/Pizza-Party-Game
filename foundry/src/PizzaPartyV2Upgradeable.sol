@@ -1512,6 +1512,11 @@ contract PizzaPartyV2Upgradeable is OwnableUpgradeable, UUPSUpgradeable, Reentra
         dailyGames[gameId].potAmount = pot;
     }
 
+    function adminAddToDailyPotFromTreasury(uint256 amount) external onlyOwner {
+        pizzaToken.safeTransferFrom(treasuryWallet, address(this), amount);
+        currentDailyPot += amount;
+    }
+
     // ============ Staking Admin Functions ============
 
     /**
