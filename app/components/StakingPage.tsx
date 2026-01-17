@@ -494,21 +494,12 @@ export default function StakingPage({
     return userPosition.lockEndTimestamp > Date.now()
   }, [userPosition])
 
-  // Calculate the BASE reward (before any bonuses) for display on staking card
-  // The contract's totalPendingRewards already includes bonuses, so we work backwards
-  // This is what we show BEFORE spin - then bonuses get added AFTER spin for excitement
+  // Show total pending rewards (includes base + bonuses + APY) for display on staking card
+  // This is what the contract returns from getStakeInfo().totalPendingRewards
   const baseRewardOnly = useMemo(() => {
     if (!userPosition || userPosition.totalPendingRewards === 0n) return 0n
-
-    // Calculate total bonus BPS that was applied
-    let totalBonusBPS = currentTier.yieldBoostBPS // Tier bonus
-    if (userPosition.lockedAmount > 0n) totalBonusBPS += LOCK_BONUS_BPS // +5% lock
-    if (userPosition.isEarlyBoostActive) totalBonusBPS += EARLY_BOOST_BPS // +30% early
-
-    // Work backwards: totalPendingRewards = baseOnly × (1 + totalBonusBPS/10000)
-    // So baseOnly = totalPendingRewards × 10000 / (10000 + totalBonusBPS)
-    return (userPosition.totalPendingRewards * 10000n) / (10000n + BigInt(totalBonusBPS))
-  }, [userPosition, currentTier])
+    return userPosition.totalPendingRewards
+  }, [userPosition])
 
   // Calculate reward breakdown for display after spin
   // This mirrors the contract's _calculateBonusAmount logic
@@ -1009,13 +1000,13 @@ export default function StakingPage({
                         </div>
                         <Button
                           onClick={() => setShowConfirmModal('spin-claim')}
-                          disabled={!hasPendingRewards || isWritePending || isConfirming || hasClaimedThisGame}
+                          disabled={!hasPendingRewards || isWritePending || isConfirming || hasClaimedThisGame || (!canSpinToday && !hasSpunThisGame)}
                           className="!bg-yellow-500 hover:!bg-yellow-600 text-white font-bold py-1.5 px-3 rounded-xl border-2 border-yellow-700 disabled:opacity-50 text-sm"
                           style={{ fontFamily: 'var(--font-luckiest-guy)' }}
                         >
                           {isWritePending || isConfirming ? (
                             <Loader2 className="animate-spin" size={14} />
-                          ) : hasClaimedThisGame ? (
+                          ) : hasClaimedThisGame || (!canSpinToday && !hasSpunThisGame) ? (
                             'CLAIMED ✓'
                           ) : (
                             'SPIN & CLAIM'
