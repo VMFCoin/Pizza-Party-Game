@@ -1684,8 +1684,8 @@ export default function StakingPage({
 
               {/* Wheel Container */}
               <div className="relative mx-auto mb-4" style={{ width: 260, height: 260 }}>
-                {/* Outer Ring (static - contains pointer at top) */}
-                <div className="absolute inset-0 flex items-center justify-center">
+                {/* Outer Ring (static - contains pointer at top, layered on top of wheel) */}
+                <div className="absolute inset-0 flex items-center justify-center z-10 pointer-events-none">
                   <Image
                     src="/images/Pizza-Ring.png"
                     alt="Spin Ring"
@@ -1698,7 +1698,7 @@ export default function StakingPage({
                 {/* Pizza Wheel (spins inside the ring) */}
                 <div
                   ref={wheelRef}
-                  className="absolute inset-0 flex items-center justify-center z-10"
+                  className="absolute inset-0 flex items-center justify-center"
                   style={{
                     transform: `rotate(${spinRotation}deg)`,
                     transitionProperty: 'transform',
