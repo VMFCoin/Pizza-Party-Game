@@ -334,23 +334,12 @@ export default function StakingPage({
     return () => clearInterval(interval)
   }, [])
 
-  // Calculate minStake dynamically: $1 / current price
+  // Calculate minStakeFirstTime dynamically: $1 / current price
   // This ensures the minimum is always exactly $1 worth at current market price
-  // ONLY applies to first-time stakers - existing stakers can stake any amount
   const minStakeFirstTime = useMemo(() => {
     if (!pizzaPrice || pizzaPrice <= 0) return MIN_STAKE_FALLBACK
     return Math.ceil(1 / pizzaPrice) // $1 divided by price per token, rounded up
   }, [pizzaPrice])
-
-  // Effective minimum: $1 worth for first stake, 1 PIZZA for additional stakes
-  const minStake = useMemo(() => {
-    // If user already has a staking position, minimum is just 1 PIZZA
-    if (userPosition && (userPosition.flexibleAmount > 0n || userPosition.lockedAmount > 0n)) {
-      return 1
-    }
-    // First-time stakers must stake at least $1 worth
-    return minStakeFirstTime
-  }, [userPosition, minStakeFirstTime])
 
   // Read current game ID (for spin tracking)
   const { data: currentGameId } = useReadContract({
@@ -411,6 +400,16 @@ export default function StakingPage({
       isEarlyBoostActive,
     }
   }, [stakeInfo])
+
+  // Effective minimum: $1 worth for first stake, 1 PIZZA for additional stakes
+  const minStake = useMemo(() => {
+    // If user already has a staking position, minimum is just 1 PIZZA
+    if (userPosition && (userPosition.flexibleAmount > 0n || userPosition.lockedAmount > 0n)) {
+      return 1
+    }
+    // First-time stakers must stake at least $1 worth
+    return minStakeFirstTime
+  }, [userPosition, minStakeFirstTime])
 
   // Get current tier from contract data
   const currentTier = useMemo(() => {
