@@ -93,7 +93,9 @@ contract PizzaParlorManagerUpgradeable is
     mapping(address => uint256) public slicesUsedThisWeek;   // sponsor => slices used in current week
 
     // Slice tracking - DAILY limit (max 1 per day, resets when dailyGameId changes)
-    mapping(address => uint256) public lastSliceDayId;       // sponsor => last dailyGameId they sent a slice
+    mapping(address => uint256) public lastSliceDayId;       // sponsor => last dailyGameId a slice was CLAIMED
+    mapping(address => uint256) public lastSliceSentDayId;   // sponsor => last dailyGameId a slice was SENT
+    mapping(address => uint256) public slicesSentToday;      // sponsor => count of slices sent today (resets on new day)
 
     // LEGACY - keep for storage layout compatibility (no longer used)
     mapping(address => uint256) public lastSliceGameId;      // LEGACY: was daily tracking
@@ -118,7 +120,7 @@ contract PizzaParlorManagerUpgradeable is
     mapping(address => PendingSlice) public pendingSlices;  // recipient => pending slice info
 
     // Upgrade safety gap - reserves storage slots for future upgrades
-    uint256[43] private __gap;  // Reduced by 3 for weekly/daily slice tracking
+    uint256[41] private __gap;  // Reduced by 5 for weekly/daily slice tracking (added 2 for sent tracking)
 
     // ============ Events ============
 
@@ -314,6 +316,9 @@ contract PizzaParlorManagerUpgradeable is
         // Check slice limits (does NOT consume - only validates sponsor can send)
         _checkSliceLimit(msg.sender);
 
+        // Record slice as sent (increments daily sent counter)
+        _recordSliceSent(msg.sender);
+
         // Store pending slice for recipient (overwrites any expired slice from previous games)
         pendingSlices[recipient] = PendingSlice({
             sponsor: msg.sender,
@@ -387,6 +392,9 @@ contract PizzaParlorManagerUpgradeable is
 
         // Check slice limits (does NOT consume - only validates sponsor can send)
         _checkSliceLimit(msg.sender);
+
+        // Record slice as sent (increments daily sent counter)
+        _recordSliceSent(msg.sender);
 
         // Store pending slice (same behavior as sendSlice)
         pendingSlices[recipient] = PendingSlice({
@@ -487,17 +495,17 @@ contract PizzaParlorManagerUpgradeable is
 
     /**
      * @dev Check slice limits WITHOUT consuming - only validates sponsor can send
-     * Slices are only counted when CLAIMED, not when sent
-     * - WEEKLY: 1 slice per parlor per week, OR 7 slices if owner has 5 parlors
-     * - DAILY: Max 1 slice per day regardless of parlors owned (resets when dailyGameId changes)
+     * Slices are counted when SENT (not when claimed) to prevent multiple sends per day
+     * - WEEKLY: 1 slice per parlor per week, OR 7 slices if owner has 5 parlors (counted at claim)
+     * - DAILY: Max 1 slice SENT per day regardless of parlors owned (resets when dailyGameId changes)
      */
     function _checkSliceLimit(address sponsor) internal view {
         uint256 currentWeekId = pizzaParty.weeklyGameId();
         uint256 currentDayId = pizzaParty.dailyGameId();
 
-        // ===== DAILY LIMIT CHECK (max 1 claimed per day) =====
-        // If already had a slice claimed today, revert
-        if (lastSliceDayId[sponsor] == currentDayId) {
+        // ===== DAILY LIMIT CHECK (max 1 SENT per day) =====
+        // Check slices SENT today (not claimed) to prevent multiple sends
+        if (lastSliceSentDayId[sponsor] == currentDayId && slicesSentToday[sponsor] >= 1) {
             revert DailySliceLimitReached();
         }
 
@@ -513,6 +521,23 @@ contract PizzaParlorManagerUpgradeable is
         if (currentWeeklyUsage >= maxWeeklySlices) {
             revert WeeklySliceLimitReached();
         }
+    }
+
+    /**
+     * @dev Record a slice as SENT - called when slice is sent (before claim)
+     * Updates daily sent tracking for the sponsor
+     */
+    function _recordSliceSent(address sponsor) internal {
+        uint256 currentDayId = pizzaParty.dailyGameId();
+
+        // Reset daily sent counter if new day
+        if (lastSliceSentDayId[sponsor] != currentDayId) {
+            lastSliceSentDayId[sponsor] = currentDayId;
+            slicesSentToday[sponsor] = 0;
+        }
+
+        // Increment daily sent count
+        slicesSentToday[sponsor] += 1;
     }
 
     /**
