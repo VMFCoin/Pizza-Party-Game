@@ -512,8 +512,10 @@ export default function StakingPage({
 
   // Calculate reward breakdown for display after spin
   // This mirrors the contract's _calculateBonusAmount logic
+  // If no spinResult (localStorage cleared), assume 1x multiplier for display
   const rewardBreakdown = useMemo(() => {
-    if (!userPosition || !spinResult) return null
+    if (!userPosition) return null
+    if (userPosition.totalPendingRewards === 0n) return null
 
     const baseReward = userPosition.totalPendingRewards
     // The contract's getPendingRewards already includes bonuses and APY, so we need to work backwards
@@ -536,8 +538,9 @@ export default function StakingPage({
       ? (baseWithBonuses * 10000n) / (10000n + BigInt(totalBonusBPS))
       : 0n
 
-    // Now calculate spin result on base (before bonuses)
-    const spinMultiplier = BigInt(spinResult.multiplierValue)
+    // Use spin result if available, otherwise assume 1x (100) for display purposes
+    const spinMultiplierValue = spinResult?.multiplierValue ?? 100
+    const spinMultiplier = BigInt(spinMultiplierValue)
     const spunReward = (baseOnly * spinMultiplier) / 100n
 
     // Calculate bonuses on spun reward (bonuses apply AFTER spin)
@@ -546,7 +549,7 @@ export default function StakingPage({
 
     return {
       baseOnly,           // Raw base before any modifiers
-      spinMultiplier: spinResult.multiplierValue,
+      spinMultiplier: spinMultiplierValue,
       spunReward,         // After spin multiplier
       tierBonus: currentTier.yieldBoost,
       tierBonusBPS: currentTier.yieldBoostBPS,
@@ -1006,13 +1009,13 @@ export default function StakingPage({
                         </div>
                         <Button
                           onClick={() => setShowConfirmModal('spin-claim')}
-                          disabled={!hasPendingRewards || isWritePending || isConfirming || hasClaimedThisGame || !canSpinToday}
+                          disabled={!hasPendingRewards || isWritePending || isConfirming || hasClaimedThisGame}
                           className="!bg-yellow-500 hover:!bg-yellow-600 text-white font-bold py-1.5 px-3 rounded-xl border-2 border-yellow-700 disabled:opacity-50 text-sm"
                           style={{ fontFamily: 'var(--font-luckiest-guy)' }}
                         >
                           {isWritePending || isConfirming ? (
                             <Loader2 className="animate-spin" size={14} />
-                          ) : hasClaimedThisGame || !canSpinToday ? (
+                          ) : hasClaimedThisGame ? (
                             'CLAIMED ✓'
                           ) : (
                             'SPIN & CLAIM'
@@ -1929,6 +1932,65 @@ export default function StakingPage({
                       {!canSpinToday ? "You've already spun today!" : "Spin is currently disabled"}
                     </p>
                   </div>
+
+                  {/* Reward Breakdown - show even without spin result */}
+                  {rewardBreakdown && (
+                    <div className="bg-gray-900 rounded-xl p-3 border-2 border-gray-700">
+                      <p className="text-yellow-400 font-bold text-sm mb-2 text-center" style={{ fontFamily: 'var(--font-luckiest-guy)' }}>
+                        Reward Breakdown
+                      </p>
+                      <div className="space-y-1 text-sm" style={{ fontFamily: 'var(--font-luckiest-guy)' }}>
+                        {/* Base Rewards */}
+                        <div className="flex justify-between text-white">
+                          <span>Base Rewards</span>
+                          <span className="font-bold">{formatPizzaWei(rewardBreakdown.spunReward)} PIZZA</span>
+                        </div>
+
+                        {/* Bonuses Section */}
+                        <div className="border-t border-gray-700 pt-1 mt-1">
+                          <p className="text-gray-400 text-xs mb-1">Bonuses Applied:</p>
+
+                          {/* Tier Bonus */}
+                          <div className="flex justify-between text-green-400 text-xs">
+                            <span>{currentTier.emoji} {currentTier.name} ({rewardBreakdown.tierBonus})</span>
+                            <span>+{(rewardBreakdown.tierBonusBPS / 100).toFixed(1)}%</span>
+                          </div>
+
+                          {/* Lock Bonus */}
+                          {rewardBreakdown.hasLock && (
+                            <div className="flex justify-between text-blue-400 text-xs">
+                              <span>7-Day Lock Bonus</span>
+                              <span>+5%</span>
+                            </div>
+                          )}
+
+                          {/* Early Boost */}
+                          {rewardBreakdown.hasEarlyBoost && (
+                            <div className="flex justify-between text-purple-400 text-xs">
+                              <span>Early Staker Boost</span>
+                              <span>+30%</span>
+                            </div>
+                          )}
+
+                          {/* 20% APY Reward */}
+                          {rewardBreakdown.apyReward > 0n && (
+                            <div className="flex justify-between text-cyan-400 text-xs">
+                              <span>Locked Staking APY (20%)</span>
+                              <span>+{formatPizzaWei(rewardBreakdown.apyReward)} PIZZA</span>
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Total */}
+                        <div className="border-t border-gray-700 pt-1 mt-1">
+                          <div className="flex justify-between text-yellow-400">
+                            <span className="font-bold">TOTAL</span>
+                            <span className="font-bold">{formatPizzaWei(rewardBreakdown.totalReward)} PIZZA</span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
 
                   {/* Stake Lock Type Selection */}
                   <div className="bg-gray-800 rounded-xl p-3">
