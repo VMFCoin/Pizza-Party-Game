@@ -7,6 +7,17 @@ Everything is prepared for the token migration. When you have the new token addr
 
 ---
 
+## Two Migration Scripts
+
+| Script | Purpose |
+|--------|---------|
+| `token-migration.sh` | Swaps token address (0x...) everywhere |
+| `supply-migration.sh` | Updates staking tiers/limits for 100B supply |
+
+**Run BOTH when migrating!**
+
+---
+
 ## Quick Start (When You Have the New Address)
 
 ### Step 1: Update Smart Contracts (On-Chain)

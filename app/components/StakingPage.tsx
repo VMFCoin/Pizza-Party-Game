@@ -220,9 +220,16 @@ export default function StakingPage({
   }, [])
 
   // Haptic feedback function (mobile only)
+  // Uses Farcaster SDK haptics (works on iOS) with fallback to navigator.vibrate (Android)
   const triggerHaptic = useCallback(() => {
-    if (typeof navigator !== 'undefined' && 'vibrate' in navigator) {
-      navigator.vibrate(8) // Short 8ms vibration pulse
+    // Try Farcaster SDK haptics first (works on iOS in Farcaster)
+    try {
+      sdk.haptics.impactOccurred('light')
+    } catch {
+      // Fallback to navigator.vibrate for Android/non-Farcaster browsers
+      if (typeof navigator !== 'undefined' && 'vibrate' in navigator) {
+        navigator.vibrate(8) // Short 8ms vibration pulse
+      }
     }
   }, [])
 

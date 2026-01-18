@@ -17,7 +17,9 @@
 set -e
 
 # Current token address (DO NOT CHANGE THIS - it's what we're searching for)
+# Note: We search case-insensitively since address appears in different cases
 OLD_TOKEN_ADDRESS="0xbD0e3768B9A7C3d53e7b92EDC4C38728E2fA9b69"
+OLD_TOKEN_LOWERCASE="0xbd0e3768b9a7c3d53e7b92edc4c38728e2fa9b69"
 
 # Colors for output
 RED='\033[0;31m'
@@ -72,6 +74,7 @@ FILES_TO_UPDATE=(
     "app/api/cron/settle-game/route.ts"
     "app/api/cron/settle-weekly/route.ts"
     "app/api/price/route.ts"
+    "app/components/game/index.tsx"
 )
 
 # Solidity deployment scripts (update for future deployments, not runtime critical)
@@ -94,18 +97,18 @@ TEST_FILES=(
 echo -e "${BLUE}Files that will be updated:${NC}"
 echo ""
 
-# Check each file
+# Check each file (case-insensitive search)
 for file in "${FILES_TO_UPDATE[@]}"; do
     filepath="$PROJECT_ROOT/$file"
     if [[ -f "$filepath" ]]; then
-        # Count occurrences
-        count=$(grep -c "$OLD_TOKEN_ADDRESS" "$filepath" 2>/dev/null || echo "0")
+        # Count occurrences (case-insensitive)
+        count=$(grep -ci "$OLD_TOKEN_ADDRESS" "$filepath" 2>/dev/null || echo "0")
         if [[ "$count" -gt 0 ]]; then
             echo -e "  ${GREEN}[FOUND]${NC} $file ($count occurrence(s))"
 
             # Show the lines that will be changed
             echo -e "    ${YELLOW}Lines containing old address:${NC}"
-            grep -n "$OLD_TOKEN_ADDRESS" "$filepath" | while read -r line; do
+            grep -ni "$OLD_TOKEN_ADDRESS" "$filepath" | while read -r line; do
                 echo "      $line"
             done
             echo ""
@@ -143,9 +146,9 @@ done
 
 echo ""
 
-# Additional search for any missed occurrences
+# Additional search for any missed occurrences (case-insensitive)
 echo -e "${BLUE}Scanning entire codebase for additional references...${NC}"
-additional=$(grep -r --include="*.ts" --include="*.tsx" --include="*.js" --include="*.jsx" --include="*.sol" \
+additional=$(grep -ri --include="*.ts" --include="*.tsx" --include="*.js" --include="*.jsx" --include="*.sol" \
     -l "$OLD_TOKEN_ADDRESS" "$PROJECT_ROOT" 2>/dev/null | \
     grep -v "node_modules" | \
     grep -v ".next" | \
@@ -179,19 +182,21 @@ if [[ "$DRY_RUN" == false ]]; then
     for file in "${ALL_FILES[@]}"; do
         filepath="$PROJECT_ROOT/$file"
         if [[ -f "$filepath" ]]; then
-            # Check if file contains old address
-            if grep -q "$OLD_TOKEN_ADDRESS" "$filepath" 2>/dev/null; then
+            # Check if file contains old address (case-insensitive)
+            if grep -qi "$OLD_TOKEN_ADDRESS" "$filepath" 2>/dev/null; then
                 # Create directory structure in backup
                 mkdir -p "$BACKUP_DIR/$(dirname "$file")"
                 cp "$filepath" "$BACKUP_DIR/$file"
 
-                # Perform replacement
+                # Perform replacement (both cases)
                 if [[ "$OSTYPE" == "darwin"* ]]; then
-                    # macOS
+                    # macOS - replace both checksum and lowercase versions
                     sed -i '' "s/$OLD_TOKEN_ADDRESS/$NEW_TOKEN_ADDRESS/g" "$filepath"
+                    sed -i '' "s/$OLD_TOKEN_LOWERCASE/$NEW_TOKEN_ADDRESS/g" "$filepath"
                 else
-                    # Linux
+                    # Linux - replace both checksum and lowercase versions
                     sed -i "s/$OLD_TOKEN_ADDRESS/$NEW_TOKEN_ADDRESS/g" "$filepath"
+                    sed -i "s/$OLD_TOKEN_LOWERCASE/$NEW_TOKEN_ADDRESS/g" "$filepath"
                 fi
 
                 echo -e "${GREEN}[UPDATED]${NC} $file"
