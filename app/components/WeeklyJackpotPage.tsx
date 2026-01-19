@@ -45,7 +45,7 @@ const TERMS = {
     '8 winners randomly selected daily at 12pm PST',
     'Daily jackpot split equally among winners; prizes auto-paid',
     'New games are called when a new player enters after 12pm PST',
-    'Partnered veteran charities receive 3% of the daily jackpot',
+    'Daily pot breakdown: 80% Public, 10% Stakers, 7% Parlor Owners, 3% Charities',
   ],
   weeklyJackpot: [
     'Weekly jackpot starts at $20; claimed toppings add to the jackpot (1\u00A0topping\u00A0=\u00A0$0.10\u00A0of\u00A0PIZZA)',
