@@ -36,8 +36,8 @@ contract MigratePizzaToken is Script {
     // CONFIGURATION - UPDATE THESE VALUES BEFORE RUNNING
     // ============================================================
 
-    // SET THIS TO THE NEW TOKEN ADDRESS BEFORE RUNNING!
-    address constant NEW_PIZZA_TOKEN = address(0);
+    // NEW TOKEN ADDRESS - DO NOT EXECUTE UNTIL AUTHORIZED
+    address constant NEW_PIZZA_TOKEN = 0xa821f2ee19F4f62e404C934D43eB6E5763fbdb07;
 
     // Current contract addresses (Base Mainnet)
     address constant PIZZA_PARTY_PROXY = 0xA1C31c3eF1448351da0b1D430148660982B6f3dD;
@@ -46,6 +46,9 @@ contract MigratePizzaToken is Script {
 
     // Old token for reference
     address constant OLD_PIZZA_TOKEN = 0xbD0e3768B9A7C3d53e7b92EDC4C38728E2fA9b69;
+
+    // Owner wallet (unchanged)
+    address constant OWNER_WALLET = 0x828F516b379A2532bB33a00d34125560BF4c1853;
 
     // Expected new token supply (100 billion with 18 decimals)
     uint256 constant EXPECTED_SUPPLY = 100_000_000_000 * 1e18;

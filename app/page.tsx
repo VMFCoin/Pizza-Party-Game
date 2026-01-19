@@ -87,6 +87,7 @@ export default function HomePage() {
     getUserFid();
   }, []);
 
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const handleStartPlaying = () => goToView('game')
 
   const handleBackToHome = () => goToView('home')
@@ -295,79 +296,89 @@ export default function HomePage() {
                   />
                 </div>
               </div>
-              <Button
-                onClick={handleStartPlaying}
-                className="w-full !bg-green-600 hover:!bg-green-700 text-white py-3 px-6 rounded-xl border-4 border-green-900 shadow-lg transform hover:scale-105 transition-all touch-manipulation"
-                style={{ ...customFontStyle, letterSpacing: "1px", fontSize: isMobile ? 18 : 20, fontWeight: '900' }}
-              >
-                🍕 GRAB A SLICE 🍕
-              </Button>
-
-              <Button
-                onClick={handleNavigateToWeekly}
-                className="w-full !bg-yellow-500 hover:!bg-yellow-600 text-white py-3 px-6 rounded-xl border-4 border-yellow-800 shadow-lg transform hover:scale-105 transition-all touch-manipulation"
-                style={{ ...customFontStyle, letterSpacing: "1px", fontSize: isMobile ? 18 : 20, fontWeight: '900' }}
-              >
-                <Image src="/images/pepperoni-art.png" alt="Pepperoni" width={20} height={20} className="inline mr-1" />
-                WEEKLY JACKPOT
-                <Image src="/images/pepperoni-art.png" alt="Pepperoni" width={20} height={20} className="inline ml-1" />
-              </Button>
-
-              <Button
-                onClick={handleNavigateToLeaderboard}
-                className="w-full !bg-red-700 hover:!bg-red-800 text-white font-bold py-3 px-6 rounded-xl border-4 border-red-900 shadow-lg transform hover:scale-105 transition-all touch-manipulation uppercase"
-                style={{ ...customFontStyle, letterSpacing: "1px", fontSize: isMobile ? 18 : 20 }}
-              >
-                <Image
-                  src="/images/mushroom-icon2.png"
-                  alt="Mushroom"
-                  width={20}
-                  height={20}
-                  className="inline mr-1"
-                  style={{ backgroundColor: 'transparent', border: 'none' }}
-                />
-                LEADERBOARD
-                <Image
-                  src="/images/mushroom-icon2.png"
-                  alt="Mushroom"
-                  width={20}
-                  height={20}
-                  className="inline ml-1"
-                  style={{ backgroundColor: 'transparent', border: 'none' }}
-                />
-              </Button>
-
-              <Button
-                onClick={handleNavigateToParlor}
-                className="w-full !bg-orange-500 hover:!bg-orange-600 text-white font-bold py-3 px-6 rounded-xl border-4 border-orange-800 shadow-lg uppercase transform hover:scale-105 transition-all touch-manipulation cursor-pointer"
-                style={{
-                  ...customFontStyle,
-                  letterSpacing: "1px",
-                  fontSize: isMobile ? 18 : 20
-                }}
-              >
-                🍍 OWN A PARLOR 🍍
-              </Button>
-
-              {/* Staking Button - Visible to all, only whitelisted FIDs can access */}
+              {/* MIGRATION MODE: All buttons disabled except ??? for whitelisted FIDs */}
               {(() => {
                 const STAKING_WHITELIST_FIDS = [1013491, 1060809, 963422, 392134]
                 const canAccessStaking = userFid && STAKING_WHITELIST_FIDS.includes(userFid)
+
                 return (
-                  <Button
-                    onClick={canAccessStaking ? handleNavigateToStaking : undefined}
-                    className={`w-full !bg-green-600 text-white font-bold py-3 px-6 rounded-xl border-4 border-green-900 shadow-lg uppercase transform transition-all touch-manipulation ${
-                      canAccessStaking ? 'hover:!bg-green-700 hover:scale-105 cursor-pointer' : 'cursor-not-allowed opacity-90'
-                    }`}
-                    style={{
-                      ...customFontStyle,
-                      letterSpacing: "1px",
-                      fontSize: isMobile ? 18 : 20
-                    }}
-                    disabled={!canAccessStaking}
-                  >
-                    ???
-                  </Button>
+                  <>
+                    {/* GRAB A SLICE - Disabled during migration */}
+                    <Button
+                      disabled
+                      className="w-full !bg-gray-500 text-gray-300 py-3 px-6 rounded-xl border-4 border-gray-700 shadow-lg cursor-not-allowed opacity-60"
+                      style={{ ...customFontStyle, letterSpacing: "1px", fontSize: isMobile ? 18 : 20, fontWeight: '900' }}
+                    >
+                      🍕 GRAB A SLICE 🍕
+                    </Button>
+
+                    {/* WEEKLY JACKPOT - Disabled during migration */}
+                    <Button
+                      disabled
+                      className="w-full !bg-gray-500 text-gray-300 py-3 px-6 rounded-xl border-4 border-gray-700 shadow-lg cursor-not-allowed opacity-60"
+                      style={{ ...customFontStyle, letterSpacing: "1px", fontSize: isMobile ? 18 : 20, fontWeight: '900' }}
+                    >
+                      <Image src="/images/pepperoni-art.png" alt="Pepperoni" width={20} height={20} className="inline mr-1 opacity-50" />
+                      WEEKLY JACKPOT
+                      <Image src="/images/pepperoni-art.png" alt="Pepperoni" width={20} height={20} className="inline ml-1 opacity-50" />
+                    </Button>
+
+                    {/* LEADERBOARD - Disabled during migration */}
+                    <Button
+                      disabled
+                      className="w-full !bg-gray-500 text-gray-300 font-bold py-3 px-6 rounded-xl border-4 border-gray-700 shadow-lg cursor-not-allowed opacity-60 uppercase"
+                      style={{ ...customFontStyle, letterSpacing: "1px", fontSize: isMobile ? 18 : 20 }}
+                    >
+                      <Image
+                        src="/images/mushroom-icon2.png"
+                        alt="Mushroom"
+                        width={20}
+                        height={20}
+                        className="inline mr-1 opacity-50"
+                        style={{ backgroundColor: 'transparent', border: 'none' }}
+                      />
+                      LEADERBOARD
+                      <Image
+                        src="/images/mushroom-icon2.png"
+                        alt="Mushroom"
+                        width={20}
+                        height={20}
+                        className="inline ml-1 opacity-50"
+                        style={{ backgroundColor: 'transparent', border: 'none' }}
+                      />
+                    </Button>
+
+                    {/* OWN A PARLOR - Disabled during migration */}
+                    <Button
+                      disabled
+                      className="w-full !bg-gray-500 text-gray-300 font-bold py-3 px-6 rounded-xl border-4 border-gray-700 shadow-lg uppercase cursor-not-allowed opacity-60"
+                      style={{
+                        ...customFontStyle,
+                        letterSpacing: "1px",
+                        fontSize: isMobile ? 18 : 20
+                      }}
+                    >
+                      🍍 OWN A PARLOR 🍍
+                    </Button>
+
+                    {/* ??? Button - Only active for whitelisted FIDs */}
+                    <Button
+                      onClick={canAccessStaking ? handleNavigateToStaking : undefined}
+                      className={`w-full text-white font-bold py-3 px-6 rounded-xl border-4 shadow-lg uppercase transform transition-all touch-manipulation ${
+                        canAccessStaking
+                          ? '!bg-green-600 hover:!bg-green-700 hover:scale-105 cursor-pointer border-green-900'
+                          : '!bg-gray-500 text-gray-300 border-gray-700 cursor-not-allowed opacity-60'
+                      }`}
+                      style={{
+                        ...customFontStyle,
+                        letterSpacing: "1px",
+                        fontSize: isMobile ? 18 : 20
+                      }}
+                      disabled={!canAccessStaking}
+                    >
+                      🍕 Spin & Stake 🍕
+                    </Button>
+                  </>
                 )
               })()}
 

@@ -578,7 +578,7 @@ export default function LeaderboardPage({
                   style={{ ...customFontStyle, fontSize: 20 }}
                   disabled={!canAccessStaking}
                 >
-                  ???
+                  🍕 Spin & Stake 🍕
                 </Button>
               )
             })()}

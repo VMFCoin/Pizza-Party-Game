@@ -57,11 +57,11 @@ echo ""
 
 echo -e "${YELLOW}Changes to be made:${NC}"
 echo ""
-echo "  MIN_STAKE_FALLBACK:  100 PIZZA       →  1,000,000 PIZZA (10,000x)"
-echo "  MAX_STAKE:           1,000,000 PIZZA →  10,000,000,000 PIZZA (10,000x)"
-echo "  TIER1_THRESHOLD:     50,000 PIZZA    →  500,000,000 PIZZA (10,000x)"
-echo "  TIER2_THRESHOLD:     200,000 PIZZA   →  2,000,000,000 PIZZA (10,000x)"
-echo "  TIER3_THRESHOLD:     500,000 PIZZA   →  5,000,000,000 PIZZA (10,000x)"
+echo "  MIN_STAKE_FALLBACK:  100 PIZZA       →  10,000 PIZZA (use last entry as better fallback)"
+echo "  MAX_STAKE:           1,000,000 PIZZA →  10,000,000,000 PIZZA (10% of 100B supply)"
+echo "  TIER1_THRESHOLD:     50,000 PIZZA    →  500,000,000 PIZZA (0.5% of supply)"
+echo "  TIER2_THRESHOLD:     200,000 PIZZA   →  2,000,000,000 PIZZA (2% of supply)"
+echo "  TIER3_THRESHOLD:     500,000 PIZZA   →  5,000,000,000 PIZZA (5% of supply)"
 echo ""
 
 if [[ -f "$STAKING_CONTRACT" ]]; then
@@ -86,7 +86,7 @@ echo ""
 echo "  Tier 1 (Oven Operator):  50,000 PIZZA    →  500,000,000 PIZZA"
 echo "  Tier 2 (Pie Boss):       200,000 PIZZA   →  2,000,000,000 PIZZA"
 echo "  Tier 3 (Pizza Tycoon):   500,000 PIZZA   →  5,000,000,000 PIZZA"
-echo "  MIN_STAKE_FALLBACK:      100 PIZZA       →  1,000,000 PIZZA"
+echo "  MIN_STAKE_FALLBACK:      100 PIZZA       →  10,000 PIZZA"
 echo "  _MAX_STAKE:              1,000,000 PIZZA →  10,000,000,000 PIZZA"
 echo ""
 
@@ -120,7 +120,7 @@ if [[ "$DRY_RUN" == false ]]; then
 
         if [[ "$OSTYPE" == "darwin"* ]]; then
             # macOS sed
-            sed -i '' 's/MIN_STAKE_FALLBACK = 100 \* 1e18/MIN_STAKE_FALLBACK = 1_000_000 * 1e18/g' "$STAKING_CONTRACT"
+            sed -i '' 's/MIN_STAKE_FALLBACK = 100 \* 1e18/MIN_STAKE_FALLBACK = 10_000 * 1e18/g' "$STAKING_CONTRACT"
             sed -i '' 's/MAX_STAKE = 1_000_000 \* 1e18/MAX_STAKE = 10_000_000_000 * 1e18/g' "$STAKING_CONTRACT"
             sed -i '' 's/TIER1_THRESHOLD = 50_000 \* 1e18/TIER1_THRESHOLD = 500_000_000 * 1e18/g' "$STAKING_CONTRACT"
             sed -i '' 's/TIER2_THRESHOLD = 200_000 \* 1e18/TIER2_THRESHOLD = 2_000_000_000 * 1e18/g' "$STAKING_CONTRACT"

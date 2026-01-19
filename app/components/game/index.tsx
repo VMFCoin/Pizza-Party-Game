@@ -626,7 +626,7 @@ function GamePageContent({ onNavigateToWeekly, onNavigateToLeaderboard, onNaviga
                 style={{ ...customFontStyle, fontSize: isMobile ? 18 : 20 }}
                 disabled={!canAccessStaking}
               >
-                ???
+                🍕 Spin & Stake 🍕
               </Button>
             )
           })()}
