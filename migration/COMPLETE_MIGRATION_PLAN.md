@@ -387,6 +387,20 @@ curl "https://api.dexscreener.com/latest/dex/tokens/0xa821f2ee19f4f62e404c934d43
 
 ---
 
+# STAKING RESET BEHAVIOR
+
+**IMPORTANT:** After migration, all existing stakers will be treated as first-time stakers:
+
+- Old $PIZZA token stakes are NOT transferable to the new token
+- All users' staking positions reset to 0 (flexibleAmount, lockedAmount)
+- Lifetime staked and lifetime rewards reset to 0
+- Users must stake $1 worth of NEW $PIZZA to begin staking again
+- The 5 whitelisted FIDs can access staking during migration to re-stake
+
+This is expected behavior since the smart contract's `pizzaToken` address changes, and the new token has no existing stake data.
+
+---
+
 # ROLLBACK PLAN
 
 If issues occur:
