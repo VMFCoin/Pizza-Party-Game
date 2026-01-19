@@ -134,18 +134,18 @@ const formatPizza = (amount: number): string => {
   return amount.toFixed(2)
 }
 
-// Format with commas for exact display (3 decimal places)
+// Format with commas for exact display (2 decimal places)
 const formatExact = (amount: string): string => {
   const num = parseFloat(amount)
   if (isNaN(num)) return amount
-  return num.toLocaleString('en-US', { minimumFractionDigits: 3, maximumFractionDigits: 3 })
+  return num.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 }
 
-// Format wei to exact display with commas (3 decimal places)
+// Format wei to exact display with commas (2 decimal places)
 const formatWeiExact = (amountWei: bigint | undefined): string => {
-  if (!amountWei) return '0.000'
+  if (!amountWei) return '0.00'
   const amount = Number(formatUnits(amountWei, 18))
-  return amount.toLocaleString('en-US', { minimumFractionDigits: 3, maximumFractionDigits: 3 })
+  return amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 }
 
 // Get tier from staked amount (in whole tokens, not wei)

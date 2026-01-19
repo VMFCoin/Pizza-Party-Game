@@ -1073,7 +1073,7 @@ export function useGamePageData() {
     console.log('Referral Code:', code || '(empty)')
 
     if (!hasEnoughPizza) {
-      alert(`You need at least ${(Number(entryFeeWei) / 1e18).toFixed(4)} PIZZA to play. You have ${(Number(pizzaBalance) / 1e18).toFixed(4)} PIZZA.`)
+      alert(`You need at least ${(Number(entryFeeWei) / 1e18).toFixed(2)} PIZZA to play. You have ${(Number(pizzaBalance) / 1e18).toFixed(2)} PIZZA.`)
       return
     }
 

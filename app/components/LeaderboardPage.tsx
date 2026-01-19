@@ -225,11 +225,11 @@ export default function LeaderboardPage({
           // Game 3 pot was modified during player migration, so hardcode actual payout
           let dailyPayoutPerWinner: string
           if (previousDailyGameId === 3) {
-            dailyPayoutPerWinner = '664.2' // Actual payout: 664.22 PIZZA each
+            dailyPayoutPerWinner = '664.22' // Actual payout: 664.22 PIZZA each
           } else {
             const dailyPot = previousDailyGame ? previousDailyGame.potAmount : 0n
             dailyPayoutPerWinner = dailyAddresses.length > 0 && dailyPot > 0n
-              ? Number(Number(dailyPot) * 0.94 / dailyAddresses.length / 1e18).toFixed(1)
+              ? Number(Number(dailyPot) * 0.94 / dailyAddresses.length / 1e18).toFixed(2)
               : '0'
           }
 
@@ -251,7 +251,7 @@ export default function LeaderboardPage({
           if (weeklyAddresses.length > 0) {
             const weeklyPot = previousWeeklyGame ? previousWeeklyGame.potAmount : 0n
             const weeklyPayoutPerWinner = weeklyAddresses.length > 0 && weeklyPot > 0n
-              ? Number(Number(weeklyPot) / weeklyAddresses.length / 1e18).toFixed(1)
+              ? Number(Number(weeklyPot) / weeklyAddresses.length / 1e18).toFixed(2)
               : '0'
 
             weeklyPlayersData = weeklyAddresses.map((addr: string) => {
@@ -403,7 +403,7 @@ export default function LeaderboardPage({
                 </span>
                 {/* ✅ LIFETIME TOTAL (gray) - Sum of ALL games ever */}
                 <span className="text-xs text-gray-600" style={{ ...customFontStyle, whiteSpace: 'nowrap' }}>
-                  {Number(winner.lifetimePizzaWon).toFixed(1)} PIZZA
+                  {Number(winner.lifetimePizzaWon).toFixed(2)} PIZZA
                 </span>
               </>
             )}
