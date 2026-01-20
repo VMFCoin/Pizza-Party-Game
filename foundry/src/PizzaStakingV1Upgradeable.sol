@@ -1091,14 +1091,17 @@ contract PizzaStakingV1Upgradeable is
      * @param user Address adding to position
      * @param amount Amount to add
      * @param lockType Which position to add to
+     * @dev Does NOT auto-claim rewards - pending rewards are preserved and continue to accumulate
      */
     function _addToPosition(address user, uint256 amount, LockType lockType) internal {
         StakePosition storage position = lockType == LockType.Locked
             ? lockedStakes[user]
             : flexibleStakes[user];
 
-        // Claim pending rewards first (for this position)
-        _claimRewardsForPosition(user, lockType, false);
+        // NOTE: We intentionally do NOT claim rewards here.
+        // Pending rewards should accumulate and be claimed when user explicitly claims.
+        // The equal distribution system (accRewardPerStaker - stakerRewardDebt) handles this correctly
+        // without needing to update reward debt on every stake addition.
 
         // Update position
         position.stakedAmount += amount;
@@ -1109,8 +1112,10 @@ contract PizzaStakingV1Upgradeable is
             position.lockEndTimestamp = block.timestamp + LOCK_DURATION;
         }
 
-        // Update reward debt
-        position.rewardDebt = (position.stakedAmount * accRewardPerShare) / 1e18;
+        // NOTE: We do NOT update position.rewardDebt here because:
+        // 1. The equal distribution system uses stakerRewardDebt[user], not position.rewardDebt
+        // 2. position.rewardDebt is for the legacy proportional system which is no longer used
+        // 3. Updating it would incorrectly affect reward calculations
     }
 
     /**
