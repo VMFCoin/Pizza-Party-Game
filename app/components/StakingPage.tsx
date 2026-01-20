@@ -274,13 +274,13 @@ export default function StakingPage({
     query: { enabled: !!address },
   })
 
-  // Read user's stake info from contract
+  // Read user's stake info from contract (auto-refresh every 30 seconds to show rewards accumulating)
   const { data: stakeInfo, refetch: refetchStakeInfo } = useReadContract({
     address: PIZZA_STAKING_ADDRESS as `0x${string}`,
     abi: PIZZA_STAKING_ABI,
     functionName: 'getStakeInfo',
     args: address ? [address] : undefined,
-    query: { enabled: !!address },
+    query: { enabled: !!address, refetchInterval: 30000 },
   })
 
   // Read user's lifetime claimed rewards (unused during migration - displaying 0 instead)
@@ -364,13 +364,13 @@ export default function StakingPage({
     query: { enabled: !!address },
   })
 
-  // Read pending APY reward for locked position
+  // Read pending APY reward for locked position (auto-refresh every 30 seconds)
   const { data: pendingApyReward, refetch: refetchApyReward } = useReadContract({
     address: PIZZA_STAKING_ADDRESS as `0x${string}`,
     abi: PIZZA_STAKING_ABI,
     functionName: 'getPendingApyReward',
     args: address ? [address] : undefined,
-    query: { enabled: !!address },
+    query: { enabled: !!address, refetchInterval: 30000 },
   })
 
   // === CONTRACT WRITES ===
