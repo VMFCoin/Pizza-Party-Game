@@ -16,8 +16,7 @@ contract ExecuteEmergencyRefund is Script {
     address constant STAKING_PROXY = 0xCbAf5bACe5419710C3852653d3DdEB831d7415be;
 
     // OLD PIZZA token (the one stakers deposited before migration)
-    // You need to fill in the correct old token address here
-    address constant OLD_PIZZA_TOKEN = address(0); // TODO: Set old token address
+    address constant OLD_PIZZA_TOKEN = 0xbD0e3768B9A7C3d53e7b92EDC4C38728E2fA9b69;
 
     function run() external {
         require(OLD_PIZZA_TOKEN != address(0), "Set OLD_PIZZA_TOKEN address first!");
@@ -25,16 +24,17 @@ contract ExecuteEmergencyRefund is Script {
         uint256 deployerPrivateKey = vm.envUint("PRIVATE_KEY");
 
         // ============================================================
-        // ADD STAKER ADDRESSES HERE
+        // STAKER ADDRESSES (only those with balances)
+        // Staker 3: 1,870.47 PIZZA (70.47 flexible + 1,800 locked)
+        // Staker 4: 23.72 PIZZA (locked)
+        // Staker 5: 4,602.02 PIZZA (flexible) - this is your 4.6K
+        // Total: ~6,496 old PIZZA
         // ============================================================
-        address[] memory stakers = new address[](1);
-        stakers[0] = address(0); // TODO: Replace with actual staker address
-        // Add more stakers as needed:
-        // stakers[1] = 0x...;
-        // stakers[2] = 0x...;
+        address[] memory stakers = new address[](3);
+        stakers[0] = 0x598986FaC0D3ff7EaC3D55fFAB5e67c2a27C2765; // 1,870.47 PIZZA
+        stakers[1] = 0x46E9BeEF5dC68dFf095EcA56DaDF90247f1Af7EF; // 23.72 PIZZA
+        stakers[2] = 0x257Cbe89968495C3aE8C81BccB8BE7f257CD5f66; // 4,602.02 PIZZA
         // ============================================================
-
-        require(stakers[0] != address(0), "Set staker addresses first!");
 
         vm.startBroadcast(deployerPrivateKey);
 
