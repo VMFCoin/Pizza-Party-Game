@@ -1711,17 +1711,31 @@ export default function StakingPage({
               {/* Title */}
               <p
                 className="text-center mb-3"
-                style={{ fontFamily: 'var(--font-luckiest-guy)', fontSize: '36px', lineHeight: '1', color: '#FFA500' }}
+                style={{
+                  fontFamily: 'var(--font-luckiest-guy)',
+                  fontSize: '44px',
+                  lineHeight: '1',
+                  color: '#FFA500',
+                  textShadow: '2px 2px 0px #8B0000, 3px 3px 0px rgba(139, 0, 0, 0.5)'
+                }}
               >
-                Spin the Pie
+                SPIN THE PIE
               </p>
 
               {/* Pending Rewards Display */}
-              <div className="bg-yellow-500/20 rounded-xl p-3 mb-4 border-2 border-yellow-500">
+              <div className="bg-yellow-500/20 rounded-xl p-3 mb-2 border-2 border-yellow-500">
                 <p className="text-yellow-400 text-sm text-center" style={customFontStyle}>
                   Rewards: <span className="text-white font-bold">{formatPizzaWei(baseRewardOnly)} PIZZA</span>
                 </p>
               </div>
+
+              {/* Explanation Text */}
+              <p
+                className="text-center text-yellow-200 text-xs mb-4 px-2"
+                style={{ fontFamily: 'var(--font-luckiest-guy)' }}
+              >
+                Spin the Pie to grab up to 3x your daily rewards, and a chance to win 10M $Pizza for a gold sliced Jackpot spin!
+              </p>
 
               {/* Wheel Container */}
               <div className="relative mx-auto mb-4" style={{ width: 260, height: 260 }}>
