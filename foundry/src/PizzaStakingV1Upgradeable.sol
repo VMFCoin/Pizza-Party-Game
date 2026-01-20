@@ -180,8 +180,8 @@ contract PizzaStakingV1Upgradeable is
     uint256 public constant SPIN_JACKPOT_WEIGHT = 2;
     uint256 public constant SPIN_JACKPOT_MULTIPLIER_BPS = 40000;
 
-    /// @notice Fixed PIZZA bonus on jackpot spin: 10B PIZZA (for 100B supply migration)
-    uint256 public constant JACKPOT_FIXED_BONUS = 10_000_000_000 * 1e18;
+    /// @notice Fixed PIZZA bonus on jackpot spin: 10M PIZZA
+    uint256 public constant JACKPOT_FIXED_BONUS = 10_000_000 * 1e18;
 
     /// @notice Total spin weight (must equal sum of all weights)
     uint256 public constant SPIN_TOTAL_WEIGHT = 100;

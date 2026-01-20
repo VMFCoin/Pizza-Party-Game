@@ -16,10 +16,10 @@ contract ApproveStakingRewardsWallet is Script {
     address constant STAKING_PROXY = 0xCbAf5bACe5419710C3852653d3DdEB831d7415be;
 
     // NEW PIZZA token address
-    address constant PIZZA_TOKEN = 0xa821f2ee19f4f62e404c934d43eb6e5763fbdb07;
+    address constant PIZZA_TOKEN = 0xa821f2ee19F4f62e404C934D43eB6E5763fbdb07;
 
     // Staking rewards wallet
-    address constant STAKING_REWARDS_WALLET = 0xbfca21e41d397c8b6bef0c348d394da2c4826292;
+    address constant STAKING_REWARDS_WALLET = 0xBfCA21E41D397C8B6beF0c348D394DA2c4826292;
 
     function run() external {
         uint256 deployerPrivateKey = vm.envUint("PRIVATE_KEY");

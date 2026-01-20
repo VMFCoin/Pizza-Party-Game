@@ -583,9 +583,15 @@ export default function StakingPage({
   // Refetch data after successful transaction (but not during approval->stake flow)
   useEffect(() => {
     if (isConfirmed && !pendingApproval) {
-      // Small delay to ensure RPC node has the latest state after tx confirmation
+      // Handle claim completion - store amount for share message BEFORE refetch clears it
+      const isClaim = showConfirmModal === 'spin-claim'
+      if (isClaim && rewardBreakdown?.totalReward) {
+        setClaimedAmount(rewardBreakdown.totalReward)
+      }
+
+      // Longer delay to ensure RPC node has the latest state after tx confirmation
       const refetchData = async () => {
-        await new Promise(resolve => setTimeout(resolve, 1000))
+        await new Promise(resolve => setTimeout(resolve, 2500))
         await Promise.all([
           refetchBalance(),
           refetchAllowance(),
@@ -594,21 +600,18 @@ export default function StakingPage({
           refetchApyReward(),
           refetchLastSpinGameId(),
         ])
+
+        // Show share modal AFTER refetch completes so UI shows updated data
+        if (isClaim) {
+          setClaimLockType(0)
+          // Mark as claimed for this game (disables spin button until next game)
+          setHasClaimedThisGame(true)
+          // Show share modal after successful claim
+          setShowShareModal(true)
+        }
       }
       refetchData()
 
-      // Handle claim completion - show share modal (keep localStorage for admin audit)
-      if (showConfirmModal === 'spin-claim') {
-        // Store claimed amount for share message
-        if (rewardBreakdown?.totalReward) {
-          setClaimedAmount(rewardBreakdown.totalReward)
-        }
-        setClaimLockType(0)
-        // Mark as claimed for this game (disables spin button until next game)
-        setHasClaimedThisGame(true)
-        // Show share modal after successful claim
-        setShowShareModal(true)
-      }
       setShowConfirmModal(null)
       setStakeAmount('')
       setUnstakeAmount('')
@@ -1066,10 +1069,10 @@ export default function StakingPage({
                           )}
                         </Button>
                       </div>
-                      {/* Lifetime Claimed - zeroed out for whitelisted users after migration */}
+                      {/* Lifetime Claimed */}
                       <div className="mt-1 pt-1 border-t border-yellow-200">
                         <p className="text-black text-xs text-center" style={{ fontFamily: 'var(--font-luckiest-guy)' }}>
-                          Lifetime Claimed: {formatPizzaWei(0n)} PIZZA
+                          Lifetime Claimed: {formatPizzaWei(_lifetimeClaimed as bigint)} PIZZA
                         </p>
                       </div>
                     </div>
