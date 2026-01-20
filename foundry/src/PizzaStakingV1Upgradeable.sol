@@ -958,6 +958,58 @@ contract PizzaStakingV1Upgradeable is
         _unpause();
     }
 
+    /**
+     * @notice Emergency refund all staked tokens to specified users (bypasses all locks/penalties)
+     * @dev Used for token migration - returns all staked tokens to users without any deductions
+     *      Uses a specified token address to handle migration scenarios where pizzaToken has changed
+     * @param _tokenAddress The token contract to transfer from (use old token address for migration)
+     * @param _stakers Array of staker addresses to refund
+     */
+    function adminEmergencyRefund(address _tokenAddress, address[] calldata _stakers) external onlyOwner {
+        require(_tokenAddress != address(0), "Invalid token address");
+        IERC20 token = IERC20(_tokenAddress);
+
+        for (uint256 i = 0; i < _stakers.length; i++) {
+            address staker = _stakers[i];
+
+            // Get total staked amount (flexible + locked)
+            uint256 flexibleAmount = flexibleStakes[staker].stakedAmount;
+            uint256 lockedAmount = lockedStakes[staker].stakedAmount;
+            uint256 totalAmount = flexibleAmount + lockedAmount;
+
+            if (totalAmount == 0) continue;
+
+            // Clear their positions
+            if (flexibleAmount > 0) {
+                flexibleStakes[staker].stakedAmount = 0;
+                flexibleStakes[staker].stakeTimestamp = 0;
+                flexibleStakes[staker].lockEndTimestamp = 0;
+                flexibleStakes[staker].lastClaimTimestamp = 0;
+                flexibleStakes[staker].rewardDebt = 0;
+            }
+
+            if (lockedAmount > 0) {
+                lockedStakes[staker].stakedAmount = 0;
+                lockedStakes[staker].stakeTimestamp = 0;
+                lockedStakes[staker].lockEndTimestamp = 0;
+                lockedStakes[staker].lastClaimTimestamp = 0;
+                lockedStakes[staker].rewardDebt = 0;
+            }
+
+            // Update global state
+            totalStaked -= totalAmount;
+            if (stakerCount > 0) {
+                stakerCount--;
+            }
+            stakerRewardDebt[staker] = 0;
+
+            // Transfer tokens back to staker
+            token.safeTransfer(staker, totalAmount);
+
+            emit Unstaked(staker, totalAmount, 0, false); // 0 penalty, not early unstake
+        }
+    }
+
     // ==================================================================================
     // INTERNAL FUNCTIONS
     // ==================================================================================

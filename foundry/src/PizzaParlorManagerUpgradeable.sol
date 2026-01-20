@@ -52,9 +52,9 @@ contract PizzaParlorManagerUpgradeable is
 
     // ✅ Dynamic parlor price: Always $50 USD worth of PIZZA
     // Frontend calculates: $50 / currentPizzaPrice = PIZZA amount needed
-    // Safety bounds prevent manipulation at extreme price levels
-    uint256 public constant MIN_PARLOR_PRICE = 500e18;      // 500 PIZZA minimum (safety floor)
-    uint256 public constant MAX_PARLOR_PRICE = 500_000e18;  // 500,000 PIZZA maximum (safety ceiling)
+    // No artificial bounds for 100B supply token
+    uint256 public constant MIN_PARLOR_PRICE = 1;                   // 1 wei (no minimum)
+    uint256 public constant MAX_PARLOR_PRICE = type(uint256).max;   // No maximum
 
     // Parlor purchase split (basis points)
     uint256 public constant BURN_BPS = 5000;      // 50% burned

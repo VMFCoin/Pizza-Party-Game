@@ -17,15 +17,15 @@ interface IPizzaParlorManager {
 contract PizzaPartyV2Upgradeable is OwnableUpgradeable, UUPSUpgradeable, ReentrancyGuardUpgradeable {
     using SafeERC20 for IERC20;
 
-    uint256 public constant MIN_ENTRY_FEE = 1e16;
-    uint256 public constant MAX_ENTRY_FEE = 1000e18;
+    uint256 public constant MIN_ENTRY_FEE = 1;              // 1 wei (no minimum for 100B supply)
+    uint256 public constant MAX_ENTRY_FEE = type(uint256).max;  // No maximum for 100B supply
     uint256 public constant DAILY_WINNERS = 8;
     uint256 public constant WEEKLY_WINNERS = 10;
     uint256 public constant FIRST_PLAYER_BONUS_BPS = 0;
-    uint256 public constant CHARITY_TOTAL_BPS = 300;
-    uint256 public constant PLAYERS_POOL_BPS = 9300;
-    uint256 public constant MAX_OWNER_FEE_BPS = 300;
-    uint256 public constant STAKING_POOL_BPS = 100;
+    uint256 public constant CHARITY_TOTAL_BPS = 300;     // 3% charity
+    uint256 public constant PLAYERS_POOL_BPS = 8000;    // 80% to players (8 winners = 10% each)
+    uint256 public constant MAX_OWNER_FEE_BPS = 700;    // 7% owner fee
+    uint256 public constant STAKING_POOL_BPS = 1000;    // 10% to staking pool
     uint256 public constant BPS_DENOMINATOR = 10000;
     uint256 public constant MAX_CHARITIES = 20;
     uint256 public constant MAX_REFERRALS_PER_WEEK = 3;

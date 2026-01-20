@@ -693,8 +693,8 @@ export type ContractRegistryKey = keyof typeof CONTRACT_REGISTRY
 const ONE_ETHER = 10n ** 18n
 
 export const GAME_CONSTANTS = {
-  MIN_ENTRY_FEE_WEI: 1n * (ONE_ETHER / 100n),  // 0.01 PIZZA minimum (when PIZZA = $100, entry = 0.01 PIZZA for $1)
-  MAX_ENTRY_FEE_WEI: 1000n * ONE_ETHER,        // 1000 PIZZA maximum (when PIZZA = $0.001, entry = 1000 PIZZA for $1)
+  MIN_ENTRY_FEE_WEI: 1n,                       // 1 wei minimum (effectively no minimum for 100B supply)
+  MAX_ENTRY_FEE_WEI: 100_000_000_000n * ONE_ETHER,  // 100B PIZZA maximum (no artificial limit for 100B supply)
   TARGET_ENTRY_FEE_USD: 1n * ONE_ETHER,        // $1 target
   HOLDINGS_UNIT: 10000n * ONE_ETHER,
   HOLDINGS_TICKETS: 3,
