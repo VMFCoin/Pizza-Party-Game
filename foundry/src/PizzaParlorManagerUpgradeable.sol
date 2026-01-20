@@ -940,6 +940,14 @@ contract PizzaParlorManagerUpgradeable is
     }
 
     /**
+     * @dev Admin function to update the PIZZA token address (for token migration)
+     */
+    function adminSetPizzaToken(address newToken) external onlyOwner {
+        if (newToken == address(0)) revert InvalidAddress();
+        pizzaToken = IERC20(newToken);
+    }
+
+    /**
      * @dev Emergency withdraw of any stuck tokens
      */
     function emergencyWithdraw(address token, uint256 amount) external onlyOwner {
