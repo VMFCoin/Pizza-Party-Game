@@ -6,7 +6,6 @@ import { Button } from '../ui/button'
 import { Users, Share2, X } from 'lucide-react'
 import { useGamePageData } from '../../lib/useGamePageData'
 import { sdk } from '@farcaster/miniapp-sdk'
-import { PIZZA_TOKEN_ADDRESS } from '../../lib/constants'
 
 const SHARE_BASE_URL = 'https://farcaster.xyz/miniapps/wgY6OPqYoIkz/pizza-party'
 
