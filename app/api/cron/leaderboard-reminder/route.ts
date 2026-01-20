@@ -3,6 +3,13 @@ import { getAllEnabledTokens } from '../../../lib/kv-notifications'
 import { sendNotifications } from '../../../lib/notifications'
 
 export async function GET(request: NextRequest) {
+  // PAUSED: Notifications temporarily disabled
+  return NextResponse.json({
+    success: true,
+    paused: true,
+    message: 'Notifications are temporarily paused'
+  })
+
   // Verify this is from Vercel Cron or manual auth
   const cronHeader = request.headers.get('x-vercel-cron')
   const authHeader = request.headers.get('authorization')
