@@ -271,7 +271,7 @@ function GamePageContent({ onNavigateToWeekly, onNavigateToLeaderboard, onNaviga
       }
     }
     if (!hasEnoughPizza) {
-      return { text: 'NEED $1 PIZZA TO PLAY', onClick: () => window.open(`https://base.app/coin/base-mainnet/${PIZZA_TOKEN_ADDRESS.toLowerCase()}`, '_blank'), disabled: false }
+      return { text: 'NEED $1 PIZZA TO PLAY', onClick: () => sdk.actions.viewToken({ token: 'eip155:8453/erc20:0xa821f2ee19f4f62e404c934d43eb6e5763fbdb07' }), disabled: false }
     }
     // Single transaction entry with permit - no separate approval needed!
     return {
