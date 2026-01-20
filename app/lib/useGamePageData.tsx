@@ -1065,12 +1065,16 @@ export function useGamePageData() {
     const code = typeof referralCode === 'string' ? referralCode.trim() : ''
 
     // Pre-flight checks
+    console.log('=== DAILY ENTRY TRANSACTION DEBUG ===')
     console.log('Wallet address:', wallet.address)
-    console.log('PIZZA Balance:', pizzaBalance.toString())
-    console.log('Entry Fee:', (Number(entryFeeWei) / 1e18).toFixed(4), 'PIZZA')
+    console.log('PIZZA Balance (raw wei):', pizzaBalance.toString())
+    console.log('PIZZA Balance (tokens):', (Number(pizzaBalance) / 1e18).toFixed(4))
+    console.log('Entry Fee (raw wei):', entryFeeWei.toString())
+    console.log('Entry Fee (tokens):', (Number(entryFeeWei) / 1e18).toFixed(4), 'PIZZA')
     console.log('Has Enough PIZZA:', hasEnoughPizza)
     console.log('Has Entered Today:', hasEnteredToday)
     console.log('Referral Code:', code || '(empty)')
+    console.log('=====================================')
 
     if (!hasEnoughPizza) {
       alert(`You need at least ${(Number(entryFeeWei) / 1e18).toFixed(2)} PIZZA to play. You have ${(Number(pizzaBalance) / 1e18).toFixed(2)} PIZZA.`)

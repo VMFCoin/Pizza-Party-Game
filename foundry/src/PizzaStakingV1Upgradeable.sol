@@ -1032,6 +1032,17 @@ contract PizzaStakingV1Upgradeable is
         }
     }
 
+    /**
+     * @notice Admin function to clear lifetime claimed for specified users
+     * @dev Used after token migration to reset old token claim history
+     * @param _users Array of user addresses to clear lifetime claimed for
+     */
+    function adminClearLifetimeClaimed(address[] calldata _users) external onlyOwner {
+        for (uint256 i = 0; i < _users.length; i++) {
+            lifetimeClaimed[_users[i]] = 0;
+        }
+    }
+
     // ==================================================================================
     // INTERNAL FUNCTIONS
     // ==================================================================================

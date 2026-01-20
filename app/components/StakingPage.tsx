@@ -680,11 +680,28 @@ export default function StakingPage({
 
     const amountWei = parseUnits(stakeAmount, 18)
 
+    // Debug logging for amount mismatch investigation
+    console.log('=== STAKE TRANSACTION DEBUG ===')
+    console.log('stakeAmount (string):', stakeAmount)
+    console.log('amountNum (parsed float):', amountNum)
+    console.log('amountWei:', amountWei.toString())
+    console.log('amountWei back to tokens:', formatUnits(amountWei, 18))
+    console.log('selectedLockType:', selectedLockType)
+    console.log('===============================')
+
     // Check if we need to approve first
     const currentAllowance = allowance as bigint || 0n
+    console.log('Current allowance:', currentAllowance.toString())
+    console.log('Needed amount:', amountWei.toString())
+    console.log('Needs approval:', currentAllowance < amountWei)
+
     if (currentAllowance < amountWei) {
       // Approve first - mark that we're pending approval so useEffect will stake after
       setPendingApproval(true)
+      console.log('=== SENDING APPROVAL TX ===')
+      console.log('Token:', PIZZA_TOKEN_ADDRESS)
+      console.log('Spender:', PIZZA_STAKING_ADDRESS)
+      console.log('Amount:', amountWei.toString())
       writeContract({
         address: PIZZA_TOKEN_ADDRESS as `0x${string}`,
         abi: PIZZA_TOKEN_ABI,
@@ -704,6 +721,10 @@ export default function StakingPage({
         }
       }
 
+      console.log('=== SENDING STAKE TX (direct) ===')
+      console.log('Contract:', PIZZA_STAKING_ADDRESS)
+      console.log('Function: stake')
+      console.log('Args: [amountWei, lockType] =', [amountWei.toString(), selectedLockType])
       writeContract({
         address: PIZZA_STAKING_ADDRESS as `0x${string}`,
         abi: PIZZA_STAKING_ABI,
@@ -740,6 +761,11 @@ export default function StakingPage({
         }
 
         resetWrite()
+        console.log('=== SENDING STAKE TX (after approval) ===')
+        console.log('Contract:', PIZZA_STAKING_ADDRESS)
+        console.log('Function: stake')
+        console.log('stakeAmount:', stakeAmount)
+        console.log('Args: [amountWei, lockType] =', [amountWei.toString(), selectedLockType])
         writeContract({
           address: PIZZA_STAKING_ADDRESS as `0x${string}`,
           abi: PIZZA_STAKING_ABI,
@@ -1056,13 +1082,13 @@ export default function StakingPage({
                           <label className="text-green-700 text-sm font-bold block mb-1" style={{ fontFamily: 'var(--font-luckiest-guy)' }}>
                             Amount to Stake
                           </label>
-                          <div className="flex gap-2">
+                          <div className="flex gap-1">
                             <input
                               type="number"
                               value={stakeAmount}
                               onChange={(e) => setStakeAmount(e.target.value)}
                               placeholder="Enter amount"
-                              className="flex-1 px-3 py-2 border-2 border-green-300 rounded-xl focus:border-green-500 focus:outline-none"
+                              className="flex-1 min-w-0 px-2 py-2 border-2 border-green-300 rounded-xl focus:border-green-500 focus:outline-none"
                               style={{ fontFamily: 'var(--font-luckiest-guy)' }}
                             />
                             <Button
@@ -1071,7 +1097,7 @@ export default function StakingPage({
                                   setStakeAmount(formatUnits(pizzaBalance as bigint, 18))
                                 }
                               }}
-                              className="!bg-green-200 hover:!bg-green-300 text-green-700 font-bold px-3 rounded-xl border-2 border-green-400"
+                              className="!bg-green-200 hover:!bg-green-300 text-green-700 font-bold px-2 rounded-xl border-2 border-green-400 flex-shrink-0"
                               style={{ fontFamily: 'var(--font-luckiest-guy)' }}
                             >
                               MAX
@@ -1236,13 +1262,13 @@ export default function StakingPage({
                           <label className="text-green-700 text-sm font-bold block mb-1" style={{ fontFamily: 'var(--font-luckiest-guy)' }}>
                             Amount to Stake
                           </label>
-                          <div className="flex gap-2">
+                          <div className="flex gap-1">
                             <input
                               type="number"
                               value={stakeAmount}
                               onChange={(e) => setStakeAmount(e.target.value)}
                               placeholder={`Min: $1 (~${formatPizza(minStake)} PIZZA)`}
-                              className="flex-1 px-3 py-2 border-2 border-green-300 rounded-xl focus:border-green-500 focus:outline-none"
+                              className="flex-1 min-w-0 px-2 py-2 border-2 border-green-300 rounded-xl focus:border-green-500 focus:outline-none"
                               style={{ fontFamily: 'var(--font-luckiest-guy)' }}
                             />
                             <Button
@@ -1251,7 +1277,7 @@ export default function StakingPage({
                                   setStakeAmount(formatUnits(pizzaBalance as bigint, 18))
                                 }
                               }}
-                              className="!bg-green-200 hover:!bg-green-300 text-green-700 font-bold px-3 rounded-xl border-2 border-green-400"
+                              className="!bg-green-200 hover:!bg-green-300 text-green-700 font-bold px-2 rounded-xl border-2 border-green-400 flex-shrink-0"
                               style={{ fontFamily: 'var(--font-luckiest-guy)' }}
                             >
                               MAX
