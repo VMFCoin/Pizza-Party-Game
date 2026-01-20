@@ -1058,10 +1058,10 @@ export default function StakingPage({
                           )}
                         </Button>
                       </div>
-                      {/* Lifetime Claimed */}
+                      {/* Lifetime Claimed - zeroed out for whitelisted users after migration */}
                       <div className="mt-1 pt-1 border-t border-yellow-200">
                         <p className="text-black text-xs text-center" style={{ fontFamily: 'var(--font-luckiest-guy)' }}>
-                          Lifetime Claimed: {formatPizzaWei(lifetimeClaimed as bigint)} PIZZA
+                          Lifetime Claimed: {formatPizzaWei(0n)} PIZZA
                         </p>
                       </div>
                     </div>
