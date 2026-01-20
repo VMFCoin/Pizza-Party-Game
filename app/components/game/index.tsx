@@ -6,6 +6,7 @@ import { Button } from '../ui/button'
 import { Users, Share2, X } from 'lucide-react'
 import { useGamePageData } from '../../lib/useGamePageData'
 import { sdk } from '@farcaster/miniapp-sdk'
+import { PIZZA_TOKEN_ADDRESS } from '../../lib/constants'
 
 const SHARE_BASE_URL = 'https://farcaster.xyz/miniapps/wgY6OPqYoIkz/pizza-party'
 
@@ -270,7 +271,7 @@ function GamePageContent({ onNavigateToWeekly, onNavigateToLeaderboard, onNaviga
       }
     }
     if (!hasEnoughPizza) {
-      return { text: 'NEED $1 PIZZA TO PLAY', onClick: () => sdk.actions.viewToken({ token: 'eip155:8453/erc20:0xa821f2ee19f4f62e404c934d43eb6e5763fbdb07' }), disabled: false }
+      return { text: 'NEED $1 PIZZA TO PLAY', onClick: () => sdk.actions.viewToken({ token: `eip155:8453/erc20:${PIZZA_TOKEN_ADDRESS}` }), disabled: false }
     }
     // Single transaction entry with permit - no separate approval needed!
     return {
