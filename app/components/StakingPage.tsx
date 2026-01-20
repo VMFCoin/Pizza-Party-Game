@@ -1415,8 +1415,8 @@ export default function StakingPage({
                 <div className="bg-blue-100 border-4 border-t-0 border-blue-800 rounded-b-xl p-3">
                   <div className="grid grid-cols-2 gap-2">
                     <div className="bg-white rounded-lg p-2 text-center border border-blue-200">
-                      <p className="text-blue-500 text-xs" style={{ fontFamily: 'var(--font-luckiest-guy)' }}>Total Pool Staked</p>
-                      <p className="text-blue-700 font-bold text-sm" style={{ fontFamily: 'var(--font-luckiest-guy)' }}>{formatWeiExact(totalStakedPool as bigint)} PIZZA</p>
+                      <p className="text-blue-500 text-xs" style={{ fontFamily: 'var(--font-luckiest-guy)' }}>Total Pizza Staked</p>
+                      <p className="text-blue-700 font-bold text-sm" style={{ fontFamily: 'var(--font-luckiest-guy)' }}>{formatWeiExact(totalStakedPool as bigint)}</p>
                     </div>
                     <div className="bg-white rounded-lg p-2 text-center border border-blue-200">
                       <p className="text-blue-500 text-xs" style={{ fontFamily: 'var(--font-luckiest-guy)' }}>Daily Pot Share</p>
