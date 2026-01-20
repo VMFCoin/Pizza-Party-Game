@@ -1083,8 +1083,8 @@ export default function StakingPage({
 
                     {/* Wallet Balance - Single Line */}
                     <div className="flex justify-between items-center text-xs bg-gray-50 rounded-lg px-2 py-1.5 border border-gray-200">
-                      <span className="text-gray-500">Wallet:</span>
-                      <span className="text-gray-700 font-bold" style={customFontStyle}>{formatPizzaWei(pizzaBalance as bigint)} PIZZA</span>
+                      <span className="text-gray-500" style={{ fontFamily: 'var(--font-luckiest-guy)' }}>Wallet:</span>
+                      <span className="text-gray-700 font-bold" style={{ fontFamily: 'var(--font-luckiest-guy)' }}>{formatWeiExact(pizzaBalance as bigint)} PIZZA</span>
                     </div>
 
                     {/* Stake More Input (shown when showStakeInput is true) */}
