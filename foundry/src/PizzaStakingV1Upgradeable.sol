@@ -670,6 +670,11 @@ contract PizzaStakingV1Upgradeable is
 
             // Update reward debt for BOTH positions
             _updateAllRewardDebts(msg.sender);
+
+            // CRITICAL: Update APY claim timestamp to prevent double-counting APY
+            if (lockedStakes[msg.sender].stakedAmount > 0) {
+                lastApyClaimTimestamp[msg.sender] = block.timestamp;
+            }
         }
     }
 
