@@ -1965,13 +1965,13 @@ export default function StakingPage({
                 </div>
               )}
 
-              {/* Already claimed this game - show success message */}
+              {/* Already claimed this game - show "already spun" message */}
               {hasClaimedThisGame && !isSpinning && spinStorageChecked && (
-                <div className="bg-green-900/50 rounded-xl p-4 text-center border-2 border-green-500">
-                  <p className="text-green-400 font-bold text-lg" style={{ fontFamily: 'var(--font-luckiest-guy)' }}>
-                    ✓ Claimed!
+                <div className="bg-gray-800 rounded-xl p-4 text-center border-2 border-gray-600">
+                  <p className="text-gray-300 font-bold text-lg" style={{ fontFamily: 'var(--font-luckiest-guy)' }}>
+                    You&apos;ve already spun today!
                   </p>
-                  <p className="text-green-300 text-sm mt-1" style={{ fontFamily: 'var(--font-luckiest-guy)' }}>
+                  <p className="text-gray-400 text-sm mt-1" style={{ fontFamily: 'var(--font-luckiest-guy)' }}>
                     Come back after the next daily game settles to spin again
                   </p>
                 </div>
