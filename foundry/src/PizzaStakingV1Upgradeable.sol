@@ -176,9 +176,9 @@ contract PizzaStakingV1Upgradeable is
     uint256 public constant SPIN_HOT_WEIGHT = 5;
     uint256 public constant SPIN_HOT_MULTIPLIER_BPS = 15000;
 
-    /// @notice Jackpot: 2% chance, 400% payout (4x)
+    /// @notice Jackpot: 2% chance, 300% payout (3x)
     uint256 public constant SPIN_JACKPOT_WEIGHT = 2;
-    uint256 public constant SPIN_JACKPOT_MULTIPLIER_BPS = 40000;
+    uint256 public constant SPIN_JACKPOT_MULTIPLIER_BPS = 30000;
 
     /// @notice Fixed PIZZA bonus on jackpot spin: 10M PIZZA
     uint256 public constant JACKPOT_FIXED_BONUS = 10_000_000 * 1e18;
