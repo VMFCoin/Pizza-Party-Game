@@ -178,6 +178,7 @@ export default function StakingPage({
   const [spinStorageChecked, setSpinStorageChecked] = useState(false) // Track if we've checked localStorage for spin result
   const [showShareModal, setShowShareModal] = useState(false) // Show share cast modal after claim
   const [claimedAmount, setClaimedAmount] = useState<bigint>(0n) // Store claimed amount for share message
+  const [justClaimed, setJustClaimed] = useState(false) // Show 0 rewards briefly after claiming
 
   // UI state
   const [stakeAmount, setStakeAmount] = useState('')
@@ -587,6 +588,9 @@ export default function StakingPage({
       const isClaim = showConfirmModal === 'spin-claim'
       if (isClaim && rewardBreakdown?.totalReward) {
         setClaimedAmount(rewardBreakdown.totalReward)
+        // Show "Just Claimed" state - display 0 rewards for 5 seconds
+        setJustClaimed(true)
+        setTimeout(() => setJustClaimed(false), 5000)
       }
 
       // Longer delay to ensure RPC node has the latest state after tx confirmation
@@ -1049,7 +1053,7 @@ export default function StakingPage({
                         <div>
                           <p className="text-black text-xs" style={{ fontFamily: 'var(--font-luckiest-guy)' }}>Rewards</p>
                           <p className="text-black font-bold text-lg" style={{ fontFamily: 'var(--font-luckiest-guy)' }}>
-                            {formatPizzaWei(baseRewardOnly)} PIZZA
+                            {formatPizzaWei(justClaimed ? 0n : baseRewardOnly)} PIZZA
                           </p>
                         </div>
                         <Button
