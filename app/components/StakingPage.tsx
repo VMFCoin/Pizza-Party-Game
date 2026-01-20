@@ -1738,7 +1738,7 @@ export default function StakingPage({
 
               {/* Explanation Text */}
               <p
-                className="text-center text-yellow-200 text-xs mb-4 px-2"
+                className="text-center text-yellow-200 text-sm mb-4 px-2"
                 style={{ fontFamily: 'var(--font-luckiest-guy)' }}
               >
                 Spin the Pie to grab up to 3x your daily rewards, and a chance to win 10M $Pizza for a gold sliced Jackpot spin!
