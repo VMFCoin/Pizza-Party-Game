@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createPublicClient, createWalletClient, http, formatUnits } from 'viem';
 import { base } from 'viem/chains';
 import { privateKeyToAccount } from 'viem/accounts';
-import { PIZZA_PARTY_ADDRESS } from '@/app/lib/constants';
+import { PIZZA_PARTY_ADDRESS, PIZZA_TOKEN_ADDRESS } from '@/app/lib/constants';
 
 // Contract address from constants (PIZZA Party v2)
 const CONTRACT_ADDRESS = PIZZA_PARTY_ADDRESS as `0x${string}`;
@@ -81,9 +81,6 @@ const SETTLE_ABI = [
     type: 'function',
   },
 ] as const;
-
-// PIZZA token address on Base
-const PIZZA_TOKEN_ADDRESS = '0xbD0e3768B9A7C3d53e7b92EDC4C38728E2fA9b69';
 
 // Fetch price from Dexscreener
 async function fetchDexscreenerPrice(): Promise<number> {

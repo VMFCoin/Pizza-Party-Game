@@ -1,12 +1,12 @@
 import { NextResponse } from 'next/server'
+import { PIZZA_TOKEN_ADDRESS } from '@/app/lib/constants'
 
 export const runtime = 'edge'
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
 
-// DEXScreener API for PIZZA token on Base
-// Using token address lookup: 0xbD0e3768B9A7C3d53e7b92EDC4C38728E2fA9b69
-const DEXSCREENER_API = 'https://api.dexscreener.com/latest/dex/tokens/0xbD0e3768B9A7C3d53e7b92EDC4C38728E2fA9b69'
+// DEXScreener API for PIZZA token on Base (address from constants)
+const DEXSCREENER_API = `https://api.dexscreener.com/latest/dex/tokens/${PIZZA_TOKEN_ADDRESS}`
 
 interface DexScreenerPair {
   priceUsd: string
