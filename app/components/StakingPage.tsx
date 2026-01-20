@@ -1471,7 +1471,7 @@ export default function StakingPage({
                   </div>
                   <div className="flex items-start gap-2 text-xs text-green-800" style={{ fontFamily: 'var(--font-luckiest-guy)' }}>
                     <span className="flex-shrink-0">🍅</span>
-                    <span>Early locked unstake = 15% penalty from amount being unstaked</span>
+                    <span>Early locked unstake = 15% penalty from amount being unstaked, evenly split to all Parlor owners</span>
                   </div>
                   <div className="flex items-start gap-2 text-xs text-green-800" style={{ fontFamily: 'var(--font-luckiest-guy)' }}>
                     <span className="flex-shrink-0">🍅</span>

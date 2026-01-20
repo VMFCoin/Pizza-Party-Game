@@ -180,6 +180,9 @@ contract PizzaStakingV1Upgradeable is
     uint256 public constant SPIN_JACKPOT_WEIGHT = 2;
     uint256 public constant SPIN_JACKPOT_MULTIPLIER_BPS = 40000;
 
+    /// @notice Fixed PIZZA bonus on jackpot spin: 10B PIZZA (for 100B supply migration)
+    uint256 public constant JACKPOT_FIXED_BONUS = 10_000_000_000 * 1e18;
+
     /// @notice Total spin weight (must equal sum of all weights)
     uint256 public constant SPIN_TOTAL_WEIGHT = 100;
 
@@ -312,6 +315,10 @@ contract PizzaStakingV1Upgradeable is
     /// @notice Tracks the last timestamp when APY rewards were claimed for locked position
     /// @dev Used to calculate accumulated APY since last claim (20% annual on locked principal)
     mapping(address => uint256) public lastApyClaimTimestamp;
+
+    /// @notice ParlorManager contract address (receives early unstake penalties)
+    /// @dev Set via adminSetParlorManager(). If not set, penalties go to bonusPool.
+    address public parlorManager;
 
     // ==================================================================================
     // EVENTS
@@ -505,8 +512,14 @@ contract PizzaStakingV1Upgradeable is
             isEarlyUnstake = true;
             penalty = (amount * EARLY_UNSTAKE_PENALTY_BPS) / BPS_DENOMINATOR;
 
-            // Penalty goes to bonus pool
-            bonusPool += penalty;
+            // If parlorManager is set, send penalty to parlor owners; otherwise to bonus pool
+            if (parlorManager != address(0)) {
+                // Transfer penalty to ParlorManager for distribution to parlor owners
+                IERC20(pizzaToken).safeTransfer(parlorManager, penalty);
+            } else {
+                // Legacy: penalty goes to bonus pool
+                bonusPool += penalty;
+            }
         }
 
         // Update position
@@ -912,6 +925,15 @@ contract PizzaStakingV1Upgradeable is
     }
 
     /**
+     * @notice Admin function to set ParlorManager address (for penalty distribution)
+     * @dev When set, early unstake penalties go to parlor owners instead of bonusPool
+     * @param _parlorManager The ParlorManager contract address
+     */
+    function adminSetParlorManager(address _parlorManager) external onlyOwner {
+        parlorManager = _parlorManager;
+    }
+
+    /**
      * @notice Initialize staker count after upgrade (one-time migration)
      * @dev Called once after upgrading to set stakerCount for existing stakers
      * @param _stakerCount Number of existing stakers
@@ -1129,6 +1151,11 @@ contract PizzaStakingV1Upgradeable is
 
             // Calculate spun reward (base × spin multiplier)
             spunReward = (baseReward * multiplierBPS) / BPS_DENOMINATOR;
+
+            // Add fixed 10B PIZZA bonus on jackpot spin
+            if (outcome == SpinOutcome.Jackpot) {
+                spunReward += JACKPOT_FIXED_BONUS;
+            }
         }
 
         // Step 3: ADD BONUSES to spun result (tier + lock + early)
@@ -1223,6 +1250,11 @@ contract PizzaStakingV1Upgradeable is
 
             // Calculate spun reward (base × spin multiplier)
             spunReward = (baseReward * multiplierBPS) / BPS_DENOMINATOR;
+
+            // Add fixed 10B PIZZA bonus on jackpot spin
+            if (outcome == SpinOutcome.Jackpot) {
+                spunReward += JACKPOT_FIXED_BONUS;
+            }
         }
 
         // Step 3: ADD BONUSES to spun result (tier + lock + early)
