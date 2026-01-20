@@ -298,7 +298,7 @@ export default function HomePage() {
               </div>
               {/* MIGRATION MODE: All buttons disabled except ??? for whitelisted FIDs */}
               {(() => {
-                const STAKING_WHITELIST_FIDS = [1013491, 1060809, 963422, 392134]
+                const STAKING_WHITELIST_FIDS = [1013491, 1060809, 963422, 392134, 200506]
                 const canAccessStaking = userFid && STAKING_WHITELIST_FIDS.includes(userFid)
 
                 return (
