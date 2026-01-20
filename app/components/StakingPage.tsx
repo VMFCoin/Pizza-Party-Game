@@ -283,8 +283,8 @@ export default function StakingPage({
     query: { enabled: !!address },
   })
 
-  // Read user's lifetime claimed rewards
-  const { data: lifetimeClaimed, refetch: refetchLifetimeClaimed } = useReadContract({
+  // Read user's lifetime claimed rewards (unused during migration - displaying 0 instead)
+  const { data: _lifetimeClaimed, refetch: refetchLifetimeClaimed } = useReadContract({
     address: PIZZA_STAKING_ADDRESS as `0x${string}`,
     abi: PIZZA_STAKING_ABI,
     functionName: 'lifetimeClaimed',
