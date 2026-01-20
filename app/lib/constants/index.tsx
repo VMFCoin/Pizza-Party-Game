@@ -8,7 +8,8 @@ import type { Abi } from 'viem'
 export const PIZZA_PARTY_ADDRESS = "0xA1C31c3eF1448351da0b1D430148660982B6f3dD" // PizzaParty v2 Proxy (deployed Dec 15, 2024)
 
 // PIZZA Token (proxy with EIP-2612 permit support)
-export const PIZZA_TOKEN_ADDRESS = "0xbD0e3768B9A7C3d53e7b92EDC4C38728E2fA9b69"
+// NEW TOKEN: Migrated to 100B supply on Jan 20, 2026
+export const PIZZA_TOKEN_ADDRESS = "0xa821f2ee19f4f62e404c934d43eb6e5763fbdb07"
 
 // Pizza Staking Contract (UUPS proxy)
 export const PIZZA_STAKING_ADDRESS = "0xCbAf5bACe5419710C3852653d3DdEB831d7415be"

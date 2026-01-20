@@ -90,11 +90,11 @@ contract PizzaStakingV1Upgradeable is
     uint256 public constant MIN_STAKE_MICRO_USD = 1_000_000; // $1.00
 
     /// @notice Fallback minimum stake if price not set: 100 PIZZA
-    uint256 public constant MIN_STAKE_FALLBACK = 10_000 * 1e18;
+    uint256 public constant MIN_STAKE_FALLBACK = 100 * 1e18;
 
     /// @notice Maximum stake per wallet: 1,000,000 PIZZA (10% of 10M supply)
     /// @dev For 10M supply testing. Change to 1_000_000_000 for 10B supply.
-    uint256 public constant MAX_STAKE = 10_000_000_000 * 1e18;
+    uint256 public constant MAX_STAKE = 1_000_000 * 1e18;
 
     /// @notice Lock period duration: 7 days
     uint256 public constant LOCK_DURATION = 7 days;
@@ -120,13 +120,13 @@ contract PizzaStakingV1Upgradeable is
     // ==================================================================================
 
     /// @notice Tier 1 (Oven Operator) threshold: 50,000 PIZZA
-    uint256 public constant TIER1_THRESHOLD = 500_000_000 * 1e18;
+    uint256 public constant TIER1_THRESHOLD = 50_000 * 1e18;
 
     /// @notice Tier 2 (Pie Boss) threshold: 200,000 PIZZA
-    uint256 public constant TIER2_THRESHOLD = 2_000_000_000 * 1e18;
+    uint256 public constant TIER2_THRESHOLD = 200_000 * 1e18;
 
     /// @notice Tier 3 (Pizza Tycoon) threshold: 500,000 PIZZA
-    uint256 public constant TIER3_THRESHOLD = 5_000_000_000 * 1e18;
+    uint256 public constant TIER3_THRESHOLD = 500_000 * 1e18;
 
     // ==================================================================================
     // TIER YIELD BONUSES (in BPS - additive, NOT multiplicative)
