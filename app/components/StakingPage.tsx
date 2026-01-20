@@ -408,15 +408,23 @@ export default function StakingPage({
     }
   }, [stakeInfo])
 
-  // Effective minimum: $1 worth for first stake, 1 PIZZA for additional stakes
+  // Effective minimum: $1 worth for first stake to a position type, 1 PIZZA for additional stakes
+  // The contract checks each position type separately, so we need to check the selected lock type
   const minStake = useMemo(() => {
-    // If user already has a staking position, minimum is just 1 PIZZA
-    if (userPosition && (userPosition.flexibleAmount > 0n || userPosition.lockedAmount > 0n)) {
-      return 1
+    // Check if user already has a position of the SELECTED lock type
+    if (userPosition) {
+      // selectedLockType: 0 = flexible, 1 = locked
+      const hasPositionOfSelectedType = selectedLockType === 0
+        ? userPosition.flexibleAmount > 0n
+        : userPosition.lockedAmount > 0n
+
+      if (hasPositionOfSelectedType) {
+        return 1 // Adding to existing position - only 1 PIZZA minimum
+      }
     }
-    // First-time stakers must stake at least $1 worth
+    // Creating new position of this lock type - requires $1 worth
     return minStakeFirstTime
-  }, [userPosition, minStakeFirstTime])
+  }, [userPosition, minStakeFirstTime, selectedLockType])
 
   // Get current tier from contract data
   const currentTier = useMemo(() => {
@@ -1267,7 +1275,7 @@ export default function StakingPage({
                               type="number"
                               value={stakeAmount}
                               onChange={(e) => setStakeAmount(e.target.value)}
-                              placeholder={`Min: $1 (~${formatPizza(minStake)} PIZZA)`}
+                              placeholder={minStake === 1 ? 'Min: 1 PIZZA' : `Min: $1 (~${formatPizza(minStake)} PIZZA)`}
                               className="flex-1 min-w-0 px-2 py-2 border-2 border-green-300 rounded-xl focus:border-green-500 focus:outline-none"
                               style={{ fontFamily: 'var(--font-luckiest-guy)' }}
                             />
