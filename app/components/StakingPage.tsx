@@ -1547,7 +1547,7 @@ export default function StakingPage({
             <div className="top-stakers-dropdown">
               <Button
                 onClick={() => setTopStakersOpen(!topStakersOpen)}
-                className={`w-full !bg-yellow-500 hover:!bg-yellow-600 text-yellow-900 font-bold py-2 border-4 border-yellow-700 uppercase flex items-center justify-between ${topStakersOpen ? 'rounded-t-xl rounded-b-none' : 'rounded-xl'}`}
+                className={`w-full !bg-yellow-500 hover:!bg-yellow-600 text-white font-bold py-2 border-4 border-yellow-700 uppercase flex items-center justify-between ${topStakersOpen ? 'rounded-t-xl rounded-b-none' : 'rounded-xl'}`}
                 style={{ ...customFontStyle, fontSize: isMobile ? 16 : 18 }}
               >
                 <span className="flex-1 text-center flex items-center justify-center gap-2">
@@ -1572,28 +1572,20 @@ export default function StakingPage({
                       {topStakers.map((staker) => (
                         <div
                           key={staker.wallet}
-                          onClick={() => handleViewProfile(staker.fid)}
-                          className={`rounded-lg p-2 border-2 flex items-center gap-2 cursor-pointer hover:opacity-80 transition-opacity ${
-                            staker.rank === 1
-                              ? 'bg-gradient-to-r from-yellow-400 to-yellow-500 border-yellow-600'
-                              : staker.rank === 2
-                              ? 'bg-gradient-to-r from-gray-300 to-gray-400 border-gray-500'
-                              : staker.rank === 3
-                              ? 'bg-gradient-to-r from-orange-400 to-orange-500 border-orange-600'
-                              : 'bg-white border-yellow-300'
-                          }`}
+                          className="rounded-lg p-2 border-2 border-yellow-300 bg-white flex items-center gap-2"
                         >
                           {/* Rank */}
                           <span
-                            className={`font-bold text-sm w-6 ${
-                              staker.rank <= 3 ? 'text-white' : 'text-yellow-700'
-                            }`}
+                            className="font-bold text-sm w-6 text-gray-500"
                             style={{ fontFamily: 'var(--font-luckiest-guy)' }}
                           >
                             #{staker.rank}
                           </span>
-                          {/* PFP */}
-                          <div className="w-8 h-8 rounded-full overflow-hidden flex-shrink-0 bg-yellow-200">
+                          {/* PFP - clickable to view profile with blue ring on hover */}
+                          <div
+                            className={`w-8 h-8 rounded-full overflow-hidden flex-shrink-0 bg-yellow-200 ${staker.fid ? 'cursor-pointer hover:ring-2 hover:ring-blue-400' : ''}`}
+                            onClick={() => handleViewProfile(staker.fid)}
+                          >
                             {staker.pfpUrl ? (
                               <Image
                                 src={staker.pfpUrl}
@@ -1611,17 +1603,13 @@ export default function StakingPage({
                           {/* Name & Amount */}
                           <div className="flex-1 min-w-0">
                             <p
-                              className={`font-bold text-sm truncate ${
-                                staker.rank <= 3 ? 'text-white' : 'text-yellow-800'
-                              }`}
+                              className="font-bold text-sm truncate text-gray-500"
                               style={{ fontFamily: 'var(--font-luckiest-guy)' }}
                             >
                               {staker.displayName || staker.username || `${staker.wallet.slice(0, 6)}...${staker.wallet.slice(-4)}`}
                             </p>
                             <p
-                              className={`text-xs ${
-                                staker.rank <= 3 ? 'text-white/80' : 'text-yellow-600'
-                              }`}
+                              className="text-xs text-gray-500"
                               style={{ fontFamily: 'var(--font-luckiest-guy)' }}
                             >
                               {formatPizza(parseFloat(staker.totalStaked))} PIZZA
