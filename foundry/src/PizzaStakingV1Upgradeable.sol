@@ -321,6 +321,22 @@ contract PizzaStakingV1Upgradeable is
     address public parlorManager;
 
     // ==================================================================================
+    // ANTI-SYBIL: FID-TO-WALLET VERIFICATION
+    // ==================================================================================
+
+    /// @notice Whether FID verification is required for staking
+    /// @dev When true, only wallets registered via adminRegisterFidWallet can stake
+    bool public fidVerificationRequired;
+
+    /// @notice Maps Farcaster FID to authorized wallet address
+    /// @dev Only one wallet per FID allowed. Set by admin after off-chain verification.
+    mapping(uint256 => address) public fidToWallet;
+
+    /// @notice Maps wallet address to its registered FID (reverse lookup)
+    /// @dev Used to check if a wallet is already registered
+    mapping(address => uint256) public walletToFid;
+
+    // ==================================================================================
     // EVENTS
     // ==================================================================================
 
@@ -387,6 +403,15 @@ contract PizzaStakingV1Upgradeable is
     /// @notice Emitted when PIZZA price is updated
     event PizzaPriceUpdated(uint256 priceMicroUsd, uint256 newMinStake);
 
+    /// @notice Emitted when FID verification requirement is toggled
+    event FidVerificationToggled(bool required);
+
+    /// @notice Emitted when a FID-to-wallet mapping is registered
+    event FidWalletRegistered(uint256 indexed fid, address indexed wallet);
+
+    /// @notice Emitted when a FID-to-wallet mapping is removed
+    event FidWalletRemoved(uint256 indexed fid, address indexed wallet);
+
     // ==================================================================================
     // ERRORS
     // ==================================================================================
@@ -402,6 +427,9 @@ contract PizzaStakingV1Upgradeable is
     error TokenNotSet();
     error Unauthorized();
     error AlreadySpunToday();
+    error FidNotVerified();
+    error WalletAlreadyRegistered();
+    error FidAlreadyRegistered();
 
     // ==================================================================================
     // MODIFIERS
@@ -457,6 +485,11 @@ contract PizzaStakingV1Upgradeable is
      */
     function stake(uint256 amount, LockType lockType) external nonReentrant whenNotPaused tokenSet {
         if (amount == 0) revert ZeroAmount();
+
+        // Anti-sybil: Require FID verification if enabled
+        if (fidVerificationRequired && walletToFid[msg.sender] == 0) {
+            revert FidNotVerified();
+        }
 
         // Get the appropriate position based on lock type
         StakePosition storage position = lockType == LockType.Locked
@@ -937,6 +970,114 @@ contract PizzaStakingV1Upgradeable is
     function adminSetParlorManager(address _parlorManager) external onlyOwner {
         parlorManager = _parlorManager;
     }
+
+    // ==================================================================================
+    // ADMIN - FID VERIFICATION (Anti-Sybil)
+    // ==================================================================================
+
+    /**
+     * @notice Toggle FID verification requirement for staking
+     * @dev When enabled, only wallets registered via adminRegisterFidWallet can stake
+     * @param _required Whether FID verification is required
+     */
+    function adminSetFidVerificationRequired(bool _required) external onlyOwner {
+        fidVerificationRequired = _required;
+        emit FidVerificationToggled(_required);
+    }
+
+    /**
+     * @notice Register a FID-to-wallet mapping (called after off-chain verification)
+     * @dev Only one wallet per FID allowed. If FID already registered, reverts.
+     *      If wallet already registered to different FID, reverts.
+     * @param fid The Farcaster user ID
+     * @param wallet The wallet address to authorize for this FID
+     */
+    function adminRegisterFidWallet(uint256 fid, address wallet) external onlyOwner {
+        if (fid == 0) revert ZeroAmount();
+        if (wallet == address(0)) revert ZeroAddress();
+
+        // Check if FID is already registered to a different wallet
+        if (fidToWallet[fid] != address(0) && fidToWallet[fid] != wallet) {
+            revert FidAlreadyRegistered();
+        }
+
+        // Check if wallet is already registered to a different FID
+        if (walletToFid[wallet] != 0 && walletToFid[wallet] != fid) {
+            revert WalletAlreadyRegistered();
+        }
+
+        // Register the mapping
+        fidToWallet[fid] = wallet;
+        walletToFid[wallet] = fid;
+
+        emit FidWalletRegistered(fid, wallet);
+    }
+
+    /**
+     * @notice Batch register FID-to-wallet mappings
+     * @dev Useful for migrating existing verified users
+     * @param fids Array of Farcaster user IDs
+     * @param wallets Array of wallet addresses (must match fids length)
+     */
+    function adminBatchRegisterFidWallets(uint256[] calldata fids, address[] calldata wallets) external onlyOwner {
+        require(fids.length == wallets.length, "Length mismatch");
+
+        for (uint256 i = 0; i < fids.length; i++) {
+            uint256 fid = fids[i];
+            address wallet = wallets[i];
+
+            if (fid == 0 || wallet == address(0)) continue;
+
+            // Skip if already registered correctly
+            if (fidToWallet[fid] == wallet) continue;
+
+            // Check for conflicts
+            if (fidToWallet[fid] != address(0)) continue; // FID already has different wallet
+            if (walletToFid[wallet] != 0) continue; // Wallet already has different FID
+
+            fidToWallet[fid] = wallet;
+            walletToFid[wallet] = fid;
+
+            emit FidWalletRegistered(fid, wallet);
+        }
+    }
+
+    /**
+     * @notice Remove a FID-to-wallet mapping
+     * @dev Used if a user needs to change their staking wallet
+     * @param fid The Farcaster user ID to unregister
+     */
+    function adminRemoveFidWallet(uint256 fid) external onlyOwner {
+        address wallet = fidToWallet[fid];
+        if (wallet == address(0)) return; // Nothing to remove
+
+        delete fidToWallet[fid];
+        delete walletToFid[wallet];
+
+        emit FidWalletRemoved(fid, wallet);
+    }
+
+    /**
+     * @notice Check if a wallet is verified for staking
+     * @param wallet The wallet address to check
+     * @return fid The FID registered to this wallet (0 if not registered)
+     */
+    function getWalletFid(address wallet) external view returns (uint256) {
+        return walletToFid[wallet];
+    }
+
+    /**
+     * @notice Check if a FID has a registered wallet
+     * @param fid The Farcaster user ID to check
+     * @return wallet The wallet registered to this FID (address(0) if not registered)
+     */
+    function getFidWallet(uint256 fid) external view returns (address) {
+        return fidToWallet[fid];
+    }
+
+    // ==================================================================================
+    // ADMIN - STAKER MANAGEMENT
+    // ==================================================================================
 
     /**
      * @notice Initialize staker count after upgrade (one-time migration)

@@ -665,9 +665,9 @@ export default function StakingPage({
   // Whitelist of FIDs allowed to stake (private testing phase)
   const STAKING_WHITELIST_FIDS = [1013491, 1060809, 963422, 392134, 200506]
 
-  // Check staking eligibility (whitelist check using FID from miniapp SDK)
+  // Check staking eligibility via API (anti-sybil: one FID = one wallet)
   const checkStakingEligibility = useCallback(async () => {
-    // Check if user FID is in whitelist
+    // Check if user FID is in whitelist (local check first for fast feedback)
     if (!userFid) {
       setStakingEligibility({ canStake: false, reason: 'no_fid', loading: false })
       return
@@ -678,9 +678,33 @@ export default function StakingPage({
       return
     }
 
-    // User is whitelisted - they can stake
+    // If we have auth token and wallet, do full API check (anti-sybil)
+    if (authToken && address) {
+      try {
+        const response = await fetch(`/api/staking?wallet=${address.toLowerCase()}`, {
+          headers: { Authorization: `Bearer ${authToken}` },
+        })
+        const data = await response.json()
+        console.log('[Staking] Eligibility check:', data)
+
+        if (data.canStake === false) {
+          setStakingEligibility({
+            canStake: false,
+            reason: data.reason || 'api_rejected',
+            loading: false,
+            existingWallet: data.existingPosition?.wallet,
+          })
+          return
+        }
+      } catch (error) {
+        console.error('[Staking] Eligibility check failed:', error)
+        // On API error, allow based on local whitelist (fail open for UX)
+      }
+    }
+
+    // User is whitelisted and passed API check - they can stake
     setStakingEligibility({ canStake: true, loading: false })
-  }, [userFid])
+  }, [userFid, authToken, address])
 
   useEffect(() => {
     checkStakingEligibility()
@@ -756,6 +780,17 @@ export default function StakingPage({
     console.log('selectedLockType:', selectedLockType)
     console.log('===============================')
 
+    // ANTI-SYBIL: Register with API BEFORE staking (must succeed)
+    if (authToken) {
+      const result = await registerStakingPosition(address)
+      if (!result.success) {
+        console.error('[Staking] API registration failed:', result.error)
+        alert(`Cannot stake: ${result.error || 'Registration failed'}. Each Farcaster account can only stake from one wallet.`)
+        return // BLOCK the stake
+      }
+      console.log('[Staking] API registration successful')
+    }
+
     // Check if we need to approve first
     const currentAllowance = allowance as bigint || 0n
     console.log('Current allowance:', currentAllowance.toString())
@@ -779,15 +814,6 @@ export default function StakingPage({
       // Already approved, stake directly (no pending approval needed)
       setPendingApproval(false)
 
-      // Try to register with API (optional - on-chain is source of truth)
-      if (authToken) {
-        const result = await registerStakingPosition(address)
-        if (!result.success) {
-          console.warn('[Staking] API registration failed:', result.error)
-          // Continue anyway - on-chain stake is what matters
-        }
-      }
-
       console.log('=== SENDING STAKE TX (direct) ===')
       console.log('Contract:', PIZZA_STAKING_ADDRESS)
       console.log('Function: stake')
@@ -802,6 +828,7 @@ export default function StakingPage({
   }
 
   // After approval completes, stake (only if we were waiting for approval)
+  // NOTE: API registration already happened in handleStake() before approval
   useEffect(() => {
     const performStakeAfterApproval = async () => {
       // Only proceed if we're waiting for approval to complete before staking
@@ -818,15 +845,7 @@ export default function StakingPage({
         // Clear pending approval flag BEFORE sending stake tx
         setPendingApproval(false)
 
-        // Try to register with API (optional - on-chain is source of truth)
-        if (authToken) {
-          const result = await registerStakingPosition(address)
-          if (!result.success) {
-            console.warn('[Staking] API registration failed:', result.error)
-            // Continue anyway - on-chain stake is what matters
-          }
-        }
-
+        // API registration already done in handleStake() - just send the stake tx
         resetWrite()
         console.log('=== SENDING STAKE TX (after approval) ===')
         console.log('Contract:', PIZZA_STAKING_ADDRESS)
@@ -842,7 +861,7 @@ export default function StakingPage({
       }
     }
     performStakeAfterApproval()
-  }, [isConfirmed, allowance, stakeAmount, selectedLockType, showConfirmModal, address, authToken, pendingApproval, resetWrite, writeContract, registerStakingPosition, refetchAllowance])
+  }, [isConfirmed, allowance, stakeAmount, selectedLockType, showConfirmModal, address, pendingApproval, resetWrite, writeContract, refetchAllowance])
 
   // Handle unstake
   const handleUnstake = () => {
@@ -1318,6 +1337,19 @@ export default function StakingPage({
                             Wallet: {stakingEligibility.existingWallet}
                           </p>
                         )}
+                      </div>
+                    ) : !stakingEligibility.canStake && stakingEligibility.reason === 'wallet_already_registered' ? (
+                      // BLOCKED: Wallet is registered to a different Farcaster account
+                      <div className="bg-red-50 rounded-xl p-4 border-2 border-red-300">
+                        <div className="flex items-center gap-3 mb-2">
+                          <XCircle className="text-red-500" size={24} />
+                          <p className="text-red-700 font-bold" style={customFontStyle}>
+                            Wallet Already Used
+                          </p>
+                        </div>
+                        <p className="text-red-600 text-sm">
+                          This wallet is already registered to a different Farcaster account. Each wallet can only stake from one Farcaster account.
+                        </p>
                       </div>
                     ) : !showStakeInput ? (
                       <>

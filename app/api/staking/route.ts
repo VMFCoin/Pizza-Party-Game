@@ -41,6 +41,7 @@ async function getFidFromToken(request: NextRequest): Promise<number | null> {
 }
 
 // GET /api/staking - Check if current user can stake
+// Query params: ?wallet=0x... (optional, to check specific wallet)
 // Returns: { canStake: boolean, existingPosition?: { wallet, stakedAt } }
 export async function GET(request: NextRequest) {
   const fid = await getFidFromToken(request)
@@ -57,12 +58,23 @@ export async function GET(request: NextRequest) {
     })
   }
 
+  // Get wallet from query params (if provided)
+  const wallet = request.nextUrl.searchParams.get('wallet')?.toLowerCase()
+
   try {
+    // Check if this FID already has a staking position
     const existingPosition = await prisma.stakingPosition.findUnique({
       where: { fid },
     })
 
     if (existingPosition) {
+      // If checking a specific wallet, allow if it's the same wallet
+      if (wallet && existingPosition.wallet.toLowerCase() === wallet) {
+        return json({
+          canStake: true,
+          registeredWallet: existingPosition.wallet,
+        })
+      }
       return json({
         canStake: false,
         reason: 'fid_already_staking',
@@ -71,6 +83,21 @@ export async function GET(request: NextRequest) {
           stakedAt: existingPosition.stakedAt.toISOString(),
         },
       })
+    }
+
+    // If wallet provided, check if it's already registered to a different FID
+    if (wallet) {
+      const walletPosition = await prisma.stakingPosition.findFirst({
+        where: { wallet },
+      })
+
+      if (walletPosition && walletPosition.fid !== fid) {
+        return json({
+          canStake: false,
+          reason: 'wallet_already_registered',
+          message: 'This wallet is already registered to a different Farcaster account'
+        })
+      }
     }
 
     return json({ canStake: true })
@@ -110,6 +137,19 @@ export async function POST(request: NextRequest) {
   }
 
   try {
+    // Check if wallet is already registered to a DIFFERENT FID (anti-sybil)
+    const walletPosition = await prisma.stakingPosition.findFirst({
+      where: { wallet },
+    })
+
+    if (walletPosition && walletPosition.fid !== fid) {
+      return json({
+        success: false,
+        error: 'Wallet already registered to different FID',
+        reason: 'wallet_already_registered'
+      }, 403)
+    }
+
     // Check if FID already has a position
     const existingPosition = await prisma.stakingPosition.findUnique({
       where: { fid },
@@ -127,12 +167,16 @@ export async function POST(request: NextRequest) {
           },
         })
       }
-      // Different wallet - delete old and allow new (user changed wallets)
-      // This is safe because on-chain state is the source of truth
-      await prisma.stakingPosition.delete({ where: { fid } })
+      // Different wallet - NOT ALLOWED (prevents sybil switching)
+      return json({
+        success: false,
+        error: 'FID already registered with different wallet',
+        reason: 'fid_already_registered',
+        existingWallet: existingPosition.wallet
+      }, 403)
     }
 
-    // Create the staking position (or re-create with new wallet)
+    // Create the staking position
     const position = await prisma.stakingPosition.create({
       data: { fid, wallet },
     })
