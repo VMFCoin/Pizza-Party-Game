@@ -1091,8 +1091,10 @@ export default function StakingPage({
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-1.5">
                           <span className="text-lg">{currentTier.emoji}</span>
-                          <p className="font-bold text-sm whitespace-nowrap" style={customFontStyle}>{currentTier.name}</p>
-                          <p className="text-xs opacity-90 whitespace-nowrap">+{currentTier.toppingBonus} toppings/week</p>
+                          <div>
+                            <p className="font-bold text-sm" style={customFontStyle}>{currentTier.name}</p>
+                            <p className="text-xs opacity-90 whitespace-nowrap">+{currentTier.toppingBonus} toppings/week</p>
+                          </div>
                         </div>
                         <div className="flex flex-wrap gap-1 justify-end">
                           <span className="bg-white/20 px-2 py-0.5 rounded text-xs">{currentTier.yieldBoost}</span>
