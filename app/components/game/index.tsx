@@ -392,7 +392,7 @@ function GamePageContent({ onNavigateToWeekly, onNavigateToLeaderboard, onNaviga
 
         {/* Daily Jackpot */}
         <div className="bg-blue-100/90 backdrop-blur-sm px-3 py-1.5 rounded-xl border-4 border-black w-full text-center">
-          <p className="text-blue-600 font-bold text-center" style={{ fontFamily: 'var(--font-luckiest-guy)', fontSize: '28px', lineHeight: '1', marginBottom: '0', textShadow: '2px 2px 0px #8B0000, 3px 3px 0px rgba(139, 0, 0, 0.5)' }}>Daily Jackpot</p>
+          <p className="text-blue-600 font-bold text-center" style={{ fontFamily: 'var(--font-luckiest-guy)', fontSize: '28px', lineHeight: '1', marginBottom: '0', textShadow: '2px 2px 0px #FFA500, 3px 3px 0px rgba(255, 165, 0, 0.5)' }}>Daily Jackpot</p>
           <p className="text-blue-800 text-3xl font-bold text-center" style={{ fontFamily: 'var(--font-luckiest-guy)', lineHeight: '1', margin: '0', padding: '0' }}>
             {daily.loading ? 'Loading...' : `$${(Number(daily.jackpot) * pizzaUsd).toFixed(2)}`}
           </p>
@@ -649,7 +649,7 @@ function GamePageContent({ onNavigateToWeekly, onNavigateToLeaderboard, onNaviga
         {/* Countdown */}
         <div className="bg-blue-50 px-4 py-2 rounded-xl border-4 border-black w-full text-center">
           <div className="flex items-center justify-center mb-1">
-            <p className="font-semibold text-blue-800" style={{ fontFamily: 'var(--font-luckiest-guy)', fontSize: '22px', textShadow: '2px 2px 0px #8B0000, 3px 3px 0px rgba(139, 0, 0, 0.5)' }}>Next Draw In:</p>
+            <p className="font-semibold text-blue-800" style={{ fontFamily: 'var(--font-luckiest-guy)', fontSize: '22px', textShadow: '2px 2px 0px #FFA500, 3px 3px 0px rgba(255, 165, 0, 0.5)' }}>Next Draw In:</p>
           </div>
           <div className="grid grid-cols-3 gap-2 text-center">
             <div className="bg-white p-2 rounded border-2 border-black">

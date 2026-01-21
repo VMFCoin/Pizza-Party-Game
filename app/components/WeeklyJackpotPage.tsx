@@ -277,7 +277,7 @@ export default function WeeklyJackpotPage({
 
           <div className="bg-blue-50 border-4 border-blue-200 rounded-2xl px-3 py-2 text-center" style={{ borderColor: '#000000' }}>
             <div className="flex justify-center items-center mb-1">
-              <span className="text-blue-700 text-lg" style={{ fontFamily: 'var(--font-luckiest-guy)', fontSize: '22px', textShadow: '2px 2px 0px #8B0000, 3px 3px 0px rgba(139, 0, 0, 0.5)' }}>
+              <span className="text-blue-700 text-lg" style={{ fontFamily: 'var(--font-luckiest-guy)', fontSize: '22px', textShadow: '2px 2px 0px #FFA500, 3px 3px 0px rgba(255, 165, 0, 0.5)' }}>
                 Next Draw In:
               </span>
             </div>
@@ -363,7 +363,7 @@ export default function WeeklyJackpotPage({
 
           <Card className="border-4 border-red-500 rounded-2xl bg-white/95">
             <div className="px-3 pb-3 pt-1.5">
-              <p className="text-red-600 text-center mb-2" style={{ fontFamily: 'var(--font-luckiest-guy)', fontSize: '24px', textShadow: '2px 2px 0px #8B0000, 3px 3px 0px rgba(139, 0, 0, 0.5)' }}>
+              <p className="text-red-600 text-center mb-2" style={{ fontFamily: 'var(--font-luckiest-guy)', fontSize: '24px', textShadow: '2px 2px 0px #FFA500, 3px 3px 0px rgba(255, 165, 0, 0.5)' }}>
                 How to Win Toppings
               </p>
               <ul className="space-y-1.5 text-red-700 text-sm" style={{ fontFamily: 'var(--font-luckiest-guy)' }}>
@@ -384,7 +384,7 @@ export default function WeeklyJackpotPage({
               </p>
               
               <div className="mb-4">
-                <p className="text-yellow-700 text-base mb-2" style={{ fontFamily: 'var(--font-luckiest-guy)', textShadow: '2px 2px 0px #8B0000, 3px 3px 0px rgba(139, 0, 0, 0.5)' }}>
+                <p className="text-yellow-700 text-base mb-2" style={{ fontFamily: 'var(--font-luckiest-guy)' }}>
                   Daily Game
                 </p>
                 <ul className="space-y-1.5 text-yellow-800 text-sm" style={{ fontFamily: 'var(--font-luckiest-guy)' }}>
@@ -398,7 +398,7 @@ export default function WeeklyJackpotPage({
               </div>
 
               <div>
-                <p className="text-yellow-700 text-base mb-2" style={{ fontFamily: 'var(--font-luckiest-guy)', textShadow: '2px 2px 0px #8B0000, 3px 3px 0px rgba(139, 0, 0, 0.5)' }}>
+                <p className="text-yellow-700 text-base mb-2" style={{ fontFamily: 'var(--font-luckiest-guy)' }}>
                   Weekly Jackpot
                 </p>
                 <ul className="space-y-1.5 text-yellow-800 text-sm" style={{ fontFamily: 'var(--font-luckiest-guy)' }}>
