@@ -1003,13 +1003,16 @@ contract PizzaParlorManagerUpgradeable is
 
     /**
      * @dev Admin function to reset slice counters for sponsors (one-time testing)
-     * Resets both weekly and daily tracking
+     * Resets both weekly and daily tracking (claimed AND sent)
      * @param sponsors Array of sponsor addresses to reset
      */
     function resetSliceCounters(address[] calldata sponsors) external onlyOwner {
         for (uint256 i = 0; i < sponsors.length; i++) {
             slicesUsedThisWeek[sponsors[i]] = 0;
             lastSliceDayId[sponsors[i]] = 0;
+            // Reset sent tracking (new fields)
+            lastSliceSentDayId[sponsors[i]] = 0;
+            slicesSentToday[sponsors[i]] = 0;
             // Legacy fields (for completeness)
             slicesUsedThisGame[sponsors[i]] = 0;
         }
