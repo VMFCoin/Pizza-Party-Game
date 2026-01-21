@@ -20,7 +20,6 @@ interface WeeklyJackpotPageProps {
   onNavigateToLeaderboard?: () => void
   onNavigateToParlor?: () => void
   onNavigateToStaking?: () => void
-  userFid?: number | null
 }
 
 const customFontStyle = {
@@ -108,7 +107,6 @@ export default function WeeklyJackpotPage({
   onNavigateToLeaderboard,
   onNavigateToParlor,
   onNavigateToStaking,
-  userFid,
 }: WeeklyJackpotPageProps) {
   const {
     wallet,

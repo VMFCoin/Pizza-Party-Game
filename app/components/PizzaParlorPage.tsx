@@ -21,7 +21,6 @@ interface PizzaParlorPageProps {
   onNavigateToLeaderboard?: () => void
   onNavigateToHome?: () => void
   onNavigateToStaking?: () => void
-  userFid?: number | null
 }
 
 const PARLORS_EXPLAINED = [
@@ -77,7 +76,6 @@ export default function PizzaParlorPage({
   onNavigateToLeaderboard,
   onNavigateToHome,
   onNavigateToStaking,
-  userFid,
 }: PizzaParlorPageProps) {
   const customFontStyle = {
     fontFamily: '"Comic Sans MS", "Marker Felt", "Chalkduster", "Kalam", "Caveat"',

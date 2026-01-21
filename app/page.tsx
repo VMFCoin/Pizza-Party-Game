@@ -87,7 +87,6 @@ export default function HomePage() {
     getUserFid();
   }, []);
 
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const handleStartPlaying = () => goToView('game')
 
   const handleBackToHome = () => goToView('home')
@@ -124,7 +123,7 @@ export default function HomePage() {
             </Button>
 
             <Card className="border-4 border-red-800 rounded-3xl shadow-2xl p-0 !px-0 !py-0 !bg-transparent">
-              <GamePage onNavigateToWeekly={handleNavigateToWeekly} onNavigateToLeaderboard={handleNavigateToLeaderboard} onNavigateToParlor={handleNavigateToParlor} onNavigateToStaking={handleNavigateToStaking} userFid={userFid} />
+              <GamePage onNavigateToWeekly={handleNavigateToWeekly} onNavigateToLeaderboard={handleNavigateToLeaderboard} onNavigateToParlor={handleNavigateToParlor} onNavigateToStaking={handleNavigateToStaking} />
             </Card>
           </div>
         </div>
@@ -142,7 +141,6 @@ export default function HomePage() {
           onNavigateToLeaderboard={handleNavigateToLeaderboard}
           onNavigateToParlor={handleNavigateToParlor}
           onNavigateToStaking={handleNavigateToStaking}
-          userFid={userFid}
         />
       </>
     );
@@ -158,7 +156,6 @@ export default function HomePage() {
           onNavigateToHome={handleBackToHome}
           onNavigateToParlor={handleNavigateToParlor}
           onNavigateToStaking={handleNavigateToStaking}
-          userFid={userFid}
         />
       </>
     );
@@ -174,7 +171,6 @@ export default function HomePage() {
           onNavigateToLeaderboard={handleNavigateToLeaderboard}
           onNavigateToHome={handleBackToHome}
           onNavigateToStaking={handleNavigateToStaking}
-          userFid={userFid}
         />
       </>
     );

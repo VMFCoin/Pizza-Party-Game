@@ -620,7 +620,10 @@ export default function StakingPage({
 
       // Longer delay to ensure RPC node has the latest state after tx confirmation
       const refetchData = async () => {
-        await new Promise(resolve => setTimeout(resolve, 2500))
+        // Initial delay for RPC to catch up
+        await new Promise(resolve => setTimeout(resolve, 3000))
+
+        // First refetch attempt
         await Promise.all([
           refetchBalance(),
           refetchAllowance(),
@@ -628,6 +631,15 @@ export default function StakingPage({
           refetchLifetimeClaimed(),
           refetchApyReward(),
           refetchLastSpinGameId(),
+        ])
+
+        // Second refetch after additional delay to ensure data is fresh
+        // This handles cases where RPC nodes have slight delays
+        await new Promise(resolve => setTimeout(resolve, 2000))
+        await Promise.all([
+          refetchBalance(),
+          refetchStakeInfo(),
+          refetchApyReward(),
         ])
 
         // Update staker database for top stakers leaderboard (after stake/unstake)

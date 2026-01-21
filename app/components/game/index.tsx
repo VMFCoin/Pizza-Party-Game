@@ -134,18 +134,17 @@ interface GamePageProps {
   onNavigateToLeaderboard?: () => void
   onNavigateToParlor?: () => void
   onNavigateToStaking?: () => void
-  userFid?: number | null
 }
 
-export default function GamePage({ onNavigateToWeekly, onNavigateToLeaderboard, onNavigateToParlor, onNavigateToStaking, userFid }: GamePageProps) {
+export default function GamePage({ onNavigateToWeekly, onNavigateToLeaderboard, onNavigateToParlor, onNavigateToStaking }: GamePageProps) {
   return (
     <Suspense fallback={<div>Loading...</div>}>
-      <GamePageContent onNavigateToWeekly={onNavigateToWeekly} onNavigateToLeaderboard={onNavigateToLeaderboard} onNavigateToParlor={onNavigateToParlor} onNavigateToStaking={onNavigateToStaking} userFid={userFid} />
+      <GamePageContent onNavigateToWeekly={onNavigateToWeekly} onNavigateToLeaderboard={onNavigateToLeaderboard} onNavigateToParlor={onNavigateToParlor} onNavigateToStaking={onNavigateToStaking} />
     </Suspense>
   )
 }
 
-function GamePageContent({ onNavigateToWeekly, onNavigateToLeaderboard, onNavigateToParlor, onNavigateToStaking, userFid }: GamePageProps) {
+function GamePageContent({ onNavigateToWeekly, onNavigateToLeaderboard, onNavigateToParlor, onNavigateToStaking }: GamePageProps) {
   const [isMobile, setIsMobile] = useState(false)
   const [referralCodeInput, setReferralCodeInput] = useState('')
   const [showReferralInput, setShowReferralInput] = useState(false)

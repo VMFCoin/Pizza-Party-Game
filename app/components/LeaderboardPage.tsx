@@ -20,7 +20,6 @@ interface LeaderboardPageProps {
   onNavigateToHome?: () => void
   onNavigateToParlor?: () => void
   onNavigateToStaking?: () => void
-  userFid?: number | null
 }
 
 interface WinnerDisplay {
@@ -91,7 +90,6 @@ export default function LeaderboardPage({
   onNavigateToHome,
   onNavigateToParlor,
   onNavigateToStaking,
-  userFid,
 }: LeaderboardPageProps) {
   const { address } = useAccount()
   const [dailyWinners, setDailyWinners] = useState<WinnerDisplay[]>([])
