@@ -319,7 +319,7 @@ export default function HomePage() {
                       style={{ ...customFontStyle, letterSpacing: "1px", fontSize: isMobile ? 18 : 20, fontWeight: '900' }}
                     >
                       <Image src="/images/pepperoni-art.png" alt="Pepperoni" width={20} height={20} className="inline mr-1 opacity-50" />
-                      WEEKLY JACKPOT
+                      CLAIM TOPPINGS
                       <Image src="/images/pepperoni-art.png" alt="Pepperoni" width={20} height={20} className="inline ml-1 opacity-50" />
                     </Button>
 

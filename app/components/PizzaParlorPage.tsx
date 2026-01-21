@@ -1284,7 +1284,7 @@ export default function PizzaParlorPage({
             style={{ ...customFontStyle, fontSize: isMobile ? 18 : 20 }}
             >
               <Image src="/images/pepperoni-art.png" alt="Pepperoni" width={20} height={20} className="inline mr-1" />
-              WEEKLY JACKPOT
+              CLAIM TOPPINGS
               <Image src="/images/pepperoni-art.png" alt="Pepperoni" width={20} height={20} className="inline ml-1" />
             </Button>
 

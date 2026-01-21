@@ -1087,14 +1087,12 @@ export default function StakingPage({
                 {userPosition ? (
                   <div className="space-y-2">
                     {/* Compact Tier + Bonuses Row */}
-                    <div className={`${currentTier.color} ${currentTier.borderColor} border-4 rounded-xl p-2 text-white`}>
+                    <div className={`${currentTier.color} ${currentTier.borderColor} border-4 rounded-xl px-2 py-1 text-white`}>
                       <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                          <span className="text-xl">{currentTier.emoji}</span>
-                          <div>
-                            <p className="font-bold text-sm" style={customFontStyle}>{currentTier.name}</p>
-                            <p className="text-xs opacity-90">+{currentTier.toppingBonus} toppings/week</p>
-                          </div>
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-lg">{currentTier.emoji}</span>
+                          <p className="font-bold text-sm whitespace-nowrap" style={customFontStyle}>{currentTier.name}</p>
+                          <p className="text-xs opacity-90 whitespace-nowrap">+{currentTier.toppingBonus} toppings/week</p>
                         </div>
                         <div className="flex flex-wrap gap-1 justify-end">
                           <span className="bg-white/20 px-2 py-0.5 rounded text-xs">{currentTier.yieldBoost}</span>
@@ -1732,7 +1730,7 @@ export default function StakingPage({
               style={{ ...customFontStyle, fontSize: isMobile ? 18 : 20 }}
             >
               <Image src="/images/pepperoni-art.png" alt="Pepperoni" width={20} height={20} className="inline mr-1" />
-              Weekly Jackpot
+              Claim Toppings
               <Image src="/images/pepperoni-art.png" alt="Pepperoni" width={20} height={20} className="inline ml-1" />
             </Button>
 

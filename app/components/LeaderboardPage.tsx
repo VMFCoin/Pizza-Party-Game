@@ -569,7 +569,7 @@ export default function LeaderboardPage({
               onClick={navigateToWeekly}
             >
               <Image src="/images/pepperoni-art.png" alt="Pepperoni" width={20} height={20} className="inline mr-1" />
-              Weekly Jackpot
+              Claim Toppings
               <Image src="/images/pepperoni-art.png" alt="Pepperoni" width={20} height={20} className="inline ml-1" />
             </Button>
 
