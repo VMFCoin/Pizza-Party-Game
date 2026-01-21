@@ -194,6 +194,17 @@ export default function StakingPage({
   // Collapsible section state
   const [tiersOpen, setTiersOpen] = useState(false)
   const [statsOpen, setStatsOpen] = useState(false)
+  const [topStakersOpen, setTopStakersOpen] = useState(false)
+  const [topStakers, setTopStakers] = useState<{
+    rank: number
+    fid: number
+    wallet: string
+    totalStaked: string
+    displayName?: string
+    username?: string
+    pfpUrl?: string
+  }[]>([])
+  const [topStakersLoading, setTopStakersLoading] = useState(false)
 
   // Anti-sybil: Track if this FID already has a staking position
   const [stakingEligibility, setStakingEligibility] = useState<{
@@ -671,6 +682,22 @@ export default function StakingPage({
     return () => window.removeEventListener('resize', handleResize)
   }, [])
 
+  // Fetch top stakers when dropdown is opened
+  useEffect(() => {
+    if (topStakersOpen && topStakers.length === 0 && !topStakersLoading) {
+      setTopStakersLoading(true)
+      fetch('/api/staking/top-stakers')
+        .then(res => res.json())
+        .then(data => {
+          if (data.topStakers) {
+            setTopStakers(data.topStakers)
+          }
+        })
+        .catch(err => console.error('Failed to fetch top stakers:', err))
+        .finally(() => setTopStakersLoading(false))
+    }
+  }, [topStakersOpen, topStakers.length, topStakersLoading])
+
   const handleBack = () => {
     if (onNavigateToHome) {
       onNavigateToHome()
@@ -949,6 +976,16 @@ export default function StakingPage({
 
     setShowShareModal(false)
   }, [claimedAmount])
+
+  // Handle viewing a Farcaster profile
+  const handleViewProfile = useCallback(async (fid: number | undefined) => {
+    if (!fid) return
+    try {
+      await sdk.actions.viewProfile({ fid })
+    } catch (error) {
+      console.error('Failed to open profile:', error)
+    }
+  }, [])
 
   // Derived values for display (abbreviated format for compact areas)
   const walletBalanceDisplay = formatPizzaWei(pizzaBalance as bigint | undefined)
@@ -1491,6 +1528,98 @@ export default function StakingPage({
                       <p className="text-blue-700 font-bold" style={{ fontFamily: 'var(--font-luckiest-guy)' }}>{boostDaysRemaining}</p>
                     </div>
                   </div>
+                </div>
+              )}
+            </div>
+
+            {/* Top Stakers - Collapsible Gold */}
+            <div className="top-stakers-dropdown">
+              <Button
+                onClick={() => setTopStakersOpen(!topStakersOpen)}
+                className={`w-full !bg-yellow-500 hover:!bg-yellow-600 text-yellow-900 font-bold py-2 border-4 border-yellow-700 uppercase flex items-center justify-between ${topStakersOpen ? 'rounded-t-xl rounded-b-none' : 'rounded-xl'}`}
+                style={{ ...customFontStyle, fontSize: isMobile ? 16 : 18 }}
+              >
+                <span className="flex-1 text-center flex items-center justify-center gap-2">
+                  <span>🏆</span>
+                  TOP STAKERS
+                  <span>🏆</span>
+                </span>
+                {topStakersOpen ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
+              </Button>
+              {topStakersOpen && (
+                <div className="bg-yellow-100 border-4 border-t-0 border-yellow-700 rounded-b-xl p-3 max-h-96 overflow-y-auto">
+                  {topStakersLoading ? (
+                    <div className="text-center py-4">
+                      <p className="text-yellow-700" style={{ fontFamily: 'var(--font-luckiest-guy)' }}>Loading...</p>
+                    </div>
+                  ) : topStakers.length === 0 ? (
+                    <div className="text-center py-4">
+                      <p className="text-yellow-700" style={{ fontFamily: 'var(--font-luckiest-guy)' }}>No stakers yet</p>
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                      {topStakers.map((staker) => (
+                        <div
+                          key={staker.wallet}
+                          onClick={() => handleViewProfile(staker.fid)}
+                          className={`rounded-lg p-2 border-2 flex items-center gap-2 cursor-pointer hover:opacity-80 transition-opacity ${
+                            staker.rank === 1
+                              ? 'bg-gradient-to-r from-yellow-400 to-yellow-500 border-yellow-600'
+                              : staker.rank === 2
+                              ? 'bg-gradient-to-r from-gray-300 to-gray-400 border-gray-500'
+                              : staker.rank === 3
+                              ? 'bg-gradient-to-r from-orange-400 to-orange-500 border-orange-600'
+                              : 'bg-white border-yellow-300'
+                          }`}
+                        >
+                          {/* Rank */}
+                          <span
+                            className={`font-bold text-sm w-6 ${
+                              staker.rank <= 3 ? 'text-white' : 'text-yellow-700'
+                            }`}
+                            style={{ fontFamily: 'var(--font-luckiest-guy)' }}
+                          >
+                            #{staker.rank}
+                          </span>
+                          {/* PFP */}
+                          <div className="w-8 h-8 rounded-full overflow-hidden flex-shrink-0 bg-yellow-200">
+                            {staker.pfpUrl ? (
+                              <Image
+                                src={staker.pfpUrl}
+                                alt=""
+                                width={32}
+                                height={32}
+                                className="w-full h-full object-cover"
+                              />
+                            ) : (
+                              <div className="w-full h-full flex items-center justify-center text-yellow-600">
+                                🍕
+                              </div>
+                            )}
+                          </div>
+                          {/* Name & Amount */}
+                          <div className="flex-1 min-w-0">
+                            <p
+                              className={`font-bold text-sm truncate ${
+                                staker.rank <= 3 ? 'text-white' : 'text-yellow-800'
+                              }`}
+                              style={{ fontFamily: 'var(--font-luckiest-guy)' }}
+                            >
+                              {staker.displayName || staker.username || `${staker.wallet.slice(0, 6)}...${staker.wallet.slice(-4)}`}
+                            </p>
+                            <p
+                              className={`text-xs ${
+                                staker.rank <= 3 ? 'text-white/80' : 'text-yellow-600'
+                              }`}
+                              style={{ fontFamily: 'var(--font-luckiest-guy)' }}
+                            >
+                              {formatPizza(parseFloat(staker.totalStaked))} PIZZA
+                            </p>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               )}
             </div>
