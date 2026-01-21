@@ -6,9 +6,11 @@ import { PIZZA_PARTY_ADDRESS, PIZZA_PARTY_ABI } from '@/app/lib/constants'
 export const runtime = 'edge'
 export const dynamic = 'force-dynamic'
 
-// Supply multiplier for historical stats (100B new / 10M old = 10,000x)
-// This adjusts old token amounts to display equivalent value in new token
-const SUPPLY_MULTIPLIER = 10000n
+// NOTE: On-chain stats now contain mixed values:
+// - Pre-migration base amounts (old token, NOT multiplied during migration)
+// - Post-migration winnings (new token amounts, already correct)
+// Since new token winnings (~450K+ PIZZA per win) dominate the old base (~11K max),
+// we display values as-is without any multiplier adjustment.
 
 // Create server-side RPC client
 // Using Publicnode RPC which is fully public and works from edge functions
@@ -179,11 +181,10 @@ export async function GET(): Promise<NextResponse<LeaderboardResponse>> {
           const result = results[i]
           if (result.status === 'success' && result.result) {
             const stats = result.result as unknown as { totalDailyWins: bigint; totalWeeklyWins: bigint; totalPizzaWon: bigint }
-            // Apply supply multiplier to historical PIZZA amounts (10M old → 100B new = 10,000x)
-            const adjustedPizzaWon = stats.totalPizzaWon * SUPPLY_MULTIPLIER
+            // Display stats as-is - no multiplier needed since new token winnings dominate
             playerStats[addr.toLowerCase()] = {
               totalWins: Number(stats.totalDailyWins) + Number(stats.totalWeeklyWins),
-              totalPizzaWon: formatUnits(adjustedPizzaWon, 18),
+              totalPizzaWon: formatUnits(stats.totalPizzaWon, 18),
             }
           } else {
             playerStats[addr.toLowerCase()] = { totalWins: 0, totalPizzaWon: '0' }
