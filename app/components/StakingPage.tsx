@@ -1741,7 +1741,7 @@ export default function StakingPage({
                 className="text-center text-sm mb-4 px-2"
                 style={{
                   fontFamily: 'var(--font-luckiest-guy)',
-                  color: '#FFA500',
+                  color: '#FDE047',
                   textShadow: '2px 2px 0px #8B0000, 3px 3px 0px rgba(139, 0, 0, 0.5)'
                 }}
               >
