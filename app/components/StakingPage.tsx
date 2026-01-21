@@ -32,10 +32,10 @@ interface StakingPageProps {
 // NOTE: Thresholds are for 10M supply testing. Multiply by 1000 for 10B supply.
 // yieldBoostBPS: basis points for calculation (150 = 1.5%, 500 = 5%, etc.)
 const STAKING_TIERS = [
-  { id: 0, name: 'Slice Runner', minStake: 0, yieldBoost: '+1.5%', yieldBoostBPS: 150, toppingBonus: 0, color: 'bg-gray-500', emoji: '🍕' },
-  { id: 1, name: 'Oven Operator', minStake: 500_000_000, yieldBoost: '+3%', yieldBoostBPS: 300, toppingBonus: 1, color: 'bg-green-500', emoji: '🔥' },
-  { id: 2, name: 'Pie Boss', minStake: 2_000_000_000, yieldBoost: '+7%', yieldBoostBPS: 700, toppingBonus: 3, color: 'bg-orange-500', emoji: '👨‍🍳' },
-  { id: 3, name: 'Pizza Tycoon', minStake: 5_000_000_000, yieldBoost: '+15%', yieldBoostBPS: 1500, toppingBonus: 5, color: 'bg-red-600', emoji: '👑' },
+  { id: 0, name: 'Slice Runner', minStake: 0, yieldBoost: '+1.5%', yieldBoostBPS: 150, toppingBonus: 0, color: 'bg-gray-500', borderColor: 'border-gray-700', emoji: '🍕' },
+  { id: 1, name: 'Oven Operator', minStake: 500_000_000, yieldBoost: '+3%', yieldBoostBPS: 300, toppingBonus: 1, color: 'bg-green-500', borderColor: 'border-green-700', emoji: '🔥' },
+  { id: 2, name: 'Pie Boss', minStake: 2_000_000_000, yieldBoost: '+7%', yieldBoostBPS: 700, toppingBonus: 3, color: 'bg-orange-500', borderColor: 'border-orange-700', emoji: '👨‍🍳' },
+  { id: 3, name: 'Pizza Tycoon', minStake: 5_000_000_000, yieldBoost: '+15%', yieldBoostBPS: 1500, toppingBonus: 5, color: 'bg-red-600', borderColor: 'border-red-800', emoji: '👑' },
 ]
 
 // Bonus constants (must match contract)
@@ -1087,7 +1087,7 @@ export default function StakingPage({
                 {userPosition ? (
                   <div className="space-y-2">
                     {/* Compact Tier + Bonuses Row */}
-                    <div className={`${currentTier.color} rounded-xl p-2 text-white`}>
+                    <div className={`${currentTier.color} ${currentTier.borderColor} border-4 rounded-xl p-2 text-white`}>
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-2">
                           <span className="text-xl">{currentTier.emoji}</span>
