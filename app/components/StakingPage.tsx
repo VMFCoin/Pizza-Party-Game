@@ -1572,11 +1572,19 @@ export default function StakingPage({
                       {topStakers.map((staker) => (
                         <div
                           key={staker.wallet}
-                          className="rounded-lg p-2 border-2 border-yellow-300 bg-white flex items-center gap-2"
+                          className={`rounded-lg p-2 border-2 flex items-center gap-2 ${
+                            staker.rank === 1
+                              ? 'bg-gradient-to-r from-yellow-400 to-yellow-500 border-yellow-600'
+                              : staker.rank === 2
+                              ? 'bg-gradient-to-r from-gray-300 to-gray-400 border-gray-500'
+                              : staker.rank === 3
+                              ? 'bg-gradient-to-r from-orange-400 to-orange-500 border-orange-600'
+                              : 'bg-white border-yellow-300'
+                          }`}
                         >
                           {/* Rank */}
                           <span
-                            className="font-bold text-sm w-6 text-gray-500"
+                            className="font-bold text-sm w-6 text-gray-800"
                             style={{ fontFamily: 'var(--font-luckiest-guy)' }}
                           >
                             #{staker.rank}
@@ -1603,13 +1611,13 @@ export default function StakingPage({
                           {/* Name & Amount */}
                           <div className="flex-1 min-w-0">
                             <p
-                              className="font-bold text-sm truncate text-gray-500"
+                              className="font-bold text-sm truncate text-gray-800"
                               style={{ fontFamily: 'var(--font-luckiest-guy)' }}
                             >
                               {staker.displayName || staker.username || `${staker.wallet.slice(0, 6)}...${staker.wallet.slice(-4)}`}
                             </p>
                             <p
-                              className="text-xs text-gray-500"
+                              className="text-xs text-gray-800"
                               style={{ fontFamily: 'var(--font-luckiest-guy)' }}
                             >
                               {formatPizza(parseFloat(staker.totalStaked))} PIZZA
