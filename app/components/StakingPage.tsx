@@ -221,15 +221,16 @@ export default function StakingPage({
   }, [])
 
   // Haptic feedback function (mobile only)
-  // Uses Farcaster SDK haptics (works on iOS) with fallback to navigator.vibrate (Android)
-  const triggerHaptic = useCallback(() => {
-    // Try Farcaster SDK haptics first (works on iOS in Farcaster)
+  // Uses Farcaster SDK haptics with fallback to navigator.vibrate
+  const triggerHaptic = useCallback(async (intensity: 'light' | 'medium' | 'heavy' = 'light') => {
+    // Try Farcaster SDK haptics first
     try {
-      sdk.haptics.impactOccurred('light')
+      await sdk.haptics.impactOccurred(intensity)
     } catch {
-      // Fallback to navigator.vibrate for Android/non-Farcaster browsers
+      // Fallback to navigator.vibrate for non-Farcaster browsers
       if (typeof navigator !== 'undefined' && 'vibrate' in navigator) {
-        navigator.vibrate(8) // Short 8ms vibration pulse
+        const duration = intensity === 'heavy' ? 20 : intensity === 'medium' ? 12 : 8
+        navigator.vibrate(duration)
       }
     }
   }, [])
@@ -904,6 +905,8 @@ export default function StakingPage({
       setHasSpunThisGame(true)
       // Persist spin result so it survives app close/reopen
       saveSpinResult(outcome, targetRotation)
+      // Heavy haptic feedback when spin completes
+      triggerHaptic('heavy')
     }, 3000)
   }, [playTick, triggerHaptic, getSliceFromRotation, saveSpinResult])
 
