@@ -6,6 +6,7 @@ import { Button } from './ui/button'
 import { Card } from './ui/card'
 import { ArrowLeft } from 'lucide-react'
 import { useAccount } from 'wagmi'
+import { sdk } from '@farcaster/miniapp-sdk'
 import { enrichLeaderboardWithProfiles, FarcasterProfile } from '../lib/farcasterProfiles'
 
 // All historical stats have been migrated to the current contract
@@ -306,29 +307,44 @@ export default function LeaderboardPage({
     }
   }, [address, dataLoaded, dailyWinnersAddresses, weeklyWinnersAddresses, previousDailyGame, previousWeeklyGame, previousDailyGameId, previousWeeklyGameId, playerStatsMap])
 
-  const ProfilePicture = ({ 
-    pfpUrl, 
-    address, 
-    isPlaceholder 
-  }: { 
+  const handleViewProfile = async (fid: number | undefined) => {
+    if (!fid) return
+    try {
+      await sdk.actions.viewProfile({ fid })
+    } catch (error) {
+      console.error('Failed to open profile:', error)
+    }
+  }
+
+  const ProfilePicture = ({
+    pfpUrl,
+    address,
+    isPlaceholder,
+    fid
+  }: {
     pfpUrl?: string
     address: string
-    isPlaceholder: boolean 
+    isPlaceholder: boolean
+    fid?: number
   }) => {
     const [imageError, setImageError] = useState(false)
     const [currentPfpUrl, setCurrentPfpUrl] = useState<string | undefined>(pfpUrl)
-    
+
     useEffect(() => {
       if (pfpUrl !== currentPfpUrl) {
         setCurrentPfpUrl(pfpUrl)
         setImageError(false)
       }
     }, [pfpUrl, currentPfpUrl])
-    
+
     const shouldShowImage = !isPlaceholder && currentPfpUrl && !imageError
+    const isClickable = !isPlaceholder && fid
 
     return (
-      <div className="w-9 h-9 rounded-full bg-gray-200 border-2 border-gray-300 flex items-center justify-center overflow-hidden">
+      <div
+        className={`w-9 h-9 rounded-full bg-gray-200 border-2 border-gray-300 flex items-center justify-center overflow-hidden ${isClickable ? 'cursor-pointer hover:ring-2 hover:ring-blue-400' : ''}`}
+        onClick={isClickable ? () => handleViewProfile(fid) : undefined}
+      >
         {shouldShowImage ? (
           <Image
             key={currentPfpUrl}
@@ -379,6 +395,7 @@ export default function LeaderboardPage({
               pfpUrl={winner.farcasterProfile?.pfpUrl}
               address={winner.address}
               isPlaceholder={isPlaceholder}
+              fid={winner.farcasterProfile?.fid}
             />
           </div>
           <div className="flex flex-col min-w-0 flex-1">
