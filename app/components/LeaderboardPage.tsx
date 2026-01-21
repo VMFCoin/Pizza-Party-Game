@@ -488,7 +488,7 @@ export default function LeaderboardPage({
                 <div className="flex items-center justify-center mb-1 text-center">
                   <h2
                     className="text-2xl font-bold text-center"
-                    style={{ fontFamily: 'var(--font-luckiest-guy)', fontSize: 'clamp(28px, 11.1vw, 40px)', color: '#FFA500' }}
+                    style={{ fontFamily: 'var(--font-luckiest-guy)', fontSize: 'clamp(28px, 11.1vw, 40px)', color: '#FFA500', textShadow: '2px 2px 0px #8B0000, 3px 3px 0px rgba(139, 0, 0, 0.5)' }}
                 >
                   DAILY WINNERS
                   </h2>
@@ -523,7 +523,7 @@ export default function LeaderboardPage({
                 <div className="flex items-center justify-center mb-2 text-center">
                   <h2
                     className="text-2xl font-bold text-center"
-                    style={{ fontFamily: 'var(--font-luckiest-guy)', fontSize: 'clamp(24px, 9.7vw, 34px)', color: '#FFA500' }}
+                    style={{ fontFamily: 'var(--font-luckiest-guy)', fontSize: 'clamp(24px, 9.7vw, 34px)', color: '#FFA500', textShadow: '2px 2px 0px #8B0000, 3px 3px 0px rgba(139, 0, 0, 0.5)' }}
                 >
                   WEEKLY WINNERS
                   </h2>
@@ -604,7 +604,7 @@ export default function LeaderboardPage({
               <div className="px-3 pb-3 pt-1.5">
                 <p
                   className="text-red-600 font-bold mb-2"
-                  style={{ fontFamily: 'var(--font-luckiest-guy)', textAlign: 'center', fontSize: '32px' }}
+                  style={{ fontFamily: 'var(--font-luckiest-guy)', textAlign: 'center', fontSize: '32px', textShadow: '2px 2px 0px #8B0000, 3px 3px 0px rgba(139, 0, 0, 0.5)' }}
                 >
                   How It Works
                 </p>
