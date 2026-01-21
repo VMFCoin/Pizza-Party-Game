@@ -5,8 +5,8 @@ import { base } from 'viem/chains'
 
 const PIZZA_STAKING_ADDRESS = '0xCbAf5bACe5419710C3852653d3DdEB831d7415be'
 
-// Contract deployed around block 25800000 (early January 2025)
-const STAKING_DEPLOY_BLOCK = 25800000n
+// Staking went live around block 40800000 (mid-January 2025)
+const STAKING_DEPLOY_BLOCK = 40800000n
 
 // ABI for getStakeInfo
 const STAKING_ABI = [
