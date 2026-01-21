@@ -1551,9 +1551,9 @@ export default function StakingPage({
                 style={{ ...customFontStyle, fontSize: isMobile ? 16 : 18 }}
               >
                 <span className="flex-1 text-center flex items-center justify-center gap-2">
-                  <span>🏆</span>
+                  <span>👑</span>
                   TOP STAKERS
-                  <span>🏆</span>
+                  <span>👑</span>
                 </span>
                 {topStakersOpen ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
               </Button>
