@@ -235,6 +235,19 @@ export default function StakingPage({
     }
   }, [])
 
+  // Unlock audio on user gesture (required for mobile)
+  const unlockAudio = useCallback(() => {
+    if (tickAudioRef.current) {
+      // Play and immediately pause to unlock audio context on mobile
+      tickAudioRef.current.volume = 0
+      tickAudioRef.current.play().then(() => {
+        tickAudioRef.current!.pause()
+        tickAudioRef.current!.currentTime = 0
+        tickAudioRef.current!.volume = 0.3
+      }).catch(() => {})
+    }
+  }, [])
+
   // Play tick sound
   const playTick = useCallback(() => {
     if (tickAudioRef.current) {
@@ -812,6 +825,9 @@ export default function StakingPage({
   // Step 1: Handle SPIN button click - record spin on-chain FIRST to prevent multi-device exploit
   const handleSpin = () => {
     if (isSpinning || hasSpunThisGame || pendingRecordSpin || isRecordSpinPending || isRecordSpinConfirming) return
+
+    // Unlock audio on user gesture (required for mobile browsers)
+    unlockAudio()
 
     // Call recordSpin() on contract - this prevents spinning on multiple devices
     setPendingRecordSpin(true)
