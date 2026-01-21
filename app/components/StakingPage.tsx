@@ -1584,7 +1584,7 @@ export default function StakingPage({
                         >
                           {/* Rank */}
                           <span
-                            className="font-bold text-sm w-6 text-gray-800"
+                            className="font-bold text-sm w-6 text-gray-600"
                             style={{ fontFamily: 'var(--font-luckiest-guy)' }}
                           >
                             #{staker.rank}
@@ -1611,13 +1611,13 @@ export default function StakingPage({
                           {/* Name & Amount */}
                           <div className="flex-1 min-w-0">
                             <p
-                              className="font-bold text-sm truncate text-gray-800"
+                              className="font-bold text-sm truncate text-gray-600"
                               style={{ fontFamily: 'var(--font-luckiest-guy)' }}
                             >
                               {staker.displayName || staker.username || `${staker.wallet.slice(0, 6)}...${staker.wallet.slice(-4)}`}
                             </p>
                             <p
-                              className="text-xs text-gray-800"
+                              className="text-xs text-gray-600"
                               style={{ fontFamily: 'var(--font-luckiest-guy)' }}
                             >
                               {formatPizza(parseFloat(staker.totalStaked))} PIZZA
