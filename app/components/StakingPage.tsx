@@ -630,6 +630,17 @@ export default function StakingPage({
           refetchLastSpinGameId(),
         ])
 
+        // Update staker database for top stakers leaderboard (after stake/unstake)
+        if (address && (showConfirmModal === 'stake' || showConfirmModal === 'unstake')) {
+          fetch('/api/staking/update-staker', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ wallet: address }),
+          }).catch(err => console.error('Failed to update staker:', err))
+          // Clear cached top stakers so they reload with fresh data
+          setTopStakers([])
+        }
+
         // Show share modal AFTER refetch completes so UI shows updated data
         if (isClaim) {
           setClaimLockType(0)

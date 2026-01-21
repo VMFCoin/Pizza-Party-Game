@@ -16,3 +16,23 @@ model StakingPosition {
 
   @@index([wallet])
 }
+
+// Cached staker data from blockchain for fast leaderboard loading
+model Staker {
+  id             String   @id @default(cuid())
+  wallet         String   @unique
+  totalStaked    String   // BigInt stored as string
+  flexibleAmount String
+  lockedAmount   String
+  tier           Int
+  // Farcaster profile data (cached)
+  fid            Int?
+  username       String?
+  displayName    String?
+  pfpUrl         String?
+  // Timestamps
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@index([totalStaked])
+}
