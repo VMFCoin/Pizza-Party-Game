@@ -1675,7 +1675,11 @@ export default function StakingPage({
                   </div>
                   <div className="flex items-start gap-2 text-xs text-green-800" style={{ fontFamily: 'var(--font-luckiest-guy)' }}>
                     <span className="flex-shrink-0">🍅</span>
-                    <span>Max stake: 1,000,000 PIZZA per wallet</span>
+                    <span>Max stake: 10B PIZZA per wallet</span>
+                  </div>
+                  <div className="flex items-start gap-2 text-xs text-green-800" style={{ fontFamily: 'var(--font-luckiest-guy)' }}>
+                    <span className="flex-shrink-0">🍅</span>
+                    <span>Spin the Gold Slice and win an extra 10M $Pizza</span>
                   </div>
                 </div>
               </div>
