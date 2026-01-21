@@ -501,8 +501,8 @@ contract PizzaStakingV1Upgradeable is
             amount = position.stakedAmount; // Cap at max
         }
 
-        // Claim pending rewards first (for this position type)
-        _claimRewardsForPosition(msg.sender, lockType, false);
+        // NOTE: We do NOT auto-claim rewards on unstake. Users must explicitly claim.
+        // Rewards remain pending and can be claimed separately via claim() or claimFromPosition().
 
         // Calculate penalty for early unstake from locked position
         uint256 penalty = 0;
