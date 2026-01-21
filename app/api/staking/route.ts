@@ -5,9 +5,6 @@ import { createClient } from '@farcaster/quick-auth'
 const client = createClient()
 const DOMAIN = 'pizza-party-game.vmfcoin.com'
 
-// Whitelist of FIDs allowed to stake (private testing phase)
-const STAKING_WHITELIST_FIDS = [1013491, 1060809, 963422, 392134]
-
 // Helper for JSON responses with CORS
 function json(data: unknown, status = 200) {
   return NextResponse.json(data, {
@@ -47,15 +44,6 @@ export async function GET(request: NextRequest) {
   const fid = await getFidFromToken(request)
   if (!fid) {
     return json({ error: 'Unauthorized - valid Farcaster auth required' }, 401)
-  }
-
-  // Check whitelist first
-  if (!STAKING_WHITELIST_FIDS.includes(fid)) {
-    return json({
-      canStake: false,
-      reason: 'not_whitelisted',
-      message: 'Staking is currently in private testing'
-    })
   }
 
   // Get wallet from query params (if provided)
@@ -114,14 +102,6 @@ export async function POST(request: NextRequest) {
   const fid = await getFidFromToken(request)
   if (!fid) {
     return json({ error: 'Unauthorized - valid Farcaster auth required' }, 401)
-  }
-
-  // Check whitelist first
-  if (!STAKING_WHITELIST_FIDS.includes(fid)) {
-    return json({
-      error: 'Not whitelisted for staking',
-      reason: 'not_whitelisted'
-    }, 403)
   }
 
   let body: { wallet?: string }

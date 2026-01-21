@@ -5,9 +5,6 @@ import { createClient } from '@farcaster/quick-auth'
 const client = createClient()
 const DOMAIN = 'pizza-party-game.vmfcoin.com'
 
-// Whitelist of FIDs allowed to debug (private testing phase)
-const STAKING_WHITELIST_FIDS = [1013491, 1060809, 963422, 392134]
-
 // Helper for JSON responses with CORS
 function json(data: unknown, status = 200) {
   return NextResponse.json(data, {
@@ -47,11 +44,6 @@ export async function GET(request: NextRequest) {
     return json({ error: 'Unauthorized - valid Farcaster auth required' }, 401)
   }
 
-  // Check whitelist
-  if (!STAKING_WHITELIST_FIDS.includes(fid)) {
-    return json({ error: 'Not whitelisted for staking debug' }, 403)
-  }
-
   try {
     const position = await prisma.stakingPosition.findUnique({
       where: { fid },
@@ -78,11 +70,6 @@ export async function DELETE(request: NextRequest) {
   const fid = await getFidFromToken(request)
   if (!fid) {
     return json({ error: 'Unauthorized - valid Farcaster auth required' }, 401)
-  }
-
-  // Check whitelist
-  if (!STAKING_WHITELIST_FIDS.includes(fid)) {
-    return json({ error: 'Not whitelisted for staking debug' }, 403)
   }
 
   try {

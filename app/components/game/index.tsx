@@ -614,23 +614,14 @@ function GamePageContent({ onNavigateToWeekly, onNavigateToLeaderboard, onNaviga
             🍍 OWN A PARLOR 🍍
           </Button>
 
-          {/* Staking Button - Only whitelisted FIDs can access */}
-          {(() => {
-            const STAKING_WHITELIST_FIDS = [1013491, 1060809, 963422, 392134, 200506]
-            const canAccessStaking = userFid && STAKING_WHITELIST_FIDS.includes(userFid)
-            return (
-              <Button
-                onClick={canAccessStaking ? onNavigateToStaking : undefined}
-                className={`w-full !bg-green-600 text-white font-bold py-2 rounded-xl border-4 border-green-900 uppercase ${
-                  canAccessStaking ? 'hover:!bg-green-700 cursor-pointer' : 'cursor-not-allowed opacity-90'
-                }`}
-                style={{ ...customFontStyle, fontSize: isMobile ? 18 : 20 }}
-                disabled={!canAccessStaking}
-              >
-                🍕 Spin & Stake 🍕
-              </Button>
-            )
-          })()}
+          {/* Staking Button */}
+          <Button
+            onClick={onNavigateToStaking}
+            className="w-full !bg-green-600 hover:!bg-green-700 text-white font-bold py-2 rounded-xl border-4 border-green-900 uppercase cursor-pointer"
+            style={{ ...customFontStyle, fontSize: isMobile ? 18 : 20 }}
+          >
+            🍕 Spin & Stake 🍕
+          </Button>
 
           {/* Manage Wallet Button (when connected) */}
           {shouldShowManageWallet && (

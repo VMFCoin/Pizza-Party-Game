@@ -296,91 +296,76 @@ export default function HomePage() {
                   />
                 </div>
               </div>
-              {/* MIGRATION MODE: All buttons disabled except ??? for whitelisted FIDs */}
-              {(() => {
-                const STAKING_WHITELIST_FIDS = [1013491, 1060809, 963422, 392134, 200506]
-                const canAccessStaking = userFid && STAKING_WHITELIST_FIDS.includes(userFid)
+              {/* GRAB A SLICE */}
+              <Button
+                onClick={handleStartPlaying}
+                className="w-full !bg-red-600 hover:!bg-red-700 text-white py-3 px-6 rounded-xl border-4 border-red-900 shadow-lg transform hover:scale-105 transition-all touch-manipulation"
+                style={{ ...customFontStyle, letterSpacing: "1px", fontSize: isMobile ? 18 : 20, fontWeight: '900' }}
+              >
+                🍕 GRAB A SLICE 🍕
+              </Button>
 
-                return (
-                  <>
-                    {/* GRAB A SLICE - Disabled during migration */}
-                    <Button
-                      disabled
-                      className="w-full !bg-gray-500 text-gray-300 py-3 px-6 rounded-xl border-4 border-gray-700 shadow-lg cursor-not-allowed opacity-60"
-                      style={{ ...customFontStyle, letterSpacing: "1px", fontSize: isMobile ? 18 : 20, fontWeight: '900' }}
-                    >
-                      🍕 GRAB A SLICE 🍕
-                    </Button>
+              {/* CLAIM TOPPINGS (Weekly Jackpot) */}
+              <Button
+                onClick={handleNavigateToWeekly}
+                className="w-full !bg-orange-500 hover:!bg-orange-600 text-white py-3 px-6 rounded-xl border-4 border-orange-700 shadow-lg transform hover:scale-105 transition-all touch-manipulation"
+                style={{ ...customFontStyle, letterSpacing: "1px", fontSize: isMobile ? 18 : 20, fontWeight: '900' }}
+              >
+                <Image src="/images/pepperoni-art.png" alt="Pepperoni" width={20} height={20} className="inline mr-1" />
+                CLAIM TOPPINGS
+                <Image src="/images/pepperoni-art.png" alt="Pepperoni" width={20} height={20} className="inline ml-1" />
+              </Button>
 
-                    {/* WEEKLY JACKPOT - Disabled during migration */}
-                    <Button
-                      disabled
-                      className="w-full !bg-gray-500 text-gray-300 py-3 px-6 rounded-xl border-4 border-gray-700 shadow-lg cursor-not-allowed opacity-60"
-                      style={{ ...customFontStyle, letterSpacing: "1px", fontSize: isMobile ? 18 : 20, fontWeight: '900' }}
-                    >
-                      <Image src="/images/pepperoni-art.png" alt="Pepperoni" width={20} height={20} className="inline mr-1 opacity-50" />
-                      CLAIM TOPPINGS
-                      <Image src="/images/pepperoni-art.png" alt="Pepperoni" width={20} height={20} className="inline ml-1 opacity-50" />
-                    </Button>
+              {/* LEADERBOARD */}
+              <Button
+                onClick={handleNavigateToLeaderboard}
+                className="w-full !bg-yellow-500 hover:!bg-yellow-600 text-white font-bold py-3 px-6 rounded-xl border-4 border-yellow-700 shadow-lg transform hover:scale-105 transition-all touch-manipulation uppercase"
+                style={{ ...customFontStyle, letterSpacing: "1px", fontSize: isMobile ? 18 : 20 }}
+              >
+                <Image
+                  src="/images/mushroom-icon2.png"
+                  alt="Mushroom"
+                  width={20}
+                  height={20}
+                  className="inline mr-1"
+                  style={{ backgroundColor: 'transparent', border: 'none' }}
+                />
+                LEADERBOARD
+                <Image
+                  src="/images/mushroom-icon2.png"
+                  alt="Mushroom"
+                  width={20}
+                  height={20}
+                  className="inline ml-1"
+                  style={{ backgroundColor: 'transparent', border: 'none' }}
+                />
+              </Button>
 
-                    {/* LEADERBOARD - Disabled during migration */}
-                    <Button
-                      disabled
-                      className="w-full !bg-gray-500 text-gray-300 font-bold py-3 px-6 rounded-xl border-4 border-gray-700 shadow-lg cursor-not-allowed opacity-60 uppercase"
-                      style={{ ...customFontStyle, letterSpacing: "1px", fontSize: isMobile ? 18 : 20 }}
-                    >
-                      <Image
-                        src="/images/mushroom-icon2.png"
-                        alt="Mushroom"
-                        width={20}
-                        height={20}
-                        className="inline mr-1 opacity-50"
-                        style={{ backgroundColor: 'transparent', border: 'none' }}
-                      />
-                      LEADERBOARD
-                      <Image
-                        src="/images/mushroom-icon2.png"
-                        alt="Mushroom"
-                        width={20}
-                        height={20}
-                        className="inline ml-1 opacity-50"
-                        style={{ backgroundColor: 'transparent', border: 'none' }}
-                      />
-                    </Button>
+              {/* OWN A PARLOR */}
+              <Button
+                onClick={handleNavigateToParlor}
+                className="w-full !bg-amber-600 hover:!bg-amber-700 text-white font-bold py-3 px-6 rounded-xl border-4 border-amber-800 shadow-lg uppercase transform hover:scale-105 transition-all touch-manipulation"
+                style={{
+                  ...customFontStyle,
+                  letterSpacing: "1px",
+                  fontSize: isMobile ? 18 : 20
+                }}
+              >
+                🍍 OWN A PARLOR 🍍
+              </Button>
 
-                    {/* OWN A PARLOR - Disabled during migration */}
-                    <Button
-                      disabled
-                      className="w-full !bg-gray-500 text-gray-300 font-bold py-3 px-6 rounded-xl border-4 border-gray-700 shadow-lg uppercase cursor-not-allowed opacity-60"
-                      style={{
-                        ...customFontStyle,
-                        letterSpacing: "1px",
-                        fontSize: isMobile ? 18 : 20
-                      }}
-                    >
-                      🍍 OWN A PARLOR 🍍
-                    </Button>
-
-                    {/* ??? Button - Only active for whitelisted FIDs */}
-                    <Button
-                      onClick={canAccessStaking ? handleNavigateToStaking : undefined}
-                      className={`w-full text-white font-bold py-3 px-6 rounded-xl border-4 shadow-lg uppercase transform transition-all touch-manipulation ${
-                        canAccessStaking
-                          ? '!bg-green-600 hover:!bg-green-700 hover:scale-105 cursor-pointer border-green-900'
-                          : '!bg-gray-500 text-gray-300 border-gray-700 cursor-not-allowed opacity-60'
-                      }`}
-                      style={{
-                        ...customFontStyle,
-                        letterSpacing: "1px",
-                        fontSize: isMobile ? 18 : 20
-                      }}
-                      disabled={!canAccessStaking}
-                    >
-                      🍕 Spin & Stake 🍕
-                    </Button>
-                  </>
-                )
-              })()}
+              {/* Spin & Stake */}
+              <Button
+                onClick={handleNavigateToStaking}
+                className="w-full !bg-green-600 hover:!bg-green-700 text-white font-bold py-3 px-6 rounded-xl border-4 border-green-900 shadow-lg uppercase transform hover:scale-105 transition-all touch-manipulation"
+                style={{
+                  ...customFontStyle,
+                  letterSpacing: "1px",
+                  fontSize: isMobile ? 18 : 20
+                }}
+              >
+                🍕 Spin & Stake 🍕
+              </Button>
 
             </div>
 

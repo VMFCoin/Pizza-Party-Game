@@ -662,19 +662,11 @@ export default function StakingPage({
 
   // === HANDLERS ===
 
-  // Whitelist of FIDs allowed to stake (private testing phase)
-  const STAKING_WHITELIST_FIDS = [1013491, 1060809, 963422, 392134, 200506]
-
   // Check staking eligibility via API (anti-sybil: one FID = one wallet)
   const checkStakingEligibility = useCallback(async () => {
-    // Check if user FID is in whitelist (local check first for fast feedback)
+    // Must have Farcaster account
     if (!userFid) {
       setStakingEligibility({ canStake: false, reason: 'no_fid', loading: false })
-      return
-    }
-
-    if (!STAKING_WHITELIST_FIDS.includes(userFid)) {
-      setStakingEligibility({ canStake: false, reason: 'not_whitelisted', loading: false })
       return
     }
 
@@ -698,11 +690,11 @@ export default function StakingPage({
         }
       } catch (error) {
         console.error('[Staking] Eligibility check failed:', error)
-        // On API error, allow based on local whitelist (fail open for UX)
+        // On API error, allow (fail open for UX)
       }
     }
 
-    // User is whitelisted and passed API check - they can stake
+    // User passed API check - they can stake
     setStakingEligibility({ canStake: true, loading: false })
   }, [userFid, authToken, address])
 
