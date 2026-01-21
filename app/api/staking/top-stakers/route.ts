@@ -24,6 +24,12 @@ const STAKING_ABI = [
   }
 ] as const
 
+// Create public client
+const publicClient = createPublicClient({
+  chain: base,
+  transport: http(),
+})
+
 // Helper for JSON responses with CORS
 function json(data: unknown, status = 200) {
   return NextResponse.json(data, {
@@ -33,6 +39,7 @@ function json(data: unknown, status = 200) {
       'access-control-allow-origin': '*',
       'access-control-allow-headers': 'authorization, content-type',
       'access-control-allow-methods': 'GET, OPTIONS',
+      'Cache-Control': 'public, s-maxage=30, stale-while-revalidate=60',
     },
   })
 }
@@ -56,46 +63,46 @@ export async function GET() {
       return json({ topStakers: [] })
     }
 
-    // Create public client to read from contract
-    const client = createPublicClient({
-      chain: base,
-      transport: http(),
-    })
+    // Use multicall to batch all contract reads (fast!)
+    const contractCalls = stakingPositions.map(position => ({
+      address: PIZZA_STAKING_ADDRESS as `0x${string}`,
+      abi: STAKING_ABI,
+      functionName: 'getStakeInfo',
+      args: [position.wallet as `0x${string}`],
+    } as const))
 
-    // Fetch on-chain stake info for each wallet
-    const stakerData = await Promise.all(
-      stakingPositions.map(async (position) => {
-        try {
-          const stakeInfo = await client.readContract({
-            address: PIZZA_STAKING_ADDRESS,
-            abi: STAKING_ABI,
-            functionName: 'getStakeInfo',
-            args: [position.wallet as `0x${string}`],
-          })
+    const results = await publicClient.multicall({ contracts: contractCalls, allowFailure: true })
 
-          return {
+    // Process results
+    const stakerData: {
+      fid: number
+      wallet: string
+      totalStaked: bigint
+      flexibleAmount: bigint
+      lockedAmount: bigint
+      tier: number
+    }[] = []
+
+    stakingPositions.forEach((position, i) => {
+      const result = results[i]
+      if (result.status === 'success' && result.result) {
+        const stakeInfo = result.result as [bigint, bigint, bigint, number, bigint, bigint, boolean]
+        if (stakeInfo[0] > 0n) {
+          stakerData.push({
             fid: position.fid,
             wallet: position.wallet,
             totalStaked: stakeInfo[0],
             flexibleAmount: stakeInfo[1],
             lockedAmount: stakeInfo[2],
             tier: stakeInfo[3],
-          }
-        } catch (err) {
-          console.error(`Failed to get stake info for ${position.wallet}:`, err)
-          return null
+          })
         }
-      })
-    )
-
-    // Filter out null results and stakers with 0 stake
-    const validStakers = stakerData.filter(
-      (s): s is NonNullable<typeof s> => s !== null && s.totalStaked > 0n
-    )
+      }
+    })
 
     // Sort by total staked (descending) and take top 20
-    validStakers.sort((a, b) => (b.totalStaked > a.totalStaked ? 1 : -1))
-    const top20 = validStakers.slice(0, 20)
+    stakerData.sort((a, b) => (b.totalStaked > a.totalStaked ? 1 : -1))
+    const top20 = stakerData.slice(0, 20)
 
     // Fetch Farcaster profiles for the top stakers
     const NEYNAR_API_KEY = process.env.NEYNAR_API_KEY || process.env.NEXT_PUBLIC_NEYNAR_API_KEY
