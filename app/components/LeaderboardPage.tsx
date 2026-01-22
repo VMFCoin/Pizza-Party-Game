@@ -43,9 +43,13 @@ function formatAddress(address: string): string {
 }
 
 // Format settlement date as "Dec. 16, 2025"
-function formatSettlementDate(timestamp: bigint | number | undefined): string {
+// addOneDay is used for daily games since they settle the day after the game ends
+function formatSettlementDate(timestamp: bigint | number | undefined, addOneDay: boolean = false): string {
   if (!timestamp) return ''
   const date = new Date(Number(timestamp) * 1000)
+  if (addOneDay) {
+    date.setDate(date.getDate() + 1)
+  }
   const months = ['Jan.', 'Feb.', 'Mar.', 'Apr.', 'May', 'Jun.', 'Jul.', 'Aug.', 'Sep.', 'Oct.', 'Nov.', 'Dec.']
   const month = months[date.getMonth()]
   const day = date.getDate()
@@ -493,7 +497,7 @@ export default function LeaderboardPage({
                 </div>
                 <p className="text-base font-semibold mb-2 text-center" style={{ ...customFontStyle, color: '#000000' }}>
                   {previousDailyGame && previousDailyGame.endTime
-                    ? `${formatSettlementDate(previousDailyGame.endTime)} lucky winners`
+                    ? `${formatSettlementDate(previousDailyGame.endTime, true)} lucky winners`
                     : "Today's 8 lucky winners"}
                 </p>
                 {loading ? (
