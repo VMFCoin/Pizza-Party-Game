@@ -1041,6 +1041,19 @@ export default function StakingPage({
     }
   }, [])
 
+  // Handle Buy $Pizza - opens token view in Farcaster
+  const handleBuyPizza = useCallback(async () => {
+    try {
+      // CAIP-19 format: eip155:chainId/erc20:tokenAddress
+      // Base chainId is 8453, PIZZA token address
+      await sdk.actions.viewToken({
+        token: 'eip155:8453/erc20:0xa821f2ee19f4f62e404c934d43eb6e5763fbdb07'
+      })
+    } catch (error) {
+      console.error('Failed to open token view:', error)
+    }
+  }, [])
+
   // Derived values for display (abbreviated format for compact areas)
   const walletBalanceDisplay = formatPizzaWei(pizzaBalance as bigint | undefined)
 
@@ -1297,7 +1310,7 @@ export default function StakingPage({
                         </div>
                       </div>
                     ) : (
-                      /* Stake / Unstake Buttons */
+                      /* Stake / Buy / Unstake Buttons */
                       <div className="flex gap-2">
                         <Button
                           onClick={() => setShowStakeInput(true)}
@@ -1305,6 +1318,13 @@ export default function StakingPage({
                           style={customFontStyle}
                         >
                           STAKE
+                        </Button>
+                        <Button
+                          onClick={handleBuyPizza}
+                          className="flex-1 !bg-yellow-500 hover:!bg-yellow-600 text-white font-bold py-2 rounded-xl border-2 border-yellow-700"
+                          style={customFontStyle}
+                        >
+                          BUY $PIZZA
                         </Button>
                         <Button
                           onClick={() => setShowConfirmModal('unstake')}
