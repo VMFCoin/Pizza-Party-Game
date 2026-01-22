@@ -1311,29 +1311,29 @@ export default function StakingPage({
                       </div>
                     ) : (
                       /* Stake / Buy / Unstake Buttons */
-                      <div className="flex gap-2">
+                      <div className="flex gap-1.5 w-full">
                         <Button
                           onClick={() => setShowStakeInput(true)}
-                          className="flex-1 !bg-green-500 hover:!bg-green-600 text-white font-bold py-2 rounded-xl border-2 border-green-700"
+                          className="flex-1 min-w-0 !bg-green-500 hover:!bg-green-600 text-white font-bold py-2 px-2 rounded-xl border-2 border-green-700 text-sm whitespace-nowrap"
                           style={customFontStyle}
                         >
                           STAKE
                         </Button>
                         <Button
                           onClick={handleBuyPizza}
-                          className="flex-1 !bg-yellow-500 hover:!bg-yellow-600 text-white font-bold py-2 rounded-xl border-2 border-yellow-700"
+                          className="flex-1 min-w-0 !bg-yellow-500 hover:!bg-yellow-600 text-white font-bold py-2 px-2 rounded-xl border-2 border-yellow-700 text-sm whitespace-nowrap"
                           style={customFontStyle}
                         >
-                          BUY $PIZZA
+                          BUY
                         </Button>
                         <Button
                           onClick={() => setShowConfirmModal('unstake')}
-                          className="flex-1 !bg-red-500 hover:!bg-red-600 text-white font-bold py-2 rounded-xl border-2 border-red-700"
+                          className="flex-1 min-w-0 !bg-red-500 hover:!bg-red-600 text-white font-bold py-2 px-2 rounded-xl border-2 border-red-700 text-sm whitespace-nowrap"
                           style={customFontStyle}
                         >
                           {isLocked ? (
                             <span className="flex items-center justify-center gap-1">
-                              <AlertTriangle size={14} />
+                              <AlertTriangle size={12} />
                               UNSTAKE
                             </span>
                           ) : (
