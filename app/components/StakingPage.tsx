@@ -1204,16 +1204,16 @@ export default function StakingPage({
                       </div>
                     </div>
 
-                    {/* Wallet Balance - Single Line */}
-                    <div className="flex justify-between items-center text-xs bg-gray-50 rounded-lg px-2 py-1.5 border border-gray-200">
-                      <span className="text-gray-500" style={{ fontFamily: 'var(--font-luckiest-guy)' }}>Wallet:</span>
-                      <span className="text-gray-700 font-bold" style={{ fontFamily: 'var(--font-luckiest-guy)' }}>{formatWeiExact(pizzaBalance as bigint)} PIZZA</span>
-                    </div>
-
-                    {/* Total Staked - Single Line */}
-                    <div className="flex justify-between items-center text-xs bg-gray-50 rounded-lg px-2 py-1.5 border border-gray-200">
-                      <span className="text-gray-500" style={{ fontFamily: 'var(--font-luckiest-guy)' }}>Total Staked:</span>
-                      <span className="text-gray-700 font-bold" style={{ fontFamily: 'var(--font-luckiest-guy)' }}>{formatWeiExact(userPosition?.totalStakedAmount)} PIZZA</span>
+                    {/* Wallet Balance & Total Staked */}
+                    <div className="text-xs bg-gray-50 rounded-lg px-2 py-1.5 border border-gray-200 space-y-1">
+                      <div className="flex justify-between items-center">
+                        <span className="text-gray-500" style={{ fontFamily: 'var(--font-luckiest-guy)' }}>Wallet:</span>
+                        <span className="text-gray-700 font-bold" style={{ fontFamily: 'var(--font-luckiest-guy)' }}>{formatWeiExact(pizzaBalance as bigint)} PIZZA</span>
+                      </div>
+                      <div className="flex justify-between items-center">
+                        <span className="text-gray-500" style={{ fontFamily: 'var(--font-luckiest-guy)' }}>Total Staked:</span>
+                        <span className="text-gray-700 font-bold" style={{ fontFamily: 'var(--font-luckiest-guy)' }}>{formatWeiExact(userPosition?.totalStakedAmount)} PIZZA</span>
+                      </div>
                     </div>
 
                     {/* Stake More Input (shown when showStakeInput is true) */}
