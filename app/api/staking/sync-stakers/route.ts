@@ -38,13 +38,42 @@ function json(data: unknown, status = 200) {
   return NextResponse.json(data, { status })
 }
 
+// Helper to fetch logs with retry
+async function fetchLogsWithRetry(fromBlock: bigint, toBlock: bigint, retries = 3): Promise<string[]> {
+  const addresses: string[] = []
+  for (let attempt = 0; attempt < retries; attempt++) {
+    try {
+      const logs = await publicClient.getLogs({
+        address: PIZZA_STAKING_ADDRESS as `0x${string}`,
+        event: parseAbiItem('event Staked(address indexed user, uint256 amount, uint8 lockType, uint8 newTier)'),
+        fromBlock,
+        toBlock,
+      })
+      for (const log of logs) {
+        if (log.args.user) {
+          addresses.push(log.args.user.toLowerCase())
+        }
+      }
+      return addresses
+    } catch {
+      if (attempt < retries - 1) {
+        console.log(`[Sync Stakers] Retry ${attempt + 1} for blocks ${fromBlock}-${toBlock}`)
+        await new Promise(r => setTimeout(r, 2000 * (attempt + 1)))
+      } else {
+        console.error(`[Sync Stakers] Failed after ${retries} retries for blocks ${fromBlock}-${toBlock}`)
+      }
+    }
+  }
+  return addresses
+}
+
 // POST /api/staking/sync-stakers - Sync all stakers from blockchain to database
 export async function POST() {
   try {
     const currentBlock = await publicClient.getBlockNumber()
 
     // Query Staked events to find all staker addresses
-    const chunkSize = 50000n
+    const chunkSize = 20000n // Smaller chunks for better reliability
     const stakerAddresses = new Set<string>()
 
     console.log(`[Sync Stakers] Querying events from block ${STAKING_DEPLOY_BLOCK} to ${currentBlock}`)
@@ -52,23 +81,17 @@ export async function POST() {
     for (let fromBlock = STAKING_DEPLOY_BLOCK; fromBlock < currentBlock; fromBlock += chunkSize) {
       const toBlock = fromBlock + chunkSize - 1n > currentBlock ? currentBlock : fromBlock + chunkSize - 1n
 
-      try {
-        const logs = await publicClient.getLogs({
-          address: PIZZA_STAKING_ADDRESS as `0x${string}`,
-          event: parseAbiItem('event Staked(address indexed user, uint256 amount, uint8 lockType)'),
-          fromBlock,
-          toBlock,
-        })
-
-        for (const log of logs) {
-          if (log.args.user) {
-            stakerAddresses.add(log.args.user.toLowerCase())
-          }
-        }
-        console.log(`[Sync Stakers] Found ${stakerAddresses.size} unique addresses so far (block ${fromBlock}-${toBlock})`)
-      } catch (err) {
-        console.error(`[Sync Stakers] Error fetching logs from ${fromBlock} to ${toBlock}:`, err)
+      const addresses = await fetchLogsWithRetry(fromBlock, toBlock)
+      for (const addr of addresses) {
+        stakerAddresses.add(addr)
       }
+
+      if (addresses.length > 0) {
+        console.log(`[Sync Stakers] Found ${stakerAddresses.size} unique addresses so far (block ${fromBlock}-${toBlock})`)
+      }
+
+      // Small delay between chunks to avoid rate limiting
+      await new Promise(r => setTimeout(r, 300))
     }
 
     if (stakerAddresses.size === 0) {

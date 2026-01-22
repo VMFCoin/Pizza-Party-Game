@@ -643,12 +643,32 @@ export default function StakingPage({
         ])
 
         // Update staker database for top stakers leaderboard (after stake/unstake)
+        // Uses retry logic to handle flaky RPC
         if (address && (showConfirmModal === 'stake' || showConfirmModal === 'unstake')) {
-          fetch('/api/staking/update-staker', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ wallet: address }),
-          }).catch(err => console.error('Failed to update staker:', err))
+          const updateStakerWithRetry = async (retries = 3) => {
+            for (let i = 0; i < retries; i++) {
+              try {
+                const res = await fetch('/api/staking/update-staker', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ wallet: address }),
+                })
+                if (res.ok) {
+                  console.log('[Staker Sync] Successfully updated staker database')
+                  return
+                }
+                console.warn(`[Staker Sync] Attempt ${i + 1} failed with status ${res.status}`)
+              } catch (err) {
+                console.warn(`[Staker Sync] Attempt ${i + 1} failed:`, err)
+              }
+              // Wait before retry (exponential backoff)
+              if (i < retries - 1) {
+                await new Promise(r => setTimeout(r, 2000 * (i + 1)))
+              }
+            }
+            console.error('[Staker Sync] All retries failed')
+          }
+          updateStakerWithRetry()
           // Clear cached top stakers so they reload with fresh data
           setTopStakers([])
         }
