@@ -1210,6 +1210,12 @@ export default function StakingPage({
                       <span className="text-gray-700 font-bold" style={{ fontFamily: 'var(--font-luckiest-guy)' }}>{formatWeiExact(pizzaBalance as bigint)} PIZZA</span>
                     </div>
 
+                    {/* Total Staked - Single Line */}
+                    <div className="flex justify-between items-center text-xs bg-gray-50 rounded-lg px-2 py-1.5 border border-gray-200">
+                      <span className="text-gray-500" style={{ fontFamily: 'var(--font-luckiest-guy)' }}>Total Staked:</span>
+                      <span className="text-gray-700 font-bold" style={{ fontFamily: 'var(--font-luckiest-guy)' }}>{formatWeiExact(userPosition?.totalStakedAmount)} PIZZA</span>
+                    </div>
+
                     {/* Stake More Input (shown when showStakeInput is true) */}
                     {showStakeInput ? (
                       <div className="space-y-2 bg-green-50 rounded-lg p-3 border-2 border-green-300">
