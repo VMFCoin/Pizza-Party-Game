@@ -1321,10 +1321,10 @@ export default function StakingPage({
                         </Button>
                         <Button
                           onClick={handleBuyPizza}
-                          className="flex-1 min-w-0 !bg-yellow-500 hover:!bg-yellow-600 text-white font-bold py-2 px-2 rounded-xl border-2 border-yellow-700 text-sm whitespace-nowrap"
+                          className="flex-1 min-w-0 !bg-yellow-500 hover:!bg-yellow-600 text-white font-bold py-2 px-1 rounded-xl border-2 border-yellow-700 text-xs whitespace-nowrap"
                           style={customFontStyle}
                         >
-                          BUY
+                          Buy $Pizza
                         </Button>
                         <Button
                           onClick={() => setShowConfirmModal('unstake')}
