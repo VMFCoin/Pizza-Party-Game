@@ -526,7 +526,7 @@ export default function StakingPage({
   const boostDaysRemaining = useMemo(() => {
     if (!boostEndTime) return 0
     const remaining = Number(boostEndTime) * 1000 - Date.now()
-    return Math.max(0, Math.ceil(remaining / (24 * 60 * 60 * 1000)))
+    return Math.max(0, Math.floor(remaining / (24 * 60 * 60 * 1000)))
   }, [boostEndTime])
 
   // Time until unlock
