@@ -414,13 +414,22 @@ function GamePageContent({ onNavigateToWeekly, onNavigateToLeaderboard, onNaviga
 
         {/* Countdown */}
         <div className="bg-blue-50 px-3 py-1.5 rounded-xl border-2 border-black w-full text-center">
-          <p className="text-blue-800 font-semibold text-sm mb-1" style={{ fontFamily: 'var(--font-luckiest-guy)' }}>Next Draw:</p>
-          <div className="flex items-center justify-center gap-1">
-            <span className="bg-white px-2 py-0.5 rounded border border-black text-blue-800 font-bold text-sm" style={customFontStyle}>{hours}</span>
+          <p className="text-blue-800 font-semibold text-base leading-none" style={{ fontFamily: 'var(--font-luckiest-guy)' }}>Next Draw:</p>
+          <div className="flex items-center justify-center gap-1 mt-0.5">
+            <div className="bg-white px-2 py-0.5 rounded border border-black text-center">
+              <div className="text-blue-800 font-bold text-sm leading-none" style={customFontStyle}>{hours}</div>
+              <div className="text-blue-600 text-[8px] leading-none" style={customFontStyle}>HRS</div>
+            </div>
             <span className="text-blue-800 font-bold">:</span>
-            <span className="bg-white px-2 py-0.5 rounded border border-black text-blue-800 font-bold text-sm" style={customFontStyle}>{minutes}</span>
+            <div className="bg-white px-2 py-0.5 rounded border border-black text-center">
+              <div className="text-blue-800 font-bold text-sm leading-none" style={customFontStyle}>{minutes}</div>
+              <div className="text-blue-600 text-[8px] leading-none" style={customFontStyle}>MIN</div>
+            </div>
             <span className="text-blue-800 font-bold">:</span>
-            <span className="bg-white px-2 py-0.5 rounded border border-black text-blue-800 font-bold text-sm" style={customFontStyle}>{seconds}</span>
+            <div className="bg-white px-2 py-0.5 rounded border border-black text-center">
+              <div className="text-blue-800 font-bold text-sm leading-none" style={customFontStyle}>{seconds}</div>
+              <div className="text-blue-600 text-[8px] leading-none" style={customFontStyle}>SEC</div>
+            </div>
           </div>
         </div>
 
