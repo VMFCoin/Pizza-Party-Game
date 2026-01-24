@@ -414,7 +414,7 @@ function GamePageContent({ onNavigateToWeekly, onNavigateToLeaderboard, onNaviga
             </div>
           </div>
 
-          <p className="text-blue-600 text-sm text-center leading-none" style={{ fontFamily: 'var(--font-luckiest-guy)' }}>
+          <p className="text-blue-600 text-sm text-center leading-none mt-1" style={{ fontFamily: 'var(--font-luckiest-guy)' }}>
             {daily.loading
               ? 'Loading entries...'
               : `Total entries: ${daily.totalEntries} • Game #${daily.dailyGameId}`}
