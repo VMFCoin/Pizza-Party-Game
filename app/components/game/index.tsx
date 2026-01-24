@@ -395,15 +395,9 @@ function GamePageContent({ onNavigateToWeekly, onNavigateToLeaderboard, onNaviga
             {daily.loading ? 'Loading...' : `$${(Number(daily.jackpot) * pizzaUsd).toFixed(2)}`}
           </p>
 
-          <p className="text-blue-600 text-sm text-center" style={{ fontFamily: 'var(--font-luckiest-guy)', marginTop: '0' }}>
-            {daily.loading
-              ? 'Loading entries...'
-              : `Total entries: ${daily.totalEntries} • Game #${daily.dailyGameId}`}
-          </p>
-
           {/* Next Draw Countdown */}
-          <p className="text-blue-600 font-bold leading-none mt-1" style={{ fontFamily: 'var(--font-luckiest-guy)', fontSize: '14px', textShadow: '1px 1px 0px #FFA500' }}>Next Draw:</p>
-          <div className="flex items-center justify-center gap-1 mt-0.5">
+          <p className="text-blue-600 font-bold leading-none" style={{ fontFamily: 'var(--font-luckiest-guy)', fontSize: '14px' }}>Next Draw:</p>
+          <div className="flex items-center justify-center gap-1">
             <div className="bg-white px-2 py-0.5 rounded border border-black text-center">
               <div className="text-blue-800 font-bold text-sm leading-none" style={customFontStyle}>{hours}</div>
               <div className="text-blue-600 text-[8px] leading-none" style={customFontStyle}>HRS</div>
@@ -420,7 +414,12 @@ function GamePageContent({ onNavigateToWeekly, onNavigateToLeaderboard, onNaviga
             </div>
           </div>
 
-          <p className="text-blue-600 text-xs text-center mt-1" style={{ fontFamily: 'var(--font-luckiest-guy)' }}>
+          <p className="text-blue-600 text-sm text-center leading-none" style={{ fontFamily: 'var(--font-luckiest-guy)' }}>
+            {daily.loading
+              ? 'Loading entries...'
+              : `Total entries: ${daily.totalEntries} • Game #${daily.dailyGameId}`}
+          </p>
+          <p className="text-blue-600 text-xs text-center leading-none" style={{ fontFamily: 'var(--font-luckiest-guy)' }}>
             Every entry donates 3% to Veteran charities
           </p>
 
