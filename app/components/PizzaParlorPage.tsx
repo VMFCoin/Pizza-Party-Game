@@ -86,7 +86,6 @@ export default function PizzaParlorPage({
   const publicClient = usePublicClient()
 
   const [isMobile, setIsMobile] = useState(false)
-  const [buyParlorOpen, setBuyParlorOpen] = useState(false)
   const [collectFeesOpen, setCollectFeesOpen] = useState(false)
   const [sendSliceOpen, setSendSliceOpen] = useState(false)
 
@@ -753,9 +752,6 @@ export default function PizzaParlorPage({
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       const target = event.target as HTMLElement
-      if (buyParlorOpen && !target.closest('.buy-parlor-dropdown')) {
-        setBuyParlorOpen(false)
-      }
       if (collectFeesOpen && !target.closest('.collect-fees-dropdown')) {
         setCollectFeesOpen(false)
       }
@@ -768,7 +764,7 @@ export default function PizzaParlorPage({
     }
     document.addEventListener('mousedown', handleClickOutside)
     return () => document.removeEventListener('mousedown', handleClickOutside)
-  }, [buyParlorOpen, collectFeesOpen, sendSliceOpen])
+  }, [collectFeesOpen, sendSliceOpen])
 
   // ============ Navigation ============
 
@@ -856,89 +852,87 @@ export default function PizzaParlorPage({
               </div>
             </div>
 
-            {/* ============ OWN A PARLOR - Expandable ============ */}
-            <div className="buy-parlor-dropdown">
-              <Button
-                onClick={() => setBuyParlorOpen(!buyParlorOpen)}
-                className={`w-full !bg-orange-500 hover:!bg-orange-600 text-white font-bold py-2.5 border-4 border-orange-800 uppercase flex items-center justify-between ${buyParlorOpen ? 'rounded-t-xl rounded-b-none' : 'rounded-xl'}`}
-                style={{ ...customFontStyle, fontSize: isMobile ? 18 : 20 }}
-              >
-                <span className="flex-1 text-center">🍍 OWN A PARLOR 🍍</span>
-                {buyParlorOpen ? <ChevronUp size={24} /> : <ChevronDown size={24} />}
-              </Button>
-              {buyParlorOpen && (
-                <div className="bg-orange-100 border-4 border-t-0 border-orange-800 rounded-b-xl p-4">
-                  <div className="space-y-3">
-                    {/* Global Stats */}
-                    <div className="flex justify-between items-center">
-                      <span className="text-orange-800" style={{ ...customFontStyle, fontSize: 14 }}>Parlors Sold:</span>
-                      <span className="text-orange-900" style={{ ...customFontStyle, fontSize: 14 }}>{totalParlorsSold} / {maxTotalParlors}</span>
-                    </div>
-                    <div className="flex justify-between items-center">
-                      <span className="text-orange-800" style={{ ...customFontStyle, fontSize: 14 }}>Remaining:</span>
-                      <span className="text-orange-900" style={{ ...customFontStyle, fontSize: 14 }}>{parlorsRemaining}</span>
-                    </div>
+            {/* ============ OWN A PARLOR - Card (Always Visible) ============ */}
+            <Card className="border-4 border-orange-600 rounded-2xl overflow-hidden">
+              {/* Header */}
+              <div className="bg-orange-500 py-2.5 px-4">
+                <h3 className="text-white text-center uppercase" style={{ ...customFontStyle, fontSize: isMobile ? 18 : 20 }}>
+                  🍍 OWN A PARLOR 🍍
+                </h3>
+              </div>
 
-                    {/* Divider */}
-                    <div className="border-t-2 border-orange-300" />
-
-                    {/* Your Stats */}
-                    <div className="flex justify-between items-center">
-                      <span className="text-orange-800" style={{ ...customFontStyle, fontSize: 16 }}>
-                        {userHasParlorName && userParlorName ? userParlorName : 'Your Parlors'}:
-                      </span>
-                      <span className="text-orange-900" style={{ ...customFontStyle, fontSize: 16 }}>{parlorsOwned} / {maxParlorsPerWallet}</span>
-                    </div>
-
-                    {/* Set Name Button - only if owns parlors but hasn't set name */}
-                    {parlorsOwned > 0 && !userHasParlorName && (
-                      <Button
-                        onClick={() => setShowNamingModal(true)}
-                        className="w-full !bg-purple-500 hover:!bg-purple-600 text-white font-bold py-1.5 rounded-lg border-2 border-purple-700"
-                        style={{ ...customFontStyle, fontSize: 12 }}
-                      >
-                        ✨ Name Your Franchise ✨
-                      </Button>
-                    )}
-                    <div className="flex justify-between items-center">
-                      <span className="text-orange-800" style={{ ...customFontStyle, fontSize: 14 }}>Slices Remaining:</span>
-                      <span className="text-orange-900" style={{ ...customFontStyle, fontSize: 14 }}>{slicesThisWeekNum} / {weeklyAllowanceNum}</span>
-                    </div>
-                    <div className="flex justify-between items-center">
-                      <span className="text-orange-800" style={{ ...customFontStyle, fontSize: 14 }}>Today&apos;s Slices:</span>
-                      <span className={`${claimedTodayCount > 0 ? 'text-green-600' : pendingTodayCount > 0 ? 'text-yellow-600' : 'text-orange-900'}`} style={{ ...customFontStyle, fontSize: 14 }}>
-                        {claimedTodayCount > 0 ? `${claimedTodayCount} Claimed` : pendingTodayCount > 0 ? `${pendingTodayCount} Pending` : '0 Sent'}
-                      </span>
-                    </div>
-
-                    {/* Price Info */}
-                    <div className="bg-orange-200 rounded-lg p-2 text-center">
-                      <p className="text-orange-800" style={{ ...customFontStyle, fontSize: 12 }}>
-                        Price: ${PARLOR_PRICE_USD} = {priceLoading ? '...' : parlorPriceFormatted?.toLocaleString() || '...'} PIZZA
-                      </p>
-                      {pizzaPrice && !priceLoading && (
-                        <p className="text-orange-600" style={{ ...customFontStyle, fontSize: 10 }}>
-                          (1 PIZZA = ${pizzaPrice.toFixed(6)})
-                        </p>
-                      )}
-                      <p className="text-orange-700" style={{ ...customFontStyle, fontSize: 10 }}>
-                        50% burn | 30% treasury | 20% ops
-                      </p>
-                    </div>
-
-                    {/* Buy Button - Available to everyone! */}
-                    <Button
-                      onClick={needsApproval ? handleApprove : handlePurchaseParlor}
-                      className="w-full !bg-orange-600 hover:!bg-orange-700 text-white font-bold py-2 rounded-xl border-4 border-orange-800 uppercase"
-                      style={{ ...customFontStyle, fontSize: isMobile ? 14 : 16 }}
-                      disabled={!canBuyParlor || isPurchasing || isApproving || isConfirming}
-                    >
-                      {buyButtonText()}
-                    </Button>
+              {/* Content */}
+              <div className="bg-orange-100 p-4">
+                <div className="space-y-3">
+                  {/* Global Stats */}
+                  <div className="flex justify-between items-center">
+                    <span className="text-orange-800" style={{ ...customFontStyle, fontSize: 14 }}>Parlors Sold:</span>
+                    <span className="text-orange-900" style={{ ...customFontStyle, fontSize: 14 }}>{totalParlorsSold} / {maxTotalParlors}</span>
                   </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-orange-800" style={{ ...customFontStyle, fontSize: 14 }}>Remaining:</span>
+                    <span className="text-orange-900" style={{ ...customFontStyle, fontSize: 14 }}>{parlorsRemaining}</span>
+                  </div>
+
+                  {/* Divider */}
+                  <div className="border-t-2 border-orange-300" />
+
+                  {/* Your Stats */}
+                  <div className="flex justify-between items-center">
+                    <span className="text-orange-800" style={{ ...customFontStyle, fontSize: 16 }}>
+                      {userHasParlorName && userParlorName ? userParlorName : 'Your Parlors'}:
+                    </span>
+                    <span className="text-orange-900" style={{ ...customFontStyle, fontSize: 16 }}>{parlorsOwned} / {maxParlorsPerWallet}</span>
+                  </div>
+
+                  {/* Set Name Button - only if owns parlors but hasn't set name */}
+                  {parlorsOwned > 0 && !userHasParlorName && (
+                    <Button
+                      onClick={() => setShowNamingModal(true)}
+                      className="w-full !bg-purple-500 hover:!bg-purple-600 text-white font-bold py-1.5 rounded-lg border-2 border-purple-700"
+                      style={{ ...customFontStyle, fontSize: 12 }}
+                    >
+                      ✨ Name Your Franchise ✨
+                    </Button>
+                  )}
+                  <div className="flex justify-between items-center">
+                    <span className="text-orange-800" style={{ ...customFontStyle, fontSize: 14 }}>Slices Remaining:</span>
+                    <span className="text-orange-900" style={{ ...customFontStyle, fontSize: 14 }}>{slicesThisWeekNum} / {weeklyAllowanceNum}</span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-orange-800" style={{ ...customFontStyle, fontSize: 14 }}>Today&apos;s Slices:</span>
+                    <span className={`${claimedTodayCount > 0 ? 'text-green-600' : pendingTodayCount > 0 ? 'text-yellow-600' : 'text-orange-900'}`} style={{ ...customFontStyle, fontSize: 14 }}>
+                      {claimedTodayCount > 0 ? `${claimedTodayCount} Claimed` : pendingTodayCount > 0 ? `${pendingTodayCount} Pending` : '0 Sent'}
+                    </span>
+                  </div>
+
+                  {/* Price Info */}
+                  <div className="bg-orange-200 rounded-lg p-2 text-center">
+                    <p className="text-orange-800" style={{ ...customFontStyle, fontSize: 12 }}>
+                      Price: ${PARLOR_PRICE_USD} = {priceLoading ? '...' : parlorPriceFormatted?.toLocaleString() || '...'} PIZZA
+                    </p>
+                    {pizzaPrice && !priceLoading && (
+                      <p className="text-orange-600" style={{ ...customFontStyle, fontSize: 10 }}>
+                        (1 PIZZA = ${pizzaPrice.toFixed(6)})
+                      </p>
+                    )}
+                    <p className="text-orange-700" style={{ ...customFontStyle, fontSize: 10 }}>
+                      50% burn | 30% treasury | 20% ops
+                    </p>
+                  </div>
+
+                  {/* Buy Button - Available to everyone! */}
+                  <Button
+                    onClick={needsApproval ? handleApprove : handlePurchaseParlor}
+                    className="w-full !bg-orange-600 hover:!bg-orange-700 text-white font-bold py-2 rounded-xl border-4 border-orange-800 uppercase"
+                    style={{ ...customFontStyle, fontSize: isMobile ? 14 : 16 }}
+                    disabled={!canBuyParlor || isPurchasing || isApproving || isConfirming}
+                  >
+                    {buyButtonText()}
+                  </Button>
                 </div>
-              )}
-            </div>
+              </div>
+            </Card>
 
             {/* ============ COLLECT OWNER FEES - Expandable ============ */}
             <div className="collect-fees-dropdown">
