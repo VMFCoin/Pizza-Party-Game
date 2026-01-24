@@ -220,7 +220,8 @@ export async function GET(request: NextRequest) {
 
         const potFloat = parseFloat(formatUnits(currentPot, 18));
         const winnerCount = Math.min(players.length, 8); // Max 8 winners
-        const pizzaPerWinner = winnerCount > 0 ? (potFloat * 0.94) / winnerCount : 0;
+        // Winners receive 80% of pot (after 10% stakers, 7% parlor, 3% charity deductions)
+        const pizzaPerWinner = winnerCount > 0 ? (potFloat * 0.80) / winnerCount : 0;
         const usdPerWinner = pizzaPerWinner * pizzaPrice;
         const usdCentsPerWinner = Math.round(usdPerWinner * 100); // Convert to cents
 

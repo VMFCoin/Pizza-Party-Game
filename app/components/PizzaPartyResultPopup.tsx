@@ -302,7 +302,8 @@ export function PizzaPartyResultPopup() {
               if (userIsDailyWinner) {
                 isDailyWinner = true
                 const pot = gameData.potAmount as bigint
-                const playersPool = (pot * 9400n) / 10000n
+                // Winners receive 80% of pot (after 10% stakers, 7% parlor, 3% charity deductions)
+                const playersPool = (pot * 8000n) / 10000n
                 const numberOfWinners = BigInt(winners.length || 1)
                 const winnerShare = playersPool / numberOfWinners
 
@@ -342,7 +343,8 @@ export function PizzaPartyResultPopup() {
                 if (winnerSponsor?.toLowerCase() === address.toLowerCase()) {
                   // User sponsored this winner! They get 50% of winner's base share
                   const pot = gameData.potAmount as bigint
-                  const playersPool = (pot * 9400n) / 10000n
+                  // Winners receive 80% of pot (after 10% stakers, 7% parlor, 3% charity deductions)
+                  const playersPool = (pot * 8000n) / 10000n
                   const numberOfWinners = BigInt(winners.length || 1)
                   const winnerBaseShare = playersPool / numberOfWinners
                   const sponsorReward = winnerBaseShare / 2n

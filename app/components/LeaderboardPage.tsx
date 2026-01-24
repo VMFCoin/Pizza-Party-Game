@@ -231,8 +231,9 @@ export default function LeaderboardPage({
             dailyPayoutPerWinner = '664.22' // Actual payout: 664.22 PIZZA each
           } else {
             const dailyPot = previousDailyGame ? previousDailyGame.potAmount : 0n
+            // Winners receive 80% of pot (after 10% stakers, 7% parlor, 3% charity deductions)
             dailyPayoutPerWinner = dailyAddresses.length > 0 && dailyPot > 0n
-              ? Number(Number(dailyPot) * 0.94 / dailyAddresses.length / 1e18).toFixed(2)
+              ? Number(Number(dailyPot) * 0.80 / dailyAddresses.length / 1e18).toFixed(2)
               : '0'
           }
 
@@ -248,7 +249,7 @@ export default function LeaderboardPage({
           })
         }
 
-        // Weekly winners
+        // Weekly winners - no deductions, winners split 100% of weekly jackpot
         if (previousWeeklyGameId >= 1) {
           const weeklyAddresses = weeklyWinnersAddresses || []
           if (weeklyAddresses.length > 0) {
