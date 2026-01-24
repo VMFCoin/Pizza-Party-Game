@@ -861,7 +861,7 @@ export default function PizzaParlorPage({
 
             {/* ============ OWN A PARLOR - Card (Always Visible) ============ */}
             <Card className="border-4 border-orange-600 rounded-2xl bg-white/95 !py-0">
-              <div className="px-3 pb-3 pt-1">
+              <div className="px-3 pb-3 pt-3">
                 {/* Title */}
                 <p
                   className="text-orange-600 text-center mb-2"
@@ -890,9 +890,9 @@ export default function PizzaParlorPage({
 
                   {/* Your Franchise Name (if set) */}
                   {userHasParlorName && userParlorName && (
-                    <div className="bg-purple-50 rounded-lg p-2 border border-purple-200 text-center">
-                      <p className="text-purple-600 text-xs" style={{ fontFamily: 'var(--font-luckiest-guy)' }}>Your Franchise</p>
-                      <p className="text-purple-800 font-bold text-lg" style={{ fontFamily: 'var(--font-luckiest-guy)' }}>{userParlorName}</p>
+                    <div className="bg-red-50 rounded-lg p-2 border border-red-200 text-center">
+                      <p className="text-red-600 text-xs" style={{ fontFamily: 'var(--font-luckiest-guy)' }}>Your Franchise</p>
+                      <p className="text-red-800 font-bold text-lg" style={{ fontFamily: 'var(--font-luckiest-guy)' }}>{userParlorName}</p>
                     </div>
                   )}
 
