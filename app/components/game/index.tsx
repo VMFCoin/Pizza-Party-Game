@@ -400,21 +400,9 @@ function GamePageContent({ onNavigateToWeekly, onNavigateToLeaderboard, onNaviga
               ? 'Loading entries...'
               : `Total entries: ${daily.totalEntries} • Game #${daily.dailyGameId}`}
           </p>
-          <p className="text-blue-600 text-xs text-center" style={{ fontFamily: 'var(--font-luckiest-guy)', marginTop: '0px' }}>
-            Every entry donates 3% to Veteran charities
-          </p>
 
-          {daily.isCompleted && !daily.loading && (
-            <p className="text-xs text-blue-700 mt-1">This game has been finalized.</p>
-          )}
-          {daily.error && (
-            <p className="text-xs text-red-600 mt-1">Error loading daily data</p>
-          )}
-        </div>
-
-        {/* Countdown */}
-        <div className="bg-blue-50 px-3 py-1.5 rounded-xl border-2 border-black w-full text-center">
-          <p className="text-blue-800 font-semibold text-base leading-none" style={{ fontFamily: 'var(--font-luckiest-guy)' }}>Next Draw:</p>
+          {/* Next Draw Countdown */}
+          <p className="text-blue-600 font-bold leading-none mt-1" style={{ fontFamily: 'var(--font-luckiest-guy)', fontSize: '14px', textShadow: '1px 1px 0px #FFA500' }}>Next Draw:</p>
           <div className="flex items-center justify-center gap-1 mt-0.5">
             <div className="bg-white px-2 py-0.5 rounded border border-black text-center">
               <div className="text-blue-800 font-bold text-sm leading-none" style={customFontStyle}>{hours}</div>
@@ -431,6 +419,17 @@ function GamePageContent({ onNavigateToWeekly, onNavigateToLeaderboard, onNaviga
               <div className="text-blue-600 text-[8px] leading-none" style={customFontStyle}>SEC</div>
             </div>
           </div>
+
+          <p className="text-blue-600 text-xs text-center mt-1" style={{ fontFamily: 'var(--font-luckiest-guy)' }}>
+            Every entry donates 3% to Veteran charities
+          </p>
+
+          {daily.isCompleted && !daily.loading && (
+            <p className="text-xs text-blue-700 mt-1">This game has been finalized.</p>
+          )}
+          {daily.error && (
+            <p className="text-xs text-red-600 mt-1">Error loading daily data</p>
+          )}
         </div>
 
         {/* Player Stats */}
