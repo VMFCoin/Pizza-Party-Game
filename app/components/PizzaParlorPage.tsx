@@ -748,6 +748,13 @@ export default function PizzaParlorPage({
     loadRecentRecipients()
   }, [loadRecentRecipients])
 
+  // Fetch slice history on page load for parlor owners (so Today's Slices shows immediately)
+  useEffect(() => {
+    if (parlorsOwned > 0 && publicClient && userAddress) {
+      fetchSliceHistory()
+    }
+  }, [parlorsOwned, publicClient, userAddress, fetchSliceHistory])
+
   // Close dropdown when clicking outside
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -853,7 +860,7 @@ export default function PizzaParlorPage({
             </div>
 
             {/* ============ OWN A PARLOR - Card (Always Visible) ============ */}
-            <Card className="border-4 border-orange-600 rounded-2xl overflow-hidden">
+            <Card className="border-4 border-orange-600 rounded-2xl overflow-hidden bg-orange-100">
               {/* Header */}
               <div className="bg-orange-500 py-2.5 px-4">
                 <h3 className="text-white text-center uppercase" style={{ ...customFontStyle, fontSize: isMobile ? 18 : 20 }}>
