@@ -1634,7 +1634,7 @@ export default function StakingPage({
               >
                 <span className="flex-1 text-center flex items-center justify-center gap-2">
                   <span>👑</span>
-                  TOP STAKERS
+                  TOP 20 STAKERS
                   <span>👑</span>
                 </span>
                 {topStakersOpen ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
