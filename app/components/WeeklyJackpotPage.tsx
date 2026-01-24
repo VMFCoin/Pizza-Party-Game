@@ -271,6 +271,14 @@ export default function WeeklyJackpotPage({
             <p className="text-white text-sm" style={{ fontFamily: 'var(--font-luckiest-guy)', marginTop: '2px' }}>
               Weekly Players {weeklyPlayersDisplay}
             </p>
+            <div className="flex justify-center items-center gap-1" style={{ marginTop: '4px' }}>
+              <span className="text-white text-xs" style={{ fontFamily: 'var(--font-luckiest-guy)' }}>Daily Entry Streak:</span>
+              <div className="flex gap-0.5">
+                {[...Array(7)].map((_, i) => (
+                  <span key={i} style={{ opacity: i < dailyPlays ? 1 : 0.3, fontSize: '14px' }}>🍕</span>
+                ))}
+              </div>
+            </div>
           </div>
 
           <div className="bg-blue-50 border-4 border-blue-200 rounded-2xl px-3 py-2 text-center" style={{ borderColor: '#000000' }}>
