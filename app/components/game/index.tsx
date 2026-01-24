@@ -412,6 +412,18 @@ function GamePageContent({ onNavigateToWeekly, onNavigateToLeaderboard, onNaviga
           )}
         </div>
 
+        {/* Countdown - Condensed */}
+        <div className="bg-blue-50 px-3 py-1 rounded-xl border-2 border-black w-full flex items-center justify-center gap-2">
+          <span className="text-blue-800 font-semibold text-sm" style={{ fontFamily: 'var(--font-luckiest-guy)' }}>Next Draw:</span>
+          <div className="flex items-center gap-1">
+            <span className="bg-white px-2 py-0.5 rounded border border-black text-blue-800 font-bold text-sm" style={customFontStyle}>{hours}</span>
+            <span className="text-blue-800 font-bold">:</span>
+            <span className="bg-white px-2 py-0.5 rounded border border-black text-blue-800 font-bold text-sm" style={customFontStyle}>{minutes}</span>
+            <span className="text-blue-800 font-bold">:</span>
+            <span className="bg-white px-2 py-0.5 rounded border border-black text-blue-800 font-bold text-sm" style={customFontStyle}>{seconds}</span>
+          </div>
+        </div>
+
         {/* Player Stats */}
         {SHOW_PLAYER_STATS && wallet?.isAuthenticated && playerInfo && (
           <div className="bg-yellow-100/90 backdrop-blur-sm p-2 rounded-xl border-2 border-yellow-300 mt-2 w-full">
@@ -633,27 +645,6 @@ function GamePageContent({ onNavigateToWeekly, onNavigateToLeaderboard, onNaviga
               <Image src="/images/wallet-icon.png" alt="Wallet" width={20} height={20} className="inline ml-1" style={{ backgroundColor: 'transparent', border: 'none' }} />
             </Button>
           )}
-        </div>
-
-        {/* Countdown */}
-        <div className="bg-blue-50 px-4 py-2 rounded-xl border-4 border-black w-full text-center">
-          <div className="flex items-center justify-center mb-1">
-            <p className="font-semibold text-blue-800" style={{ fontFamily: 'var(--font-luckiest-guy)', fontSize: '22px', textShadow: '2px 2px 0px #FFA500, 3px 3px 0px rgba(255, 165, 0, 0.5)' }}>Next Draw In:</p>
-          </div>
-          <div className="grid grid-cols-3 gap-2 text-center">
-            <div className="bg-white p-2 rounded border-2 border-black">
-              <div className="text-xl font-bold text-blue-800" style={customFontStyle}>{hours}</div>
-              <div className="text-xs text-blue-600" style={customFontStyle}>HRS</div>
-            </div>
-            <div className="bg-white p-2 rounded border-2 border-black">
-              <div className="text-xl font-bold text-blue-800" style={customFontStyle}>{minutes}</div>
-              <div className="text-xs text-blue-600" style={customFontStyle}>MIN</div>
-            </div>
-            <div className="bg-white p-2 rounded border-2 border-black">
-              <div className="text-xl font-bold text-blue-800" style={customFontStyle}>{seconds}</div>
-              <div className="text-xs text-blue-600" style={customFontStyle}>SEC</div>
-            </div>
-          </div>
         </div>
 
       </div>
