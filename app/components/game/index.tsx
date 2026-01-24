@@ -657,13 +657,6 @@ function GamePageContent({ onNavigateToWeekly, onNavigateToLeaderboard, onNaviga
           </div>
         </div>
 
-        {/* Info Footer */}
-        <div className="bg-white/80 backdrop-blur-sm rounded-xl border-4 border-black p-3 w-full text-center text-xs text-black" style={{ fontFamily: 'var(--font-luckiest-guy)' }}>
-          <p className="mb-1">🎮 Entry Fee: ${(Number(pizzaAmount) * pizzaUsd).toFixed(2)} (~{Number(pizzaAmount).toFixed(2)} PIZZA)</p>
-          <p className="mb-1">🍕 Earn 1 topping per entry • Toppings = Weekly Jackpot tickets!</p>
-          <p>🇺🇸 Every entry donates 3% to Veteran charities</p>
-        </div>
-
       </div>
 
       {showShareModal && referralCode && (
