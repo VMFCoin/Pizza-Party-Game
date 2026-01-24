@@ -860,79 +860,89 @@ export default function PizzaParlorPage({
             </div>
 
             {/* ============ OWN A PARLOR - Card (Always Visible) ============ */}
-            <Card className="border-4 border-orange-600 rounded-2xl overflow-hidden bg-orange-100">
-              {/* Header */}
-              <div className="bg-orange-500 py-2.5 px-4">
-                <h3 className="text-white text-center uppercase" style={{ ...customFontStyle, fontSize: isMobile ? 18 : 20 }}>
-                  🍍 OWN A PARLOR 🍍
-                </h3>
-              </div>
+            <Card className="border-4 border-orange-600 rounded-2xl bg-white/95 !py-0">
+              <div className="px-3 pb-3 pt-1">
+                {/* Title */}
+                <p
+                  className="text-orange-600 text-center mb-2"
+                  style={{ fontFamily: 'var(--font-luckiest-guy)', fontSize: '32px', lineHeight: '1', textShadow: '2px 2px 0px #8B0000, 3px 3px 0px rgba(139, 0, 0, 0.5)' }}
+                >
+                  Own A Parlor
+                </p>
 
-              {/* Content */}
-              <div className="bg-orange-100 p-4">
-                <div className="space-y-3">
-                  {/* Global Stats */}
-                  <div className="flex justify-between items-center">
-                    <span className="text-orange-800" style={{ ...customFontStyle, fontSize: 14 }}>Parlors Sold:</span>
-                    <span className="text-orange-900" style={{ ...customFontStyle, fontSize: 14 }}>{totalParlorsSold} / {maxTotalParlors}</span>
-                  </div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-orange-800" style={{ ...customFontStyle, fontSize: 14 }}>Remaining:</span>
-                    <span className="text-orange-900" style={{ ...customFontStyle, fontSize: 14 }}>{parlorsRemaining}</span>
+                <div className="space-y-2">
+                  {/* Parlor Stats Row */}
+                  <div className="bg-orange-500 border-orange-700 border-4 rounded-xl px-2 py-1 text-white">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-lg">🍕</span>
+                        <div>
+                          <p className="font-bold text-sm" style={{ fontFamily: 'var(--font-luckiest-guy)' }}>Parlors Sold</p>
+                          <p className="text-xs opacity-90">{totalParlorsSold} / {maxTotalParlors} ({parlorsRemaining} left)</p>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <p className="font-bold text-sm" style={{ fontFamily: 'var(--font-luckiest-guy)' }}>Your Parlors</p>
+                        <p className="text-xs opacity-90">{parlorsOwned} / {maxParlorsPerWallet}</p>
+                      </div>
+                    </div>
                   </div>
 
-                  {/* Divider */}
-                  <div className="border-t-2 border-orange-300" />
-
-                  {/* Your Stats */}
-                  <div className="flex justify-between items-center">
-                    <span className="text-orange-800" style={{ ...customFontStyle, fontSize: 16 }}>
-                      {userHasParlorName && userParlorName ? userParlorName : 'Your Parlors'}:
-                    </span>
-                    <span className="text-orange-900" style={{ ...customFontStyle, fontSize: 16 }}>{parlorsOwned} / {maxParlorsPerWallet}</span>
-                  </div>
+                  {/* Your Franchise Name (if set) */}
+                  {userHasParlorName && userParlorName && (
+                    <div className="bg-purple-50 rounded-lg p-2 border border-purple-200 text-center">
+                      <p className="text-purple-600 text-xs" style={{ fontFamily: 'var(--font-luckiest-guy)' }}>Your Franchise</p>
+                      <p className="text-purple-800 font-bold text-lg" style={{ fontFamily: 'var(--font-luckiest-guy)' }}>{userParlorName}</p>
+                    </div>
+                  )}
 
                   {/* Set Name Button - only if owns parlors but hasn't set name */}
                   {parlorsOwned > 0 && !userHasParlorName && (
                     <Button
                       onClick={() => setShowNamingModal(true)}
                       className="w-full !bg-purple-500 hover:!bg-purple-600 text-white font-bold py-1.5 rounded-lg border-2 border-purple-700"
-                      style={{ ...customFontStyle, fontSize: 12 }}
+                      style={{ fontFamily: 'var(--font-luckiest-guy)', fontSize: 12 }}
                     >
                       ✨ Name Your Franchise ✨
                     </Button>
                   )}
-                  <div className="flex justify-between items-center">
-                    <span className="text-orange-800" style={{ ...customFontStyle, fontSize: 14 }}>Slices Remaining:</span>
-                    <span className="text-orange-900" style={{ ...customFontStyle, fontSize: 14 }}>{slicesThisWeekNum} / {weeklyAllowanceNum}</span>
-                  </div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-orange-800" style={{ ...customFontStyle, fontSize: 14 }}>Today&apos;s Slices:</span>
-                    <span className={`${claimedTodayCount > 0 ? 'text-green-600' : pendingTodayCount > 0 ? 'text-yellow-600' : 'text-orange-900'}`} style={{ ...customFontStyle, fontSize: 14 }}>
-                      {claimedTodayCount > 0 ? `${claimedTodayCount} Claimed` : pendingTodayCount > 0 ? `${pendingTodayCount} Pending` : '0 Sent'}
-                    </span>
+
+                  {/* Slices Grid */}
+                  <div className="grid grid-cols-2 gap-2">
+                    <div className="bg-blue-50 rounded-lg p-2 border border-blue-200">
+                      <p className="text-blue-600 text-xs" style={{ fontFamily: 'var(--font-luckiest-guy)' }}>Slices This Week</p>
+                      <p className="text-blue-800 font-bold text-sm" style={{ fontFamily: 'var(--font-luckiest-guy)' }}>
+                        {slicesThisWeekNum} / {weeklyAllowanceNum}
+                      </p>
+                    </div>
+                    <div className={`rounded-lg p-2 border ${claimedTodayCount > 0 ? 'bg-green-50 border-green-200' : pendingTodayCount > 0 ? 'bg-yellow-50 border-yellow-200' : 'bg-gray-50 border-gray-200'}`}>
+                      <p className={`text-xs ${claimedTodayCount > 0 ? 'text-green-600' : pendingTodayCount > 0 ? 'text-yellow-600' : 'text-gray-600'}`} style={{ fontFamily: 'var(--font-luckiest-guy)' }}>Today&apos;s Slice</p>
+                      <p className={`font-bold text-sm ${claimedTodayCount > 0 ? 'text-green-800' : pendingTodayCount > 0 ? 'text-yellow-800' : 'text-gray-800'}`} style={{ fontFamily: 'var(--font-luckiest-guy)' }}>
+                        {claimedTodayCount > 0 ? `${claimedTodayCount} Claimed` : pendingTodayCount > 0 ? `${pendingTodayCount} Pending` : '0 Sent'}
+                      </p>
+                    </div>
                   </div>
 
                   {/* Price Info */}
-                  <div className="bg-orange-200 rounded-lg p-2 text-center">
-                    <p className="text-orange-800" style={{ ...customFontStyle, fontSize: 12 }}>
+                  <div className="bg-orange-50 rounded-lg p-2 border border-orange-200 text-center">
+                    <p className="text-orange-800 font-bold" style={{ fontFamily: 'var(--font-luckiest-guy)', fontSize: 14 }}>
                       Price: ${PARLOR_PRICE_USD} = {priceLoading ? '...' : parlorPriceFormatted?.toLocaleString() || '...'} PIZZA
                     </p>
                     {pizzaPrice && !priceLoading && (
-                      <p className="text-orange-600" style={{ ...customFontStyle, fontSize: 10 }}>
+                      <p className="text-orange-600 text-xs">
                         (1 PIZZA = ${pizzaPrice.toFixed(6)})
                       </p>
                     )}
-                    <p className="text-orange-700" style={{ ...customFontStyle, fontSize: 10 }}>
+                    <p className="text-orange-500 text-xs mt-1">
                       50% burn | 30% treasury | 20% ops
                     </p>
                   </div>
 
-                  {/* Buy Button - Available to everyone! */}
+                  {/* Buy Button */}
                   <Button
                     onClick={needsApproval ? handleApprove : handlePurchaseParlor}
-                    className="w-full !bg-orange-600 hover:!bg-orange-700 text-white font-bold py-2 rounded-xl border-4 border-orange-800 uppercase"
-                    style={{ ...customFontStyle, fontSize: isMobile ? 14 : 16 }}
+                    className="w-full !bg-orange-500 hover:!bg-orange-600 text-white font-bold py-2 rounded-xl border-4 border-orange-700 uppercase"
+                    style={{ fontFamily: 'var(--font-luckiest-guy)', fontSize: isMobile ? 14 : 16 }}
                     disabled={!canBuyParlor || isPurchasing || isApproving || isConfirming}
                   >
                     {buyButtonText()}
