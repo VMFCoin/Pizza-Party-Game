@@ -412,10 +412,10 @@ function GamePageContent({ onNavigateToWeekly, onNavigateToLeaderboard, onNaviga
           )}
         </div>
 
-        {/* Countdown - Condensed */}
-        <div className="bg-blue-50 px-3 py-1 rounded-xl border-2 border-black w-full flex items-center justify-center gap-2">
-          <span className="text-blue-800 font-semibold text-sm" style={{ fontFamily: 'var(--font-luckiest-guy)' }}>Next Draw:</span>
-          <div className="flex items-center gap-1">
+        {/* Countdown */}
+        <div className="bg-blue-50 px-3 py-1.5 rounded-xl border-2 border-black w-full text-center">
+          <p className="text-blue-800 font-semibold text-sm mb-1" style={{ fontFamily: 'var(--font-luckiest-guy)' }}>Next Draw:</p>
+          <div className="flex items-center justify-center gap-1">
             <span className="bg-white px-2 py-0.5 rounded border border-black text-blue-800 font-bold text-sm" style={customFontStyle}>{hours}</span>
             <span className="text-blue-800 font-bold">:</span>
             <span className="bg-white px-2 py-0.5 rounded border border-black text-blue-800 font-bold text-sm" style={customFontStyle}>{minutes}</span>
