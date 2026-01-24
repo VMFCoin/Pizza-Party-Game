@@ -865,7 +865,7 @@ export default function PizzaParlorPage({
                 {/* Title */}
                 <p
                   className="text-orange-600 text-center mb-2"
-                  style={{ fontFamily: 'var(--font-luckiest-guy)', fontSize: '32px', lineHeight: '1', textShadow: '2px 2px 0px #8B0000, 3px 3px 0px rgba(139, 0, 0, 0.5)' }}
+                  style={{ fontFamily: 'var(--font-luckiest-guy)', fontSize: '38px', lineHeight: '1', textShadow: '2px 2px 0px #8B0000, 3px 3px 0px rgba(139, 0, 0, 0.5)' }}
                 >
                   Own A Parlor
                 </p>
