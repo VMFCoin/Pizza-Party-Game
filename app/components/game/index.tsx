@@ -193,7 +193,6 @@ function GamePageContent({ onNavigateToWeekly, onNavigateToLeaderboard, onNaviga
   const {
     wallet,
     pizzaUsd,
-    pizzaAmount,
     daily,
     playerInfo,
     referralInfo,
