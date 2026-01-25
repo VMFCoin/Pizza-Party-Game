@@ -664,11 +664,11 @@ function GamePageContent({ onNavigateToWeekly, onNavigateToLeaderboard, onNaviga
             <ul className="space-y-0.5 text-yellow-800 text-sm" style={{ fontFamily: 'var(--font-luckiest-guy)' }}>
               <li className="flex items-start gap-2">
                 <span>🍅</span>
-                <span>Must hold PIZZA tokens to play</span>
+                <span>Entry to play is $1 of $Pizza</span>
               </li>
               <li className="flex items-start gap-2">
                 <span>🍅</span>
-                <span>One entry per wallet per day (resets 12pm PST)</span>
+                <span>One entry per day (resets 12pm PST)</span>
               </li>
               <li className="flex items-start gap-2">
                 <span>🍅</span>
@@ -681,10 +681,6 @@ function GamePageContent({ onNavigateToWeekly, onNavigateToLeaderboard, onNaviga
               <li className="flex items-start gap-2">
                 <span>🍅</span>
                 <span>Daily jackpot split equally among winners; prizes auto-paid</span>
-              </li>
-              <li className="flex items-start gap-2">
-                <span>🍅</span>
-                <span>New games are called when a new player enters after 12pm PST</span>
               </li>
               <li className="flex items-start gap-2">
                 <span>🍅</span>
