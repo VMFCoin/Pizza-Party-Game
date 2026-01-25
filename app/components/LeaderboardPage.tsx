@@ -591,7 +591,7 @@ export default function LeaderboardPage({
               className="w-full !bg-green-600 hover:!bg-green-700 text-white font-bold py-2.5 rounded-xl border-4 border-green-900 uppercase cursor-pointer"
               style={{ ...customFontStyle, fontSize: 20 }}
             >
-              🍕 Spin & Stake 🍕
+              <img src="/images/pizza_wheel.png" alt="" className="inline-block" style={{ height: '1em', width: '1em' }} /> Spin & Stake <img src="/images/pizza_wheel.png" alt="" className="inline-block" style={{ height: '1em', width: '1em' }} />
             </Button>
 
                       </div>

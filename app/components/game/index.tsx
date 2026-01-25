@@ -638,7 +638,7 @@ function GamePageContent({ onNavigateToWeekly, onNavigateToLeaderboard, onNaviga
             className="w-full !bg-green-600 hover:!bg-green-700 text-white font-bold py-2 rounded-xl border-4 border-green-900 uppercase cursor-pointer"
             style={{ ...customFontStyle, fontSize: isMobile ? 18 : 20 }}
           >
-            🍕 Spin & Stake 🍕
+            <img src="/images/pizza_wheel.png" alt="" className="inline-block" style={{ height: '1em', width: '1em' }} /> Spin & Stake <img src="/images/pizza_wheel.png" alt="" className="inline-block" style={{ height: '1em', width: '1em' }} />
           </Button>
 
           {/* Manage Wallet Button (when connected) */}
@@ -658,7 +658,7 @@ function GamePageContent({ onNavigateToWeekly, onNavigateToLeaderboard, onNaviga
         {/* Daily Entry Explained Card */}
         <Card className="border-4 border-yellow-600 rounded-2xl bg-white/95 mt-3 !py-0">
           <div className="px-3 py-2">
-            <p className="text-yellow-600 text-center mb-2" style={{ fontFamily: 'var(--font-luckiest-guy)', fontSize: '24px', lineHeight: '1', textShadow: '2px 2px 0px #8B0000, 3px 3px 0px rgba(139, 0, 0, 0.5)' }}>
+            <p className="text-red-600 text-center mb-2" style={{ fontFamily: 'var(--font-luckiest-guy)', fontSize: '24px', lineHeight: '1', textShadow: '2px 2px 0px #FFA500, 3px 3px 0px rgba(255, 165, 0, 0.5)' }}>
               Daily Entry Explained
             </p>
             <ul className="space-y-0.5 text-red-700 text-sm" style={{ fontFamily: 'var(--font-luckiest-guy)' }}>
