@@ -28,11 +28,11 @@ const customFontStyle = {
 }
 
 const HOW_TO_WIN = [
+  '1 Topping = 1 ticket in the weekly draw',
   'Play Daily: 1 topping per day + 3 bonus for playing all 7 days (10 max)',
   'Refer new players: 2 toppings per referral (max 3 per week)',
   'Hold PIZZA tokens: 1 topping for every $10 of PIZZA you hold (5 toppings max)',
   'Staking Tier Bonus: +1/+3/+5 toppings per week based on your staking tier',
-  '1 Topping = 1 ticket in the weekly draw',
 ]
 
 const TERMS = {
