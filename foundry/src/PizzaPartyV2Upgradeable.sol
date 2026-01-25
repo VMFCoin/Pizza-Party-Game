@@ -1550,4 +1550,21 @@ contract PizzaPartyV2Upgradeable is OwnableUpgradeable, UUPSUpgradeable, Reentra
         emit ParlorFeeBPSSet(_feeBPS);
     }
 
+    /**
+     * @dev Admin function to batch reset hasSlicedPlayer mapping
+     * This allows sponsors to get 50% rewards again for players they've previously sliced
+     * Used when resetting slice history (e.g., token migration)
+     * @param sponsors Array of sponsor addresses
+     * @param players Array of player addresses (must match sponsors array length)
+     */
+    function adminResetHasSlicedPlayer(
+        address[] calldata sponsors,
+        address[] calldata players
+    ) external onlyOwner {
+        require(sponsors.length == players.length, "len");
+        for (uint256 i = 0; i < sponsors.length; i++) {
+            hasSlicedPlayer[sponsors[i]][players[i]] = false;
+        }
+    }
+
 }
