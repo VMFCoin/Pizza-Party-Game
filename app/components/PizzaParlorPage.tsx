@@ -25,7 +25,7 @@ interface PizzaParlorPageProps {
 
 const PARLORS_EXPLAINED = [
   'Buy a Pizza Parlor for $50 worth of $PIZZA',
-  '🍕 Each parlor gives you 1 free slice per day to give away. Own 5 parlors? Have 7 slices as a bonus.',
+  'Each parlor gives you 1 free slice per day to give away. Own 5 parlors? Have 7 slices as a bonus',
   'Slices reset every Monday when the weekly game settles',
   'Free slices let NEW players enter the daily game for free',
   'If a first time sliced player wins, you earn 50% of their prize (daily & weekly)',
