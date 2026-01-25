@@ -359,8 +359,8 @@ export default function WeeklyJackpotPage({
           </Button>
 
           <Card className="border-4 border-red-500 rounded-2xl bg-white/95">
-            <div className="px-3 pb-1.5 pt-0.5">
-              <p className="text-red-600 text-center mb-0.5" style={{ fontFamily: 'var(--font-luckiest-guy)', fontSize: '24px', textShadow: '2px 2px 0px #FFA500, 3px 3px 0px rgba(255, 165, 0, 0.5)' }}>
+            <div className="px-3 py-2">
+              <p className="text-red-600 text-center mb-2" style={{ fontFamily: 'var(--font-luckiest-guy)', fontSize: '24px', lineHeight: '1', textShadow: '2px 2px 0px #FFA500, 3px 3px 0px rgba(255, 165, 0, 0.5)' }}>
                 How to Earn Toppings
               </p>
               <ul className="space-y-0.5 text-red-700 text-sm" style={{ fontFamily: 'var(--font-luckiest-guy)' }}>

@@ -1318,8 +1318,8 @@ export default function PizzaParlorPage({
 
             {/* Parlors Explained Card */}
             <Card className="border-4 border-orange-600 rounded-2xl bg-white/95">
-              <div className="px-3 pb-1.5 pt-0.5">
-                <p className="text-orange-600 text-center mb-0.5" style={{ fontFamily: 'var(--font-luckiest-guy)', fontSize: '24px', textShadow: '2px 2px 0px #8B0000, 3px 3px 0px rgba(139, 0, 0, 0.5)' }}>
+              <div className="px-3 py-2">
+                <p className="text-orange-600 text-center mb-2" style={{ fontFamily: 'var(--font-luckiest-guy)', fontSize: '24px', lineHeight: '1', textShadow: '2px 2px 0px #8B0000, 3px 3px 0px rgba(139, 0, 0, 0.5)' }}>
                   Parlors Explained
                 </p>
                 <ul className="space-y-0.5 text-orange-800 text-sm" style={{ fontFamily: 'var(--font-luckiest-guy)' }}>
