@@ -658,7 +658,7 @@ function GamePageContent({ onNavigateToWeekly, onNavigateToLeaderboard, onNaviga
         {/* Daily Entry Explained Card */}
         <Card className="border-4 border-yellow-600 rounded-2xl bg-white/95 mt-3 !py-0">
           <div className="px-3 py-2">
-            <p className="text-yellow-600 text-center mb-2" style={{ fontFamily: 'var(--font-luckiest-guy)', fontSize: '24px', lineHeight: '1', textShadow: '2px 2px 0px #8B0000, 3px 3px 0px rgba(139, 0, 0, 0.5)' }}>
+            <p className="text-center mb-2" style={{ fontFamily: 'var(--font-luckiest-guy)', fontSize: '24px', lineHeight: '1', color: '#8B0000', textShadow: '2px 2px 0px #ca8a04, 3px 3px 0px rgba(202, 138, 4, 0.5)' }}>
               Daily Entry Explained
             </p>
             <ul className="space-y-0.5 text-yellow-800 text-sm" style={{ fontFamily: 'var(--font-luckiest-guy)' }}>
