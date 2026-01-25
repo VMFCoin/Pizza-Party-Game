@@ -47,6 +47,7 @@ const TERMS = {
     'Daily pot breakdown: 80% Public, 10% Stakers, 7% Parlor Owners, 3% Charities',
   ],
   weeklyJackpot: [
+    'Weekly Jackpot is a group collective. Every player\'s claimed toppings add to the weekly jackpot.',
     'Weekly jackpot starts at $20; claimed toppings add to the jackpot (1\u00A0topping\u00A0=\u00A0$0.10\u00A0of\u00A0PIZZA)',
     'Claim toppings during Sunday 12pm–Monday 12pm PST to enter',
     '10 winners selected Monday 12pm PST with odds weighted by toppings claimed',
