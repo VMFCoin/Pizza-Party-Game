@@ -3,6 +3,7 @@
 import { Suspense, useState, useMemo, useEffect, useCallback, ReactNode } from 'react'
 import Image from 'next/image'
 import { Button } from '../ui/button'
+import { Card } from '../ui/card'
 import { Users, Share2, X } from 'lucide-react'
 import { useGamePageData } from '../../lib/useGamePageData'
 import { sdk } from '@farcaster/miniapp-sdk'
@@ -653,6 +654,45 @@ function GamePageContent({ onNavigateToWeekly, onNavigateToLeaderboard, onNaviga
             </Button>
           )}
         </div>
+
+        {/* Daily Entry Explained Card */}
+        <Card className="border-4 border-yellow-600 rounded-2xl bg-white/95 mt-3">
+          <div className="px-3 pb-3 pt-1.5">
+            <p className="text-yellow-600 text-center mb-1" style={{ fontFamily: 'var(--font-luckiest-guy)', fontSize: '24px', textShadow: '2px 2px 0px #8B0000, 3px 3px 0px rgba(139, 0, 0, 0.5)' }}>
+              Daily Entry Explained
+            </p>
+            <ul className="space-y-0.5 text-yellow-800 text-sm" style={{ fontFamily: 'var(--font-luckiest-guy)' }}>
+              <li className="flex items-start gap-2">
+                <span>🍅</span>
+                <span>Must hold PIZZA tokens to play</span>
+              </li>
+              <li className="flex items-start gap-2">
+                <span>🍅</span>
+                <span>One entry per wallet per day (resets 12pm PST)</span>
+              </li>
+              <li className="flex items-start gap-2">
+                <span>🍅</span>
+                <span>Equal odds for all players regardless of holdings</span>
+              </li>
+              <li className="flex items-start gap-2">
+                <span>🍅</span>
+                <span>8 winners randomly selected daily at 12pm PST</span>
+              </li>
+              <li className="flex items-start gap-2">
+                <span>🍅</span>
+                <span>Daily jackpot split equally among winners; prizes auto-paid</span>
+              </li>
+              <li className="flex items-start gap-2">
+                <span>🍅</span>
+                <span>New games are called when a new player enters after 12pm PST</span>
+              </li>
+              <li className="flex items-start gap-2">
+                <span>🍅</span>
+                <span>Daily pot breakdown: 80% Public, 10% Stakers, 7% Parlor Owners, 3% Charities</span>
+              </li>
+            </ul>
+          </div>
+        </Card>
 
       </div>
 

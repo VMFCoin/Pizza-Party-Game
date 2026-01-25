@@ -594,31 +594,7 @@ export default function LeaderboardPage({
               🍕 Spin & Stake 🍕
             </Button>
 
-            <Card className="border-4 border-red-500 rounded-2xl bg-white/95">
-              <div className="px-3 pb-3 pt-1.5">
-                <p
-                  className="text-red-600 font-bold mb-2"
-                  style={{ fontFamily: 'var(--font-luckiest-guy)', textAlign: 'center', fontSize: '32px', textShadow: '2px 2px 0px #FFA500, 3px 3px 0px rgba(255, 165, 0, 0.5)' }}
-                >
-                  How It Works
-                </p>
-                <ul className="space-y-1.5 text-red-700 text-sm" style={{ fontFamily: 'var(--font-luckiest-guy)' }}>
-                  <li className="flex items-start gap-2">
-                    <span>🍅</span>
-                    <span><strong>DAILY WINNERS:</strong> Today&apos;s 8 lucky winners</span>
-                  </li>
-                  <li className="flex items-start gap-2">
-                    <span>🍅</span>
-                    <span><strong>WEEKLY WINNERS:</strong> This week&apos;s top 10 champions</span>
-                  </li>
-                  <li className="flex items-start gap-2">
-                    <span>🍅</span>
-                    <span><strong>EARN MORE TOPPINGS:</strong> Play daily, refer friends, hold PIZZA coins.</span>
-                  </li>
-                </ul>
-              </div>
-            </Card>
-          </div>
+                      </div>
         </Card>
       </div>
     </div>
