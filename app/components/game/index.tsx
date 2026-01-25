@@ -684,7 +684,7 @@ function GamePageContent({ onNavigateToWeekly, onNavigateToLeaderboard, onNaviga
               </li>
               <li className="flex items-start gap-2">
                 <span>🍅</span>
-                <span>Daily pot breakdown: 80% Public, 10% Stakers, 7% Parlor Owners, 3% Charities</span>
+                <span>Daily pot breakdown: 80% Public, 10% Stakers, 7% Parlor Owners, 3% Veteran Charities (USA & Ukraine)</span>
               </li>
             </ul>
           </div>
