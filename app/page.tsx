@@ -360,7 +360,7 @@ export default function HomePage() {
                   fontSize: isMobile ? 18 : 20
                 }}
               >
-                🍕 Spin & Stake 🍕
+                <img src="/images/pizza_wheel.png" alt="" className="inline-block" style={{ height: '1em', width: '1em' }} /> Spin & Stake <img src="/images/pizza_wheel.png" alt="" className="inline-block" style={{ height: '1em', width: '1em' }} />
               </Button>
 
             </div>
