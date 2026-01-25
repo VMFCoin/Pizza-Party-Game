@@ -24,15 +24,13 @@ interface PizzaParlorPageProps {
 }
 
 const PARLORS_EXPLAINED = [
-  'Buy a Pizza Parlor for $50 worth of PIZZA',
-  'Each parlor gives you 1 free slice per day to give away',
-  'Own 5 parlors? Get 7 slices per week (1 per day)!',
-  'You can only send 1 slice per day (resets daily)',
+  'Buy a Pizza Parlor for $50 worth of $PIZZA',
+  '🍕 Each parlor gives you 1 free slice per day to give away. Own 5 parlors? Have 7 slices as a bonus.',
   'Slices reset every Monday when the weekly game settles',
   'Free slices let NEW players enter the daily game for free',
-  'If a sliced player wins, you earn 50% of their prize',
+  'If a first time sliced player wins, you earn 50% of their prize (daily & weekly)',
   'Max 5 parlors per wallet | Only 100 total parlors',
-  'Half the PIZZA used to buy parlors is burned forever',
+  '50% of the $PIZZA used to buy parlors is burned forever. 30% treasury, 20% Ops',
 ]
 
 // Local storage keys
