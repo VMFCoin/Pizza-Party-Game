@@ -55,6 +55,20 @@ const SETTLE_ABI = [
     stateMutability: 'nonpayable',
     type: 'function',
   },
+  {
+    inputs: [{ type: 'uint256', name: 'newUnit' }],
+    name: 'setHoldingsUnitPizza',
+    outputs: [],
+    stateMutability: 'nonpayable',
+    type: 'function',
+  },
+  {
+    inputs: [],
+    name: 'holdingsUnitPizza',
+    outputs: [{ type: 'uint256' }],
+    stateMutability: 'view',
+    type: 'function',
+  },
 ] as const;
 
 // Fetch price from Dexscreener
@@ -159,9 +173,11 @@ export async function GET(request: NextRequest) {
   const results: {
     daily: { success: boolean; txHash?: string; error?: string; gameId?: string; reason?: string } | null;
     parlorFees: { success: boolean; txHash?: string; error?: string; reason?: string } | null;
+    holdingsUnit: { success: boolean; txHash?: string; error?: string; newUnit?: string } | null;
   } = {
     daily: null,
     parlorFees: null,
+    holdingsUnit: null,
   };
 
   try {
@@ -307,6 +323,59 @@ export async function GET(request: NextRequest) {
       const error = e instanceof Error ? e.message : 'Unknown error';
       results.parlorFees = { success: false, error };
       console.error(`[Settle Bot] Parlor fee allocation error:`, error);
+    }
+
+    // --- UPDATE HOLDINGS UNIT BASED ON CURRENT PRICE ---
+    // This ensures holdings bonus is calculated correctly when players claim
+    try {
+      const pizzaPrice = await getPizzaPrice();
+      if (pizzaPrice > 0) {
+        // Calculate how many PIZZA = $10 at current price
+        // Formula: $10 / pricePerPizza = number of PIZZA tokens
+        const pizzaFor10Usd = 10 / pizzaPrice;
+        // Convert to wei (18 decimals) and round to avoid floating point issues
+        const newUnitWei = BigInt(Math.round(pizzaFor10Usd * 1e18));
+
+        // Get current value to check if update needed
+        const currentUnit = await publicClient.readContract({
+          address: CONTRACT_ADDRESS,
+          abi: SETTLE_ABI,
+          functionName: 'holdingsUnitPizza',
+        });
+
+        // Only update if significantly different (>5% change) to avoid unnecessary txs
+        const percentChange = Math.abs(Number(newUnitWei - currentUnit) / Number(currentUnit)) * 100;
+
+        if (percentChange > 5) {
+          console.log(`[Settle Bot] Updating holdingsUnitPizza: ${formatUnits(currentUnit, 18)} -> ${formatUnits(newUnitWei, 18)} PIZZA ($10 worth at $${pizzaPrice})`);
+
+          const hash = await walletClient.writeContract({
+            address: CONTRACT_ADDRESS,
+            abi: SETTLE_ABI,
+            functionName: 'setHoldingsUnitPizza',
+            args: [newUnitWei],
+            gas: 100_000n,
+          });
+
+          const receipt = await publicClient.waitForTransactionReceipt({ hash });
+
+          if (receipt.status === 'success') {
+            results.holdingsUnit = { success: true, txHash: hash, newUnit: formatUnits(newUnitWei, 18) };
+            console.log(`[Settle Bot] Holdings unit updated! TX: ${hash}`);
+          } else {
+            results.holdingsUnit = { success: false, error: 'Transaction failed' };
+          }
+        } else {
+          results.holdingsUnit = { success: false, reason: `no_change_needed (${percentChange.toFixed(1)}% diff)` };
+          console.log(`[Settle Bot] Holdings unit unchanged (only ${percentChange.toFixed(1)}% difference)`);
+        }
+      } else {
+        results.holdingsUnit = { success: false, error: 'Could not fetch price' };
+      }
+    } catch (e) {
+      const error = e instanceof Error ? e.message : 'Unknown error';
+      results.holdingsUnit = { success: false, error };
+      console.error(`[Settle Bot] Holdings unit update error:`, error);
     }
 
     // Sync any missing stakers to the database
