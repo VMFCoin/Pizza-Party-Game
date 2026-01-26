@@ -36,6 +36,9 @@ const PARLORS_EXPLAINED = [
 // Local storage keys
 const RECENT_RECIPIENTS_KEY = 'pizzaParlor_recentRecipients'
 
+// Helper to get byte length of string (for contract validation which uses bytes, not characters)
+const getByteLength = (str: string): number => new TextEncoder().encode(str).length
+
 interface RecentRecipient {
   label: string
   address: `0x${string}`
@@ -391,7 +394,9 @@ export default function PizzaParlorPage({
   }
 
   const handleSetParlorName = async () => {
-    if (!parlorNameInput.trim() || parlorNameInput.length > 20) return
+    const trimmedName = parlorNameInput.trim()
+    // Contract validates bytes, not characters (emojis are 4 bytes each)
+    if (!trimmedName || getByteLength(trimmedName) > 20) return
     setIsSettingName(true)
     try {
       writeContract({
@@ -1366,10 +1371,16 @@ export default function PizzaParlorPage({
                   type="text"
                   placeholder="Enter franchise name..."
                   value={parlorNameInput}
-                  onChange={(e) => setParlorNameInput(e.target.value.slice(0, 20))}
+                  onChange={(e) => {
+                    // Limit by bytes (emojis are 4 bytes each), not characters
+                    let newValue = e.target.value
+                    while (getByteLength(newValue) > 20) {
+                      newValue = newValue.slice(0, -1)
+                    }
+                    setParlorNameInput(newValue)
+                  }}
                   className="w-full p-3 rounded-xl border-3 border-orange-400 text-orange-900 text-center"
                   style={{ ...customFontStyle, fontSize: 16 }}
-                  maxLength={20}
                   autoFocus
                 />
                 <p
@@ -1386,7 +1397,7 @@ export default function PizzaParlorPage({
                   onClick={handleSetParlorName}
                   className="w-full !bg-green-600 hover:!bg-green-700 text-white font-bold py-3 rounded-xl border-4 border-green-800 uppercase"
                   style={{ ...customFontStyle, fontSize: 16 }}
-                  disabled={!parlorNameInput.trim() || isSettingName || isConfirming}
+                  disabled={!parlorNameInput.trim() || getByteLength(parlorNameInput.trim()) > 20 || isSettingName || isConfirming}
                 >
                   {isSettingName || isConfirming
                     ? '🍕 SAVING... 🍕'
