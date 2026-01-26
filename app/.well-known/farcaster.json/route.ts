@@ -15,7 +15,7 @@ const manifest = {
     splashBackgroundColor: "#dc2626",
     webhookUrl: "https://pizza-party-game.vmfcoin.com/api/farcaster/webhook",
     subtitle: "Daily Cheesy Winners",
-    description: "A daily party with friends 🍕 Play every day, collect toppings, stake $PIZZA, and Spin the Pie for hot jackpots.",
+    description: "A daily party with friends. Play every day, collect toppings, stake PIZZA, and Spin the Pie for hot jackpots.",
     screenshotUrls: [
       sharedImage
     ],
