@@ -366,7 +366,7 @@ export async function GET(request: NextRequest) {
             results.holdingsUnit = { success: false, error: 'Transaction failed' };
           }
         } else {
-          results.holdingsUnit = { success: false, reason: `no_change_needed (${percentChange.toFixed(1)}% diff)` };
+          results.holdingsUnit = { success: false, error: `no_change_needed (${percentChange.toFixed(1)}% diff)` };
           console.log(`[Settle Bot] Holdings unit unchanged (only ${percentChange.toFixed(1)}% difference)`);
         }
       } else {
