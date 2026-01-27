@@ -223,6 +223,75 @@ export default function HomePage() {
               </div>
             </div>
 
+            {/* Early Boost Starburst Badge */}
+            <div className="relative">
+              <div
+                className="absolute z-10"
+                style={{
+                  right: isMobile ? '-15px' : '-25px',
+                  top: isMobile ? '-20px' : '-25px',
+                  width: isMobile ? '150px' : '190px',
+                  height: isMobile ? '150px' : '190px',
+                }}
+              >
+                <svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg" style={{ filter: 'drop-shadow(2px 2px 4px rgba(0,0,0,0.3))' }}>
+                  <defs>
+                    <filter id="whiteShadow" x="-20%" y="-20%" width="140%" height="140%">
+                      <feDropShadow dx="1" dy="1" stdDeviation="1" floodColor="white" floodOpacity="0.9" />
+                    </filter>
+                  </defs>
+                  <polygon
+                    points="100,5 117,40 155,15 142,55 185,50 158,80 195,100 158,120 185,150 142,145 155,185 117,160 100,195 83,160 45,185 58,145 15,150 42,120 5,100 42,80 15,50 58,55 45,15 83,40"
+                    fill="#27D431"
+                    stroke="#1a8f22"
+                    strokeWidth="3"
+                  />
+                  <g transform="rotate(12, 100, 100)">
+                    <text
+                      x="100"
+                      y="68"
+                      textAnchor="middle"
+                      fill="#D43127"
+                      style={{ fontFamily: 'var(--font-luckiest-guy)', fontSize: '28px', fontWeight: 'bold' }}
+                      filter="url(#whiteShadow)"
+                    >
+                      30%
+                    </text>
+                    <text
+                      x="100"
+                      y="90"
+                      textAnchor="middle"
+                      fill="#D43127"
+                      style={{ fontFamily: 'var(--font-luckiest-guy)', fontSize: '16px', fontWeight: 'bold' }}
+                      filter="url(#whiteShadow)"
+                    >
+                      Limited Time
+                    </text>
+                    <text
+                      x="100"
+                      y="115"
+                      textAnchor="middle"
+                      fill="#D43127"
+                      style={{ fontFamily: 'var(--font-luckiest-guy)', fontSize: '20px', fontWeight: 'bold' }}
+                      filter="url(#whiteShadow)"
+                    >
+                      Extra Spin
+                    </text>
+                    <text
+                      x="100"
+                      y="138"
+                      textAnchor="middle"
+                      fill="#D43127"
+                      style={{ fontFamily: 'var(--font-luckiest-guy)', fontSize: '20px', fontWeight: 'bold' }}
+                      filter="url(#whiteShadow)"
+                    >
+                      Rewards
+                    </text>
+                  </g>
+                </svg>
+              </div>
+            </div>
+
             {/* Pizza Image */}
             <div className="flex justify-center items-center mb-4">
               <div
