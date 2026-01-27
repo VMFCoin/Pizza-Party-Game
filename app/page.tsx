@@ -435,6 +435,23 @@ export default function HomePage() {
             </div>
 
           </Card>
+
+          {/* PLAY ON Section */}
+          <div className="flex items-center justify-center gap-3 mt-1 mb-0 py-0">
+            <span style={{ fontFamily: 'var(--font-luckiest-guy)', fontSize: '28px', color: 'white', textShadow: '2px 2px 0px #000', lineHeight: '1' }}>
+              PLAY ON:
+            </span>
+            <a href="https://farcaster.xyz/miniapps/wgY6OPqYoIkz/pizza-party" target="_blank" rel="noopener noreferrer">
+              <img src="/images/Farcaster_logo.png" alt="Farcaster" width={32} height={32} style={{ maxWidth: '32px', maxHeight: '32px', borderRadius: '6px', display: 'block' }} />
+            </a>
+            <a href="https://base.app/app/pizza-party-game.vmfcoin.com" target="_blank" rel="noopener noreferrer" style={{ marginLeft: '12px' }}>
+              <img src="/images/Base_logo.png" alt="Base" width={32} height={32} style={{ maxWidth: '32px', maxHeight: '32px', borderRadius: '6px', display: 'block' }} />
+            </a>
+            <a href="https://pizza-party-game.vmfcoin.com" target="_blank" rel="noopener noreferrer" style={{ marginLeft: '12px' }}>
+              <img src="/images/web-icon.png" alt="Website" width={32} height={32} style={{ maxWidth: '32px', maxHeight: '32px', borderRadius: '6px', display: 'block' }} />
+            </a>
+          </div>
+
         </div>
       </header>
     </main>
