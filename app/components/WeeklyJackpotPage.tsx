@@ -23,8 +23,9 @@ interface WeeklyJackpotPageProps {
 }
 
 const customFontStyle = {
-  fontFamily: '"Comic Sans MS", "Marker Felt", "Chalkduster", "Kalam", "Caveat"',
+  fontFamily: 'var(--font-luckiest-guy)',
   fontWeight: 'bold' as const,
+  textShadow: '1px 1px 2px rgba(0,0,0,0.5)',
 }
 
 const HOW_TO_WIN = [
@@ -336,9 +337,11 @@ export default function WeeklyJackpotPage({
               alert('Leaderboard coming soon!')
             }}
           >
-            <Image src="/images/mushroom-icon2.png" alt="Mushroom" width={20} height={20} className="inline mr-1" style={{ backgroundColor: 'transparent', border: 'none' }} />
-            LEADERBOARD
-            <Image src="/images/mushroom-icon2.png" alt="Mushroom" width={20} height={20} className="inline ml-1" style={{ backgroundColor: 'transparent', border: 'none' }} />
+            <span className="flex items-center justify-center w-full gap-2">
+              <Image src="/images/mushroom-icon2.png" alt="Mushroom" width={20} height={20} className="inline" style={{ backgroundColor: 'transparent', border: 'none' }} />
+              <span className="text-center">LEADERBOARD</span>
+              <Image src="/images/mushroom-icon2.png" alt="Mushroom" width={20} height={20} className="inline" style={{ backgroundColor: 'transparent', border: 'none' }} />
+            </span>
           </Button>
 
           {/* Own a Parlor Button */}
@@ -356,7 +359,11 @@ export default function WeeklyJackpotPage({
             className="w-full !bg-green-600 hover:!bg-green-700 text-white font-bold py-2.5 rounded-xl border-4 border-green-900 uppercase cursor-pointer"
             style={{ ...customFontStyle, fontSize: 20 }}
           >
-            <img src="/images/pizza_wheel.png" alt="" className="inline-block" style={{ height: '1em', width: '1em' }} /> Spin & Stake <img src="/images/pizza_wheel.png" alt="" className="inline-block" style={{ height: '1em', width: '1em' }} />
+            <span className="flex items-center justify-center w-full gap-2">
+              <img src="/images/pizza_wheel.png" alt="" className="inline-block" style={{ height: '1em', width: '1em' }} />
+              <span className="text-center">Spin & Stake</span>
+              <img src="/images/pizza_wheel.png" alt="" className="inline-block" style={{ height: '1em', width: '1em' }} />
+            </span>
           </Button>
 
           <Card className="border-4 border-red-500 rounded-2xl bg-white/95 !py-0">

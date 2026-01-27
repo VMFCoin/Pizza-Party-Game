@@ -21,8 +21,9 @@ type ViewType = 'home' | 'game' | 'weekly' | 'leaderboard' | 'parlor' | 'staking
 
 export default function HomePage() {
   const customFontStyle = {
-    fontFamily: '"Comic Sans MS", "Marker Felt", "Chalkduster", "Kalam", "Caveat"',
+    fontFamily: 'var(--font-luckiest-guy)',
     fontWeight: "bold" as const,
+    textShadow: '1px 1px 2px rgba(0,0,0,0.5)',
   };
 
   const router = useRouter();
@@ -376,9 +377,11 @@ export default function HomePage() {
                 className="w-full !bg-orange-500 hover:!bg-orange-600 text-white py-3 px-6 rounded-xl border-4 border-orange-700 shadow-lg transform hover:scale-105 transition-all touch-manipulation"
                 style={{ ...customFontStyle, letterSpacing: "1px", fontSize: isMobile ? 18 : 20, fontWeight: '900' }}
               >
-                <Image src="/images/pepperoni-art.png" alt="Pepperoni" width={20} height={20} className="inline mr-1" />
-                CLAIM TOPPINGS
-                <Image src="/images/pepperoni-art.png" alt="Pepperoni" width={20} height={20} className="inline ml-1" />
+                <span className="flex items-center justify-center w-full gap-2">
+                  <Image src="/images/pepperoni-art.png" alt="Pepperoni" width={20} height={20} className="inline" />
+                  <span className="text-center">CLAIM TOPPINGS</span>
+                  <Image src="/images/pepperoni-art.png" alt="Pepperoni" width={20} height={20} className="inline" />
+                </span>
               </Button>
 
               {/* LEADERBOARD */}
@@ -387,23 +390,11 @@ export default function HomePage() {
                 className="w-full !bg-yellow-500 hover:!bg-yellow-600 text-white font-bold py-3 px-6 rounded-xl border-4 border-yellow-700 shadow-lg transform hover:scale-105 transition-all touch-manipulation uppercase"
                 style={{ ...customFontStyle, letterSpacing: "1px", fontSize: isMobile ? 18 : 20 }}
               >
-                <Image
-                  src="/images/mushroom-icon2.png"
-                  alt="Mushroom"
-                  width={20}
-                  height={20}
-                  className="inline mr-1"
-                  style={{ backgroundColor: 'transparent', border: 'none' }}
-                />
-                LEADERBOARD
-                <Image
-                  src="/images/mushroom-icon2.png"
-                  alt="Mushroom"
-                  width={20}
-                  height={20}
-                  className="inline ml-1"
-                  style={{ backgroundColor: 'transparent', border: 'none' }}
-                />
+                <span className="flex items-center justify-center w-full gap-2">
+                  <Image src="/images/mushroom-icon2.png" alt="Mushroom" width={20} height={20} className="inline" style={{ backgroundColor: 'transparent', border: 'none' }} />
+                  <span className="text-center">LEADERBOARD</span>
+                  <Image src="/images/mushroom-icon2.png" alt="Mushroom" width={20} height={20} className="inline" style={{ backgroundColor: 'transparent', border: 'none' }} />
+                </span>
               </Button>
 
               {/* OWN A PARLOR */}
@@ -429,7 +420,11 @@ export default function HomePage() {
                   fontSize: isMobile ? 18 : 20
                 }}
               >
-                <img src="/images/pizza_wheel.png" alt="" className="inline-block" style={{ height: '1em', width: '1em' }} /> Spin & Stake <img src="/images/pizza_wheel.png" alt="" className="inline-block" style={{ height: '1em', width: '1em' }} />
+                <span className="flex items-center justify-center w-full gap-2">
+                  <img src="/images/pizza_wheel.png" alt="" className="inline-block" style={{ height: '1em', width: '1em' }} />
+                  <span className="text-center">Spin & Stake</span>
+                  <img src="/images/pizza_wheel.png" alt="" className="inline-block" style={{ height: '1em', width: '1em' }} />
+                </span>
               </Button>
 
             </div>

@@ -19,8 +19,9 @@ interface ToppingBreakdownModalProps {
 }
 
 const customFontStyle = {
-  fontFamily: '\"Comic Sans MS\", \"Marker Felt\", \"Chalkduster\", \"Kalam\", \"Caveat\"',
+  fontFamily: 'var(--font-luckiest-guy)',
   fontWeight: 'bold' as const,
+  textShadow: '1px 1px 2px rgba(0,0,0,0.5)',
 }
 
 export default function ToppingBreakdownModal({

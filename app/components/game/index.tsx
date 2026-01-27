@@ -219,8 +219,9 @@ function GamePageContent({ onNavigateToWeekly, onNavigateToLeaderboard, onNaviga
   }, [shareCopied])
 
   const customFontStyle = {
-    fontFamily: '"Comic Sans MS", "Marker Felt", "Chalkduster", "Kalam", "Caveat"',
+    fontFamily: 'var(--font-luckiest-guy)',
     fontWeight: 'bold' as const,
+    textShadow: '1px 1px 2px rgba(0,0,0,0.5)',
   }
 
   // Debug render
@@ -524,7 +525,11 @@ function GamePageContent({ onNavigateToWeekly, onNavigateToLeaderboard, onNaviga
                 >
                   {isEntryInProgress ? 'Processing...' : (
                     <>
-                      <span className="text-xl">🍕</span> ENTER GAME <span className="text-xl">🍕</span>
+                      <span className="flex items-center justify-center w-full">
+                        <span className="text-xl">🍕</span>
+                        <span className="flex-1 text-center">ENTER GAME</span>
+                        <span className="text-xl">🍕</span>
+                      </span>
                     </>
                   )}
                 </Button>
@@ -550,7 +555,11 @@ function GamePageContent({ onNavigateToWeekly, onNavigateToLeaderboard, onNaviga
               {isEntryInProgress ? 'Processing...' : (
                 buttonConfig.text.includes('🍕') ? (
                   <>
-                    <span className="text-xl">🍕</span> {buttonConfig.text.replace(/🍕/g, '').trim()} <span className="text-xl">🍕</span>
+                    <span className="flex items-center justify-center w-full">
+                      <span className="text-xl">🍕</span>
+                      <span className="flex-1 text-center">{buttonConfig.text.replace(/🍕/g, '').trim()}</span>
+                      <span className="text-xl">🍕</span>
+                    </span>
                   </>
                 ) : (
                   buttonConfig.text
@@ -607,9 +616,11 @@ function GamePageContent({ onNavigateToWeekly, onNavigateToLeaderboard, onNaviga
               alert('Weekly Jackpot coming soon!')
             }}
           >
-            <Image src="/images/pepperoni-art.png" alt="Pepperoni" width={20} height={20} className="inline mr-1" />
-            Claim Toppings
-            <Image src="/images/pepperoni-art.png" alt="Pepperoni" width={20} height={20} className="inline ml-1" />
+            <span className="flex items-center justify-center w-full gap-2">
+              <Image src="/images/pepperoni-art.png" alt="Pepperoni" width={20} height={20} className="inline" />
+              <span className="text-center">Claim Toppings</span>
+              <Image src="/images/pepperoni-art.png" alt="Pepperoni" width={20} height={20} className="inline" />
+            </span>
           </Button>
 
           {/* Leaderboard Button */}
@@ -624,9 +635,11 @@ function GamePageContent({ onNavigateToWeekly, onNavigateToLeaderboard, onNaviga
               alert('Leaderboard coming soon!')
             }}
           >
-            <Image src="/images/mushroom-icon2.png" alt="Mushroom" width={20} height={20} className="inline mr-1" style={{ backgroundColor: 'transparent', border: 'none' }} />
-            Leaderboard
-            <Image src="/images/mushroom-icon2.png" alt="Mushroom" width={20} height={20} className="inline ml-1" style={{ backgroundColor: 'transparent', border: 'none' }} />
+            <span className="flex items-center justify-center w-full gap-2">
+              <Image src="/images/mushroom-icon2.png" alt="Mushroom" width={20} height={20} className="inline" style={{ backgroundColor: 'transparent', border: 'none' }} />
+              <span className="text-center">Leaderboard</span>
+              <Image src="/images/mushroom-icon2.png" alt="Mushroom" width={20} height={20} className="inline" style={{ backgroundColor: 'transparent', border: 'none' }} />
+            </span>
           </Button>
 
           {/* Own a Parlor Button */}
@@ -644,7 +657,11 @@ function GamePageContent({ onNavigateToWeekly, onNavigateToLeaderboard, onNaviga
             className="w-full !bg-green-600 hover:!bg-green-700 text-white font-bold py-2 rounded-xl border-4 border-green-900 uppercase cursor-pointer"
             style={{ ...customFontStyle, fontSize: isMobile ? 18 : 20 }}
           >
-            <img src="/images/pizza_wheel.png" alt="" className="inline-block" style={{ height: '1em', width: '1em' }} /> Spin & Stake <img src="/images/pizza_wheel.png" alt="" className="inline-block" style={{ height: '1em', width: '1em' }} />
+            <span className="flex items-center justify-center w-full gap-2">
+              <img src="/images/pizza_wheel.png" alt="" className="inline-block" style={{ height: '1em', width: '1em' }} />
+              <span className="text-center">Spin & Stake</span>
+              <img src="/images/pizza_wheel.png" alt="" className="inline-block" style={{ height: '1em', width: '1em' }} />
+            </span>
           </Button>
 
           {/* Manage Wallet Button (when connected) */}
@@ -654,9 +671,11 @@ function GamePageContent({ onNavigateToWeekly, onNavigateToLeaderboard, onNaviga
               style={{ ...customFontStyle, fontSize: isMobile ? 18 : 20 }}
               onClick={() => openWalletModal()}
             >
-              <Image src="/images/wallet-icon.png" alt="Wallet" width={20} height={20} className="inline mr-1" style={{ backgroundColor: 'transparent', border: 'none' }} />
-              Manage Wallet
-              <Image src="/images/wallet-icon.png" alt="Wallet" width={20} height={20} className="inline ml-1" style={{ backgroundColor: 'transparent', border: 'none' }} />
+              <span className="flex items-center justify-center w-full gap-2">
+                <Image src="/images/wallet-icon.png" alt="Wallet" width={20} height={20} className="inline" style={{ backgroundColor: 'transparent', border: 'none' }} />
+                <span className="text-center">Manage Wallet</span>
+                <Image src="/images/wallet-icon.png" alt="Wallet" width={20} height={20} className="inline" style={{ backgroundColor: 'transparent', border: 'none' }} />
+              </span>
             </Button>
           )}
         </div>

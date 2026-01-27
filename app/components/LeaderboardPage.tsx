@@ -33,8 +33,9 @@ interface WinnerDisplay {
 }
 
 const customFontStyle = {
-  fontFamily: '"Comic Sans MS", "Marker Felt", "Chalkduster", "Kalam", "Caveat"',
+  fontFamily: 'var(--font-luckiest-guy)',
   fontWeight: 'bold' as const,
+  textShadow: '1px 1px 2px rgba(0,0,0,0.5)',
 }
 
 function formatAddress(address: string): string {
@@ -571,9 +572,11 @@ export default function LeaderboardPage({
               style={{ ...customFontStyle, fontSize: 20, letterSpacing: '1px' }}
               onClick={navigateToWeekly}
             >
-              <Image src="/images/pepperoni-art.png" alt="Pepperoni" width={20} height={20} className="inline mr-1" />
-              Claim Toppings
-              <Image src="/images/pepperoni-art.png" alt="Pepperoni" width={20} height={20} className="inline ml-1" />
+              <span className="flex items-center justify-center w-full gap-2">
+                <Image src="/images/pepperoni-art.png" alt="Pepperoni" width={20} height={20} className="inline" />
+                <span className="text-center">Claim Toppings</span>
+                <Image src="/images/pepperoni-art.png" alt="Pepperoni" width={20} height={20} className="inline" />
+              </span>
             </Button>
 
             {/* Own a Parlor Button */}
@@ -591,7 +594,11 @@ export default function LeaderboardPage({
               className="w-full !bg-green-600 hover:!bg-green-700 text-white font-bold py-2.5 rounded-xl border-4 border-green-900 uppercase cursor-pointer"
               style={{ ...customFontStyle, fontSize: 20 }}
             >
-              <img src="/images/pizza_wheel.png" alt="" className="inline-block" style={{ height: '1em', width: '1em' }} /> Spin & Stake <img src="/images/pizza_wheel.png" alt="" className="inline-block" style={{ height: '1em', width: '1em' }} />
+              <span className="flex items-center justify-center w-full gap-2">
+                <img src="/images/pizza_wheel.png" alt="" className="inline-block" style={{ height: '1em', width: '1em' }} />
+                <span className="text-center">Spin & Stake</span>
+                <img src="/images/pizza_wheel.png" alt="" className="inline-block" style={{ height: '1em', width: '1em' }} />
+              </span>
             </Button>
 
                       </div>

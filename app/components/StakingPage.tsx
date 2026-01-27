@@ -112,8 +112,9 @@ const LOCK_TYPES = [
 ]
 
 const customFontStyle = {
-  fontFamily: '"Comic Sans MS", "Marker Felt", "Chalkduster", "Kalam", "Caveat"',
+  fontFamily: 'var(--font-luckiest-guy)',
   fontWeight: 'bold' as const,
+  textShadow: '1px 1px 2px rgba(0,0,0,0.5)',
 }
 
 // Helper to format large numbers from wei (18 decimals)
@@ -1781,9 +1782,11 @@ export default function StakingPage({
               className="w-full !bg-yellow-500 hover:!bg-yellow-600 text-white font-bold py-2.5 rounded-xl border-4 border-yellow-800 uppercase"
               style={{ ...customFontStyle, fontSize: isMobile ? 18 : 20 }}
             >
-              <Image src="/images/pepperoni-art.png" alt="Pepperoni" width={20} height={20} className="inline mr-1" />
-              Claim Toppings
-              <Image src="/images/pepperoni-art.png" alt="Pepperoni" width={20} height={20} className="inline ml-1" />
+              <span className="flex items-center justify-center w-full gap-2">
+                <Image src="/images/pepperoni-art.png" alt="Pepperoni" width={20} height={20} className="inline" />
+                <span className="text-center">Claim Toppings</span>
+                <Image src="/images/pepperoni-art.png" alt="Pepperoni" width={20} height={20} className="inline" />
+              </span>
             </Button>
 
             <Button
@@ -1791,9 +1794,11 @@ export default function StakingPage({
               className="w-full !bg-red-700 hover:!bg-red-800 text-white font-bold py-2.5 rounded-xl border-4 border-red-900 uppercase"
               style={{ ...customFontStyle, fontSize: isMobile ? 18 : 20 }}
             >
-              <Image src="/images/mushroom-icon2.png" alt="Mushroom" width={20} height={20} className="inline mr-1" style={{ backgroundColor: 'transparent', border: 'none' }} />
-              Leaderboard
-              <Image src="/images/mushroom-icon2.png" alt="Mushroom" width={20} height={20} className="inline ml-1" style={{ backgroundColor: 'transparent', border: 'none' }} />
+              <span className="flex items-center justify-center w-full gap-2">
+                <Image src="/images/mushroom-icon2.png" alt="Mushroom" width={20} height={20} className="inline" style={{ backgroundColor: 'transparent', border: 'none' }} />
+                <span className="text-center">Leaderboard</span>
+                <Image src="/images/mushroom-icon2.png" alt="Mushroom" width={20} height={20} className="inline" style={{ backgroundColor: 'transparent', border: 'none' }} />
+              </span>
             </Button>
 
             <Button
