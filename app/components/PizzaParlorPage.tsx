@@ -7,7 +7,7 @@ import { Card } from './ui/card'
 import { ArrowLeft, ChevronDown, ChevronUp } from 'lucide-react'
 import { useAccount, useReadContracts, useWriteContract, useWaitForTransactionReceipt, usePublicClient } from 'wagmi'
 import { formatUnits, parseUnits, isAddress, parseAbiItem } from 'viem'
-import { PARLOR_MANAGER_ADDRESS, PARLOR_MANAGER_ABI, PIZZA_TOKEN_ADDRESS, PIZZA_TOKEN_ABI, PIZZA_PARTY_ADDRESS, PIZZA_PARTY_ABI } from '../lib/constants'
+import { PARLOR_MANAGER_ADDRESS, PARLOR_MANAGER_ABI, PIZZA_TOKEN_ADDRESS, PIZZA_TOKEN_ABI, PIZZA_PARTY_ADDRESS, PIZZA_PARTY_ABI, PIZZA_STAKING_ADDRESS } from '../lib/constants'
 import { sdk } from '@farcaster/miniapp-sdk'
 import { fetchProfilesByAddresses } from '../lib/farcasterProfiles'
 
@@ -104,6 +104,11 @@ export default function PizzaParlorPage({
   const [sliceHistory, setSliceHistory] = useState<SliceHistoryEntry[]>([])
   const [isLoadingHistory, setIsLoadingHistory] = useState(false)
   const [refreshHistoryTrigger, setRefreshHistoryTrigger] = useState(0)
+
+  // Fee breakdown state
+  const [dailyPotFees, setDailyPotFees] = useState<bigint>(0n)
+  const [earlyUnlockFees, setEarlyUnlockFees] = useState<bigint>(0n)
+  const [isLoadingFees, setIsLoadingFees] = useState(false)
 
   // Transaction states
   const [isPurchasing, setIsPurchasing] = useState(false)
@@ -710,6 +715,63 @@ export default function PizzaParlorPage({
     return () => unwatch()
   }, [publicClient, userAddress, fetchSliceHistory])
 
+  // Fetch fee breakdown from Transfer events (daily pot vs early unlock penalties)
+  const fetchFeeBreakdown = useCallback(async () => {
+    if (!publicClient || !userAddress || parlorsOwned <= 0) return
+
+    setIsLoadingFees(true)
+    try {
+      const currentBlock = await publicClient.getBlockNumber()
+      const BLOCKS_PER_DAY = BigInt(43200) // 86400 seconds / 2 sec per block
+      const fromBlock = currentBlock - (BLOCKS_PER_DAY * 90n) // ~90 days of history
+
+      // Fetch PIZZA token Transfer events TO the ParlorManager
+      const transferEvent = parseAbiItem('event Transfer(address indexed from, address indexed to, uint256 value)')
+
+      // Daily pot fees come from the game contract
+      const dailyPotLogs = await publicClient.getLogs({
+        address: PIZZA_TOKEN_ADDRESS as `0x${string}`,
+        event: transferEvent,
+        args: {
+          from: PIZZA_PARTY_ADDRESS as `0x${string}`,
+          to: PARLOR_MANAGER_ADDRESS as `0x${string}`,
+        },
+        fromBlock,
+        toBlock: currentBlock,
+      })
+
+      // Early unlock penalty fees come from the staking contract
+      const earlyUnlockLogs = await publicClient.getLogs({
+        address: PIZZA_TOKEN_ADDRESS as `0x${string}`,
+        event: transferEvent,
+        args: {
+          from: PIZZA_STAKING_ADDRESS as `0x${string}`,
+          to: PARLOR_MANAGER_ADDRESS as `0x${string}`,
+        },
+        fromBlock,
+        toBlock: currentBlock,
+      })
+
+      // Sum up totals from each source
+      const totalDailyPot = dailyPotLogs.reduce((sum, log) => sum + (log.args.value || 0n), 0n)
+      const totalEarlyUnlock = earlyUnlockLogs.reduce((sum, log) => sum + (log.args.value || 0n), 0n)
+
+      setDailyPotFees(totalDailyPot)
+      setEarlyUnlockFees(totalEarlyUnlock)
+    } catch (error) {
+      console.error('Failed to fetch fee breakdown:', error)
+    } finally {
+      setIsLoadingFees(false)
+    }
+  }, [publicClient, userAddress, parlorsOwned])
+
+  // Fetch fee breakdown when parlor owner opens collect fees
+  useEffect(() => {
+    if (collectFeesOpen && parlorsOwned > 0) {
+      fetchFeeBreakdown()
+    }
+  }, [collectFeesOpen, parlorsOwned, fetchFeeBreakdown])
+
   // ============ Effects ============
 
   // Fetch live PIZZA price from DEX
@@ -967,10 +1029,37 @@ export default function PizzaParlorPage({
               {collectFeesOpen && (
                 <div className="bg-yellow-100 border-4 border-t-0 border-yellow-800 rounded-b-xl p-4">
                   <div className="space-y-3">
+                    {/* Fee Breakdown */}
+                    <div className="bg-yellow-50 rounded-lg p-2 border border-yellow-300">
+                      <p className="text-yellow-800 text-center mb-1" style={{ ...customFontStyle, fontSize: 12 }}>Fee Sources (Last 90 Days)</p>
+                      <div className="space-y-1">
+                        <div className="flex justify-between items-center">
+                          <span className="text-yellow-700" style={{ ...customFontStyle, fontSize: 12 }}>🎮 Daily Pot:</span>
+                          <span className="text-yellow-900" style={{ ...customFontStyle, fontSize: 12 }}>
+                            {isLoadingFees ? '...' : `${Math.floor(Number(formatUnits(dailyPotFees, 18))).toLocaleString()} PIZZA`}
+                          </span>
+                        </div>
+                        <div className="flex justify-between items-center">
+                          <span className="text-yellow-700" style={{ ...customFontStyle, fontSize: 12 }}>🔓 Early Unlock:</span>
+                          <span className="text-yellow-900" style={{ ...customFontStyle, fontSize: 12 }}>
+                            {isLoadingFees ? '...' : `${Math.floor(Number(formatUnits(earlyUnlockFees, 18))).toLocaleString()} PIZZA`}
+                          </span>
+                        </div>
+                        <div className="border-t border-yellow-300 pt-1 flex justify-between items-center">
+                          <span className="text-yellow-800" style={{ ...customFontStyle, fontSize: 12 }}>Total Received:</span>
+                          <span className="text-yellow-900" style={{ ...customFontStyle, fontSize: 12 }}>
+                            {isLoadingFees ? '...' : `${Math.floor(Number(formatUnits(dailyPotFees + earlyUnlockFees, 18))).toLocaleString()} PIZZA`}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+
                     {/* Claimable Balance */}
-                    <div className="flex justify-between items-center">
-                      <span className="text-yellow-800" style={{ ...customFontStyle, fontSize: 14 }}>Your Claimable Fees:</span>
-                      <span className="text-green-600" style={{ ...customFontStyle, fontSize: 14 }}>{claimableFeesFormatted.toLocaleString()} PIZZA</span>
+                    <div className="bg-green-50 rounded-lg p-2 border border-green-300">
+                      <div className="flex justify-between items-center">
+                        <span className="text-green-800" style={{ ...customFontStyle, fontSize: 14 }}>Your Claimable Fees:</span>
+                        <span className="text-green-600" style={{ ...customFontStyle, fontSize: 14 }}>{claimableFeesFormatted.toLocaleString()} PIZZA</span>
+                      </div>
                     </div>
 
                     {/* Your Stats */}
@@ -1001,7 +1090,7 @@ export default function PizzaParlorPage({
                         ? '💰 COLLECTING... 💰'
                         : claimableFeesFormatted <= 0
                           ? '💰 NO FEES TO COLLECT 💰'
-                          : '💰 COLLECT FEES 💰'}
+                          : `💰 COLLECT ${claimableFeesFormatted.toLocaleString()} PIZZA 💰`}
                     </Button>
                   </div>
                 </div>
