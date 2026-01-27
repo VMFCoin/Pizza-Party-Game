@@ -270,7 +270,13 @@ function GamePageContent({ onNavigateToWeekly, onNavigateToLeaderboard, onNaviga
       }
     }
     if (!hasEnoughPizza) {
-      return { text: 'NEED $1 PIZZA TO PLAY', onClick: () => sdk.actions.viewToken({ token: `eip155:8453/erc20:${PIZZA_TOKEN_ADDRESS}` }), disabled: false }
+      return { text: 'NEED $1 PIZZA TO PLAY', onClick: () => {
+        if (isFarcasterMiniApp) {
+          sdk.actions.viewToken({ token: `eip155:8453/erc20:${PIZZA_TOKEN_ADDRESS}` })
+        } else {
+          window.open(`https://base.app/coin/base-mainnet/${PIZZA_TOKEN_ADDRESS}`, '_blank')
+        }
+      }, disabled: false }
     }
     // Single transaction entry with permit - no separate approval needed!
     return {
