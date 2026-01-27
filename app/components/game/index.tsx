@@ -407,18 +407,18 @@ function GamePageContent({ onNavigateToWeekly, onNavigateToLeaderboard, onNaviga
           <p className="text-blue-600 font-bold leading-none" style={{ fontFamily: 'var(--font-luckiest-guy)', fontSize: '14px' }}>Next Draw:</p>
           <div className="flex items-center justify-center gap-1">
             <div className="bg-white px-2 py-0.5 rounded border border-black text-center">
-              <div className="text-blue-800 font-bold text-sm leading-none" style={customFontStyle}>{hours}</div>
-              <div className="text-blue-600 text-[8px] leading-none" style={customFontStyle}>HRS</div>
+              <div className="text-blue-800 font-bold text-sm leading-none">{hours}</div>
+              <div className="text-blue-600 text-[8px] leading-none">HRS</div>
             </div>
             <span className="text-blue-800 font-bold">:</span>
             <div className="bg-white px-2 py-0.5 rounded border border-black text-center">
-              <div className="text-blue-800 font-bold text-sm leading-none" style={customFontStyle}>{minutes}</div>
-              <div className="text-blue-600 text-[8px] leading-none" style={customFontStyle}>MIN</div>
+              <div className="text-blue-800 font-bold text-sm leading-none">{minutes}</div>
+              <div className="text-blue-600 text-[8px] leading-none">MIN</div>
             </div>
             <span className="text-blue-800 font-bold">:</span>
             <div className="bg-white px-2 py-0.5 rounded border border-black text-center">
-              <div className="text-blue-800 font-bold text-sm leading-none" style={customFontStyle}>{seconds}</div>
-              <div className="text-blue-600 text-[8px] leading-none" style={customFontStyle}>SEC</div>
+              <div className="text-blue-800 font-bold text-sm leading-none">{seconds}</div>
+              <div className="text-blue-600 text-[8px] leading-none">SEC</div>
             </div>
           </div>
 

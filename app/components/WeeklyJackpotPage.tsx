@@ -297,7 +297,7 @@ export default function WeeklyJackpotPage({
                 { label: 'SEC', value: countdown.seconds },
               ].map(item => (
                 <div key={item.label} className="bg-white rounded-xl border-2 border-blue-200 py-2" style={{ borderColor: '#000000' }}>
-                  <p className="text-blue-800 text-xl font-bold" style={customFontStyle}>
+                  <p className="text-blue-800 text-xl font-bold">
                     {item.value}
                   </p>
                   <p className="text-blue-500 text-xs font-semibold">{item.label}</p>
