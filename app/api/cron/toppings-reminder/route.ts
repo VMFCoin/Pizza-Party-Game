@@ -32,8 +32,8 @@ export async function GET(request: NextRequest) {
     const today = new Date().toISOString().split('T')[0];
     const results = await sendNotifications({
       tokens,
-      title: '🎉 Toppings Available!',
-      body: 'Claim your weekly toppings now! Window open for 24 hours.',
+      title: '🔥 Grow the Jackpot',
+      body: 'Claim your weekly toppings now! Every claim pumps the Weekly Jackpot. 24 hours to grab yours 🍕',
       targetUrl: 'https://pizza-party-game.vmfcoin.com',
       notificationId: `pizza-toppings-${today}`,
     });

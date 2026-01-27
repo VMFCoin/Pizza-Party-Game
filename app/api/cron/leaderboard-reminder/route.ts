@@ -30,8 +30,8 @@ export async function GET(request: NextRequest) {
     const today = new Date().toISOString().split('T')[0]
     const results = await sendNotifications({
       tokens,
-      title: '🍕 A Slice of Heaven!',
-      body: 'Did you win some cheese on the Daily Jackpot today? Check out the Leaderboard.',
+      title: '🍕 Who Took the Slice?',
+      body: 'Today\'s Daily Jackpot just paid out. Winners are up — smash the Leaderboard and check your slice!',
       targetUrl: 'https://pizza-party-game.vmfcoin.com',
       notificationId: `pizza-leaderboard-${today}`,
     })

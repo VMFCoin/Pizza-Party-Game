@@ -32,7 +32,7 @@ export async function GET(request: NextRequest) {
     const results = await sendNotifications({
       tokens,
       title: '🍕 Pizza Party Time!',
-      body: 'Your daily slice awaits! Join now and win cheesy jackpots.',
+      body: 'Fresh daily game is live! Play now, collect toppings, stake $PIZZA, and Spin the Pie to chase gooey jackpots 🍕',
       targetUrl: 'https://pizza-party-game.vmfcoin.com',
       notificationId: `pizza-daily-${today}`,
     });
