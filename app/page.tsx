@@ -237,7 +237,7 @@ export default function HomePage() {
                 <svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg" style={{ filter: 'drop-shadow(2px 2px 4px rgba(0,0,0,0.3))' }}>
                   <defs>
                     <filter id="whiteShadow" x="-20%" y="-20%" width="140%" height="140%">
-                      <feDropShadow dx="2" dy="2" stdDeviation="2" floodColor="#FAF9F7" floodOpacity="1" />
+                      <feDropShadow dx="1" dy="1" stdDeviation="0.5" floodColor="#FAF9F7" floodOpacity="0.8" />
                     </filter>
                   </defs>
                   <polygon
