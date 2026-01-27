@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { createPublicClient, http, parseAbiItem, formatUnits } from 'viem'
+import { createPublicClient, http, parseAbiItem, formatUnits, type Log } from 'viem'
 import { base } from 'viem/chains'
 import { Redis } from '@upstash/redis'
 import {
@@ -13,7 +13,7 @@ export const dynamic = 'force-dynamic'
 
 const redis = Redis.fromEnv()
 const CACHE_KEY = 'parlor:fees:breakdown'
-const CACHE_TTL_SECONDS = 60
+const CACHE_TTL_SECONDS = 300 // 5 minutes - fees don't change often
 
 const publicClient = createPublicClient({
   chain: base,
@@ -22,11 +22,45 @@ const publicClient = createPublicClient({
 
 const transferEvent = parseAbiItem('event Transfer(address indexed from, address indexed to, uint256 value)')
 
+const MAX_BLOCK_RANGE = 49000n // RPC limit is 50k, use 49k for safety
+
 interface FeeBreakdown {
   dailyPotFees: string
   earlyUnlockFees: string
   totalFees: string
   cachedAt: number
+}
+
+// Fetch logs in chunks to avoid RPC block range limits
+async function getLogsChunked(
+  from: `0x${string}`,
+  to: `0x${string}`,
+  startBlock: bigint,
+  endBlock: bigint,
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+): Promise<Log<bigint, number, false, undefined, true, any, any>[]> {
+  const allLogs: Log[] = []
+  let currentFrom = startBlock
+
+  while (currentFrom <= endBlock) {
+    const currentTo = currentFrom + MAX_BLOCK_RANGE > endBlock
+      ? endBlock
+      : currentFrom + MAX_BLOCK_RANGE
+
+    const logs = await publicClient.getLogs({
+      address: PIZZA_TOKEN_ADDRESS as `0x${string}`,
+      event: transferEvent,
+      args: { from, to },
+      fromBlock: currentFrom,
+      toBlock: currentTo,
+    })
+
+    allLogs.push(...logs)
+    currentFrom = currentTo + 1n
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  return allLogs as any
 }
 
 export async function GET() {
@@ -40,30 +74,22 @@ export async function GET() {
     // Fetch from chain
     const currentBlock = await publicClient.getBlockNumber()
     const BLOCKS_PER_DAY = BigInt(43200)
-    const fromBlock = currentBlock - (BLOCKS_PER_DAY * 90n)
+    const fromBlock = currentBlock - (BLOCKS_PER_DAY * 7n) // 7 days
 
-    // Fetch both sources in parallel
+    // Fetch both sources in parallel (chunked to respect RPC limits)
     const [dailyPotLogs, earlyUnlockLogs] = await Promise.all([
-      publicClient.getLogs({
-        address: PIZZA_TOKEN_ADDRESS as `0x${string}`,
-        event: transferEvent,
-        args: {
-          from: PIZZA_PARTY_ADDRESS as `0x${string}`,
-          to: PARLOR_MANAGER_ADDRESS as `0x${string}`,
-        },
+      getLogsChunked(
+        PIZZA_PARTY_ADDRESS as `0x${string}`,
+        PARLOR_MANAGER_ADDRESS as `0x${string}`,
         fromBlock,
-        toBlock: currentBlock,
-      }),
-      publicClient.getLogs({
-        address: PIZZA_TOKEN_ADDRESS as `0x${string}`,
-        event: transferEvent,
-        args: {
-          from: PIZZA_STAKING_ADDRESS as `0x${string}`,
-          to: PARLOR_MANAGER_ADDRESS as `0x${string}`,
-        },
+        currentBlock,
+      ),
+      getLogsChunked(
+        PIZZA_STAKING_ADDRESS as `0x${string}`,
+        PARLOR_MANAGER_ADDRESS as `0x${string}`,
         fromBlock,
-        toBlock: currentBlock,
-      }),
+        currentBlock,
+      ),
     ])
 
     const totalDailyPot = dailyPotLogs.reduce((sum, log) => sum + (log.args.value || 0n), 0n)
