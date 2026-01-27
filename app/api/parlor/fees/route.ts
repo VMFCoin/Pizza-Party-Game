@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { createPublicClient, http, parseAbiItem, formatUnits, type Log } from 'viem'
+import { createPublicClient, http, parseAbiItem, formatUnits } from 'viem'
 import { base } from 'viem/chains'
 import { Redis } from '@upstash/redis'
 import {
@@ -12,8 +12,8 @@ import {
 export const dynamic = 'force-dynamic'
 
 const redis = Redis.fromEnv()
-const CACHE_KEY = 'parlor:fees:breakdown'
-const CACHE_TTL_SECONDS = 300 // 5 minutes - fees don't change often
+const CACHE_KEY = 'parlor:fees:sources'
+const CACHE_TTL_SECONDS = 600 // 10 minutes - proportions don't change fast
 
 const publicClient = createPublicClient({
   chain: base,
@@ -21,25 +21,22 @@ const publicClient = createPublicClient({
 })
 
 const transferEvent = parseAbiItem('event Transfer(address indexed from, address indexed to, uint256 value)')
+const MAX_BLOCK_RANGE = 49000n
 
-const MAX_BLOCK_RANGE = 49000n // RPC limit is 50k, use 49k for safety
-
-interface FeeBreakdown {
-  dailyPotFees: string
-  earlyUnlockFees: string
-  totalFees: string
+interface FeeSources {
+  dailyPotTotal: string
+  earlyUnlockTotal: string
   cachedAt: number
 }
 
 // Fetch logs in chunks to avoid RPC block range limits
-async function getLogsChunked(
+async function getTransferTotal(
   from: `0x${string}`,
   to: `0x${string}`,
   startBlock: bigint,
   endBlock: bigint,
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-): Promise<Log<bigint, number, false, undefined, true, any, any>[]> {
-  const allLogs: Log[] = []
+): Promise<bigint> {
+  let total = 0n
   let currentFrom = startBlock
 
   while (currentFrom <= endBlock) {
@@ -55,36 +52,38 @@ async function getLogsChunked(
       toBlock: currentTo,
     })
 
-    allLogs.push(...logs)
+    for (const log of logs) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      total += (log as any).args.value || 0n
+    }
     currentFrom = currentTo + 1n
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  return allLogs as any
+  return total
 }
 
 export async function GET() {
   try {
     // Check cache first
-    const cached = await redis.get<FeeBreakdown>(CACHE_KEY)
+    const cached = await redis.get<FeeSources>(CACHE_KEY)
     if (cached) {
       return NextResponse.json({ success: true, ...cached, fromCache: true })
     }
 
-    // Fetch from chain
+    // Scan last 7 days for fee source proportions
     const currentBlock = await publicClient.getBlockNumber()
     const BLOCKS_PER_DAY = BigInt(43200)
-    const fromBlock = currentBlock - (BLOCKS_PER_DAY * 7n) // 7 days
+    const fromBlock = currentBlock - (BLOCKS_PER_DAY * 7n)
 
-    // Fetch both sources in parallel (chunked to respect RPC limits)
-    const [dailyPotLogs, earlyUnlockLogs] = await Promise.all([
-      getLogsChunked(
+    // Fetch both sources in parallel
+    const [totalDailyPot, totalEarlyUnlock] = await Promise.all([
+      getTransferTotal(
         PIZZA_PARTY_ADDRESS as `0x${string}`,
         PARLOR_MANAGER_ADDRESS as `0x${string}`,
         fromBlock,
         currentBlock,
       ),
-      getLogsChunked(
+      getTransferTotal(
         PIZZA_STAKING_ADDRESS as `0x${string}`,
         PARLOR_MANAGER_ADDRESS as `0x${string}`,
         fromBlock,
@@ -92,17 +91,13 @@ export async function GET() {
       ),
     ])
 
-    const totalDailyPot = dailyPotLogs.reduce((sum, log) => sum + (log.args.value || 0n), 0n)
-    const totalEarlyUnlock = earlyUnlockLogs.reduce((sum, log) => sum + (log.args.value || 0n), 0n)
-
-    const result: FeeBreakdown = {
-      dailyPotFees: formatUnits(totalDailyPot, 18),
-      earlyUnlockFees: formatUnits(totalEarlyUnlock, 18),
-      totalFees: formatUnits(totalDailyPot + totalEarlyUnlock, 18),
+    const result: FeeSources = {
+      dailyPotTotal: formatUnits(totalDailyPot, 18),
+      earlyUnlockTotal: formatUnits(totalEarlyUnlock, 18),
       cachedAt: Date.now(),
     }
 
-    // Cache in Redis
+    // Cache result
     await redis.set(CACHE_KEY, result, { ex: CACHE_TTL_SECONDS })
 
     return NextResponse.json({ success: true, ...result, fromCache: false })

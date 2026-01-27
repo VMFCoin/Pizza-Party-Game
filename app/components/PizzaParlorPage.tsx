@@ -105,9 +105,9 @@ export default function PizzaParlorPage({
   const [isLoadingHistory, setIsLoadingHistory] = useState(false)
   const [refreshHistoryTrigger, setRefreshHistoryTrigger] = useState(0)
 
-  // Fee breakdown state
-  const [dailyPotFees, setDailyPotFees] = useState(0)
-  const [earlyUnlockFees, setEarlyUnlockFees] = useState(0)
+  // Fee source totals from API - used to calculate proportion of user's claimable balance
+  const [dailyPotTotal, setDailyPotTotal] = useState(0)
+  const [earlyUnlockTotal, setEarlyUnlockTotal] = useState(0)
   const [isLoadingFees, setIsLoadingFees] = useState(false)
 
   // Transaction states
@@ -715,7 +715,7 @@ export default function PizzaParlorPage({
     return () => unwatch()
   }, [publicClient, userAddress, fetchSliceHistory])
 
-  // Fetch fee breakdown from cached API (server-side event scanning with Redis cache)
+  // Fetch fee source totals from cached API
   const fetchFeeBreakdown = useCallback(async () => {
     if (parlorsOwned <= 0) return
 
@@ -724,8 +724,8 @@ export default function PizzaParlorPage({
       const response = await fetch('/api/parlor/fees')
       const data = await response.json()
       if (data.success) {
-        setDailyPotFees(Math.floor(Number(data.dailyPotFees)))
-        setEarlyUnlockFees(Math.floor(Number(data.earlyUnlockFees)))
+        setDailyPotTotal(Number(data.dailyPotTotal))
+        setEarlyUnlockTotal(Number(data.earlyUnlockTotal))
       }
     } catch (error) {
       console.error('Failed to fetch fee breakdown:', error)
@@ -733,6 +733,11 @@ export default function PizzaParlorPage({
       setIsLoadingFees(false)
     }
   }, [parlorsOwned])
+
+  // Calculate user's fee breakdown based on global source proportions
+  const feeSourceTotal = dailyPotTotal + earlyUnlockTotal
+  const userDailyPotFees = feeSourceTotal > 0 ? Math.floor(claimableFeesFormatted * (dailyPotTotal / feeSourceTotal)) : 0
+  const userEarlyUnlockFees = feeSourceTotal > 0 ? Math.floor(claimableFeesFormatted * (earlyUnlockTotal / feeSourceTotal)) : 0
 
   // Fetch fee breakdown on page load for parlor owners
   useEffect(() => {
@@ -998,26 +1003,20 @@ export default function PizzaParlorPage({
               {collectFeesOpen && (
                 <div className="bg-yellow-100 border-4 border-t-0 border-yellow-800 rounded-b-xl p-4">
                   <div className="space-y-3">
-                    {/* Fee Breakdown */}
+                    {/* Fee Breakdown - applies ratio to user's claimable balance */}
                     <div className="bg-yellow-50 rounded-lg p-2 border border-yellow-300">
                       <p className="text-yellow-800 text-center mb-1" style={{ ...customFontStyle, fontSize: 12 }}>Fee Sources</p>
                       <div className="space-y-1">
                         <div className="flex justify-between items-center">
                           <span className="text-yellow-700" style={{ ...customFontStyle, fontSize: 12 }}>Daily Pot:</span>
                           <span className="text-yellow-900" style={{ ...customFontStyle, fontSize: 12 }}>
-                            {isLoadingFees ? '...' : `${dailyPotFees.toLocaleString()} PIZZA`}
+                            {isLoadingFees ? '...' : `${userDailyPotFees.toLocaleString()} PIZZA`}
                           </span>
                         </div>
                         <div className="flex justify-between items-center">
                           <span className="text-yellow-700" style={{ ...customFontStyle, fontSize: 12 }}>Early Unlock:</span>
                           <span className="text-yellow-900" style={{ ...customFontStyle, fontSize: 12 }}>
-                            {isLoadingFees ? '...' : `${earlyUnlockFees.toLocaleString()} PIZZA`}
-                          </span>
-                        </div>
-                        <div className="border-t border-yellow-300 pt-1 flex justify-between items-center">
-                          <span className="text-yellow-800" style={{ ...customFontStyle, fontSize: 12 }}>Total Received:</span>
-                          <span className="text-yellow-900" style={{ ...customFontStyle, fontSize: 12 }}>
-                            {isLoadingFees ? '...' : `${(dailyPotFees + earlyUnlockFees).toLocaleString()} PIZZA`}
+                            {isLoadingFees ? '...' : `${userEarlyUnlockFees.toLocaleString()} PIZZA`}
                           </span>
                         </div>
                       </div>
@@ -1026,7 +1025,7 @@ export default function PizzaParlorPage({
                     {/* Claimable Balance */}
                     <div className="bg-green-50 rounded-lg p-2 border border-green-300">
                       <div className="flex justify-between items-center">
-                        <span className="text-green-800" style={{ ...customFontStyle, fontSize: 14 }}>Your Claimable Fees:</span>
+                        <span className="text-green-800" style={{ ...customFontStyle, fontSize: 14 }}>Total Claimable:</span>
                         <span className="text-green-600" style={{ ...customFontStyle, fontSize: 14 }}>{claimableFeesFormatted.toLocaleString()} PIZZA</span>
                       </div>
                     </div>
