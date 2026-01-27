@@ -1104,7 +1104,7 @@ export default function StakingPage({
                   <div className="bg-gradient-to-r from-yellow-400 to-orange-400 rounded-lg px-2 py-1.5 border-2 border-yellow-600 flex items-center gap-2 mb-3">
                     <Gift className="text-yellow-800" size={16} />
                     <div className="flex-1">
-                      <p className="text-yellow-900 font-bold text-xs" style={customFontStyle}>
+                      <p className="text-white font-bold" style={{ ...customFontStyle, fontSize: '16px', textShadow: '2px 2px 3px #000' }}>
                         EARLY STAKER BOOST ACTIVE!
                       </p>
                       <p className="text-yellow-800 text-xs">
