@@ -1031,16 +1031,16 @@ export default function PizzaParlorPage({
                   <div className="space-y-3">
                     {/* Fee Breakdown */}
                     <div className="bg-yellow-50 rounded-lg p-2 border border-yellow-300">
-                      <p className="text-yellow-800 text-center mb-1" style={{ ...customFontStyle, fontSize: 12 }}>Fee Sources (Last 90 Days)</p>
+                      <p className="text-yellow-800 text-center mb-1" style={{ ...customFontStyle, fontSize: 12 }}>Fee Sources</p>
                       <div className="space-y-1">
                         <div className="flex justify-between items-center">
-                          <span className="text-yellow-700" style={{ ...customFontStyle, fontSize: 12 }}>🎮 Daily Pot:</span>
+                          <span className="text-yellow-700" style={{ ...customFontStyle, fontSize: 12 }}>Daily Pot:</span>
                           <span className="text-yellow-900" style={{ ...customFontStyle, fontSize: 12 }}>
                             {isLoadingFees ? '...' : `${Math.floor(Number(formatUnits(dailyPotFees, 18))).toLocaleString()} PIZZA`}
                           </span>
                         </div>
                         <div className="flex justify-between items-center">
-                          <span className="text-yellow-700" style={{ ...customFontStyle, fontSize: 12 }}>🔓 Early Unlock:</span>
+                          <span className="text-yellow-700" style={{ ...customFontStyle, fontSize: 12 }}>Early Unlock:</span>
                           <span className="text-yellow-900" style={{ ...customFontStyle, fontSize: 12 }}>
                             {isLoadingFees ? '...' : `${Math.floor(Number(formatUnits(earlyUnlockFees, 18))).toLocaleString()} PIZZA`}
                           </span>
