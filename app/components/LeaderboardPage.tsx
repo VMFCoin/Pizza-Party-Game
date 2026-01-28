@@ -38,6 +38,11 @@ const customFontStyle = {
   textShadow: '1px 1px 2px rgba(0,0,0,0.5)',
 }
 
+const leaderboardFontStyle = {
+  fontFamily: 'var(--font-luckiest-guy)',
+  fontWeight: 'bold' as const,
+}
+
 function formatAddress(address: string): string {
   if (!address) return ''
   return `${address.slice(0, 6)}...${address.slice(-4)}`
@@ -391,7 +396,7 @@ export default function LeaderboardPage({
       >
         <div className="flex items-center gap-2 flex-1 min-w-0">
           <div className="flex items-center gap-2 flex-shrink-0">
-            <span className={`text-lg font-bold ${style.textColor}`} style={customFontStyle}>
+            <span className={`text-lg font-bold ${style.textColor}`} style={leaderboardFontStyle}>
               {position}.
             </span>
             <ProfilePicture
@@ -405,7 +410,7 @@ export default function LeaderboardPage({
           <div className="flex flex-col min-w-0 flex-1">
             <span
               className={`font-bold text-sm ${isPlaceholder ? 'text-gray-500' : isCurrentUser ? 'text-red-600' : style.textColor} truncate`}
-              style={customFontStyle}
+              style={leaderboardFontStyle}
             >
               {isPlaceholder
                 ? winner.displayName
@@ -414,16 +419,16 @@ export default function LeaderboardPage({
                 : formatAddress(winner.address)}
             </span>
             {isPlaceholder ? (
-              <span className="text-xs text-gray-600" style={customFontStyle}>
+              <span className="text-xs text-gray-600" style={leaderboardFontStyle}>
                 Awaiting winner…
               </span>
             ) : (
               <>
-                <span className="text-xs text-gray-600" style={{ ...customFontStyle, whiteSpace: 'nowrap' }}>
+                <span className="text-xs text-gray-600" style={{ ...leaderboardFontStyle, whiteSpace: 'nowrap' }}>
                   Lifetime wins: {winner.lifetimeWins}
                 </span>
                 {/* ✅ LIFETIME TOTAL (gray) - Sum of ALL games ever */}
-                <span className="text-xs text-gray-600" style={{ ...customFontStyle, whiteSpace: 'nowrap' }}>
+                <span className="text-xs text-gray-600" style={{ ...leaderboardFontStyle, whiteSpace: 'nowrap' }}>
                   {Number(winner.lifetimePizzaWon).toFixed(2)} PIZZA
                 </span>
               </>
@@ -432,10 +437,10 @@ export default function LeaderboardPage({
         </div>
         <div className="text-right leading-tight flex-shrink-0 ml-2">
           {/* ✅ THIS GAME'S PAYOUT (green) - USD value won in THIS specific game */}
-          <span className="block text-lg font-bold text-green-600" style={customFontStyle}>
+          <span className="block text-lg font-bold text-green-600" style={leaderboardFontStyle}>
             {getUsdValue()}
           </span>
-          <span className="block text-sm font-bold text-green-600" style={customFontStyle}>
+          <span className="block text-sm font-bold text-green-600" style={leaderboardFontStyle}>
             PIZZA
           </span>
         </div>
@@ -497,17 +502,17 @@ export default function LeaderboardPage({
                   DAILY WINNERS
                   </h2>
                 </div>
-                <p className="text-base font-semibold mb-2 text-center" style={{ ...customFontStyle, color: '#000000' }}>
+                <p className="text-base font-semibold mb-2 text-center" style={{ ...leaderboardFontStyle, color: '#000000' }}>
                   {previousDailyGame && previousDailyGame.endTime
                     ? `${formatSettlementDate(previousDailyGame.endTime, true)} lucky winners`
                     : "Today's 8 lucky winners"}
                 </p>
                 {loading ? (
-                  <p className="text-center text-gray-600 py-8" style={customFontStyle}>
+                  <p className="text-center text-gray-600 py-8" style={leaderboardFontStyle}>
                     Loading...
                   </p>
                 ) : dailyWinners.length === 0 ? (
-                  <p className="text-center text-gray-600 py-8" style={customFontStyle}>
+                  <p className="text-center text-gray-600 py-8" style={leaderboardFontStyle}>
                     🎮 Game in progress... Winners will appear when today&apos;s game settles at 12pm PST
                   </p>
                 ) : (
@@ -532,13 +537,13 @@ export default function LeaderboardPage({
                   WEEKLY WINNERS
                   </h2>
                 </div>
-                <p className="text-base font-semibold mb-4 text-center" style={{ ...customFontStyle, color: '#000000' }}>
+                <p className="text-base font-semibold mb-4 text-center" style={{ ...leaderboardFontStyle, color: '#000000' }}>
                   {previousWeeklyGame && previousWeeklyGame.claimWindowEnd
                     ? `${formatSettlementDate(previousWeeklyGame.claimWindowEnd)} top 10 champions`
                     : "This week's top 10 champions"}
                 </p>
                 {loading ? (
-                  <p className="text-center text-gray-600 py-8" style={customFontStyle}>
+                  <p className="text-center text-gray-600 py-8" style={leaderboardFontStyle}>
                     Loading...
                   </p>
                 ) : weeklyWinners.length === 0 ? (
