@@ -84,6 +84,11 @@ export default function PizzaParlorPage({
     textShadow: '1px 1px 2px rgba(0,0,0,0.5)',
   }
 
+  const parlorDataStyle = {
+    fontFamily: 'var(--font-luckiest-guy)',
+    fontWeight: "bold" as const,
+  }
+
   const { address: userAddress, isConnected } = useAccount()
   const publicClient = usePublicClient()
 
@@ -1006,17 +1011,17 @@ export default function PizzaParlorPage({
                   <div className="space-y-3">
                     {/* Fee Breakdown - applies ratio to user's claimable balance */}
                     <div className="bg-yellow-50 rounded-lg p-2 border border-yellow-300">
-                      <p className="text-yellow-800 text-center mb-1" style={{ ...customFontStyle, fontSize: 12 }}>Fee Sources</p>
+                      <p className="text-yellow-800 text-center mb-1" style={{ ...parlorDataStyle, fontSize: 12 }}>Fee Sources</p>
                       <div className="space-y-1">
                         <div className="flex justify-between items-center">
-                          <span className="text-yellow-700" style={{ ...customFontStyle, fontSize: 12 }}>Daily Pot:</span>
-                          <span className="text-yellow-900" style={{ ...customFontStyle, fontSize: 12 }}>
+                          <span className="text-yellow-700" style={{ ...parlorDataStyle, fontSize: 12 }}>Daily Pot:</span>
+                          <span className="text-yellow-900" style={{ ...parlorDataStyle, fontSize: 12 }}>
                             {isLoadingFees ? '...' : `${userDailyPotFees.toLocaleString()} PIZZA`}
                           </span>
                         </div>
                         <div className="flex justify-between items-center">
-                          <span className="text-yellow-700" style={{ ...customFontStyle, fontSize: 12 }}>Early Unlock:</span>
-                          <span className="text-yellow-900" style={{ ...customFontStyle, fontSize: 12 }}>
+                          <span className="text-yellow-700" style={{ ...parlorDataStyle, fontSize: 12 }}>Early Unlock:</span>
+                          <span className="text-yellow-900" style={{ ...parlorDataStyle, fontSize: 12 }}>
                             {isLoadingFees ? '...' : `${userEarlyUnlockFees.toLocaleString()} PIZZA`}
                           </span>
                         </div>
@@ -1026,24 +1031,24 @@ export default function PizzaParlorPage({
                     {/* Claimable Balance */}
                     <div className="bg-green-50 rounded-lg p-2 border border-green-300">
                       <div className="flex justify-between items-center">
-                        <span className="text-green-800" style={{ ...customFontStyle, fontSize: 14 }}>Total Claimable:</span>
-                        <span className="text-green-600" style={{ ...customFontStyle, fontSize: 14 }}>{claimableFeesFormatted.toLocaleString()} PIZZA</span>
+                        <span className="text-green-800" style={{ ...parlorDataStyle, fontSize: 14 }}>Total Claimable:</span>
+                        <span className="text-green-600" style={{ ...parlorDataStyle, fontSize: 14 }}>{claimableFeesFormatted.toLocaleString()} PIZZA</span>
                       </div>
                     </div>
 
                     {/* Your Stats */}
                     <div className="flex justify-between items-center">
-                      <span className="text-yellow-800" style={{ ...customFontStyle, fontSize: 14 }}>Your Parlors:</span>
-                      <span className="text-yellow-900" style={{ ...customFontStyle, fontSize: 14 }}>{parlorsOwned}</span>
+                      <span className="text-yellow-800" style={{ ...parlorDataStyle, fontSize: 14 }}>Your Parlors:</span>
+                      <span className="text-yellow-900" style={{ ...parlorDataStyle, fontSize: 14 }}>{parlorsOwned}</span>
                     </div>
                     <div className="flex justify-between items-center">
-                      <span className="text-yellow-800" style={{ ...customFontStyle, fontSize: 14 }}>Total Parlors:</span>
-                      <span className="text-yellow-900" style={{ ...customFontStyle, fontSize: 14 }}>{totalParlorsSold}</span>
+                      <span className="text-yellow-800" style={{ ...parlorDataStyle, fontSize: 14 }}>Total Parlors:</span>
+                      <span className="text-yellow-900" style={{ ...parlorDataStyle, fontSize: 14 }}>{totalParlorsSold}</span>
                     </div>
 
                     {/* Distribution Info */}
                     <div className="bg-yellow-200 rounded-lg p-2 text-center">
-                      <p className="text-yellow-700" style={{ ...customFontStyle, fontSize: 10 }}>
+                      <p className="text-yellow-700" style={{ ...parlorDataStyle, fontSize: 10 }}>
                         Fees distributed: 50% owners | 30% treasury | 20% ops
                       </p>
                     </div>
@@ -1088,10 +1093,10 @@ export default function PizzaParlorPage({
                     {/* No Parlors Warning */}
                     {parlorsOwned === 0 && (
                       <div className="bg-red-100 border-2 border-red-500 rounded-lg p-3 text-center">
-                        <p className="text-red-700 font-bold" style={{ ...customFontStyle, fontSize: 14 }}>
+                        <p className="text-red-700 font-bold" style={{ ...parlorDataStyle, fontSize: 14 }}>
                           ⚠️ No Parlors on This Wallet
                         </p>
-                        <p className="text-red-600 mt-1" style={{ ...customFontStyle, fontSize: 12 }}>
+                        <p className="text-red-600 mt-1" style={{ ...parlorDataStyle, fontSize: 12 }}>
                           You need to own a parlor to send free slices.
                         </p>
                       </div>
@@ -1099,19 +1104,19 @@ export default function PizzaParlorPage({
 
                     {/* Slices Info */}
                     <div className="flex justify-between items-center">
-                      <span className="text-blue-800" style={{ ...customFontStyle, fontSize: 16 }}>Slices Remaining:</span>
-                      <span className="text-blue-900" style={{ ...customFontStyle, fontSize: 16 }}>{slicesThisWeekNum} / {weeklyAllowanceNum}</span>
+                      <span className="text-blue-800" style={{ ...parlorDataStyle, fontSize: 16 }}>Slices Remaining:</span>
+                      <span className="text-blue-900" style={{ ...parlorDataStyle, fontSize: 16 }}>{slicesThisWeekNum} / {weeklyAllowanceNum}</span>
                     </div>
                     <div className="flex justify-between items-center">
-                      <span className="text-blue-800" style={{ ...customFontStyle, fontSize: 14 }}>Today&apos;s Slices:</span>
-                      <span className={`${claimedTodayCount > 0 ? 'text-green-600' : pendingTodayCount > 0 ? 'text-yellow-600' : 'text-blue-900'}`} style={{ ...customFontStyle, fontSize: 14 }}>
+                      <span className="text-blue-800" style={{ ...parlorDataStyle, fontSize: 14 }}>Today&apos;s Slices:</span>
+                      <span className={`${claimedTodayCount > 0 ? 'text-green-600' : pendingTodayCount > 0 ? 'text-yellow-600' : 'text-blue-900'}`} style={{ ...parlorDataStyle, fontSize: 14 }}>
                         {claimedTodayCount > 0 ? `${claimedTodayCount} Claimed` : pendingTodayCount > 0 ? `${pendingTodayCount} Pending` : '0 Sent'}
                       </span>
                     </div>
 
                     {/* Info Box */}
                     <div className="bg-blue-200 rounded-lg p-2 text-center">
-                      <p className="text-blue-700" style={{ ...customFontStyle, fontSize: 10 }}>
+                      <p className="text-blue-700" style={{ ...parlorDataStyle, fontSize: 10 }}>
                         {parlorsOwned >= 5 ? '7 slices/week (5 parlor bonus!)' : '1 slice per parlor per WEEK'} | Max 1 claimed/day | Resets Monday
                       </p>
                     </div>
@@ -1130,7 +1135,7 @@ export default function PizzaParlorPage({
                         onFocus={() => setShowSuggestions(true)}
                         disabled={parlorsOwned === 0}
                         className={`w-full p-2 rounded-xl border-2 border-blue-400 text-blue-900 ${parlorsOwned === 0 ? 'bg-gray-200 cursor-not-allowed opacity-60' : ''}`}
-                        style={{ ...customFontStyle, fontSize: 14 }}
+                        style={{ ...parlorDataStyle, fontSize: 14 }}
                       />
 
                       {/* Selected User Display */}
@@ -1145,7 +1150,7 @@ export default function PizzaParlorPage({
                               className="rounded-full"
                             />
                           )}
-                          <span className="text-blue-900" style={{ ...customFontStyle, fontSize: 12 }}>
+                          <span className="text-blue-900" style={{ ...parlorDataStyle, fontSize: 12 }}>
                             @{selectedUser.username}
                           </span>
                           <span className="text-blue-600 text-xs truncate flex-1">
@@ -1157,7 +1162,7 @@ export default function PizzaParlorPage({
                       {/* Search Loading Indicator */}
                       {isSearching && (
                         <div className="absolute top-full left-0 right-0 bg-white border-2 border-blue-400 rounded-b-xl shadow-lg z-10 p-2 text-center">
-                          <span className="text-blue-600" style={{ ...customFontStyle, fontSize: 12 }}>Searching...</span>
+                          <span className="text-blue-600" style={{ ...parlorDataStyle, fontSize: 12 }}>Searching...</span>
                         </div>
                       )}
 
@@ -1185,7 +1190,7 @@ export default function PizzaParlorPage({
                                 />
                               )}
                               <div className="flex-1 min-w-0">
-                                <p className="text-blue-900 font-bold truncate" style={{ ...customFontStyle, fontSize: 13 }}>
+                                <p className="text-blue-900 font-bold truncate" style={{ ...parlorDataStyle, fontSize: 13 }}>
                                   @{user.username}
                                 </p>
                                 <p className="text-blue-600 text-xs truncate">
@@ -1200,7 +1205,7 @@ export default function PizzaParlorPage({
                       {/* Recent Recipients (only when no Farcaster results and not searching) */}
                       {showSuggestions && !isSearching && farcasterResults.length === 0 && !selectedUser && getSuggestions(recipientInput).length > 0 && (
                         <div className="absolute top-full left-0 right-0 bg-white border-2 border-blue-400 rounded-b-xl shadow-lg z-10 max-h-40 overflow-y-auto">
-                          <p className="px-2 pt-1 text-blue-500" style={{ ...customFontStyle, fontSize: 10 }}>Recent:</p>
+                          <p className="px-2 pt-1 text-blue-500" style={{ ...parlorDataStyle, fontSize: 10 }}>Recent:</p>
                           {getSuggestions(recipientInput).map((recipient, idx) => (
                             <button
                               key={idx}
@@ -1209,7 +1214,7 @@ export default function PizzaParlorPage({
                                 setShowSuggestions(false)
                               }}
                               className="w-full p-2 text-left hover:bg-blue-100 text-blue-900 truncate"
-                              style={{ ...customFontStyle, fontSize: 12 }}
+                              style={{ ...parlorDataStyle, fontSize: 12 }}
                             >
                               {recipient.label} ({recipient.uses} uses)
                             </button>
@@ -1246,7 +1251,7 @@ export default function PizzaParlorPage({
                           }
                         }}
                         className="w-full flex items-center justify-between text-blue-700 hover:text-blue-900 py-1"
-                        style={{ ...customFontStyle, fontSize: 14 }}
+                        style={{ ...parlorDataStyle, fontSize: 14 }}
                       >
                         <span>Slice History:</span>
                         {sliceHistoryOpen ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
@@ -1255,11 +1260,11 @@ export default function PizzaParlorPage({
                       {sliceHistoryOpen && (
                         <div className="mt-2 bg-blue-50 rounded-lg p-2 max-h-64 overflow-y-auto">
                           {isLoadingHistory ? (
-                            <p className="text-center text-blue-600 py-4" style={{ ...customFontStyle, fontSize: 12 }}>
+                            <p className="text-center text-blue-600 py-4" style={{ ...parlorDataStyle, fontSize: 12 }}>
                               Loading history...
                             </p>
                           ) : sliceHistory.length === 0 ? (
-                            <p className="text-center text-blue-500 py-4" style={{ ...customFontStyle, fontSize: 12 }}>
+                            <p className="text-center text-blue-500 py-4" style={{ ...parlorDataStyle, fontSize: 12 }}>
                               No slices sent yet
                             </p>
                           ) : (
@@ -1284,7 +1289,7 @@ export default function PizzaParlorPage({
                                   )}
                                   <div className="flex-1 min-w-0">
                                     {entry.label && (
-                                      <p className="text-blue-900 truncate" style={{ ...customFontStyle, fontSize: 12 }}>
+                                      <p className="text-blue-900 truncate" style={{ ...parlorDataStyle, fontSize: 12 }}>
                                         {entry.label}
                                       </p>
                                     )}
@@ -1312,7 +1317,7 @@ export default function PizzaParlorPage({
                                       return (
                                         <span
                                           className={`text-xs px-2 py-0.5 rounded-full ${statusClass}`}
-                                          style={{ ...customFontStyle, fontSize: 10 }}
+                                          style={{ ...parlorDataStyle, fontSize: 10 }}
                                         >
                                           {statusText}
                                         </span>
@@ -1328,7 +1333,7 @@ export default function PizzaParlorPage({
                             onClick={fetchSliceHistory}
                             disabled={isLoadingHistory}
                             className="w-full mt-2 text-blue-600 hover:text-blue-800 text-center py-1"
-                            style={{ ...customFontStyle, fontSize: 11 }}
+                            style={{ ...parlorDataStyle, fontSize: 11 }}
                           >
                             {isLoadingHistory ? 'Refreshing...' : '🔄 Refresh'}
                           </button>
