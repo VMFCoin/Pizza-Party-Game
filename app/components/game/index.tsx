@@ -490,7 +490,7 @@ function GamePageContent({ onNavigateToWeekly, onNavigateToLeaderboard, onNaviga
         <div className="w-full flex flex-col gap-3">
           {/* Wallet Status */}
           {wallet?.isAuthenticated && wallet?.address ? (
-            <div className="bg-green-100 border-4 border-green-800 rounded-xl py-2 text-center text-green-800 font-bold">
+            <div className="bg-green-100 border-4 border-green-800 rounded-xl py-2 text-center text-green-800 font-bold" style={{ fontFamily: 'var(--font-luckiest-guy)' }}>
               ✅ Connected {wallet.address.slice(0,6)}...{wallet.address.slice(-4)}
             </div>
           ) : (
