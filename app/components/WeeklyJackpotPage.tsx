@@ -267,14 +267,14 @@ export default function WeeklyJackpotPage({
             <p className="text-white font-bold" style={{ fontFamily: 'var(--font-luckiest-guy)', fontSize: '28px', lineHeight: '1', marginBottom: '4px', textShadow: '2px 2px 0px #8B0000, 3px 3px 0px rgba(139, 0, 0, 0.5)' }}>
               Weekly Jackpot
             </p>
-            <p className="text-white text-4xl font-black" style={{ fontFamily: 'var(--font-luckiest-guy)', lineHeight: '1', margin: '0', padding: '0' }}>
+            <p className="text-white text-4xl font-black" style={{ fontFamily: 'var(--font-luckiest-guy)', lineHeight: '1', margin: '0', padding: '0', textShadow: '2px 2px 0px #8B0000, 3px 3px 0px rgba(139, 0, 0, 0.5)' }}>
               ${jackpotDisplay}
             </p>
-            <p className="text-white text-sm" style={{ fontFamily: 'var(--font-luckiest-guy)', marginTop: '0px', marginBottom: '0px' }}>
+            <p className="text-white text-sm" style={{ fontFamily: 'var(--font-luckiest-guy)', marginTop: '0px', marginBottom: '0px', textShadow: '2px 2px 0px #8B0000, 3px 3px 0px rgba(139, 0, 0, 0.5)' }}>
               Weekly Players {weeklyPlayersDisplay}
             </p>
             <div className="flex justify-center items-center gap-3" style={{ marginTop: '0px' }}>
-              <span className="text-white" style={{ fontFamily: 'var(--font-luckiest-guy)', fontSize: '14px' }}>Daily Entry Streak:</span>
+              <span className="text-white" style={{ fontFamily: 'var(--font-luckiest-guy)', fontSize: '14px', textShadow: '2px 2px 0px #8B0000, 3px 3px 0px rgba(139, 0, 0, 0.5)' }}>Daily Entry Streak:</span>
               <div className="flex gap-0.5">
                 {[...Array(7)].map((_, i) => (
                   <span key={i} style={{ opacity: i < dailyPlays ? 1 : 0.3, fontSize: '14px' }}>🍕</span>
