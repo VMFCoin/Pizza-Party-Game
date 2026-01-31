@@ -544,19 +544,7 @@ function GamePageContent({ onNavigateToWeekly, onNavigateToLeaderboard, onNaviga
               onClick={buttonConfig.onClick}
               disabled={buttonConfig.disabled}
             >
-              {isEntryInProgress ? 'Processing...' : (
-                buttonConfig.text.includes('🍕') ? (
-                  <>
-                    <span className="flex items-center justify-center w-full">
-                      <span className="text-xl">🍕</span>
-                      <span className="flex-1 text-center">{buttonConfig.text.replace(/🍕/g, '').trim()}</span>
-                      <span className="text-xl">🍕</span>
-                    </span>
-                  </>
-                ) : (
-                  buttonConfig.text
-                )
-              )}
+              {isEntryInProgress ? 'Processing...' : buttonConfig.text}
             </Button>
           )}
 
