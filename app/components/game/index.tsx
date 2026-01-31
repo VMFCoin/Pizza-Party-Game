@@ -523,15 +523,7 @@ function GamePageContent({ onNavigateToWeekly, onNavigateToLeaderboard, onNaviga
                   onClick={handleEnterWithReferral}
                   disabled={isEntryInProgress}
                 >
-                  {isEntryInProgress ? 'Processing...' : (
-                    <>
-                      <span className="flex items-center justify-center w-full">
-                        <span className="text-xl">🍕</span>
-                        <span className="flex-1 text-center">ENTER GAME</span>
-                        <span className="text-xl">🍕</span>
-                      </span>
-                    </>
-                  )}
+                  {isEntryInProgress ? 'Processing...' : '🍕 ENTER GAME 🍕'}
                 </Button>
               </div>
             </div>
