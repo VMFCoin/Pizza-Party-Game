@@ -160,6 +160,7 @@ export const PIZZA_STAKING_ABI = [
   },
   { type: 'function', name: 'lastSpinGameId', stateMutability: 'view', inputs: [{ type: 'address', name: 'user' }], outputs: [{ type: 'uint256' }] },
   { type: 'function', name: 'lastApyClaimTimestamp', stateMutability: 'view', inputs: [{ type: 'address', name: 'user' }], outputs: [{ type: 'uint256' }] },
+  { type: 'function', name: 'committedSpinOutcome', stateMutability: 'view', inputs: [{ type: 'address', name: 'user' }], outputs: [{ type: 'uint8' }] },
 
   // --- View Functions ---
   { type: 'function', name: 'getTier', stateMutability: 'view', inputs: [{ type: 'address', name: 'user' }], outputs: [{ type: 'uint8' }] },
@@ -246,6 +247,15 @@ export const PIZZA_STAKING_ABI = [
     inputs: [
       { indexed: true, name: 'user', type: 'address' },
       { indexed: false, name: 'amount', type: 'uint256' }
+    ]
+  },
+  {
+    type: 'event',
+    name: 'SpinRecorded',
+    inputs: [
+      { indexed: true, name: 'user', type: 'address' },
+      { indexed: false, name: 'gameId', type: 'uint256' },
+      { indexed: false, name: 'outcome', type: 'uint8' }
     ]
   }
 ] as const

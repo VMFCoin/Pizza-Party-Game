@@ -287,6 +287,10 @@ contract PizzaStakingV1Upgradeable is
     /// @notice Tracks the last gameId a user spun on (one spin per game day)
     mapping(address => uint256) public lastSpinGameId;
 
+    /// @notice Stores the committed spin outcome for each user (determined at recordSpin time)
+    /// @dev Outcome is determined on-chain during recordSpin() and used during claim/restake
+    mapping(address => SpinOutcome) public committedSpinOutcome;
+
     /// @notice PIZZA price in micro-dollars (e.g., 10000 = $0.01, 1000000 = $1.00)
     /// @dev Updated by admin from DexScreener price feed. Used to calculate dynamic MIN_STAKE.
     ///      Micro-dollars provide 6 decimal precision which is sufficient for crypto prices.
@@ -386,7 +390,7 @@ contract PizzaStakingV1Upgradeable is
     event SpinToggled(bool enabled);
 
     /// @notice Emitted when a user records their spin (before animation)
-    event SpinRecorded(address indexed user, uint256 gameId);
+    event SpinRecorded(address indexed user, uint256 gameId, SpinOutcome outcome);
 
     /// @notice Emitted when pizza token address is set
     event PizzaTokenSet(address indexed token);
@@ -640,7 +644,12 @@ contract PizzaStakingV1Upgradeable is
         // Record the spin - this prevents spinning on other devices
         lastSpinGameId[msg.sender] = currentGameId;
 
-        emit SpinRecorded(msg.sender, currentGameId);
+        // Determine and commit the spin outcome ON-CHAIN (not client-side)
+        // This ensures the UI animation matches what the contract will pay
+        SpinOutcome outcome = _spin();
+        committedSpinOutcome[msg.sender] = outcome;
+
+        emit SpinRecorded(msg.sender, currentGameId, outcome);
     }
 
     /**
@@ -1299,22 +1308,21 @@ contract PizzaStakingV1Upgradeable is
 
         // Step 2: SPIN THE PIE - multiply base reward (only if there's base reward)
         if (baseReward > 0 && applySpin && spinEnabled) {
-            // Check if user has already spun today (same gameId)
+            // User must have called recordSpin() first to commit their outcome
             uint256 currentGameId = _getCurrentGameId();
-            if (lastSpinGameId[user] == currentGameId) {
+            if (lastSpinGameId[user] != currentGameId) {
+                // Spin not recorded for today - user must call recordSpin() first
                 revert AlreadySpunToday();
             }
 
-            // Record this spin
-            lastSpinGameId[user] = currentGameId;
-
-            outcome = _spin();
+            // Use the pre-committed outcome from recordSpin()
+            outcome = committedSpinOutcome[user];
             uint256 multiplierBPS = _getSpinMultiplier(outcome);
 
             // Calculate spun reward (base × spin multiplier)
             spunReward = (baseReward * multiplierBPS) / BPS_DENOMINATOR;
 
-            // Add fixed 10B PIZZA bonus on jackpot spin
+            // Add fixed 10M PIZZA bonus on jackpot spin
             if (outcome == SpinOutcome.Jackpot) {
                 spunReward += JACKPOT_FIXED_BONUS;
             }
@@ -1398,22 +1406,21 @@ contract PizzaStakingV1Upgradeable is
 
         // Step 2: SPIN THE PIE - multiply base reward (only if there's base reward)
         if (baseReward > 0 && applySpin && spinEnabled) {
-            // Check if user has already spun today (same gameId)
+            // User must have called recordSpin() first to commit their outcome
             uint256 currentGameId = _getCurrentGameId();
-            if (lastSpinGameId[user] == currentGameId) {
+            if (lastSpinGameId[user] != currentGameId) {
+                // Spin not recorded for today - user must call recordSpin() first
                 revert AlreadySpunToday();
             }
 
-            // Record this spin
-            lastSpinGameId[user] = currentGameId;
-
-            outcome = _spin();
+            // Use the pre-committed outcome from recordSpin()
+            outcome = committedSpinOutcome[user];
             uint256 multiplierBPS = _getSpinMultiplier(outcome);
 
             // Calculate spun reward (base × spin multiplier)
             spunReward = (baseReward * multiplierBPS) / BPS_DENOMINATOR;
 
-            // Add fixed 10B PIZZA bonus on jackpot spin
+            // Add fixed 10M PIZZA bonus on jackpot spin
             if (outcome == SpinOutcome.Jackpot) {
                 spunReward += JACKPOT_FIXED_BONUS;
             }

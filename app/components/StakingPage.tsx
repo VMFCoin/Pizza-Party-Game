@@ -5,8 +5,8 @@ import Image from 'next/image'
 import { Button } from './ui/button'
 import { Card } from './ui/card'
 import { ArrowLeft, Lock, Unlock, TrendingUp, Gift, AlertTriangle, XCircle, Loader2, ChevronDown, ChevronUp, Share2, X } from 'lucide-react'
-import { useAccount, useReadContract, useWriteContract, useWaitForTransactionReceipt } from 'wagmi'
-import { formatUnits, parseUnits } from 'viem'
+import { useAccount, useReadContract, useWriteContract, useWaitForTransactionReceipt, usePublicClient } from 'wagmi'
+import { formatUnits, parseUnits, decodeEventLog } from 'viem'
 import { sdk } from '@farcaster/miniapp-sdk'
 import {
   PIZZA_STAKING_ADDRESS,
@@ -170,6 +170,7 @@ export default function StakingPage({
   authToken,
 }: StakingPageProps) {
   const { address } = useAccount()
+  const publicClient = usePublicClient()
   const [isMobile, setIsMobile] = useState(false)
   const [isSpinning, setIsSpinning] = useState(false)
   const [spinRotation, setSpinRotation] = useState(0)
@@ -921,17 +922,15 @@ export default function StakingPage({
   }
 
   // Step 2: Run spin animation AFTER recordSpin tx confirms
-  const runSpinAnimation = useCallback(() => {
+  // The outcome is determined ON-CHAIN and passed from the SpinRecorded event
+  const runSpinAnimation = useCallback((onChainOutcome: number) => {
     setIsSpinning(true)
     setSpinResult(null)
 
-    // Determine outcome based on odds (73% Regular, 20% Loaded, 5% Hot, 2% Jackpot)
-    const rand = Math.random() * 100
-    let outcome: typeof SPIN_OUTCOMES[0]
-    if (rand < 73) outcome = SPIN_OUTCOMES[0]       // Regular Slice
-    else if (rand < 93) outcome = SPIN_OUTCOMES[1]  // Loaded Slice
-    else if (rand < 98) outcome = SPIN_OUTCOMES[2]  // Hot Out the Oven
-    else outcome = SPIN_OUTCOMES[3]                 // JACKPOT
+    // Map on-chain SpinOutcome enum to SPIN_OUTCOMES array
+    // Contract: 0=RegularSlice, 1=LoadedSlice, 2=HotOutTheOven, 3=Jackpot
+    // SPIN_OUTCOMES: [Regular, Loaded, Hot, JACKPOT]
+    const outcome = SPIN_OUTCOMES[onChainOutcome] || SPIN_OUTCOMES[0]
 
     // Get valid slice indices for this outcome
     const validSlices = OUTCOME_TO_SLICES[outcome.name]
@@ -1008,15 +1007,51 @@ export default function StakingPage({
     }, 3000)
   }, [playTick, triggerHaptic, getSliceFromRotation, saveSpinResult])
 
-  // After recordSpin tx confirms, run the spin animation
+  // After recordSpin tx confirms, read the outcome from tx receipt and run animation
   useEffect(() => {
-    if (isRecordSpinConfirmed && pendingRecordSpin) {
-      setPendingRecordSpin(false)
-      resetRecordSpin()
-      // Now run the actual spin animation
-      runSpinAnimation()
+    if (isRecordSpinConfirmed && pendingRecordSpin && recordSpinHash && publicClient) {
+      const fetchOutcomeAndAnimate = async () => {
+        setPendingRecordSpin(false)
+
+        try {
+          // Get the transaction receipt to read the SpinRecorded event
+          const receipt = await publicClient.getTransactionReceipt({ hash: recordSpinHash })
+
+          // Find the SpinRecorded event in the logs
+          let onChainOutcome = 0 // Default to Regular if we can't find the event
+          for (const log of receipt.logs) {
+            try {
+              const decoded = decodeEventLog({
+                abi: PIZZA_STAKING_ABI,
+                data: log.data,
+                topics: log.topics,
+              })
+              if (decoded.eventName === 'SpinRecorded') {
+                // outcome is uint8 in the event - cast to unknown first then extract
+                const args = decoded.args as unknown as { outcome: number }
+                onChainOutcome = Number(args.outcome)
+                console.log('[Spin] On-chain outcome:', onChainOutcome, ['Regular', 'Loaded', 'Hot', 'JACKPOT'][onChainOutcome])
+                break
+              }
+            } catch {
+              // Not the event we're looking for, continue
+            }
+          }
+
+          resetRecordSpin()
+          // Run the animation with the REAL on-chain outcome
+          runSpinAnimation(onChainOutcome)
+        } catch (error) {
+          console.error('[Spin] Failed to get tx receipt:', error)
+          resetRecordSpin()
+          // Fallback to Regular if we can't read the outcome
+          runSpinAnimation(0)
+        }
+      }
+
+      fetchOutcomeAndAnimate()
     }
-  }, [isRecordSpinConfirmed, pendingRecordSpin, resetRecordSpin, runSpinAnimation])
+  }, [isRecordSpinConfirmed, pendingRecordSpin, recordSpinHash, publicClient, resetRecordSpin, runSpinAnimation])
 
   // Handle share cast after successful claim
   const handleShareCast = useCallback(async () => {
