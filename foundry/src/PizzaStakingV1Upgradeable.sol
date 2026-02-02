@@ -287,10 +287,6 @@ contract PizzaStakingV1Upgradeable is
     /// @notice Tracks the last gameId a user spun on (one spin per game day)
     mapping(address => uint256) public lastSpinGameId;
 
-    /// @notice Stores the committed spin outcome for each user (determined at recordSpin time)
-    /// @dev Outcome is determined on-chain during recordSpin() and used during claim/restake
-    mapping(address => SpinOutcome) public committedSpinOutcome;
-
     /// @notice PIZZA price in micro-dollars (e.g., 10000 = $0.01, 1000000 = $1.00)
     /// @dev Updated by admin from DexScreener price feed. Used to calculate dynamic MIN_STAKE.
     ///      Micro-dollars provide 6 decimal precision which is sufficient for crypto prices.
@@ -339,6 +335,11 @@ contract PizzaStakingV1Upgradeable is
     /// @notice Maps wallet address to its registered FID (reverse lookup)
     /// @dev Used to check if a wallet is already registered
     mapping(address => uint256) public walletToFid;
+
+    /// @notice Stores the committed spin outcome for each user (determined at recordSpin time)
+    /// @dev Outcome is determined on-chain during recordSpin() and used during claim/restake
+    /// @dev IMPORTANT: Added at end of storage to preserve existing storage layout
+    mapping(address => SpinOutcome) public committedSpinOutcome;
 
     // ==================================================================================
     // EVENTS
