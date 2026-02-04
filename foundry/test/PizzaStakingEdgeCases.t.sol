@@ -30,7 +30,7 @@ contract PizzaStakingEdgeCasesTest is Test {
     address constant STAKING_PROXY = 0xCbAf5bACe5419710C3852653d3DdEB831d7415be;
     address constant PIZZA_PARTY_PROXY = 0xA1C31c3eF1448351da0b1D430148660982B6f3dD;
     address constant PIZZA_TOKEN = 0xbD0e3768B9A7C3d53e7b92EDC4C38728E2fA9b69;
-    address constant OWNER = 0x828F516b379A2532bB33a00d34125560BF4c1853;
+    address constant OWNER = 0xd9EF10D1dB272A5105557AAfc571e7BF66c95CEC;
     address constant TREASURY = 0xBfCA21E41D397C8B6beF0c348D394DA2c4826292;
 
     PizzaStakingV1Upgradeable staking;

@@ -13,7 +13,7 @@ import {PizzaPartyV2Upgradeable} from "../src/PizzaPartyV2Upgradeable.sol";
  */
 contract UpgradeStorageTest is Test {
     address constant PIZZA_PARTY_PROXY = 0xA1C31c3eF1448351da0b1D430148660982B6f3dD;
-    address constant OWNER = 0x828F516b379A2532bB33a00d34125560BF4c1853;
+    address constant OWNER = 0xd9EF10D1dB272A5105557AAfc571e7BF66c95CEC;
 
     PizzaPartyV2Upgradeable party;
 
