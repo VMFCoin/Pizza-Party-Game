@@ -17,8 +17,8 @@ const publicClient = createPublicClient({
 const ownerFeesClaimedEvent = parseAbiItem('event OwnerFeesClaimed(address indexed owner, uint256 amount)')
 const MAX_BLOCK_RANGE = 49000n
 
-// ParlorManager deployment block (approximate - Dec 2024)
-const PARLOR_MANAGER_DEPLOY_BLOCK = 23000000n
+// ParlorManager deployment block (Dec 15, 2024)
+const PARLOR_MANAGER_DEPLOY_BLOCK = 39521243n
 
 // Fetch logs in chunks
 async function getClaimedTotal(
