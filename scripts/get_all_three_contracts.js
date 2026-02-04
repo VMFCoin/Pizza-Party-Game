@@ -43,7 +43,7 @@ const KNOWN_PLAYERS = [
   '0x46e9beef5dc68dff095eca56dadf90247f1af7ef',
   '0xacbf90a3f03a34faa8235854ca6c3ee0cc8c7546',
   '0x108608f3f993bfd55fab50d9ef1a5c7e2c47f29b',
-  '0x828f516b379a2532bb33a00d34125560bf4c1853', // Owner wallet
+  '0xd9EF10D1dB272A5105557AAfc571e7BF66c95CEC', // Owner wallet
 ];
 
 const client = createPublicClient({

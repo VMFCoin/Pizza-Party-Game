@@ -48,7 +48,7 @@ contract MigratePizzaToken is Script {
     address constant OLD_PIZZA_TOKEN = 0xbD0e3768B9A7C3d53e7b92EDC4C38728E2fA9b69;
 
     // Owner wallet (unchanged)
-    address constant OWNER_WALLET = 0x828F516b379A2532bB33a00d34125560BF4c1853;
+    address constant OWNER_WALLET = 0xd9EF10D1dB272A5105557AAfc571e7BF66c95CEC;
 
     // Expected new token supply (100 billion with 18 decimals)
     uint256 constant EXPECTED_SUPPLY = 100_000_000_000 * 1e18;
