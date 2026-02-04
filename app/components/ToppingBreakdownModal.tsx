@@ -24,6 +24,11 @@ const customFontStyle = {
   textShadow: '1px 1px 2px rgba(0,0,0,0.5)',
 }
 
+const labelFontStyle = {
+  fontFamily: 'var(--font-luckiest-guy)',
+  fontWeight: 'bold' as const,
+}
+
 export default function ToppingBreakdownModal({
   isOpen,
   onClose,
@@ -81,7 +86,7 @@ export default function ToppingBreakdownModal({
           <div className={`flex justify-between items-center bg-gradient-to-r from-blue-400 to-blue-500 rounded-xl border-2 border-blue-600 ${isMobile ? 'p-2' : 'p-3'}`}>
             <div className="flex items-center gap-2 min-w-0">
               <Image src="/images/pepperoni-art.png" alt="Daily Plays" width={isMobile ? 20 : 24} height={isMobile ? 20 : 24} />
-              <span className={`text-black font-bold truncate ${isMobile ? 'text-sm' : ''}`} style={customFontStyle}>
+              <span className={`text-black font-bold truncate ${isMobile ? 'text-sm' : ''}`} style={labelFontStyle}>
                 Daily Plays
               </span>
             </div>
@@ -98,7 +103,7 @@ export default function ToppingBreakdownModal({
           <div className={`flex justify-between items-center bg-gradient-to-r from-green-400 to-green-500 rounded-xl border-2 border-green-600 ${isMobile ? 'p-2' : 'p-3'}`}>
             <div className="flex items-center gap-2 min-w-0">
               <Image src="/images/mushroom-icon2.png" alt="Referrals" width={isMobile ? 20 : 24} height={isMobile ? 20 : 24} />
-              <span className={`text-black font-bold truncate ${isMobile ? 'text-sm' : ''}`} style={customFontStyle}>
+              <span className={`text-black font-bold truncate ${isMobile ? 'text-sm' : ''}`} style={labelFontStyle}>
                 Referrals
               </span>
             </div>
@@ -109,7 +114,7 @@ export default function ToppingBreakdownModal({
           <div className={`flex justify-between items-center bg-gradient-to-r from-yellow-400 to-orange-500 rounded-xl border-2 border-yellow-600 ${isMobile ? 'p-2' : 'p-3'}`}>
             <div className="flex items-center gap-2 min-w-0">
               <span className={`${isMobile ? 'text-lg' : 'text-2xl'}`}>🍅</span>
-              <span className={`text-black font-bold truncate ${isMobile ? 'text-sm' : ''}`} style={customFontStyle}>
+              <span className={`text-black font-bold truncate ${isMobile ? 'text-sm' : ''}`} style={labelFontStyle}>
                 PIZZA Holdings
               </span>
             </div>
@@ -120,7 +125,7 @@ export default function ToppingBreakdownModal({
           <div className={`flex justify-between items-center bg-gradient-to-r from-amber-400 to-yellow-500 rounded-xl border-2 border-amber-600 ${isMobile ? 'p-2' : 'p-3'}`}>
             <div className="flex items-center gap-2 min-w-0">
               <span className={`${isMobile ? 'text-lg' : 'text-2xl'}`}>🍍</span>
-              <span className={`text-black font-bold truncate ${isMobile ? 'text-sm' : ''}`} style={customFontStyle}>
+              <span className={`text-black font-bold truncate ${isMobile ? 'text-sm' : ''}`} style={labelFontStyle}>
                 Tier Bonus
               </span>
             </div>
