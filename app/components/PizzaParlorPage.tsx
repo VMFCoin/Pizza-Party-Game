@@ -115,6 +115,7 @@ export default function PizzaParlorPage({
   const [dailyPotTotal, setDailyPotTotal] = useState(0)
   const [earlyUnlockTotal, setEarlyUnlockTotal] = useState(0)
   const [isLoadingFees, setIsLoadingFees] = useState(false)
+  const [lifetimeClaimed, setLifetimeClaimed] = useState(0)
 
   // Transaction states
   const [isPurchasing, setIsPurchasing] = useState(false)
@@ -740,17 +741,33 @@ export default function PizzaParlorPage({
     }
   }, [parlorsOwned])
 
+  // Fetch lifetime claimed fees for this user
+  const fetchLifetimeClaimed = useCallback(async () => {
+    if (parlorsOwned <= 0 || !userAddress) return
+
+    try {
+      const response = await fetch(`/api/parlor/lifetime?address=${userAddress}`)
+      const data = await response.json()
+      if (data.success) {
+        setLifetimeClaimed(Number(data.lifetimeClaimed))
+      }
+    } catch (error) {
+      console.error('Failed to fetch lifetime claimed:', error)
+    }
+  }, [parlorsOwned, userAddress])
+
   // Calculate user's fee breakdown based on global source proportions
   const feeSourceTotal = dailyPotTotal + earlyUnlockTotal
   const userDailyPotFees = feeSourceTotal > 0 ? Math.floor(claimableFeesFormatted * (dailyPotTotal / feeSourceTotal)) : 0
   const userEarlyUnlockFees = feeSourceTotal > 0 ? Math.floor(claimableFeesFormatted * (earlyUnlockTotal / feeSourceTotal)) : 0
 
-  // Fetch fee breakdown on page load for parlor owners
+  // Fetch fee breakdown and lifetime on page load for parlor owners
   useEffect(() => {
     if (parlorsOwned > 0) {
       fetchFeeBreakdown()
+      fetchLifetimeClaimed()
     }
-  }, [parlorsOwned, fetchFeeBreakdown])
+  }, [parlorsOwned, fetchFeeBreakdown, fetchLifetimeClaimed])
 
   // ============ Effects ============
 
@@ -1033,6 +1050,10 @@ export default function PizzaParlorPage({
                       <div className="flex justify-between items-center">
                         <span className="text-green-800" style={{ ...parlorDataStyle, fontSize: 14 }}>Total Claimable:</span>
                         <span className="text-green-600" style={{ ...parlorDataStyle, fontSize: 14 }}>{claimableFeesFormatted.toLocaleString()} PIZZA</span>
+                      </div>
+                      <div className="flex justify-between items-center mt-1">
+                        <span className="text-green-700" style={{ ...parlorDataStyle, fontSize: 12 }}>Lifetime Claimed:</span>
+                        <span className="text-green-600" style={{ ...parlorDataStyle, fontSize: 12 }}>{lifetimeClaimed.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} PIZZA</span>
                       </div>
                     </div>
 
