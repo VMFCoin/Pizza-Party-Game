@@ -172,6 +172,7 @@ export default function HomePage() {
           onNavigateToLeaderboard={handleNavigateToLeaderboard}
           onNavigateToHome={handleBackToHome}
           onNavigateToStaking={handleNavigateToStaking}
+          userFid={userFid}
         />
       </>
     );

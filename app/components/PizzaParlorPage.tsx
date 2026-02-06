@@ -21,6 +21,7 @@ interface PizzaParlorPageProps {
   onNavigateToLeaderboard?: () => void
   onNavigateToHome?: () => void
   onNavigateToStaking?: () => void
+  userFid?: number | null
 }
 
 const PARLORS_EXPLAINED = [
@@ -77,6 +78,7 @@ export default function PizzaParlorPage({
   onNavigateToLeaderboard,
   onNavigateToHome,
   onNavigateToStaking,
+  userFid,
 }: PizzaParlorPageProps) {
   const customFontStyle = {
     fontFamily: 'var(--font-luckiest-guy)',
@@ -104,6 +106,8 @@ export default function PizzaParlorPage({
   const [farcasterResults, setFarcasterResults] = useState<FarcasterUser[]>([])
   const [isSearching, setIsSearching] = useState(false)
   const [selectedUser, setSelectedUser] = useState<FarcasterUser | null>(null)
+  const [selfSliceError, setSelfSliceError] = useState<string | null>(null)
+  const [isCheckingAddress, setIsCheckingAddress] = useState(false)
 
   // Slice History state
   const [sliceHistoryOpen, setSliceHistoryOpen] = useState(false)
@@ -304,6 +308,23 @@ export default function PizzaParlorPage({
       // Handle successful slice send - send notification and open compose
       // Only trigger if we have a pending user (set when tx was submitted)
       if (isSendingSlice && pendingSliceUser) {
+        // Record slice for anti-abuse tracking (fire and forget)
+        if (userAddress && dailyGameId) {
+          fetch('/api/slice/record', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              senderAddress: userAddress,
+              senderFid: userFid || 0,
+              senderUsername: userParlorName || undefined,
+              recipientAddress: pendingSliceUser.walletAddress,
+              recipientFid: pendingSliceUser.fid,
+              recipientUsername: pendingSliceUser.username,
+              dailyGameId: dailyGameId.toString(),
+            }),
+          }).catch(err => console.error('Failed to record slice:', err))
+        }
+
         // Send push notification to recipient (fire and forget)
         fetch('/api/slice-notification', {
           method: 'POST',
@@ -337,7 +358,7 @@ export default function PizzaParlorPage({
       setIsSendingSlice(false)
       resetWrite()
     }
-  }, [txSucceeded, refetchContractData, refetchUserData, resetWrite, isSendingSlice, pendingSliceUser, isPurchasing, userHasParlorName, userParlorName])
+  }, [txSucceeded, refetchContractData, refetchUserData, resetWrite, isSendingSlice, pendingSliceUser, isPurchasing, userHasParlorName, userParlorName, userAddress, userFid, dailyGameId])
 
   // Handle transaction revert (tx was mined but execution failed)
   useEffect(() => {
@@ -429,6 +450,63 @@ export default function PizzaParlorPage({
     const resolvedAddress = resolveRecipient(recipientInput)
     if (!resolvedAddress) return
 
+    // Clear any previous error
+    setSelfSliceError(null)
+
+    // Check 1: Simple same-address check (contract does this too, but catch early)
+    if (userAddress && resolvedAddress.toLowerCase() === userAddress.toLowerCase()) {
+      setSelfSliceError("You can't send a free slice to yourself!")
+      return
+    }
+
+    // Check 2: If we have a selected Farcaster user, check if FIDs match
+    if (selectedUser && userFid && selectedUser.fid === userFid) {
+      setSelfSliceError("You can't send a free slice to your own Farcaster account!")
+      return
+    }
+
+    // For raw address input (no selectedUser), we need to verify:
+    // 1. The address has a Farcaster account (REQUIRED - prevents hidden wallets)
+    // 2. The address doesn't belong to the sender's Farcaster account
+    let recipientFid: number | null = null
+
+    if (!selectedUser) {
+      setIsCheckingAddress(true)
+      try {
+        const checkRes = await fetch(
+          `/api/users/check-ownership?address=${encodeURIComponent(resolvedAddress)}${userFid ? `&fid=${userFid}` : ''}`
+        )
+        const checkData = await checkRes.json()
+
+        // LAYER 1: Require recipient to have a Farcaster account
+        // This prevents sending to hidden wallets that aren't linked to any FC account
+        if (!checkData.ownerFid) {
+          setSelfSliceError("This address is not linked to a Farcaster account. Free slices can only be sent to Farcaster users. Search by @username instead!")
+          setIsCheckingAddress(false)
+          return
+        }
+
+        recipientFid = checkData.ownerFid
+
+        // Check 3: Verify the address doesn't belong to the sender's Farcaster account
+        if (userFid && checkData.belongsToFid) {
+          setSelfSliceError("This address is linked to your Farcaster account. You can't send a free slice to yourself!")
+          setIsCheckingAddress(false)
+          return
+        }
+      } catch (err) {
+        console.error('Failed to verify address ownership:', err)
+        // On error, block the transaction - we can't verify the recipient
+        setSelfSliceError("Unable to verify recipient. Please search by @username instead.")
+        setIsCheckingAddress(false)
+        return
+      }
+      setIsCheckingAddress(false)
+    } else {
+      // selectedUser was chosen from Farcaster search - they have an FID
+      recipientFid = selectedUser.fid
+    }
+
     setIsSendingSlice(true)
 
     // Prepare user info for notification AFTER tx confirms
@@ -438,24 +516,24 @@ export default function PizzaParlorPage({
     if (selectedUser) {
       userForNotification = selectedUser
     } else {
-      // Look up Farcaster profile for the address if no user was selected
-      // This handles cases where user pasted an address directly
+      // Look up Farcaster profile for the address
+      // We already verified they have an FID above
       try {
         const profiles = await fetchProfilesByAddresses([resolvedAddress])
         const profile = profiles.get(resolvedAddress.toLowerCase())
         if (profile?.username) {
           // Create a FarcasterUser object from the profile
           userForNotification = {
-            fid: profile.fid || 0,
+            fid: profile.fid || recipientFid || 0,
             username: profile.username,
             displayName: profile.displayName || profile.username,
             pfpUrl: profile.pfpUrl || '',
             walletAddress: resolvedAddress,
           }
         } else {
-          // No Farcaster profile found - still trigger cast with address
+          // Fallback - use the FID we found earlier
           userForNotification = {
-            fid: 0,
+            fid: recipientFid || 0,
             username: resolvedAddress.slice(0, 6) + '...' + resolvedAddress.slice(-4),
             displayName: 'Pizza Fan',
             pfpUrl: '',
@@ -464,9 +542,8 @@ export default function PizzaParlorPage({
         }
       } catch (err) {
         console.error('Failed to fetch profile for address:', err)
-        // Fallback - still trigger cast with address
         userForNotification = {
-          fid: 0,
+          fid: recipientFid || 0,
           username: resolvedAddress.slice(0, 6) + '...' + resolvedAddress.slice(-4),
           displayName: 'Pizza Fan',
           pfpUrl: '',
@@ -1152,6 +1229,7 @@ export default function PizzaParlorPage({
                           setRecipientInput(e.target.value)
                           setShowSuggestions(true)
                           if (selectedUser) setSelectedUser(null)
+                          if (selfSliceError) setSelfSliceError(null)
                         }}
                         onFocus={() => setShowSuggestions(true)}
                         disabled={parlorsOwned === 0}
@@ -1244,14 +1322,24 @@ export default function PizzaParlorPage({
                       )}
                     </div>
 
+                    {/* Self-slice error message */}
+                    {selfSliceError && (
+                      <div className="mb-2 p-2 bg-red-100 border-2 border-red-400 rounded-lg text-red-700 text-center"
+                           style={{ ...parlorDataStyle, fontSize: 12 }}>
+                        {selfSliceError}
+                      </div>
+                    )}
+
                     {/* Send Button */}
             <Button
                       onClick={handleSendSlice}
                       className="w-full !bg-green-600 hover:!bg-green-700 text-white font-bold py-2 rounded-xl border-4 border-green-800 uppercase"
                       style={{ ...customFontStyle, fontSize: isMobile ? 14 : 16 }}
-                      disabled={!canSendSlice || isSendingSlice || isConfirming}
+                      disabled={!canSendSlice || isSendingSlice || isConfirming || isCheckingAddress}
                     >
-                      {isSendingSlice || (isConfirming && isSendingSlice)
+                      {isCheckingAddress
+                        ? '🍕 VERIFYING... 🍕'
+                        : isSendingSlice || (isConfirming && isSendingSlice)
                         ? '🍕 SENDING... 🍕'
                         : parlorsOwned === 0
                           ? '🍕 OWN A PARLOR FIRST 🍕'

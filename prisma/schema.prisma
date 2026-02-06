@@ -36,3 +36,37 @@ model Staker {
 
   @@index([totalStaked])
 }
+
+// Track free slice sends for anti-abuse detection
+model SliceSend {
+  id              String   @id @default(cuid())
+  // Sender info
+  senderAddress   String
+  senderFid       Int
+  senderUsername  String?
+  // Recipient info
+  recipientAddress String
+  recipientFid    Int
+  recipientUsername String?
+  // Game info
+  dailyGameId     BigInt
+  // Metadata for behavioral detection
+  ipHash          String?  // Hashed IP for privacy
+  userAgent       String?
+  // Claim tracking
+  claimed         Boolean  @default(false)
+  claimedAt       DateTime?
+  claimerIpHash   String?  // Compare with sender IP
+  // Flags
+  flagged         Boolean  @default(false)
+  flagReason      String?
+  // Timestamps
+  createdAt       DateTime @default(now())
+
+  @@unique([senderAddress, recipientAddress, dailyGameId])
+  @@index([senderFid])
+  @@index([recipientFid])
+  @@index([senderAddress])
+  @@index([recipientAddress])
+  @@index([flagged])
+}

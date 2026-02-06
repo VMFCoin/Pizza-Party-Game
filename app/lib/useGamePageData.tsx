@@ -994,7 +994,7 @@ export function useGamePageData() {
       return
     }
 
-    if (!hasPendingSlice) {
+    if (!hasPendingSlice || !_pendingSliceSponsor) {
       console.error('No pending slice to claim')
       alert('No free slice available to claim')
       return
@@ -1008,6 +1008,40 @@ export function useGamePageData() {
 
     try {
       setIsClaimingSlice(true)
+
+      // LAYER 2: Verify claim is legitimate (claimer FID != sender FID)
+      // Also tracks behavioral patterns for Layer 3
+      try {
+        // Look up claimer's FID from their address
+        const claimerFidRes = await fetch(
+          `/api/users/check-ownership?address=${encodeURIComponent(wallet.address)}`
+        )
+        const claimerFidData = await claimerFidRes.json()
+        const claimerFid = claimerFidData.ownerFid || 0
+
+        // Verify the claim
+        const verifyRes = await fetch('/api/slice/verify-claim', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            claimerAddress: wallet.address,
+            claimerFid,
+            senderAddress: _pendingSliceSponsor,
+            dailyGameId: daily.dailyGameId.toString(),
+          }),
+        })
+        const verifyData = await verifyRes.json()
+
+        if (verifyData.blocked) {
+          alert(verifyData.reason || 'This slice cannot be claimed.')
+          setIsClaimingSlice(false)
+          return
+        }
+      } catch (verifyErr) {
+        // On verification error, log but allow claim to proceed
+        // (don't break the game for users due to API issues)
+        console.error('Slice verification failed:', verifyErr)
+      }
 
       // Calculate $1 worth of PIZZA for the entry fee (treasury pays)
       const pizzaPerDollar = 1 / pizzaUsdPrice
@@ -1044,7 +1078,7 @@ export function useGamePageData() {
     } finally {
       setIsClaimingSlice(false)
     }
-  }, [networkId, wallet.isAuthenticated, wallet.address, hasPendingSlice, hasEnteredToday, pizzaUsdPrice, writeContract, fetchPlayerInfo, refreshDaily, fetchWeekly, fetchPizzaBalance, fetchPlayerLifetimeStats])
+  }, [networkId, wallet.isAuthenticated, wallet.address, hasPendingSlice, _pendingSliceSponsor, hasEnteredToday, pizzaUsdPrice, daily.dailyGameId, writeContract, fetchPlayerInfo, refreshDaily, fetchWeekly, fetchPizzaBalance, fetchPlayerLifetimeStats])
 
   const handleEnterGame = useCallback(async (referralCode?: string) => {
     console.log('=== ENTER GAME WITH PERMIT CLICKED ===')
