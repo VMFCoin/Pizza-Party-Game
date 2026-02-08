@@ -6,7 +6,7 @@ import { Button } from './ui/button'
 import { Card } from './ui/card'
 import { ArrowLeft, Lock, Unlock, TrendingUp, Gift, AlertTriangle, XCircle, Loader2, ChevronDown, ChevronUp, Share2, X } from 'lucide-react'
 import { useAccount, useReadContract, useWriteContract, useWaitForTransactionReceipt, usePublicClient } from 'wagmi'
-import { formatUnits, parseUnits, decodeEventLog } from 'viem'
+import { formatUnits, parseUnits } from 'viem'
 import { sdk } from '@farcaster/miniapp-sdk'
 import {
   PIZZA_STAKING_ADDRESS,
@@ -414,6 +414,7 @@ export default function StakingPage({
 
   const { isLoading: isRecordSpinConfirming, isSuccess: isRecordSpinConfirmed } = useWaitForTransactionReceipt({
     hash: recordSpinHash,
+    pollingInterval: 1_000, // Poll every 1s instead of default 4s (Base blocks are ~2s)
   })
 
   // === COMPUTED VALUES ===
@@ -918,6 +919,7 @@ export default function StakingPage({
       address: PIZZA_STAKING_ADDRESS as `0x${string}`,
       abi: PIZZA_STAKING_ABI,
       functionName: 'recordSpin',
+      gas: 150_000n, // Skip eth_estimateGas RPC round-trip (actual ~80k, padded for safety)
     })
   }
 
@@ -1007,42 +1009,28 @@ export default function StakingPage({
     }, 3000)
   }, [playTick, triggerHaptic, getSliceFromRotation, saveSpinResult])
 
-  // After recordSpin tx confirms, read the outcome from tx receipt and run animation
+  // After recordSpin tx confirms, read the committed outcome from contract state and run animation
   useEffect(() => {
-    if (isRecordSpinConfirmed && pendingRecordSpin && recordSpinHash && publicClient) {
+    if (isRecordSpinConfirmed && pendingRecordSpin && publicClient && address) {
       const fetchOutcomeAndAnimate = async () => {
         setPendingRecordSpin(false)
 
         try {
-          // Get the transaction receipt to read the SpinRecorded event
-          const receipt = await publicClient.getTransactionReceipt({ hash: recordSpinHash })
-
-          // Find the SpinRecorded event in the logs
-          let onChainOutcome = 0 // Default to Regular if we can't find the event
-          for (const log of receipt.logs) {
-            try {
-              const decoded = decodeEventLog({
-                abi: PIZZA_STAKING_ABI,
-                data: log.data,
-                topics: log.topics,
-              })
-              if (decoded.eventName === 'SpinRecorded') {
-                // outcome is uint8 in the event - cast to unknown first then extract
-                const args = decoded.args as unknown as { outcome: number }
-                onChainOutcome = Number(args.outcome)
-                console.log('[Spin] On-chain outcome:', onChainOutcome, ['Regular', 'Loaded', 'Hot', 'JACKPOT'][onChainOutcome])
-                break
-              }
-            } catch {
-              // Not the event we're looking for, continue
-            }
-          }
+          // Read committed outcome directly from contract state (faster than parsing tx receipt)
+          const outcome = await publicClient.readContract({
+            address: PIZZA_STAKING_ADDRESS as `0x${string}`,
+            abi: PIZZA_STAKING_ABI,
+            functionName: 'committedSpinOutcome',
+            args: [address],
+          })
+          const onChainOutcome = Number(outcome)
+          console.log('[Spin] On-chain outcome:', onChainOutcome, ['Regular', 'Loaded', 'Hot', 'JACKPOT'][onChainOutcome])
 
           resetRecordSpin()
           // Run the animation with the REAL on-chain outcome
           runSpinAnimation(onChainOutcome)
         } catch (error) {
-          console.error('[Spin] Failed to get tx receipt:', error)
+          console.error('[Spin] Failed to read committed outcome:', error)
           resetRecordSpin()
           // Fallback to Regular if we can't read the outcome
           runSpinAnimation(0)
@@ -1051,7 +1039,7 @@ export default function StakingPage({
 
       fetchOutcomeAndAnimate()
     }
-  }, [isRecordSpinConfirmed, pendingRecordSpin, recordSpinHash, publicClient, resetRecordSpin, runSpinAnimation])
+  }, [isRecordSpinConfirmed, pendingRecordSpin, publicClient, address, resetRecordSpin, runSpinAnimation])
 
   // Handle share cast after successful claim
   const handleShareCast = useCallback(async () => {
