@@ -1,20 +1,61 @@
 import { NextResponse } from 'next/server'
-import { formatUnits, isAddress } from 'viem'
+import { createPublicClient, http, parseAbiItem, formatUnits, isAddress } from 'viem'
+import { base } from 'viem/chains'
 import { Redis } from '@upstash/redis'
 import { PARLOR_MANAGER_ADDRESS } from '@/app/lib/constants'
 
 export const dynamic = 'force-dynamic'
 
 const redis = Redis.fromEnv()
-const CACHE_TTL_SECONDS = 300 // 5 minutes per-user cache
+const CACHE_TTL_SECONDS = 3600 // 1 hour - lifetime only changes on fee collection
 
-// OwnerFeesClaimed(address indexed owner, uint256 amount)
-const OWNER_FEES_CLAIMED_TOPIC = '0x3011fb00bdfc6d18b37af4c10acdd9e2bdc2df4961c4dba490c638c4cb5197cd'
+const publicClient = createPublicClient({
+  chain: base,
+  transport: http('https://base-rpc.publicnode.com'),
+})
+
+const ownerFeesClaimedEvent = parseAbiItem('event OwnerFeesClaimed(address indexed owner, uint256 amount)')
+const MAX_BLOCK_RANGE = 49000n
 
 // ParlorManager deployment block (Dec 15, 2024)
-const PARLOR_MANAGER_DEPLOY_BLOCK = 39521243
+const PARLOR_MANAGER_DEPLOY_BLOCK = 39521243n
 
-const BASESCAN_API_KEY = process.env.BASESCAN_API_KEY || ''
+// Fetch logs in chunks with retry
+async function getClaimedTotal(
+  owner: `0x${string}`,
+  startBlock: bigint,
+  endBlock: bigint,
+): Promise<bigint> {
+  let total = 0n
+  let currentFrom = startBlock
+
+  while (currentFrom <= endBlock) {
+    const currentTo = currentFrom + MAX_BLOCK_RANGE > endBlock
+      ? endBlock
+      : currentFrom + MAX_BLOCK_RANGE
+
+    try {
+      const logs = await publicClient.getLogs({
+        address: PARLOR_MANAGER_ADDRESS as `0x${string}`,
+        event: ownerFeesClaimedEvent,
+        args: { owner },
+        fromBlock: currentFrom,
+        toBlock: currentTo,
+      })
+
+      for (const log of logs) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        total += (log as any).args.amount || 0n
+      }
+    } catch {
+      // If a chunk fails, skip it and continue with next chunks
+      console.error(`Lifetime scan chunk failed: ${currentFrom}-${currentTo}`)
+    }
+    currentFrom = currentTo + 1n
+  }
+
+  return total
+}
 
 export async function GET(request: Request) {
   try {
@@ -26,7 +67,7 @@ export async function GET(request: Request) {
     }
 
     const addr = userAddress.toLowerCase()
-    const cacheKey = `parlor:lifetime:${addr}`
+    const cacheKey = `parlor:lifetime:v2:${addr}`
 
     // Check cache first
     const cached = await redis.get<{ lifetimeClaimed: string; cachedAt: number }>(cacheKey)
@@ -34,29 +75,21 @@ export async function GET(request: Request) {
       return NextResponse.json({ success: true, ...cached, fromCache: true })
     }
 
-    // Use Etherscan v2 API (supports full range, no chunking needed)
-    const ownerTopic = '0x' + addr.slice(2).padStart(64, '0')
-    const url = `https://api.etherscan.io/v2/api?chainid=8453&module=logs&action=getLogs&fromBlock=${PARLOR_MANAGER_DEPLOY_BLOCK}&toBlock=latest&address=${PARLOR_MANAGER_ADDRESS}&topic0=${OWNER_FEES_CLAIMED_TOPIC}&topic1=${ownerTopic}&apikey=${BASESCAN_API_KEY}`
+    const currentBlock = await publicClient.getBlockNumber()
 
-    const response = await fetch(url)
-    const data = await response.json()
-
-    let lifetimeTotal = 0n
-
-    if (data.status === '1' && Array.isArray(data.result)) {
-      for (const log of data.result) {
-        // data field contains the uint256 amount
-        const amount = BigInt(log.data)
-        lifetimeTotal += amount
-      }
-    }
+    // Fetch all OwnerFeesClaimed events for this user since contract deployment
+    const lifetimeClaimedRaw = await getClaimedTotal(
+      userAddress as `0x${string}`,
+      PARLOR_MANAGER_DEPLOY_BLOCK,
+      currentBlock,
+    )
 
     const result = {
-      lifetimeClaimed: formatUnits(lifetimeTotal, 18),
+      lifetimeClaimed: formatUnits(lifetimeClaimedRaw, 18),
       cachedAt: Date.now(),
     }
 
-    // Cache per-user result
+    // Cache per-user result for 1 hour
     await redis.set(cacheKey, result, { ex: CACHE_TTL_SECONDS })
 
     return NextResponse.json({ success: true, ...result, fromCache: false })
