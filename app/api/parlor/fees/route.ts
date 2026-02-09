@@ -1,6 +1,5 @@
 import { NextResponse } from 'next/server'
-import { createPublicClient, http, parseAbiItem, formatUnits } from 'viem'
-import { base } from 'viem/chains'
+import { formatUnits } from 'viem'
 import { Redis } from '@upstash/redis'
 import {
   PIZZA_TOKEN_ADDRESS,
@@ -13,15 +12,15 @@ export const dynamic = 'force-dynamic'
 
 const redis = Redis.fromEnv()
 const CACHE_KEY = 'parlor:fees:sources'
-const CACHE_TTL_SECONDS = 600 // 10 minutes - proportions don't change fast
+const CACHE_TTL_SECONDS = 600 // 10 minutes
 
-const publicClient = createPublicClient({
-  chain: base,
-  transport: http('https://base-rpc.publicnode.com'),
-})
+// Transfer(address indexed from, address indexed to, uint256 value)
+const TRANSFER_TOPIC = '0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef'
 
-const transferEvent = parseAbiItem('event Transfer(address indexed from, address indexed to, uint256 value)')
-const MAX_BLOCK_RANGE = 49000n
+const BASESCAN_API_KEY = process.env.BASESCAN_API_KEY || ''
+
+// Use last 7 days of blocks
+const BLOCKS_PER_DAY = 43200
 
 interface FeeSources {
   dailyPotTotal: string
@@ -29,34 +28,20 @@ interface FeeSources {
   cachedAt: number
 }
 
-// Fetch logs in chunks to avoid RPC block range limits
-async function getTransferTotal(
-  from: `0x${string}`,
-  to: `0x${string}`,
-  startBlock: bigint,
-  endBlock: bigint,
-): Promise<bigint> {
+async function getTransferTotal(from: string, to: string, fromBlock: number): Promise<bigint> {
+  const fromTopic = '0x' + from.slice(2).toLowerCase().padStart(64, '0')
+  const toTopic = '0x' + to.slice(2).toLowerCase().padStart(64, '0')
+
+  const url = `https://api.etherscan.io/v2/api?chainid=8453&module=logs&action=getLogs&fromBlock=${fromBlock}&toBlock=latest&address=${PIZZA_TOKEN_ADDRESS}&topic0=${TRANSFER_TOPIC}&topic1=${fromTopic}&topic2=${toTopic}&apikey=${BASESCAN_API_KEY}`
+
+  const response = await fetch(url)
+  const data = await response.json()
+
   let total = 0n
-  let currentFrom = startBlock
-
-  while (currentFrom <= endBlock) {
-    const currentTo = currentFrom + MAX_BLOCK_RANGE > endBlock
-      ? endBlock
-      : currentFrom + MAX_BLOCK_RANGE
-
-    const logs = await publicClient.getLogs({
-      address: PIZZA_TOKEN_ADDRESS as `0x${string}`,
-      event: transferEvent,
-      args: { from, to },
-      fromBlock: currentFrom,
-      toBlock: currentTo,
-    })
-
-    for (const log of logs) {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      total += (log as any).args.value || 0n
+  if (data.status === '1' && Array.isArray(data.result)) {
+    for (const log of data.result) {
+      total += BigInt(log.data)
     }
-    currentFrom = currentTo + 1n
   }
 
   return total
@@ -70,25 +55,14 @@ export async function GET() {
       return NextResponse.json({ success: true, ...cached, fromCache: true })
     }
 
-    // Scan last 7 days for fee source proportions
-    const currentBlock = await publicClient.getBlockNumber()
-    const BLOCKS_PER_DAY = BigInt(43200)
-    const fromBlock = currentBlock - (BLOCKS_PER_DAY * 7n)
+    // Get approximate block from 7 days ago
+    // Current block ~41.7M, 7 days = ~302,400 blocks
+    const fromBlock = Math.max(0, 41700000 - (BLOCKS_PER_DAY * 7))
 
     // Fetch both sources in parallel
     const [totalDailyPot, totalEarlyUnlock] = await Promise.all([
-      getTransferTotal(
-        PIZZA_PARTY_ADDRESS as `0x${string}`,
-        PARLOR_MANAGER_ADDRESS as `0x${string}`,
-        fromBlock,
-        currentBlock,
-      ),
-      getTransferTotal(
-        PIZZA_STAKING_ADDRESS as `0x${string}`,
-        PARLOR_MANAGER_ADDRESS as `0x${string}`,
-        fromBlock,
-        currentBlock,
-      ),
+      getTransferTotal(PIZZA_PARTY_ADDRESS, PARLOR_MANAGER_ADDRESS, fromBlock),
+      getTransferTotal(PIZZA_STAKING_ADDRESS, PARLOR_MANAGER_ADDRESS, fromBlock),
     ])
 
     const result: FeeSources = {

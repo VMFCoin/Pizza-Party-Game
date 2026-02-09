@@ -1,6 +1,5 @@
 import { NextResponse } from 'next/server'
-import { createPublicClient, http, parseAbiItem, formatUnits, isAddress } from 'viem'
-import { base } from 'viem/chains'
+import { formatUnits, isAddress } from 'viem'
 import { Redis } from '@upstash/redis'
 import { PARLOR_MANAGER_ADDRESS } from '@/app/lib/constants'
 
@@ -9,48 +8,13 @@ export const dynamic = 'force-dynamic'
 const redis = Redis.fromEnv()
 const CACHE_TTL_SECONDS = 300 // 5 minutes per-user cache
 
-const publicClient = createPublicClient({
-  chain: base,
-  transport: http('https://base-rpc.publicnode.com'),
-})
-
-const ownerFeesClaimedEvent = parseAbiItem('event OwnerFeesClaimed(address indexed owner, uint256 amount)')
-const MAX_BLOCK_RANGE = 49000n
+// OwnerFeesClaimed(address indexed owner, uint256 amount)
+const OWNER_FEES_CLAIMED_TOPIC = '0x3011fb00bdfc6d18b37af4c10acdd9e2bdc2df4961c4dba490c638c4cb5197cd'
 
 // ParlorManager deployment block (Dec 15, 2024)
-const PARLOR_MANAGER_DEPLOY_BLOCK = 39521243n
+const PARLOR_MANAGER_DEPLOY_BLOCK = 39521243
 
-// Fetch logs in chunks
-async function getClaimedTotal(
-  owner: `0x${string}`,
-  startBlock: bigint,
-  endBlock: bigint,
-): Promise<bigint> {
-  let total = 0n
-  let currentFrom = startBlock
-
-  while (currentFrom <= endBlock) {
-    const currentTo = currentFrom + MAX_BLOCK_RANGE > endBlock
-      ? endBlock
-      : currentFrom + MAX_BLOCK_RANGE
-
-    const logs = await publicClient.getLogs({
-      address: PARLOR_MANAGER_ADDRESS as `0x${string}`,
-      event: ownerFeesClaimedEvent,
-      args: { owner },
-      fromBlock: currentFrom,
-      toBlock: currentTo,
-    })
-
-    for (const log of logs) {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      total += (log as any).args.amount || 0n
-    }
-    currentFrom = currentTo + 1n
-  }
-
-  return total
-}
+const BASESCAN_API_KEY = process.env.BASESCAN_API_KEY || ''
 
 export async function GET(request: Request) {
   try {
@@ -70,17 +34,25 @@ export async function GET(request: Request) {
       return NextResponse.json({ success: true, ...cached, fromCache: true })
     }
 
-    const currentBlock = await publicClient.getBlockNumber()
+    // Use Etherscan v2 API (supports full range, no chunking needed)
+    const ownerTopic = '0x' + addr.slice(2).padStart(64, '0')
+    const url = `https://api.etherscan.io/v2/api?chainid=8453&module=logs&action=getLogs&fromBlock=${PARLOR_MANAGER_DEPLOY_BLOCK}&toBlock=latest&address=${PARLOR_MANAGER_ADDRESS}&topic0=${OWNER_FEES_CLAIMED_TOPIC}&topic1=${ownerTopic}&apikey=${BASESCAN_API_KEY}`
 
-    // Fetch all OwnerFeesClaimed events for this user since contract deployment
-    const lifetimeClaimedRaw = await getClaimedTotal(
-      userAddress as `0x${string}`,
-      PARLOR_MANAGER_DEPLOY_BLOCK,
-      currentBlock,
-    )
+    const response = await fetch(url)
+    const data = await response.json()
+
+    let lifetimeTotal = 0n
+
+    if (data.status === '1' && Array.isArray(data.result)) {
+      for (const log of data.result) {
+        // data field contains the uint256 amount
+        const amount = BigInt(log.data)
+        lifetimeTotal += amount
+      }
+    }
 
     const result = {
-      lifetimeClaimed: formatUnits(lifetimeClaimedRaw, 18),
+      lifetimeClaimed: formatUnits(lifetimeTotal, 18),
       cachedAt: Date.now(),
     }
 
