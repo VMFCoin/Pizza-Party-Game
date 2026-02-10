@@ -300,6 +300,11 @@ export default function PizzaParlorPage({
         }, 500)
       }
 
+      // Optimistically update lifetime claimed after a fee collection
+      if (isDistributing && claimableFeesFormatted > 0) {
+        setLifetimeClaimed(prev => prev + claimableFeesFormatted)
+      }
+
       setIsPurchasing(false)
       setIsApproving(false)
       setIsDistributing(false)

@@ -1,6 +1,5 @@
 import { NextResponse } from 'next/server'
-import { createPublicClient, http, parseAbiItem, formatUnits, isAddress } from 'viem'
-import { base } from 'viem/chains'
+import { formatUnits, isAddress } from 'viem'
 import { Redis } from '@upstash/redis'
 import { PARLOR_MANAGER_ADDRESS } from '@/app/lib/constants'
 
@@ -9,53 +8,14 @@ export const dynamic = 'force-dynamic'
 const redis = Redis.fromEnv()
 const CACHE_TTL_SECONDS = 3600 // 1 hour - lifetime only changes on fee collection
 
-const publicClient = createPublicClient({
-  chain: base,
-  transport: http('https://base-rpc.publicnode.com'),
-})
+const BASESCAN_API_KEY = process.env.BASESCAN_API_KEY
+const BASESCAN_API_URL = 'https://api.basescan.org/api'
 
-const ownerFeesClaimedEvent = parseAbiItem('event OwnerFeesClaimed(address indexed owner, uint256 amount)')
-const MAX_BLOCK_RANGE = 49000n
+// OwnerFeesClaimed(address indexed owner, uint256 amount)
+const OWNER_FEES_CLAIMED_TOPIC = '0x3011fb00bdfc6d18b37af4c10acdd9e2bdc2df4961c4dba490c638c4cb5197cd'
 
 // ParlorManager deployment block (Dec 15, 2024)
-const PARLOR_MANAGER_DEPLOY_BLOCK = 39521243n
-
-// Fetch logs in chunks with retry
-async function getClaimedTotal(
-  owner: `0x${string}`,
-  startBlock: bigint,
-  endBlock: bigint,
-): Promise<bigint> {
-  let total = 0n
-  let currentFrom = startBlock
-
-  while (currentFrom <= endBlock) {
-    const currentTo = currentFrom + MAX_BLOCK_RANGE > endBlock
-      ? endBlock
-      : currentFrom + MAX_BLOCK_RANGE
-
-    try {
-      const logs = await publicClient.getLogs({
-        address: PARLOR_MANAGER_ADDRESS as `0x${string}`,
-        event: ownerFeesClaimedEvent,
-        args: { owner },
-        fromBlock: currentFrom,
-        toBlock: currentTo,
-      })
-
-      for (const log of logs) {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        total += (log as any).args.amount || 0n
-      }
-    } catch {
-      // If a chunk fails, skip it and continue with next chunks
-      console.error(`Lifetime scan chunk failed: ${currentFrom}-${currentTo}`)
-    }
-    currentFrom = currentTo + 1n
-  }
-
-  return total
-}
+const PARLOR_MANAGER_DEPLOY_BLOCK = 39521243
 
 export async function GET(request: Request) {
   try {
@@ -67,7 +27,7 @@ export async function GET(request: Request) {
     }
 
     const addr = userAddress.toLowerCase()
-    const cacheKey = `parlor:lifetime:v2:${addr}`
+    const cacheKey = `parlor:lifetime:v3:${addr}`
 
     // Check cache first
     const cached = await redis.get<{ lifetimeClaimed: string; cachedAt: number }>(cacheKey)
@@ -75,14 +35,35 @@ export async function GET(request: Request) {
       return NextResponse.json({ success: true, ...cached, fromCache: true })
     }
 
-    const currentBlock = await publicClient.getBlockNumber()
+    // Pad address to 32 bytes for topic filter (indexed address param)
+    const paddedAddress = '0x000000000000000000000000' + addr.slice(2)
 
-    // Fetch all OwnerFeesClaimed events for this user since contract deployment
-    const lifetimeClaimedRaw = await getClaimedTotal(
-      userAddress as `0x${string}`,
-      PARLOR_MANAGER_DEPLOY_BLOCK,
-      currentBlock,
-    )
+    // Use Basescan API to fetch OwnerFeesClaimed events filtered by owner
+    const params = new URLSearchParams({
+      module: 'logs',
+      action: 'getLogs',
+      address: PARLOR_MANAGER_ADDRESS,
+      topic0: OWNER_FEES_CLAIMED_TOPIC,
+      topic1: paddedAddress,
+      topic0_1_opr: 'and',
+      fromBlock: String(PARLOR_MANAGER_DEPLOY_BLOCK),
+      toBlock: 'latest',
+      apikey: BASESCAN_API_KEY || '',
+    })
+
+    const response = await fetch(`${BASESCAN_API_URL}?${params}`)
+    const data = await response.json()
+
+    let lifetimeClaimedRaw = 0n
+
+    if (data.status === '1' && Array.isArray(data.result)) {
+      for (const log of data.result) {
+        // amount is the non-indexed parameter, stored in data field
+        const amount = BigInt(log.data)
+        lifetimeClaimedRaw += amount
+      }
+    }
+    // status '0' with message 'No records found' means zero claims — that's valid
 
     const result = {
       lifetimeClaimed: formatUnits(lifetimeClaimedRaw, 18),
