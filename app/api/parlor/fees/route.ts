@@ -12,7 +12,7 @@ import {
 export const dynamic = 'force-dynamic'
 
 const redis = Redis.fromEnv()
-const CACHE_KEY = 'parlor:fees:sources:v2'
+const CACHE_KEY = 'parlor:fees:sources:v3'
 const CACHE_TTL_SECONDS = 600 // 10 minutes
 
 const publicClient = createPublicClient({
@@ -29,37 +29,49 @@ interface FeeSources {
   cachedAt: number
 }
 
-// Fetch transfer totals in chunks to avoid RPC block range limits
+// Fetch transfer totals with all chunks in parallel
 async function getTransferTotal(
   from: `0x${string}`,
   to: `0x${string}`,
   startBlock: bigint,
   endBlock: bigint,
 ): Promise<bigint> {
-  let total = 0n
+  // Build all chunk ranges upfront
+  const chunks: { from: bigint; to: bigint }[] = []
   let currentFrom = startBlock
-
   while (currentFrom <= endBlock) {
     const currentTo = currentFrom + MAX_BLOCK_RANGE > endBlock
       ? endBlock
       : currentFrom + MAX_BLOCK_RANGE
-
-    const logs = await publicClient.getLogs({
-      address: PIZZA_TOKEN_ADDRESS as `0x${string}`,
-      event: transferEvent,
-      args: { from, to },
-      fromBlock: currentFrom,
-      toBlock: currentTo,
-    })
-
-    for (const log of logs) {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      total += (log as any).args.value || 0n
-    }
+    chunks.push({ from: currentFrom, to: currentTo })
     currentFrom = currentTo + 1n
   }
 
-  return total
+  // Fire all chunks in parallel
+  const results = await Promise.all(
+    chunks.map(async (chunk) => {
+      try {
+        const logs = await publicClient.getLogs({
+          address: PIZZA_TOKEN_ADDRESS as `0x${string}`,
+          event: transferEvent,
+          args: { from, to },
+          fromBlock: chunk.from,
+          toBlock: chunk.to,
+        })
+        let total = 0n
+        for (const log of logs) {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          total += (log as any).args.value || 0n
+        }
+        return total
+      } catch {
+        console.error(`Fee scan chunk failed: ${chunk.from}-${chunk.to}`)
+        return 0n
+      }
+    })
+  )
+
+  return results.reduce((sum, val) => sum + val, 0n)
 }
 
 export async function GET() {
