@@ -9,7 +9,8 @@ const redis = Redis.fromEnv()
 const CACHE_TTL_SECONDS = 3600 // 1 hour - lifetime only changes on fee collection
 
 const BASESCAN_API_KEY = process.env.BASESCAN_API_KEY
-const BASESCAN_API_URL = 'https://api.basescan.org/api'
+const BASESCAN_API_URL = 'https://api.etherscan.io/v2/api'
+const BASE_CHAIN_ID = '8453'
 
 // OwnerFeesClaimed(address indexed owner, uint256 amount)
 const OWNER_FEES_CLAIMED_TOPIC = '0x3011fb00bdfc6d18b37af4c10acdd9e2bdc2df4961c4dba490c638c4cb5197cd'
@@ -40,6 +41,7 @@ export async function GET(request: Request) {
 
     // Use Basescan API to fetch OwnerFeesClaimed events filtered by owner
     const params = new URLSearchParams({
+      chainid: BASE_CHAIN_ID,
       module: 'logs',
       action: 'getLogs',
       address: PARLOR_MANAGER_ADDRESS,
