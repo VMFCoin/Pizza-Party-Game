@@ -28,7 +28,7 @@ export async function GET(request: Request) {
     }
 
     const addr = userAddress.toLowerCase()
-    const cacheKey = `parlor:lifetime:v3:${addr}`
+    const cacheKey = `parlor:lifetime:v4:${addr}`
 
     // Check cache first
     const cached = await redis.get<{ lifetimeClaimed: string; cachedAt: number }>(cacheKey)
