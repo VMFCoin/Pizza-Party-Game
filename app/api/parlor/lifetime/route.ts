@@ -64,8 +64,15 @@ export async function GET(request: Request) {
         const amount = BigInt(log.data)
         lifetimeClaimedRaw += amount
       }
+    } else if (data.message !== 'No records found') {
+      // API error (rate limit, bad key, etc.) — don't cache, return error
+      console.error('Basescan API error:', data.status, data.message, data.result)
+      return NextResponse.json({
+        success: false,
+        error: `Basescan API: ${data.message || 'unknown error'}`,
+      }, { status: 502 })
     }
-    // status '0' with message 'No records found' means zero claims — that's valid
+    // message 'No records found' means zero claims — that's valid, cache it
 
     const result = {
       lifetimeClaimed: formatUnits(lifetimeClaimedRaw, 18),
