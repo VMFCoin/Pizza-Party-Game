@@ -70,6 +70,7 @@ export async function GET(request: Request) {
       return NextResponse.json({
         success: false,
         error: `Basescan API: ${data.message || 'unknown error'}`,
+        detail: typeof data.result === 'string' ? data.result : undefined,
       }, { status: 502 })
     }
     // message 'No records found' means zero claims — that's valid, cache it
