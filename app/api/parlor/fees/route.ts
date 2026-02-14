@@ -12,16 +12,16 @@ import {
 export const dynamic = 'force-dynamic'
 
 const redis = Redis.fromEnv()
-const CACHE_KEY = 'parlor:fees:sources:v3'
-const CACHE_TTL_SECONDS = 600 // 10 minutes
+const CACHE_KEY = 'parlor:fees:sources:v4'
+const CACHE_TTL_SECONDS = 3600 // 1 hour
 
 const publicClient = createPublicClient({
   chain: base,
-  transport: http('https://base-rpc.publicnode.com'),
+  transport: http('https://base.drpc.org', { timeout: 10000 }),
 })
 
 const transferEvent = parseAbiItem('event Transfer(address indexed from, address indexed to, uint256 value)')
-const MAX_BLOCK_RANGE = 49000n
+const MAX_BLOCK_RANGE = 10000n
 
 interface FeeSources {
   dailyPotTotal: string
@@ -29,49 +29,42 @@ interface FeeSources {
   cachedAt: number
 }
 
-// Fetch transfer totals with all chunks in parallel
+// Fetch transfer totals sequentially in chunks
 async function getTransferTotal(
   from: `0x${string}`,
   to: `0x${string}`,
   startBlock: bigint,
   endBlock: bigint,
 ): Promise<bigint> {
-  // Build all chunk ranges upfront
-  const chunks: { from: bigint; to: bigint }[] = []
+  let total = 0n
   let currentFrom = startBlock
+
   while (currentFrom <= endBlock) {
     const currentTo = currentFrom + MAX_BLOCK_RANGE > endBlock
       ? endBlock
       : currentFrom + MAX_BLOCK_RANGE
-    chunks.push({ from: currentFrom, to: currentTo })
+
+    try {
+      const logs = await publicClient.getLogs({
+        address: PIZZA_TOKEN_ADDRESS as `0x${string}`,
+        event: transferEvent,
+        args: { from, to },
+        fromBlock: currentFrom,
+        toBlock: currentTo,
+      })
+
+      for (const log of logs) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        total += (log as any).args.value || 0n
+      }
+    } catch {
+      console.error(`Fee scan chunk failed: ${currentFrom}-${currentTo}`)
+    }
+
     currentFrom = currentTo + 1n
   }
 
-  // Fire all chunks in parallel
-  const results = await Promise.all(
-    chunks.map(async (chunk) => {
-      try {
-        const logs = await publicClient.getLogs({
-          address: PIZZA_TOKEN_ADDRESS as `0x${string}`,
-          event: transferEvent,
-          args: { from, to },
-          fromBlock: chunk.from,
-          toBlock: chunk.to,
-        })
-        let total = 0n
-        for (const log of logs) {
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          total += (log as any).args.value || 0n
-        }
-        return total
-      } catch {
-        console.error(`Fee scan chunk failed: ${chunk.from}-${chunk.to}`)
-        return 0n
-      }
-    })
-  )
-
-  return results.reduce((sum, val) => sum + val, 0n)
+  return total
 }
 
 export async function GET() {
@@ -82,12 +75,12 @@ export async function GET() {
       return NextResponse.json({ success: true, ...cached, fromCache: true })
     }
 
-    // Scan last 7 days
+    // Scan last 24 hours only (proportions don't change much day-to-day)
     const currentBlock = await publicClient.getBlockNumber()
     const BLOCKS_PER_DAY = BigInt(43200)
-    const fromBlock = currentBlock - (BLOCKS_PER_DAY * 7n)
+    const fromBlock = currentBlock - BLOCKS_PER_DAY
 
-    // Fetch both sources in parallel
+    // Fetch both sources in parallel (each scans ~5 chunks sequentially)
     const [totalDailyPot, totalEarlyUnlock] = await Promise.all([
       getTransferTotal(
         PIZZA_PARTY_ADDRESS as `0x${string}`,
