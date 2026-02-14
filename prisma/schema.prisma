@@ -37,6 +37,18 @@ model Staker {
   @@index([totalStaked])
 }
 
+// Persistent lifetime claimed totals for parlor owners
+model ParlorLifetimeClaimed {
+  id              String   @id @default(cuid())
+  wallet          String   @unique // owner wallet address (lowercase)
+  totalClaimed    String   // BigInt stored as string (wei)
+  lastClaimTxHash String?  // most recent claim tx hash
+  updatedAt       DateTime @updatedAt
+  createdAt       DateTime @default(now())
+
+  @@index([wallet])
+}
+
 // Track free slice sends for anti-abuse detection
 model SliceSend {
   id              String   @id @default(cuid())

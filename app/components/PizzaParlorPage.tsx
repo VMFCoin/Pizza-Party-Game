@@ -300,9 +300,21 @@ export default function PizzaParlorPage({
         }, 500)
       }
 
-      // Optimistically update lifetime claimed after a fee collection
+      // Record fee claim to database and optimistically update UI
       if (isDistributing && claimableFeesFormatted > 0) {
         setLifetimeClaimed(prev => prev + claimableFeesFormatted)
+        // Persist to database (fire and forget)
+        if (userAddress) {
+          fetch('/api/parlor/record-claim', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              address: userAddress,
+              amount: claimableFeesFormatted,
+              txHash: txHash || null,
+            }),
+          }).catch(() => {})
+        }
       }
 
       setIsPurchasing(false)
