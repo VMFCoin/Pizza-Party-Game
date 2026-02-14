@@ -75,6 +75,7 @@ export async function generateMetadata(): Promise<Metadata> {
         splashImageUrl: remoteOgImage,
         splashBackgroundColor: '#DC2626',
         homeUrl: siteBaseUrl,
+        noindex: false,
         baseBuilder: {
           ownerAddress: '0x12e31f706010AE0996A2D8247c432d9102e3c871',
         },

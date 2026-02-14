@@ -31,7 +31,8 @@ const manifest = {
     ogTitle: "Pizza Party - Daily Jackpots",
     ogDescription: "Enter the Base Pizza Party with PIZZA, collect toppings, and win one of eight daily slices.",
     ogImageUrl: sharedImage,
-    castShareUrl: "https://pizza-party-game.vmfcoin.com/"
+    castShareUrl: "https://pizza-party-game.vmfcoin.com/",
+    noindex: false
   },
   accountAssociation: {
     header: "eyJmaWQiOjEwMTM0OTEsInR5cGUiOiJhdXRoIiwia2V5IjoiMHgyNTdDYmU4OTk2ODQ5NUMzYUU4QzgxQmNjQjhCRTdmMjU3Q0Q1ZjY2In0",
