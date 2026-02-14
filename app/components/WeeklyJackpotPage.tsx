@@ -5,8 +5,9 @@ import { toZonedTime, fromZonedTime } from 'date-fns-tz'
 import Image from 'next/image'
 import { Button } from './ui/button'
 import { Card } from './ui/card'
-import { ArrowLeft } from 'lucide-react'
+import { ArrowLeft, X } from 'lucide-react'
 import { readContract } from '@wagmi/core'
+import { sdk } from '@farcaster/miniapp-sdk'
 import { useGamePageData } from '../lib/useGamePageData'
 import { PIZZA_STAKING_ADDRESS, PIZZA_STAKING_ABI } from '../lib/constants'
 import { wagmiConfig } from './config/wagmiConfig'
@@ -121,6 +122,8 @@ export default function WeeklyJackpotPage({
   } = useGamePageData()
   const [isMobile, setIsMobile] = useState(false)
   const [showToppingBreakdown, setShowToppingBreakdown] = useState(false)
+  const [showShareAfterClaim, setShowShareAfterClaim] = useState(false)
+  const [claimedToppingCount, setClaimedToppingCount] = useState(0)
   const [tierBonus, setTierBonus] = useState(0)
 
   // Fetch tier bonus from staking contract
@@ -214,10 +217,28 @@ export default function WeeklyJackpotPage({
     }
   }
 
-  const handleClaimFromModal = () => {
+  const handleClaimFromModal = async () => {
+    const count = totalToppingsBeforeClaim
     setShowToppingBreakdown(false)
-    handleClaimToppings()
+    const success = await handleClaimToppings()
+    if (success) {
+      setClaimedToppingCount(count)
+      setShowShareAfterClaim(true)
+    }
   }
+
+  const handleShareCast = useCallback(() => {
+    const dollarValue = (claimedToppingCount * 0.10).toFixed(2)
+    const shareText = `🍕 Just claimed ${claimedToppingCount} toppings in Pizza Party — that's $${dollarValue} added to the weekly jackpot!\n\nEach topping is a ticket to win. More toppings = better odds at the weekly draw.\n\nGrab your slice:`
+    const embedUrl = 'https://farcaster.xyz/miniapps/wgY6OPqYoIkz/pizza-party'
+
+    sdk.actions.composeCast({
+      text: shareText,
+      embeds: [embedUrl],
+    }).catch(err => console.error('[Weekly] composeCast failed:', err))
+
+    setShowShareAfterClaim(false)
+  }, [claimedToppingCount])
 
   return (
     <div
@@ -412,6 +433,107 @@ export default function WeeklyJackpotPage({
         onClaim={handleClaimFromModal}
         isMobile={isMobile}
       />
+
+      {/* Share After Claim Modal */}
+      {showShareAfterClaim && (
+        <div
+          className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 cursor-pointer"
+          onClick={(e) => { if (e.target === e.currentTarget) setShowShareAfterClaim(false) }}
+        >
+          <div
+            className="relative rounded-3xl border-4 border-black shadow-2xl overflow-hidden cursor-default"
+            style={{ maxWidth: isMobile ? '100%' : '380px', width: '100%' }}
+          >
+            {/* Pizza pattern background */}
+            <div
+              className="absolute inset-0"
+              style={{
+                backgroundImage: "url('/images/pizza-pattern-background.png')",
+                backgroundSize: 'cover',
+                backgroundPosition: 'center',
+              }}
+            />
+
+            {/* Content overlay */}
+            <div className="relative z-10 flex flex-col items-center text-center px-5 py-6">
+              {/* Close button */}
+              <button
+                onClick={() => setShowShareAfterClaim(false)}
+                className="absolute top-3 right-3 bg-black/50 hover:bg-black/70 text-white rounded-full p-1 transition-colors"
+              >
+                <X size={20} />
+              </button>
+
+              {/* Dark panel for readability */}
+              <div className="bg-black/70 rounded-2xl px-5 py-5 w-full">
+                <p
+                  className="text-white text-2xl mb-1"
+                  style={{
+                    fontFamily: 'var(--font-luckiest-guy)',
+                    textShadow: '2px 2px 0px #8B0000',
+                  }}
+                >
+                  TOPPINGS CLAIMED!
+                </p>
+
+                <p
+                  className="text-yellow-400 mb-1"
+                  style={{
+                    fontFamily: 'var(--font-luckiest-guy)',
+                    fontSize: isMobile ? '48px' : '56px',
+                    lineHeight: '1',
+                    textShadow: '2px 2px 0px #8B0000',
+                  }}
+                >
+                  {claimedToppingCount}
+                </p>
+                <p
+                  className="text-yellow-300 text-sm mb-3"
+                  style={{ fontFamily: 'var(--font-luckiest-guy)' }}
+                >
+                  TOPPINGS
+                </p>
+
+                <p
+                  className="text-white text-lg mb-1"
+                  style={{
+                    fontFamily: 'var(--font-luckiest-guy)',
+                    textShadow: '1px 1px 0px #000',
+                  }}
+                >
+                  ${(claimedToppingCount * 0.10).toFixed(2)} ADDED TO JACKPOT
+                </p>
+
+                <p
+                  className="text-yellow-200 text-xs mb-4"
+                  style={{ fontFamily: 'var(--font-luckiest-guy)' }}
+                >
+                  Each topping = a ticket to win!
+                </p>
+
+                {/* Share button */}
+                <button
+                  onClick={handleShareCast}
+                  className="bg-gradient-to-b from-yellow-400 to-yellow-500 hover:from-yellow-300 hover:to-yellow-400 active:scale-95 transition-all rounded-full border-4 border-black shadow-xl px-8 py-2 w-full max-w-[240px]"
+                >
+                  <p
+                    className="text-white whitespace-nowrap"
+                    style={{
+                      fontFamily: 'var(--font-luckiest-guy)',
+                      textShadow: '2px 2px 0px #000, -1px -1px 0px #000',
+                      fontSize: isMobile ? '1.1rem' : '1.3rem',
+                      lineHeight: '1',
+                      margin: '0',
+                    }}
+                  >
+                    SHARE
+                  </p>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

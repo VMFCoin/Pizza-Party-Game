@@ -952,14 +952,14 @@ export function useGamePageData() {
   // ================= Write Functions =================
   // No separate approval needed - we use EIP-2612 permit for single-tx entry!
 
-  const handleClaimToppings = useCallback(async () => {
+  const handleClaimToppings = useCallback(async (): Promise<boolean> => {
     if (networkId !== BASE_CHAIN_ID) {
       alert(`Please switch to Base network (Chain ID: ${BASE_CHAIN_ID})`)
-      return
+      return false
     }
     if (!wallet.isAuthenticated) {
       alert('Please connect your wallet first')
-      return
+      return false
     }
     try {
       await writeContract({
@@ -971,10 +971,12 @@ export function useGamePageData() {
         void fetchPlayerInfo()
         void fetchWeekly()
       }, 2500)
+      return true
     } catch (err) {
       console.error('❌ Claim toppings failed:', err)
       const message = getErrorMessage(err) || 'Unknown error'
       alert(`Failed to claim toppings: ${message}`)
+      return false
     }
   }, [networkId, wallet.isAuthenticated, writeContract, fetchPlayerInfo, fetchWeekly])
 
