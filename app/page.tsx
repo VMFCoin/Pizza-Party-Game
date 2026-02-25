@@ -343,7 +343,22 @@ export default function HomePage() {
             {/* Action Buttons */}
             <div className="flex flex-col mt-[-12px]" style={{ gap: "12px" }}>
               {/* Call-to-Action */}
-              <div className="w-full rounded-2xl relative overflow-hidden" style={{ marginTop: '8px', marginBottom: '8px' }}>
+              <div className="w-full rounded-2xl relative" style={{ marginTop: '8px', marginBottom: '8px' }}>
+                {/* Crusties Mini App Link */}
+                <button
+                  onClick={async () => {
+                    try {
+                      await sdk.actions.openMiniApp({
+                        url: 'https://farcaster.xyz/miniapps/YrXVmVmUMbwd/crusties',
+                      });
+                    } catch (error) {
+                      console.error('Failed to open Crusties Mini App:', error);
+                    }
+                  }}
+                  style={{ position: 'absolute', top: '-70px', left: '20px', zIndex: 10, background: 'none', border: 'none', padding: 0, cursor: 'pointer' }}
+                >
+                  <img src="/images/Crustie-No-BG.png" alt="Crusties" style={{ height: '75px', width: 'auto', display: 'block' }} />
+                </button>
                 {/* Play_to_Win.png is 919×284 (~3.24:1). Use matching aspect ratio so it can be full-width without cropping. */}
                 <div
                   className="relative w-full"
