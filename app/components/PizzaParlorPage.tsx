@@ -34,6 +34,7 @@ const PARLORS_EXPLAINED = [
   'If a first time sliced player wins, you earn 50% of their prize (daily & weekly)',
   'Max 5 parlors per wallet | Only 100 total parlors',
   '50% of the $PIZZA used to buy parlors is burned forever. 30% treasury, 20% Ops',
+  'Self serving slices to yourself is not allowed, send slices to NEW players',
 ]
 
 // Local storage keys
