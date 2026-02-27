@@ -365,7 +365,7 @@ export default function HomePage() {
                   onClick={async () => {
                     try {
                       await sdk.actions.openMiniApp({
-                        url: 'https://farcaster.xyz/miniapps/YrXVmVmUMbwd/crusties',
+                        url: 'https://farcaster.xyz/miniapps/b8-LN08vo1G6/crusties',
                       });
                     } catch (error) {
                       console.error('Failed to open Crusties Mini App:', error);
@@ -373,7 +373,7 @@ export default function HomePage() {
                   }}
                   style={{ position: 'absolute', top: '-70px', left: '-8px', zIndex: 10, background: 'none', border: 'none', padding: 0, cursor: 'pointer' }}
                 >
-                  <img src="/images/Crustie-No-BG.png" alt="Crusties" style={{ height: '75px', width: 'auto', display: 'block' }} />
+                  <img src="/images/app-logo.png" alt="Crusties" style={{ height: '75px', width: '75px', display: 'block', borderRadius: '50%', objectFit: 'cover' }} />
                 </button>
                 {/* Play_to_Win.png is 919×284 (~3.24:1). Use matching aspect ratio so it can be full-width without cropping. */}
                 <div
