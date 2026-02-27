@@ -371,7 +371,7 @@ export default function HomePage() {
                       console.error('Failed to open Crusties Mini App:', error);
                     }
                   }}
-                  style={{ position: 'absolute', top: '-70px', left: '-8px', zIndex: 10, background: 'none', border: 'none', padding: 0, cursor: 'pointer' }}
+                  style={{ position: 'absolute', top: '-70px', left: '-8px', zIndex: 50, background: 'none', border: 'none', padding: 0, cursor: 'pointer' }}
                 >
                   <img src="/images/app-logo.png" alt="Crusties" style={{ height: '75px', width: '75px', display: 'block', borderRadius: '50%', objectFit: 'cover' }} />
                 </button>
