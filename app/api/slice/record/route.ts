@@ -3,6 +3,7 @@ import { PrismaClient } from '@prisma/client'
 import crypto from 'crypto'
 import { getNotificationToken } from '../../../lib/kv-notifications'
 import { sendNotifications } from '../../../lib/notifications'
+import { isRecipientBanned } from '../../../lib/constants/banList'
 
 const prisma = new PrismaClient()
 
@@ -31,6 +32,14 @@ export async function POST(request: NextRequest) {
         success: false,
         error: 'Missing required fields',
       }, { status: 400 })
+    }
+
+    // Block slices sent to banned recipients
+    if (isRecipientBanned(recipientFid, recipientAddress)) {
+      return NextResponse.json({
+        success: false,
+        error: 'Recipient is restricted',
+      }, { status: 403 })
     }
 
     // Hash IP for privacy-preserving comparison

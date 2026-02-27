@@ -135,17 +135,18 @@ interface GamePageProps {
   onNavigateToLeaderboard?: () => void
   onNavigateToParlor?: () => void
   onNavigateToStaking?: () => void
+  isBanned?: boolean
 }
 
-export default function GamePage({ onNavigateToWeekly, onNavigateToLeaderboard, onNavigateToParlor, onNavigateToStaking }: GamePageProps) {
+export default function GamePage({ onNavigateToWeekly, onNavigateToLeaderboard, onNavigateToParlor, onNavigateToStaking, isBanned }: GamePageProps) {
   return (
     <Suspense fallback={<div>Loading...</div>}>
-      <GamePageContent onNavigateToWeekly={onNavigateToWeekly} onNavigateToLeaderboard={onNavigateToLeaderboard} onNavigateToParlor={onNavigateToParlor} onNavigateToStaking={onNavigateToStaking} />
+      <GamePageContent onNavigateToWeekly={onNavigateToWeekly} onNavigateToLeaderboard={onNavigateToLeaderboard} onNavigateToParlor={onNavigateToParlor} onNavigateToStaking={onNavigateToStaking} isBanned={isBanned} />
     </Suspense>
   )
 }
 
-function GamePageContent({ onNavigateToWeekly, onNavigateToLeaderboard, onNavigateToParlor, onNavigateToStaking }: GamePageProps) {
+function GamePageContent({ onNavigateToWeekly, onNavigateToLeaderboard, onNavigateToParlor, onNavigateToStaking, isBanned }: GamePageProps) {
   const [isMobile, setIsMobile] = useState(false)
   const [referralCodeInput, setReferralCodeInput] = useState('')
   const [showReferralInput, setShowReferralInput] = useState(false)
@@ -255,6 +256,9 @@ function GamePageContent({ onNavigateToWeekly, onNavigateToLeaderboard, onNaviga
   // Determine main action button state
   // Note: No approval step needed - we use EIP-2612 permit for single-transaction entry!
   const buttonConfig = useMemo(() => {
+    if (isBanned) {
+      return { text: '🚫 ACCOUNT RESTRICTED', onClick: () => {}, disabled: true }
+    }
     if (!wallet?.isAuthenticated) {
       return { text: '🍕 CONNECT WALLET 🍕', onClick: openWalletModal, disabled: false }
     }
@@ -293,7 +297,7 @@ function GamePageContent({ onNavigateToWeekly, onNavigateToLeaderboard, onNaviga
       },
       disabled: isEntryInProgress
     }
-  }, [wallet, hasEnteredToday, hasEnoughPizza, openWalletModal, handleEnterGame, isEntryInProgress, canUseReferral, hasPendingSlice, pendingSliceSponsorName, handleClaimFreeSlice, isClaimingSlice])
+  }, [isBanned, wallet, hasEnteredToday, hasEnoughPizza, openWalletModal, handleEnterGame, isEntryInProgress, canUseReferral, hasPendingSlice, pendingSliceSponsorName, handleClaimFreeSlice, isClaimingSlice])
 
   const { hours, minutes, seconds } = pacificCountdown
 
@@ -521,7 +525,7 @@ function GamePageContent({ onNavigateToWeekly, onNavigateToLeaderboard, onNaviga
                   className="!bg-green-600 hover:!bg-green-700 text-white font-bold py-2 rounded-lg w-full border-4 border-green-800 uppercase"
                   style={{ ...customFontStyle, fontSize: isMobile ? 18 : 20 }}
                   onClick={handleEnterWithReferral}
-                  disabled={isEntryInProgress}
+                  disabled={isEntryInProgress || isBanned}
                 >
                   {isEntryInProgress ? 'Processing...' : '🍕 ENTER GAME 🍕'}
                 </Button>
@@ -557,8 +561,9 @@ function GamePageContent({ onNavigateToWeekly, onNavigateToLeaderboard, onNaviga
                 </p>
                 {referralInfo?.referralCode && (
                   <Button
-                    className="!bg-red-600 hover:!bg-red-700 text-white text-xs py-1 px-2 rounded"
+                    className="!bg-red-600 hover:!bg-red-700 text-white text-xs py-1 px-2 rounded disabled:opacity-50 disabled:pointer-events-none"
                     onClick={() => setShowShareModal(true)}
+                    disabled={isBanned}
                   >
                     <Share2 className="inline h-3 w-3 mr-1" />
                     Share
@@ -586,8 +591,9 @@ function GamePageContent({ onNavigateToWeekly, onNavigateToLeaderboard, onNaviga
 
           {/* Weekly Jackpot Button */}
           <Button
-            className="!bg-yellow-500 hover:!bg-yellow-600 text-white font-bold py-2 rounded-xl border-4 border-yellow-800 w-full uppercase"
+            className="!bg-yellow-500 hover:!bg-yellow-600 text-white font-bold py-2 rounded-xl border-4 border-yellow-800 w-full uppercase disabled:opacity-50 disabled:pointer-events-none"
             style={{ ...customFontStyle, fontSize: isMobile ? 18 : 20 }}
+            disabled={isBanned}
             onClick={() => {
               if (onNavigateToWeekly) {
                 onNavigateToWeekly()
@@ -605,8 +611,9 @@ function GamePageContent({ onNavigateToWeekly, onNavigateToLeaderboard, onNaviga
 
           {/* Leaderboard Button */}
           <Button
-            className="!bg-red-700 hover:!bg-red-800 text-white font-bold py-2 rounded-xl border-4 border-red-900 w-full uppercase"
+            className="!bg-red-700 hover:!bg-red-800 text-white font-bold py-2 rounded-xl border-4 border-red-900 w-full uppercase disabled:opacity-50 disabled:pointer-events-none"
             style={{ ...customFontStyle, fontSize: isMobile ? 18 : 20 }}
+            disabled={isBanned}
             onClick={() => {
               if (onNavigateToLeaderboard) {
                 onNavigateToLeaderboard()
@@ -625,7 +632,8 @@ function GamePageContent({ onNavigateToWeekly, onNavigateToLeaderboard, onNaviga
           {/* Own a Parlor Button */}
           <Button
             onClick={onNavigateToParlor}
-            className="w-full !bg-orange-500 hover:!bg-orange-600 text-white font-bold py-2 rounded-xl border-4 border-orange-800 uppercase cursor-pointer"
+            disabled={isBanned}
+            className="w-full !bg-orange-500 hover:!bg-orange-600 text-white font-bold py-2 rounded-xl border-4 border-orange-800 uppercase cursor-pointer disabled:opacity-50 disabled:pointer-events-none"
             style={{ ...customFontStyle, fontSize: isMobile ? 18 : 20 }}
           >
             🍍 OWN A PARLOR 🍍
@@ -634,7 +642,8 @@ function GamePageContent({ onNavigateToWeekly, onNavigateToLeaderboard, onNaviga
           {/* Staking Button */}
           <Button
             onClick={onNavigateToStaking}
-            className="w-full !bg-green-600 hover:!bg-green-700 text-white font-bold py-2 rounded-xl border-4 border-green-900 uppercase cursor-pointer"
+            disabled={isBanned}
+            className="w-full !bg-green-600 hover:!bg-green-700 text-white font-bold py-2 rounded-xl border-4 border-green-900 uppercase cursor-pointer disabled:opacity-50 disabled:pointer-events-none"
             style={{ ...customFontStyle, fontSize: isMobile ? 18 : 20 }}
           >
             <span className="flex items-center justify-center w-full gap-2">
@@ -647,7 +656,8 @@ function GamePageContent({ onNavigateToWeekly, onNavigateToLeaderboard, onNaviga
           {/* Manage Wallet Button (when connected) */}
           {shouldShowManageWallet && (
             <Button
-              className="!bg-green-600 hover:!bg-green-700 text-white font-bold py-2 rounded-xl border-4 border-green-800 w-full uppercase"
+              className="!bg-green-600 hover:!bg-green-700 text-white font-bold py-2 rounded-xl border-4 border-green-800 w-full uppercase disabled:opacity-50 disabled:pointer-events-none"
+              disabled={isBanned}
               style={{ ...customFontStyle, fontSize: isMobile ? 18 : 20 }}
               onClick={() => openWalletModal()}
             >

@@ -26,6 +26,7 @@ interface StakingPageProps {
   onNavigateToHome?: () => void
   userFid?: number | null
   authToken?: string | null
+  isBanned?: boolean
 }
 
 // Staking Tiers - yield bonuses are ADDITIVE (not multiplicative)
@@ -168,6 +169,7 @@ export default function StakingPage({
   onNavigateToHome,
   userFid,
   authToken,
+  isBanned,
 }: StakingPageProps) {
   const { address } = useAccount()
   const publicClient = usePublicClient()
@@ -1205,7 +1207,7 @@ export default function StakingPage({
                         </div>
                         <Button
                           onClick={() => setShowConfirmModal('spin-claim')}
-                          disabled={!hasPendingRewards || isWritePending || isConfirming || hasClaimedThisGame}
+                          disabled={!hasPendingRewards || isWritePending || isConfirming || hasClaimedThisGame || isBanned}
                           className="!bg-yellow-500 hover:!bg-yellow-600 text-white font-bold py-1.5 px-3 rounded-xl border-2 border-yellow-700 disabled:opacity-50 text-sm"
                           style={{ fontFamily: 'var(--font-luckiest-guy)' }}
                         >
@@ -1327,7 +1329,7 @@ export default function StakingPage({
                           </Button>
                           <Button
                             onClick={() => setShowConfirmModal('stake')}
-                            disabled={!stakeAmount || parseFloat(stakeAmount) < minStake || isWritePending || isConfirming}
+                            disabled={!stakeAmount || parseFloat(stakeAmount) < minStake || isWritePending || isConfirming || isBanned}
                             className="flex-1 !bg-green-500 hover:!bg-green-600 text-white font-bold py-2 rounded-xl border-2 border-green-700 disabled:opacity-50"
                             style={customFontStyle}
                           >
@@ -1537,7 +1539,7 @@ export default function StakingPage({
                           </Button>
                           <Button
                             onClick={() => setShowConfirmModal('stake')}
-                            disabled={!stakeAmount || parseFloat(stakeAmount) < minStake || isWritePending || isConfirming}
+                            disabled={!stakeAmount || parseFloat(stakeAmount) < minStake || isWritePending || isConfirming || isBanned}
                             className="flex-1 !bg-green-500 hover:!bg-green-600 text-white font-bold py-2 rounded-xl border-2 border-green-700 disabled:opacity-50"
                             style={customFontStyle}
                           >
@@ -1794,7 +1796,8 @@ export default function StakingPage({
             {/* Navigation Buttons */}
             <Button
               onClick={onNavigateToDaily}
-              className="w-full !bg-green-600 hover:!bg-green-700 text-white font-bold py-2.5 rounded-xl border-4 border-green-800 uppercase"
+              disabled={isBanned}
+              className="w-full !bg-green-600 hover:!bg-green-700 text-white font-bold py-2.5 rounded-xl border-4 border-green-800 uppercase disabled:opacity-50 disabled:pointer-events-none"
               style={{ ...customFontStyle, fontSize: isMobile ? 18 : 20 }}
             >
               🍕 GRAB A SLICE 🍕
@@ -1802,7 +1805,8 @@ export default function StakingPage({
 
             <Button
               onClick={onNavigateToWeekly}
-              className="w-full !bg-yellow-500 hover:!bg-yellow-600 text-white font-bold py-2.5 rounded-xl border-4 border-yellow-800 uppercase"
+              disabled={isBanned}
+              className="w-full !bg-yellow-500 hover:!bg-yellow-600 text-white font-bold py-2.5 rounded-xl border-4 border-yellow-800 uppercase disabled:opacity-50 disabled:pointer-events-none"
               style={{ ...customFontStyle, fontSize: isMobile ? 18 : 20 }}
             >
               <span className="flex items-center justify-center w-full gap-2">
@@ -1814,7 +1818,8 @@ export default function StakingPage({
 
             <Button
               onClick={onNavigateToLeaderboard}
-              className="w-full !bg-red-700 hover:!bg-red-800 text-white font-bold py-2.5 rounded-xl border-4 border-red-900 uppercase"
+              disabled={isBanned}
+              className="w-full !bg-red-700 hover:!bg-red-800 text-white font-bold py-2.5 rounded-xl border-4 border-red-900 uppercase disabled:opacity-50 disabled:pointer-events-none"
               style={{ ...customFontStyle, fontSize: isMobile ? 18 : 20 }}
             >
               <span className="flex items-center justify-center w-full gap-2">
@@ -1826,7 +1831,8 @@ export default function StakingPage({
 
             <Button
               onClick={onNavigateToParlor}
-              className="w-full !bg-orange-500 hover:!bg-orange-600 text-white font-bold py-2.5 rounded-xl border-4 border-orange-800 uppercase"
+              disabled={isBanned}
+              className="w-full !bg-orange-500 hover:!bg-orange-600 text-white font-bold py-2.5 rounded-xl border-4 border-orange-800 uppercase disabled:opacity-50 disabled:pointer-events-none"
               style={{ ...customFontStyle, fontSize: isMobile ? 18 : 20 }}
             >
               🍍 OWN A PARLOR 🍍
@@ -1864,7 +1870,7 @@ export default function StakingPage({
                     <Button
                       onClick={handleStake}
                       className="flex-1 !bg-green-500 hover:!bg-green-600 text-white font-bold py-2 rounded-xl"
-                      disabled={isWritePending || isConfirming}
+                      disabled={isWritePending || isConfirming || isBanned}
                     >
                       {isWritePending || isConfirming ? (
                         <Loader2 className="animate-spin mx-auto" size={20} />
@@ -1953,7 +1959,7 @@ export default function StakingPage({
                     <Button
                       onClick={handleUnstake}
                       className="flex-1 !bg-red-500 hover:!bg-red-600 text-white font-bold py-2 rounded-xl"
-                      disabled={isWritePending || isConfirming || !unstakeAmount || parseFloat(unstakeAmount) <= 0}
+                      disabled={isWritePending || isConfirming || !unstakeAmount || parseFloat(unstakeAmount) <= 0 || isBanned}
                     >
                       {isWritePending || isConfirming ? (
                         <Loader2 className="animate-spin mx-auto" size={20} />
@@ -2055,7 +2061,7 @@ export default function StakingPage({
               {!hasSpunThisGame && !hasClaimedThisGame && !isSpinning && spinEnabled && canSpinToday && (
                 <Button
                   onClick={handleSpin}
-                  disabled={pendingRecordSpin || isRecordSpinPending || isRecordSpinConfirming}
+                  disabled={pendingRecordSpin || isRecordSpinPending || isRecordSpinConfirming || isBanned}
                   className="w-full !bg-yellow-500 hover:!bg-yellow-600 text-white font-bold py-3 rounded-xl border-4 border-yellow-700 disabled:opacity-50"
                   style={{ fontFamily: 'var(--font-luckiest-guy)', fontSize: 20 }}
                 >
@@ -2205,7 +2211,7 @@ export default function StakingPage({
                         })
                       }}
                       className="flex-1 !bg-green-500 hover:!bg-green-600 text-white font-bold py-3 rounded-xl border-2 border-green-700"
-                      disabled={isWritePending || isConfirming}
+                      disabled={isWritePending || isConfirming || isBanned}
                       style={{ fontFamily: 'var(--font-luckiest-guy)' }}
                     >
                       {isWritePending || isConfirming ? (
@@ -2225,7 +2231,7 @@ export default function StakingPage({
                         })
                       }}
                       className="flex-1 !bg-red-500 hover:!bg-red-600 text-white font-bold py-3 rounded-xl border-2 border-red-700"
-                      disabled={isWritePending || isConfirming}
+                      disabled={isWritePending || isConfirming || isBanned}
                       style={{ fontFamily: 'var(--font-luckiest-guy)' }}
                     >
                       {isWritePending || isConfirming ? (
@@ -2374,7 +2380,7 @@ export default function StakingPage({
                         })
                       }}
                       className="flex-1 !bg-green-500 hover:!bg-green-600 text-white font-bold py-3 rounded-xl border-2 border-green-700"
-                      disabled={isWritePending || isConfirming}
+                      disabled={isWritePending || isConfirming || isBanned}
                       style={{ fontFamily: 'var(--font-luckiest-guy)' }}
                     >
                       {isWritePending || isConfirming ? (
@@ -2394,7 +2400,7 @@ export default function StakingPage({
                         })
                       }}
                       className="flex-1 !bg-red-500 hover:!bg-red-600 text-white font-bold py-3 rounded-xl border-2 border-red-700"
-                      disabled={isWritePending || isConfirming}
+                      disabled={isWritePending || isConfirming || isBanned}
                       style={{ fontFamily: 'var(--font-luckiest-guy)' }}
                     >
                       {isWritePending || isConfirming ? (

@@ -10,6 +10,7 @@ import { formatUnits, parseUnits, isAddress, parseAbiItem } from 'viem'
 import { PARLOR_MANAGER_ADDRESS, PARLOR_MANAGER_ABI, PIZZA_TOKEN_ADDRESS, PIZZA_TOKEN_ABI, PIZZA_PARTY_ADDRESS, PIZZA_PARTY_ABI } from '../lib/constants'
 import { sdk } from '@farcaster/miniapp-sdk'
 import { fetchProfilesByAddresses } from '../lib/farcasterProfiles'
+import { isRecipientBanned } from '../lib/constants/banList'
 
 // Parlor price in USD - this is the fixed dollar amount
 const PARLOR_PRICE_USD = 50
@@ -22,6 +23,7 @@ interface PizzaParlorPageProps {
   onNavigateToHome?: () => void
   onNavigateToStaking?: () => void
   userFid?: number | null
+  isBanned?: boolean
 }
 
 const PARLORS_EXPLAINED = [
@@ -79,6 +81,7 @@ export default function PizzaParlorPage({
   onNavigateToHome,
   onNavigateToStaking,
   userFid,
+  isBanned,
 }: PizzaParlorPageProps) {
   const customFontStyle = {
     fontFamily: 'var(--font-luckiest-guy)',
@@ -522,6 +525,12 @@ export default function PizzaParlorPage({
     } else {
       // selectedUser was chosen from Farcaster search - they have an FID
       recipientFid = selectedUser.fid
+    }
+
+    // Check if recipient is banned
+    if (isRecipientBanned(recipientFid, resolvedAddress)) {
+      setSelfSliceError("This user is restricted and cannot receive free slices.")
+      return
     }
 
     setIsSendingSlice(true)
@@ -1056,7 +1065,8 @@ export default function PizzaParlorPage({
                   {parlorsOwned > 0 && !userHasParlorName && (
                     <Button
                       onClick={() => setShowNamingModal(true)}
-                      className="w-full !bg-purple-500 hover:!bg-purple-600 text-white font-bold py-1.5 rounded-lg border-2 border-purple-700"
+                      disabled={isBanned}
+                      className="w-full !bg-purple-500 hover:!bg-purple-600 text-white font-bold py-1.5 rounded-lg border-2 border-purple-700 disabled:opacity-50 disabled:pointer-events-none"
                       style={{ fontFamily: 'var(--font-luckiest-guy)', fontSize: 12 }}
                     >
                       ✨ Name Your Franchise ✨
@@ -1099,7 +1109,7 @@ export default function PizzaParlorPage({
                     onClick={needsApproval ? handleApprove : handlePurchaseParlor}
                     className="w-full !bg-orange-500 hover:!bg-orange-600 text-white font-bold py-2 rounded-xl border-4 border-orange-700 uppercase"
                     style={{ fontFamily: 'var(--font-luckiest-guy)', fontSize: isMobile ? 14 : 16 }}
-                    disabled={!canBuyParlor || isPurchasing || isApproving || isConfirming}
+                    disabled={!canBuyParlor || isPurchasing || isApproving || isConfirming || isBanned}
                   >
                     {buyButtonText()}
                   </Button>
@@ -1173,7 +1183,7 @@ export default function PizzaParlorPage({
                       onClick={handleClaimFees}
                       className="w-full !bg-green-600 hover:!bg-green-700 text-white font-bold py-2 rounded-xl border-4 border-green-800 uppercase"
                       style={{ ...customFontStyle, fontSize: isMobile ? 14 : 16 }}
-                      disabled={!canClaimFees || isDistributing || isConfirming}
+                      disabled={!canClaimFees || isDistributing || isConfirming || isBanned}
                     >
                       {isDistributing || (isConfirming && isDistributing)
                         ? '💰 COLLECTING... 💰'
@@ -1352,7 +1362,7 @@ export default function PizzaParlorPage({
                       onClick={handleSendSlice}
                       className="w-full !bg-green-600 hover:!bg-green-700 text-white font-bold py-2 rounded-xl border-4 border-green-800 uppercase"
                       style={{ ...customFontStyle, fontSize: isMobile ? 14 : 16 }}
-                      disabled={!canSendSlice || isSendingSlice || isConfirming || isCheckingAddress}
+                      disabled={!canSendSlice || isSendingSlice || isConfirming || isCheckingAddress || isBanned}
                     >
                       {isCheckingAddress
                         ? '🍕 VERIFYING... 🍕'
@@ -1473,7 +1483,8 @@ export default function PizzaParlorPage({
 
             <Button
               onClick={navigateToDaily}
-              className="w-full !bg-green-600 hover:!bg-green-700 text-white font-bold py-2.5 rounded-xl border-4 border-green-800 uppercase"
+              disabled={isBanned}
+              className="w-full !bg-green-600 hover:!bg-green-700 text-white font-bold py-2.5 rounded-xl border-4 border-green-800 uppercase disabled:opacity-50 disabled:pointer-events-none"
             style={{ ...customFontStyle, fontSize: isMobile ? 18 : 20 }}
             >
               🍕 GRAB A SLICE 🍕
@@ -1481,7 +1492,8 @@ export default function PizzaParlorPage({
 
             <Button
               onClick={navigateToWeekly}
-              className="w-full !bg-yellow-500 hover:!bg-yellow-600 text-white font-bold py-2.5 rounded-xl border-4 border-yellow-800 uppercase"
+              disabled={isBanned}
+              className="w-full !bg-yellow-500 hover:!bg-yellow-600 text-white font-bold py-2.5 rounded-xl border-4 border-yellow-800 uppercase disabled:opacity-50 disabled:pointer-events-none"
             style={{ ...customFontStyle, fontSize: isMobile ? 18 : 20 }}
             >
               <span className="flex items-center justify-center w-full gap-2">
@@ -1493,7 +1505,8 @@ export default function PizzaParlorPage({
 
             <Button
               onClick={navigateToLeaderboard}
-              className="w-full !bg-red-700 hover:!bg-red-800 text-white font-bold py-2.5 rounded-xl border-4 border-red-900 uppercase"
+              disabled={isBanned}
+              className="w-full !bg-red-700 hover:!bg-red-800 text-white font-bold py-2.5 rounded-xl border-4 border-red-900 uppercase disabled:opacity-50 disabled:pointer-events-none"
             style={{ ...customFontStyle, fontSize: isMobile ? 18 : 20 }}
             >
               <span className="flex items-center justify-center w-full gap-2">
@@ -1506,7 +1519,8 @@ export default function PizzaParlorPage({
             {/* Staking Button */}
             <Button
               onClick={onNavigateToStaking}
-              className="w-full !bg-green-600 hover:!bg-green-700 text-white font-bold py-2.5 rounded-xl border-4 border-green-900 uppercase cursor-pointer"
+              disabled={isBanned}
+              className="w-full !bg-green-600 hover:!bg-green-700 text-white font-bold py-2.5 rounded-xl border-4 border-green-900 uppercase cursor-pointer disabled:opacity-50 disabled:pointer-events-none"
               style={{ ...customFontStyle, fontSize: isMobile ? 18 : 20 }}
             >
               <span className="flex items-center justify-center w-full gap-2">
@@ -1594,7 +1608,7 @@ export default function PizzaParlorPage({
                   onClick={handleSetParlorName}
                   className="w-full !bg-green-600 hover:!bg-green-700 text-white font-bold py-3 rounded-xl border-4 border-green-800 uppercase"
                   style={{ ...customFontStyle, fontSize: 16 }}
-                  disabled={!parlorNameInput.trim() || getByteLength(parlorNameInput.trim()) > 20 || isSettingName || isConfirming}
+                  disabled={!parlorNameInput.trim() || getByteLength(parlorNameInput.trim()) > 20 || isSettingName || isConfirming || isBanned}
                 >
                   {isSettingName || isConfirming
                     ? '🍕 SAVING... 🍕'

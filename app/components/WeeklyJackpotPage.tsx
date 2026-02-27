@@ -21,6 +21,7 @@ interface WeeklyJackpotPageProps {
   onNavigateToLeaderboard?: () => void
   onNavigateToParlor?: () => void
   onNavigateToStaking?: () => void
+  isBanned?: boolean
 }
 
 const customFontStyle = {
@@ -110,6 +111,7 @@ export default function WeeklyJackpotPage({
   onNavigateToLeaderboard,
   onNavigateToParlor,
   onNavigateToStaking,
+  isBanned,
 }: WeeklyJackpotPageProps) {
   const {
     wallet,
@@ -331,25 +333,27 @@ export default function WeeklyJackpotPage({
           </div>
 
           <Button
-            className="w-full !bg-red-600 hover:!bg-red-700 text-white font-bold py-2.5 rounded-xl border-4 border-red-800"
+            className="w-full !bg-red-600 hover:!bg-red-700 text-white font-bold py-2.5 rounded-xl border-4 border-red-800 disabled:opacity-50 disabled:pointer-events-none"
             style={customFontStyle}
-            disabled={claimButtonDisabled}
+            disabled={claimButtonDisabled || isBanned}
             onClick={handleOpenToppingBreakdown}
           >
             {claimWindowOpen ? claimButtonLabel : 'CLAIM WINDOW CLOSED'}
           </Button>
 
           <Button
-            className="w-full !bg-green-600 hover:!bg-green-700 text-white font-bold py-2.5 rounded-xl border-4 border-green-800"
+            className="w-full !bg-green-600 hover:!bg-green-700 text-white font-bold py-2.5 rounded-xl border-4 border-green-800 disabled:opacity-50 disabled:pointer-events-none"
             style={{ ...customFontStyle, fontSize: 20 }}
+            disabled={isBanned}
             onClick={onNavigateToDaily}
           >
             🍕 GRAB A SLICE 🍕
           </Button>
 
           <Button
-            className="w-full !bg-red-700 hover:!bg-red-800 text-white font-bold py-2.5 rounded-xl border-4 border-red-900 uppercase"
+            className="w-full !bg-red-700 hover:!bg-red-800 text-white font-bold py-2.5 rounded-xl border-4 border-red-900 uppercase disabled:opacity-50 disabled:pointer-events-none"
             style={{ ...customFontStyle, fontSize: 20 }}
+            disabled={isBanned}
             onClick={() => {
               if (onNavigateToLeaderboard) {
                 onNavigateToLeaderboard()
@@ -368,7 +372,8 @@ export default function WeeklyJackpotPage({
           {/* Own a Parlor Button */}
           <Button
             onClick={onNavigateToParlor}
-            className="w-full !bg-orange-500 hover:!bg-orange-600 text-white font-bold py-2.5 rounded-xl border-4 border-orange-800 uppercase cursor-pointer"
+            disabled={isBanned}
+            className="w-full !bg-orange-500 hover:!bg-orange-600 text-white font-bold py-2.5 rounded-xl border-4 border-orange-800 uppercase cursor-pointer disabled:opacity-50 disabled:pointer-events-none"
             style={{ ...customFontStyle, fontSize: 20 }}
           >
             🍍 OWN A PARLOR 🍍
@@ -377,7 +382,8 @@ export default function WeeklyJackpotPage({
           {/* Staking Button */}
           <Button
             onClick={onNavigateToStaking}
-            className="w-full !bg-green-600 hover:!bg-green-700 text-white font-bold py-2.5 rounded-xl border-4 border-green-900 uppercase cursor-pointer"
+            disabled={isBanned}
+            className="w-full !bg-green-600 hover:!bg-green-700 text-white font-bold py-2.5 rounded-xl border-4 border-green-900 uppercase cursor-pointer disabled:opacity-50 disabled:pointer-events-none"
             style={{ ...customFontStyle, fontSize: 20 }}
           >
             <span className="flex items-center justify-center w-full gap-2">

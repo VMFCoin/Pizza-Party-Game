@@ -20,6 +20,7 @@ interface LeaderboardPageProps {
   onNavigateToHome?: () => void
   onNavigateToParlor?: () => void
   onNavigateToStaking?: () => void
+  isBanned?: boolean
 }
 
 interface WinnerDisplay {
@@ -100,6 +101,7 @@ export default function LeaderboardPage({
   onNavigateToHome,
   onNavigateToParlor,
   onNavigateToStaking,
+  isBanned,
 }: LeaderboardPageProps) {
   const { address } = useAccount()
   const [dailyWinners, setDailyWinners] = useState<WinnerDisplay[]>([])
@@ -563,8 +565,9 @@ export default function LeaderboardPage({
             </Card>
 
             <Button
-            className="w-full !bg-green-600 hover:!bg-green-700 text-white font-bold py-2.5 rounded-xl border-4 border-green-800 uppercase"
+            className="w-full !bg-green-600 hover:!bg-green-700 text-white font-bold py-2.5 rounded-xl border-4 border-green-800 uppercase disabled:opacity-50 disabled:pointer-events-none"
             style={{ ...customFontStyle, fontSize: 20 }}
+            disabled={isBanned}
             onClick={navigateToDaily}
           >
             <span style={{ fontSize: '24px', marginRight: '4px' }}>🍕</span>
@@ -573,8 +576,9 @@ export default function LeaderboardPage({
           </Button>
 
             <Button
-              className="w-full !bg-yellow-500 hover:!bg-yellow-600 text-white font-bold py-2.5 rounded-xl border-4 border-yellow-800 uppercase"
+              className="w-full !bg-yellow-500 hover:!bg-yellow-600 text-white font-bold py-2.5 rounded-xl border-4 border-yellow-800 uppercase disabled:opacity-50 disabled:pointer-events-none"
               style={{ ...customFontStyle, fontSize: 20, letterSpacing: '1px' }}
+              disabled={isBanned}
               onClick={navigateToWeekly}
             >
               <span className="flex items-center justify-center w-full gap-2">
@@ -587,7 +591,8 @@ export default function LeaderboardPage({
             {/* Own a Parlor Button */}
             <Button
               onClick={onNavigateToParlor}
-              className="w-full !bg-orange-500 hover:!bg-orange-600 text-white font-bold py-2.5 rounded-xl border-4 border-orange-800 uppercase cursor-pointer"
+              disabled={isBanned}
+              className="w-full !bg-orange-500 hover:!bg-orange-600 text-white font-bold py-2.5 rounded-xl border-4 border-orange-800 uppercase cursor-pointer disabled:opacity-50 disabled:pointer-events-none"
               style={{ ...customFontStyle, fontSize: 20 }}
             >
               🍍 OWN A PARLOR 🍍
@@ -596,7 +601,8 @@ export default function LeaderboardPage({
             {/* Staking Button */}
             <Button
               onClick={onNavigateToStaking}
-              className="w-full !bg-green-600 hover:!bg-green-700 text-white font-bold py-2.5 rounded-xl border-4 border-green-900 uppercase cursor-pointer"
+              disabled={isBanned}
+              className="w-full !bg-green-600 hover:!bg-green-700 text-white font-bold py-2.5 rounded-xl border-4 border-green-900 uppercase cursor-pointer disabled:opacity-50 disabled:pointer-events-none"
               style={{ ...customFontStyle, fontSize: 20 }}
             >
               <span className="flex items-center justify-center w-full gap-2">

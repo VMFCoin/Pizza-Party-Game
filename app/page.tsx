@@ -13,6 +13,8 @@ import PizzaParlorPage from "./components/PizzaParlorPage";
 import StakingPage from "./components/StakingPage";
 import { sdk } from "@farcaster/miniapp-sdk";
 import { useRouter, useSearchParams } from "next/navigation";
+import { useAccount } from 'wagmi';
+import { isUserBanned } from './lib/constants/banList';
 
 import { PizzaPartyResultPopup } from "./components/PizzaPartyResultPopup";
 
@@ -31,6 +33,8 @@ export default function HomePage() {
   const [isMobile, setIsMobile] = useState(false);
   const [currentView, setCurrentView] = useState<ViewType>('home');
   const [userFid, setUserFid] = useState<number | null>(null);
+  const { address: walletAddress } = useAccount();
+  const isBanned = isUserBanned(userFid, walletAddress);
 
   const updateViewParam = React.useCallback((view: ViewType) => {
     const params = new URLSearchParams(searchParams?.toString() || '')
@@ -124,7 +128,7 @@ export default function HomePage() {
             </Button>
 
             <Card className="border-4 border-red-800 rounded-3xl shadow-2xl p-0 !px-0 !py-0 !bg-transparent">
-              <GamePage onNavigateToWeekly={handleNavigateToWeekly} onNavigateToLeaderboard={handleNavigateToLeaderboard} onNavigateToParlor={handleNavigateToParlor} onNavigateToStaking={handleNavigateToStaking} />
+              <GamePage onNavigateToWeekly={handleNavigateToWeekly} onNavigateToLeaderboard={handleNavigateToLeaderboard} onNavigateToParlor={handleNavigateToParlor} onNavigateToStaking={handleNavigateToStaking} isBanned={isBanned} />
             </Card>
           </div>
         </div>
@@ -142,6 +146,7 @@ export default function HomePage() {
           onNavigateToLeaderboard={handleNavigateToLeaderboard}
           onNavigateToParlor={handleNavigateToParlor}
           onNavigateToStaking={handleNavigateToStaking}
+          isBanned={isBanned}
         />
       </>
     );
@@ -157,6 +162,7 @@ export default function HomePage() {
           onNavigateToHome={handleBackToHome}
           onNavigateToParlor={handleNavigateToParlor}
           onNavigateToStaking={handleNavigateToStaking}
+          isBanned={isBanned}
         />
       </>
     );
@@ -173,6 +179,7 @@ export default function HomePage() {
           onNavigateToHome={handleBackToHome}
           onNavigateToStaking={handleNavigateToStaking}
           userFid={userFid}
+          isBanned={isBanned}
         />
       </>
     );
@@ -189,6 +196,7 @@ export default function HomePage() {
           onNavigateToParlor={handleNavigateToParlor}
           onNavigateToHome={handleBackToHome}
           userFid={userFid}
+          isBanned={isBanned}
         />
       </>
     );
@@ -340,6 +348,14 @@ export default function HomePage() {
               </div>
             </div>
 
+            {/* Banned User Banner */}
+            {isBanned && (
+              <div className="bg-red-100 border-2 border-red-400 rounded-xl p-3 mb-2 text-center">
+                <p className="text-red-700 font-bold" style={customFontStyle}>Account Restricted</p>
+                <p className="text-red-600 text-sm">Your account has been restricted due to policy violations.</p>
+              </div>
+            )}
+
             {/* Action Buttons */}
             <div className="flex flex-col mt-[-12px]" style={{ gap: "12px" }}>
               {/* Call-to-Action */}
@@ -381,7 +397,8 @@ export default function HomePage() {
               {/* GRAB A SLICE */}
               <Button
                 onClick={handleStartPlaying}
-                className="w-full !bg-red-600 hover:!bg-red-700 text-white py-3 px-6 rounded-xl border-4 border-red-900 shadow-lg transform hover:scale-105 transition-all touch-manipulation"
+                disabled={isBanned}
+                className="w-full !bg-red-600 hover:!bg-red-700 text-white py-3 px-6 rounded-xl border-4 border-red-900 shadow-lg transform hover:scale-105 transition-all touch-manipulation disabled:opacity-50 disabled:pointer-events-none"
                 style={{ ...customFontStyle, letterSpacing: "1px", fontSize: isMobile ? 18 : 20, fontWeight: '900' }}
               >
                 🍕 GRAB A SLICE 🍕
@@ -390,7 +407,8 @@ export default function HomePage() {
               {/* CLAIM TOPPINGS (Weekly Jackpot) */}
               <Button
                 onClick={handleNavigateToWeekly}
-                className="w-full !bg-orange-500 hover:!bg-orange-600 text-white py-3 px-6 rounded-xl border-4 border-orange-700 shadow-lg transform hover:scale-105 transition-all touch-manipulation"
+                disabled={isBanned}
+                className="w-full !bg-orange-500 hover:!bg-orange-600 text-white py-3 px-6 rounded-xl border-4 border-orange-700 shadow-lg transform hover:scale-105 transition-all touch-manipulation disabled:opacity-50 disabled:pointer-events-none"
                 style={{ ...customFontStyle, letterSpacing: "1px", fontSize: isMobile ? 18 : 20, fontWeight: '900' }}
               >
                 <span className="flex items-center justify-center w-full gap-2">
@@ -403,7 +421,8 @@ export default function HomePage() {
               {/* LEADERBOARD */}
               <Button
                 onClick={handleNavigateToLeaderboard}
-                className="w-full !bg-yellow-500 hover:!bg-yellow-600 text-white font-bold py-3 px-6 rounded-xl border-4 border-yellow-700 shadow-lg transform hover:scale-105 transition-all touch-manipulation uppercase"
+                disabled={isBanned}
+                className="w-full !bg-yellow-500 hover:!bg-yellow-600 text-white font-bold py-3 px-6 rounded-xl border-4 border-yellow-700 shadow-lg transform hover:scale-105 transition-all touch-manipulation uppercase disabled:opacity-50 disabled:pointer-events-none"
                 style={{ ...customFontStyle, letterSpacing: "1px", fontSize: isMobile ? 18 : 20 }}
               >
                 <span className="flex items-center justify-center w-full gap-2">
@@ -416,7 +435,8 @@ export default function HomePage() {
               {/* OWN A PARLOR */}
               <Button
                 onClick={handleNavigateToParlor}
-                className="w-full !bg-amber-600 hover:!bg-amber-700 text-white font-bold py-3 px-6 rounded-xl border-4 border-amber-800 shadow-lg uppercase transform hover:scale-105 transition-all touch-manipulation"
+                disabled={isBanned}
+                className="w-full !bg-amber-600 hover:!bg-amber-700 text-white font-bold py-3 px-6 rounded-xl border-4 border-amber-800 shadow-lg uppercase transform hover:scale-105 transition-all touch-manipulation disabled:opacity-50 disabled:pointer-events-none"
                 style={{
                   ...customFontStyle,
                   letterSpacing: "1px",
@@ -429,7 +449,8 @@ export default function HomePage() {
               {/* Spin & Stake */}
               <Button
                 onClick={handleNavigateToStaking}
-                className="w-full !bg-green-600 hover:!bg-green-700 text-white font-bold py-3 px-6 rounded-xl border-4 border-green-900 shadow-lg uppercase transform hover:scale-105 transition-all touch-manipulation"
+                disabled={isBanned}
+                className="w-full !bg-green-600 hover:!bg-green-700 text-white font-bold py-3 px-6 rounded-xl border-4 border-green-900 shadow-lg uppercase transform hover:scale-105 transition-all touch-manipulation disabled:opacity-50 disabled:pointer-events-none"
                 style={{
                   ...customFontStyle,
                   letterSpacing: "1px",
