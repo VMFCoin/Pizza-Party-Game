@@ -3,6 +3,7 @@ import { createPublicClient, createWalletClient, http, formatUnits } from 'viem'
 import { base } from 'viem/chains';
 import { privateKeyToAccount } from 'viem/accounts';
 import { PIZZA_PARTY_ADDRESS, PARLOR_MANAGER_ADDRESS, PIZZA_TOKEN_ADDRESS } from '@/app/lib/constants';
+import { isAddressBanned } from '@/app/lib/constants/banList';
 
 // Contract address from constants (PIZZA Party v2)
 const CONTRACT_ADDRESS = PIZZA_PARTY_ADDRESS as `0x${string}`;
@@ -58,6 +59,17 @@ const SETTLE_ABI = [
   {
     inputs: [{ type: 'uint256', name: 'newUnit' }],
     name: 'setHoldingsUnitPizza',
+    outputs: [],
+    stateMutability: 'nonpayable',
+    type: 'function',
+  },
+  {
+    inputs: [
+      { type: 'uint256', name: 'gameId' },
+      { type: 'address[]', name: 'correctPlayers' },
+      { type: 'address', name: 'firstPlayer' },
+    ],
+    name: 'adminFixDailyGamePlayers',
     outputs: [],
     stateMutability: 'nonpayable',
     type: 'function',
@@ -234,14 +246,38 @@ export async function GET(request: NextRequest) {
           getPizzaPrice(),
         ]);
 
+        // Remove banned players before settlement (their entry fee stays in the pot)
+        const bannedInGame = players.filter((addr: string) => isAddressBanned(addr));
+        if (bannedInGame.length > 0) {
+          const cleanPlayers = players.filter((addr: string) => !isAddressBanned(addr));
+          const firstPlayer = cleanPlayers.length > 0 ? cleanPlayers[0] : players[0];
+          console.log(`[Settle Bot] Removing ${bannedInGame.length} banned player(s) from game ${dailyGameId}: ${bannedInGame.join(', ')}`);
+          console.log(`[Settle Bot] Players: ${players.length} -> ${cleanPlayers.length} (banned entries stay in pot)`);
+
+          const fixHash = await walletClient.writeContract({
+            address: CONTRACT_ADDRESS,
+            abi: SETTLE_ABI,
+            functionName: 'adminFixDailyGamePlayers',
+            args: [dailyGameId, cleanPlayers as `0x${string}`[], firstPlayer as `0x${string}`],
+            gas: 500_000n,
+          });
+          const fixReceipt = await publicClient.waitForTransactionReceipt({ hash: fixHash });
+          if (fixReceipt.status === 'success') {
+            console.log(`[Settle Bot] Banned players removed successfully! TX: ${fixHash}`);
+          } else {
+            console.error(`[Settle Bot] WARNING: Failed to remove banned players, proceeding with settlement anyway`);
+          }
+        }
+
         const potFloat = parseFloat(formatUnits(currentPot, 18));
-        const winnerCount = Math.min(players.length, 8); // Max 8 winners
+        const activePlayers = bannedInGame.length > 0 ? players.length - bannedInGame.length : players.length;
+        const winnerCount = Math.min(activePlayers, 8); // Max 8 winners
         // Winners receive 80% of pot (after 10% stakers, 7% parlor, 3% charity deductions)
         const pizzaPerWinner = winnerCount > 0 ? (potFloat * 0.80) / winnerCount : 0;
         const usdPerWinner = pizzaPerWinner * pizzaPrice;
         const usdCentsPerWinner = Math.round(usdPerWinner * 100); // Convert to cents
 
-        console.log(`[Settle Bot] Settling daily game ${dailyGameId} with ${players.length} players, pot: ${potFloat.toFixed(2)} PIZZA`);
+        console.log(`[Settle Bot] Settling daily game ${dailyGameId} with ${activePlayers} players, pot: ${potFloat.toFixed(2)} PIZZA`);
         console.log(`[Settle Bot] PIZZA price: $${pizzaPrice}, USD per winner: $${usdPerWinner.toFixed(2)} (${usdCentsPerWinner} cents)`);
 
         let hash: `0x${string}`;
