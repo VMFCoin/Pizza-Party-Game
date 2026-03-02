@@ -13,7 +13,6 @@ import PizzaParlorPage from "./components/PizzaParlorPage";
 import StakingPage from "./components/StakingPage";
 import { sdk } from "@farcaster/miniapp-sdk";
 import { useRouter, useSearchParams } from "next/navigation";
-import Link from "next/link";
 import { useAccount } from 'wagmi';
 import { isUserBanned } from './lib/constants/banList';
 
@@ -486,9 +485,9 @@ export default function HomePage() {
           </div>
 
           <div className="flex items-center justify-center gap-2 mt-2" style={{ fontSize: '12px', color: '#000', fontFamily: 'inherit' }}>
-            <Link href="/terms" className="hover:underline">Terms of Service</Link>
+            <span style={{ cursor: 'default' }}>Terms of Service</span>
             <span>·</span>
-            <Link href="/privacy" className="hover:underline">Privacy Policy</Link>
+            <span style={{ cursor: 'default' }}>Privacy Policy</span>
           </div>
 
         </div>
