@@ -280,6 +280,9 @@ export async function GET(request: NextRequest) {
         console.log(`[Settle Bot] Settling daily game ${dailyGameId} with ${activePlayers} players, pot: ${potFloat.toFixed(2)} PIZZA`);
         console.log(`[Settle Bot] PIZZA price: $${pizzaPrice}, USD per winner: $${usdPerWinner.toFixed(2)} (${usdCentsPerWinner} cents)`);
 
+        // Get fresh nonce to avoid conflicts after ban-removal TX
+        const nonce = await publicClient.getTransactionCount({ address: account.address });
+
         let hash: `0x${string}`;
         if (usdCentsPerWinner > 0) {
           // Use new function that locks USD value
@@ -289,6 +292,7 @@ export async function GET(request: NextRequest) {
             functionName: 'settleDailyGameWithUsd',
             args: [BigInt(usdCentsPerWinner)],
             gas: 2_000_000n,
+            nonce,
           });
         } else {
           // Fallback to old function if price fetch failed
@@ -298,6 +302,7 @@ export async function GET(request: NextRequest) {
             abi: SETTLE_ABI,
             functionName: 'settleDailyGame',
             gas: 2_000_000n,
+            nonce,
           });
         }
 
@@ -363,6 +368,8 @@ export async function GET(request: NextRequest) {
 
     // --- UPDATE HOLDINGS UNIT BASED ON CURRENT PRICE ---
     // This ensures holdings bonus is calculated correctly when players claim
+    // Brief pause to avoid RPC rate limits after settlement transactions
+    await new Promise(resolve => setTimeout(resolve, 3000));
     try {
       const pizzaPrice = await getPizzaPrice();
       if (pizzaPrice > 0) {
