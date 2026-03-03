@@ -1045,7 +1045,7 @@ export default function StakingPage({
 
   // Handle share cast after successful claim
   const handleShareCast = useCallback(async () => {
-    const shareText = `🍕 EXTRA TOPPINGS ACTIVATED\n\n${formatPizzaWei(claimedAmount)} $PIZZA claimed after one spin.\n\nStake $PIZZA to earn daily.\nSpin once per day.\nMultiply what you've earned.\n\nIt's not just staking.\nIt's a game inside the game.\n\nPull up and grab a slice:`
+    const shareText = `🍕 EXTRA $PIZZA ACTIVATED\n\n${formatPizzaWei(claimedAmount)} $PIZZA claimed after one spin.\n\nStake $PIZZA to earn daily.\nSpin once per day.\nMultiply what you've earned.\n\nIt's not just staking.\nIt's a game inside the game.\n\nPull up and grab a slice:`
     const embedUrl = 'https://farcaster.xyz/miniapps/wgY6OPqYoIkz/pizza-party'
 
     // Use Farcaster SDK composeCast to stay in-app
