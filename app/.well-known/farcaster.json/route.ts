@@ -1,7 +1,7 @@
 const heroImage =
   "https://i.postimg.cc/Y2bLKkdC/E49A4767-F207-4D3C-9CE7-226129385659.png"
 const sharedImage =
-  "https://i.postimg.cc/DyrDyj4j/OGimage.png"
+  "https://i.postimg.cc/nrktq50x/New-Pizza-Party-Share-Image.png"
 
 const manifest = {
   frame: {
