@@ -13,6 +13,7 @@ import PizzaParlorPage from "./components/PizzaParlorPage";
 import StakingPage from "./components/StakingPage";
 import { sdk } from "@farcaster/miniapp-sdk";
 import { useRouter, useSearchParams } from "next/navigation";
+import Link from "next/link";
 import { useAccount } from 'wagmi';
 import { isUserBanned } from './lib/constants/banList';
 
@@ -485,9 +486,9 @@ export default function HomePage() {
           </div>
 
           <div className="flex items-center justify-center gap-2 mt-2" style={{ fontSize: '12px', color: '#000', fontFamily: 'inherit' }}>
-            <a href="https://pizza-party-game.vmfcoin.com/terms" target="_blank" rel="noopener noreferrer" className="hover:underline">Terms of Service</a>
+            <Link href="/terms" className="hover:underline">Terms of Service</Link>
             <span>·</span>
-            <a href="https://pizza-party-game.vmfcoin.com/privacy" target="_blank" rel="noopener noreferrer" className="hover:underline">Privacy Policy</a>
+            <Link href="/privacy" className="hover:underline">Privacy Policy</Link>
           </div>
 
         </div>
