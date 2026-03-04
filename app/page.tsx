@@ -485,9 +485,9 @@ export default function HomePage() {
           </div>
 
           <div className="flex items-center justify-center gap-2 mt-2" style={{ fontSize: '12px', color: '#000', fontFamily: 'inherit' }}>
-            <a href="https://docs.google.com/document/d/1Il4aSHlPdjR-apBiBvnbTVMZv6OtN7MKVfkXusudkpQ/edit?usp=sharing" target="_blank" rel="noopener noreferrer" className="hover:underline">Terms of Service</a>
+            <a href="https://pizza-party-game.vmfcoin.com/terms" target="_blank" rel="noopener noreferrer" className="hover:underline">Terms of Service</a>
             <span>·</span>
-            <a href="https://docs.google.com/document/d/1opMrnLhj3-0B4se2z6l_NRQGmWuiYMVKr3uJw7Mclfc/edit?usp=sharing" target="_blank" rel="noopener noreferrer" className="hover:underline">Privacy Policy</a>
+            <a href="https://pizza-party-game.vmfcoin.com/privacy" target="_blank" rel="noopener noreferrer" className="hover:underline">Privacy Policy</a>
           </div>
 
         </div>
