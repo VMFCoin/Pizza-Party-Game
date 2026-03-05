@@ -4,6 +4,7 @@ import { WagmiAdapter } from '@reown/appkit-adapter-wagmi';
 import { injected, coinbaseWallet } from 'wagmi/connectors';
 import { base } from '@reown/appkit/networks';
 import type { CreateConnectorFn } from 'wagmi';
+import { http, fallback } from 'wagmi';
 
 export const projectId = process.env.NEXT_PUBLIC_REOWN_PROJECT_ID as string;
 
@@ -26,6 +27,13 @@ export const wagmiAdapter = new WagmiAdapter({
   projectId,
   networks,
   connectors,
+  transports: {
+    [base.id]: fallback([
+      http('https://base-mainnet.public.blastapi.io'),
+      http('https://mainnet.base.org'),
+      http(`https://rpc.walletconnect.org/v1/?chainId=eip155:8453&projectId=${projectId}`),
+    ]),
+  },
 });
 
 export const config = wagmiAdapter.wagmiConfig;
