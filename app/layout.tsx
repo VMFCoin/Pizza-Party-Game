@@ -12,7 +12,7 @@ export async function generateMetadata(): Promise<Metadata> {
   // Serve OG imagery from our own host to avoid third-party outages.
   const siteBaseUrl = "https://pizza-party-game.vmfcoin.com"
   const fallbackOgImage = `${siteBaseUrl}/images/OGimage.png`
-  const remoteOgImage = "https://i.postimg.cc/DyrDyj4j/OGimage.png"
+  const remoteOgImage = "https://i.postimg.cc/nrktq50x/New_Pizza_Party_Share_Image.png"
 
   return {
     title: 'Pizza Party',

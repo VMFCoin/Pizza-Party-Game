@@ -1,11 +1,10 @@
 {
   "name": "Pizza Party",
-  "iconUrl": "https://i.postimg.cc/DyrDyj4j/OGimage.png",
-  "splashImageUrl": "https://i.postimg.cc/DyrDyj4j/OGimage.png",
+  "iconUrl": "https://i.postimg.cc/nrktq50x/New_Pizza_Party_Share_Image.png",
+  "splashImageUrl": "https://i.postimg.cc/nrktq50x/New_Pizza_Party_Share_Image.png",
   "splashBackgroundColor": "#DC2626",
   "homeUrl": "https://pizza-party-game.vmfcoin.com",
   "baseBuilder": {
     "ownerAddress": "0x12e31f706010AE0996A2D8247c432d9102e3c871"
   }
 }
-
