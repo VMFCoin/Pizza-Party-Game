@@ -39,6 +39,9 @@ const manifest = {
     payload: "eyJkb21haW4iOiJwaXp6YS1wYXJ0eS1nYW1lLnZtZmNvaW4uY29tIn0",
     signature: "V0PhSzCRcvgFOQjQ5+XvU+DKzsYBvpr3typ5jlkmb/IJSZQNQhxbCbmTYZsXs+cyw42a1wS2Cnxx4U610J8s4Rw="
   },
+  baseBuilder: {
+    ownerAddress: "0x12e31f706010AE0996A2D8247c432d9102e3c871"
+  },
 }
 
 export async function GET() {
