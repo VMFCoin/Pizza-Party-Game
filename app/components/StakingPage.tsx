@@ -6,7 +6,7 @@ import { Button } from './ui/button'
 import { Card } from './ui/card'
 import { ArrowLeft, Lock, Unlock, TrendingUp, Gift, AlertTriangle, XCircle, Loader2, ChevronDown, ChevronUp, Share2, X } from 'lucide-react'
 import { useAccount, useReadContract, useWriteContract, useWaitForTransactionReceipt, usePublicClient } from 'wagmi'
-import { formatUnits, parseUnits } from 'viem'
+import { formatUnits, parseUnits, decodeEventLog } from 'viem'
 import { sdk } from '@farcaster/miniapp-sdk'
 import {
   PIZZA_STAKING_ADDRESS,
@@ -1011,37 +1011,49 @@ export default function StakingPage({
     }, 3000)
   }, [playTick, triggerHaptic, getSliceFromRotation, saveSpinResult])
 
-  // After recordSpin tx confirms, read the committed outcome from contract state and run animation
+  // After recordSpin tx confirms, read the outcome from the tx receipt and run animation
+  // IMPORTANT: We read from the receipt (not contract state) because an RPC node may serve
+  // stale state from a previous block, returning yesterday's outcome instead of today's.
+  // The receipt is guaranteed to reflect the exact block the tx was mined in.
   useEffect(() => {
-    if (isRecordSpinConfirmed && pendingRecordSpin && publicClient && address) {
+    if (isRecordSpinConfirmed && pendingRecordSpin && publicClient && recordSpinHash) {
       const fetchOutcomeAndAnimate = async () => {
         setPendingRecordSpin(false)
 
         try {
-          // Read committed outcome directly from contract state (faster than parsing tx receipt)
-          const outcome = await publicClient.readContract({
-            address: PIZZA_STAKING_ADDRESS as `0x${string}`,
-            abi: PIZZA_STAKING_ABI,
-            functionName: 'committedSpinOutcome',
-            args: [address],
-          })
-          const onChainOutcome = Number(outcome)
-          console.log('[Spin] On-chain outcome:', onChainOutcome, ['Regular', 'Loaded', 'Hot', 'JACKPOT'][onChainOutcome])
+          const receipt = await publicClient.getTransactionReceipt({ hash: recordSpinHash })
+
+          let onChainOutcome = 0
+          for (const log of receipt.logs) {
+            try {
+              const decoded = decodeEventLog({
+                abi: PIZZA_STAKING_ABI,
+                data: log.data,
+                topics: log.topics,
+              })
+              if (decoded.eventName === 'SpinRecorded') {
+                const args = decoded.args as unknown as { outcome: number }
+                onChainOutcome = Number(args.outcome)
+                console.log('[Spin] On-chain outcome from receipt:', onChainOutcome, ['Regular', 'Loaded', 'Hot', 'JACKPOT'][onChainOutcome])
+                break
+              }
+            } catch {
+              // Not the event we're looking for
+            }
+          }
 
           resetRecordSpin()
-          // Run the animation with the REAL on-chain outcome
           runSpinAnimation(onChainOutcome)
         } catch (error) {
-          console.error('[Spin] Failed to read committed outcome:', error)
+          console.error('[Spin] Failed to get tx receipt:', error)
           resetRecordSpin()
-          // Fallback to Regular if we can't read the outcome
           runSpinAnimation(0)
         }
       }
 
       fetchOutcomeAndAnimate()
     }
-  }, [isRecordSpinConfirmed, pendingRecordSpin, publicClient, address, resetRecordSpin, runSpinAnimation])
+  }, [isRecordSpinConfirmed, pendingRecordSpin, publicClient, recordSpinHash, resetRecordSpin, runSpinAnimation])
 
   // Handle share cast after successful claim
   const handleShareCast = useCallback(async () => {
