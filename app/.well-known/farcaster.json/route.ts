@@ -1,5 +1,5 @@
 const heroImage =
-  "https://i.postimg.cc/Y2bLKkdC/E49A4767-F207-4D3C-9CE7-226129385659.png"
+  "https://i.postimg.cc/Y2bLKkdC/E49A4767_F207_4D3C_9CE7_226129385659.png"
 const sharedImage =
   "https://i.postimg.cc/nrktq50x/New_Pizza_Party_Share_Image.png"
 

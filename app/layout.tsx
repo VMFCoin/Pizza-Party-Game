@@ -61,7 +61,7 @@ export async function generateMetadata(): Promise<Metadata> {
             type: 'launch_miniapp',
             name: 'Pizza Party',
             url: siteBaseUrl,
-            splashImageUrl: remoteOgImage,
+            splashImageUrl: "https://i.postimg.cc/Y2bLKkdC/E49A4767_F207_4D3C_9CE7_226129385659.png",
             splashBackgroundColor: "#DC2626",
           },
         },
@@ -72,7 +72,7 @@ export async function generateMetadata(): Promise<Metadata> {
       'miniapp:manifest': JSON.stringify({
         name: 'Pizza Party',
         iconUrl: remoteOgImage,
-        splashImageUrl: remoteOgImage,
+        splashImageUrl: "https://i.postimg.cc/Y2bLKkdC/E49A4767_F207_4D3C_9CE7_226129385659.png",
         splashBackgroundColor: '#DC2626',
         homeUrl: siteBaseUrl,
         noindex: false,
