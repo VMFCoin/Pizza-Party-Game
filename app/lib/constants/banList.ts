@@ -31,6 +31,23 @@ export const BANNED_USERS: BannedUser[] = [
     ],
     reason: 'Parlor self-serving abuse',
   },
+  {
+    fid: 273708, // @siadude — primary account
+    addresses: [
+      '0x9e227a0e1a6c3c649f52451753f16e13d09cf78f', // Custody address (FID 273708)
+      '0x3c515f7776f41ffc9df45a4bbd515c85e21aba62', // Verified wallet + custody of FID 943433 (11k txs, won game 80)
+      '0x7e2dab6404b71e979829b25715e32e8a3daac422', // Verified wallet (Feeder A, 4,077 txs)
+      '0xbe8a4925a08b144fd45e459d0e0a295e632d7c3c', // Verified wallet
+      '0xa3b711d0f4d753b9b4b60d0ab6e8931537c0a2c5', // Verified wallet
+      '0x4e395d9e49f61bcdd902f174af1f05d72f2e572e', // Verified wallet
+    ],
+    reason: '@siadude — used multiple wallets to enter game 80, funded via own wallet (Feeder A)',
+  },
+  {
+    fid: 943433, // Ghost account, custody = @siadude verified wallet
+    addresses: [],
+    reason: 'Throwaway FID registered with @siadude wallet 0x3c51 (addresses covered above)',
+  },
 ]
 
 // Pre-built sets for O(1) lookup
