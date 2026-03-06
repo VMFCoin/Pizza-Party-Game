@@ -9,9 +9,8 @@ const inter = Inter({ subsets: ['latin'] });
 const luckiestGuy = Luckiest_Guy({ weight: '400', subsets: ['latin'], variable: '--font-luckiest-guy' });
 
 export async function generateMetadata(): Promise<Metadata> {
-  // Serve OG imagery from our own host to avoid third-party outages.
   const siteBaseUrl = "https://pizza-party-game.vmfcoin.com"
-  const fallbackOgImage = `${siteBaseUrl}/images/OGimage.png`
+  const ogImage = `${siteBaseUrl}/images/New_PizzaParty_ShareImage.png`
   const remoteOgImage = "https://i.postimg.cc/nrktq50x/New_Pizza_Party_Share_Image.png"
 
   return {
@@ -29,13 +28,7 @@ export async function generateMetadata(): Promise<Metadata> {
       siteName: "Pizza Party",
       images: [
         {
-          url: remoteOgImage,
-          width: 1200,
-          height: 630,
-          alt: "Pizza Party - Win Daily Jackpots",
-        },
-        {
-          url: fallbackOgImage,
+          url: ogImage,
           width: 1200,
           height: 630,
           alt: "Pizza Party - Win Daily Jackpots",
@@ -48,7 +41,7 @@ export async function generateMetadata(): Promise<Metadata> {
       card: "summary_large_image",
       title: "Pizza Party",
       description: "Win daily jackpots with Pizza Party! 🍕",
-      images: [remoteOgImage, fallbackOgImage],
+      images: [ogImage],
     },
     other: {
       // Farcaster manifest
