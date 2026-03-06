@@ -610,12 +610,11 @@ contract PizzaStakingV1Upgradeable is
 
     /**
      * @notice Claim rewards after spin has already been recorded via recordSpin()
-     * @dev This function does NOT spin - it just claims at 100% (regular slice).
-     *      Use this after calling recordSpin() and showing the spin animation.
-     *      The spin result was already determined by recordSpin().
+     * @dev Uses the committed spin outcome from recordSpin() to apply the correct multiplier.
+     *      The spin result was already determined and stored on-chain by recordSpin().
      */
     function claimAfterSpin() external nonReentrant whenNotPaused tokenSet {
-        _claimAllRewards(msg.sender, false);
+        _claimAllRewards(msg.sender, true);
     }
 
     /**
@@ -654,70 +653,111 @@ contract PizzaStakingV1Upgradeable is
     }
 
     /**
-     * @notice Claim rewards and automatically restake them into flexible position
-     * @dev Restakes to flexible position since locked rewards shouldn't auto-lock
+     * @notice Claim rewards and automatically restake them
+     * @dev Applies the committed spin outcome (from recordSpin) just like claimAfterSpin.
+     *      Base rewards come from contract balance, extras from stakingRewardsWallet.
+     *      Both base and extras are restaked into the target position.
      * @param lockType Which position to restake INTO: Flexible (0) or Locked (1)
      */
     function restake(LockType lockType) external nonReentrant whenNotPaused tokenSet {
         uint256 totalUserStaked = flexibleStakes[msg.sender].stakedAmount + lockedStakes[msg.sender].stakedAmount;
         if (totalUserStaked == 0) revert NoStakePosition();
 
-        // Calculate pending rewards from BOTH positions (no spin - restake always at 100%)
-        uint256 pending = _calculateTotalPendingRewards(msg.sender);
+        // Step 1: Get BASE reward (same as _claimAllRewards)
+        uint256 baseReward = _calculateBaseReward(msg.sender);
+        uint256 apyReward = _calculateApyReward(msg.sender);
 
-        if (pending > 0) {
-            // Track lifetime claimed for UI display (restaked rewards count as claimed)
-            lifetimeClaimed[msg.sender] += pending;
-            // Get target position
-            StakePosition storage targetPosition = lockType == LockType.Locked
-                ? lockedStakes[msg.sender]
-                : flexibleStakes[msg.sender];
+        if (baseReward == 0 && apyReward == 0) return;
 
-            // Check max stake limit
-            uint256 newTotalUserStaked = totalUserStaked + pending;
-            if (newTotalUserStaked > MAX_STAKE) {
-                // Only restake up to max, claim the rest
-                uint256 restakeAmount = MAX_STAKE - totalUserStaked;
-                uint256 claimAmount = pending - restakeAmount;
+        // Step 2: Apply spin outcome (if spin enabled and recorded)
+        SpinOutcome outcome = SpinOutcome.RegularSlice;
+        uint256 spunReward = baseReward;
 
-                // Add to target position
+        if (baseReward > 0 && spinEnabled) {
+            uint256 currentGameId = _getCurrentGameId();
+            if (lastSpinGameId[msg.sender] == currentGameId) {
+                // Use the pre-committed outcome from recordSpin()
+                outcome = committedSpinOutcome[msg.sender];
+                uint256 multiplierBPS = _getSpinMultiplier(outcome);
+                spunReward = (baseReward * multiplierBPS) / BPS_DENOMINATOR;
+
+                // Add fixed 10M PIZZA bonus on jackpot spin
+                if (outcome == SpinOutcome.Jackpot) {
+                    spunReward += JACKPOT_FIXED_BONUS;
+                }
+            }
+        }
+
+        // Step 3: ADD BONUSES to spun result (tier + lock + early)
+        uint256 bonusAmount = baseReward > 0 ? _calculateBonusAmount(msg.sender, spunReward) : 0;
+
+        // Step 4: Calculate final reward (spun + bonuses + APY)
+        uint256 finalReward = spunReward + bonusAmount + apyReward;
+
+        // Track lifetime claimed
+        lifetimeClaimed[msg.sender] += finalReward;
+
+        // Update reward debt BEFORE transfers
+        _updateAllRewardDebts(msg.sender);
+
+        // Update APY claim timestamp
+        if (lockedStakes[msg.sender].stakedAmount > 0) {
+            lastApyClaimTimestamp[msg.sender] = block.timestamp;
+        }
+
+        // Calculate funding sources (same split as _claimAllRewards)
+        // - baseReward: from contract balance
+        // - extras: from stakingRewardsWallet
+        uint256 extrasFromWallet = finalReward - baseReward;
+
+        // Pull extras from staking wallet INTO the contract for restaking
+        if (extrasFromWallet > 0 && stakingRewardsWallet != address(0)) {
+            IERC20(pizzaToken).safeTransferFrom(stakingRewardsWallet, address(this), extrasFromWallet);
+        }
+
+        // Now restake the full finalReward into the target position
+        StakePosition storage targetPosition = lockType == LockType.Locked
+            ? lockedStakes[msg.sender]
+            : flexibleStakes[msg.sender];
+
+        uint256 newTotalUserStaked = totalUserStaked + finalReward;
+        if (newTotalUserStaked > MAX_STAKE) {
+            // Only restake up to max, send the rest to user's wallet
+            uint256 actualRestake = MAX_STAKE - totalUserStaked;
+            uint256 overflow = finalReward - actualRestake;
+
+            if (actualRestake > 0) {
                 if (targetPosition.stakedAmount == 0) {
                     targetPosition.stakeTimestamp = block.timestamp;
                 }
-                targetPosition.stakedAmount += restakeAmount;
-                totalStaked += restakeAmount;
+                targetPosition.stakedAmount += actualRestake;
+                totalStaked += actualRestake;
 
                 if (lockType == LockType.Locked) {
                     targetPosition.lockEndTimestamp = block.timestamp + LOCK_DURATION;
                 }
-
-                // Transfer overflow to user
-                IERC20(pizzaToken).safeTransfer(msg.sender, claimAmount);
-
-                emit RewardsRestaked(msg.sender, restakeAmount);
-                emit RewardsClaimed(msg.sender, claimAmount, claimAmount, SpinOutcome.RegularSlice);
-            } else {
-                // Restake full amount
-                if (targetPosition.stakedAmount == 0) {
-                    targetPosition.stakeTimestamp = block.timestamp;
-                }
-                targetPosition.stakedAmount += pending;
-                totalStaked += pending;
-
-                if (lockType == LockType.Locked) {
-                    targetPosition.lockEndTimestamp = block.timestamp + LOCK_DURATION;
-                }
-
-                emit RewardsRestaked(msg.sender, pending);
             }
 
-            // Update reward debt for BOTH positions
-            _updateAllRewardDebts(msg.sender);
-
-            // CRITICAL: Update APY claim timestamp to prevent double-counting APY
-            if (lockedStakes[msg.sender].stakedAmount > 0) {
-                lastApyClaimTimestamp[msg.sender] = block.timestamp;
+            // Transfer overflow to user (from contract balance which now includes pulled extras)
+            if (overflow > 0) {
+                IERC20(pizzaToken).safeTransfer(msg.sender, overflow);
             }
+
+            emit RewardsRestaked(msg.sender, actualRestake);
+            emit RewardsClaimed(msg.sender, overflow, finalReward, outcome);
+        } else {
+            // Restake full amount
+            if (targetPosition.stakedAmount == 0) {
+                targetPosition.stakeTimestamp = block.timestamp;
+            }
+            targetPosition.stakedAmount += finalReward;
+            totalStaked += finalReward;
+
+            if (lockType == LockType.Locked) {
+                targetPosition.lockEndTimestamp = block.timestamp + LOCK_DURATION;
+            }
+
+            emit RewardsRestaked(msg.sender, finalReward);
         }
     }
 
