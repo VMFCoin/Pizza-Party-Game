@@ -33,6 +33,12 @@ export async function generateMetadata(): Promise<Metadata> {
           height: 630,
           alt: "Pizza Party - Win Daily Jackpots",
         },
+        {
+          url: remoteOgImage,
+          width: 1200,
+          height: 630,
+          alt: "Pizza Party - Win Daily Jackpots",
+        },
       ],
       locale: "en_US",
       type: "website",
@@ -41,7 +47,7 @@ export async function generateMetadata(): Promise<Metadata> {
       card: "summary_large_image",
       title: "Pizza Party",
       description: "Win daily jackpots with Pizza Party! 🍕",
-      images: [ogImage],
+      images: [ogImage, remoteOgImage],
     },
     other: {
       // Farcaster manifest
