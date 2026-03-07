@@ -12,7 +12,7 @@ const getBaseUrl = () =>
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
   const { code } = await params
   const baseUrl = getBaseUrl()
-  const frameImage = `${baseUrl}/images/frame-preview.png`
+  const frameImage = `${baseUrl}/images/New_PizzaParty_ShareImage.png`
 
   return {
     title: `Join Pizza Party with code ${code}`,
