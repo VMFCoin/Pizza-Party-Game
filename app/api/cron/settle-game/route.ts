@@ -1,16 +1,23 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createPublicClient, createWalletClient, http, formatUnits } from 'viem';
+import { createPublicClient, createWalletClient, http, formatUnits, fallback } from 'viem';
 import { base } from 'viem/chains';
 import { privateKeyToAccount } from 'viem/accounts';
 import { PIZZA_PARTY_ADDRESS, PARLOR_MANAGER_ADDRESS, PIZZA_TOKEN_ADDRESS } from '@/app/lib/constants';
 import { isAddressBanned } from '@/app/lib/constants/banList';
 
+// Allow up to 60s for settlement (Pro plan)
+export const maxDuration = 60;
+
 // Contract address from constants (PIZZA Party v2)
 const CONTRACT_ADDRESS = PIZZA_PARTY_ADDRESS as `0x${string}`;
 const PARLOR_CONTRACT = PARLOR_MANAGER_ADDRESS as `0x${string}`;
 
-// Base mainnet RPC
-const RPC_URL = 'https://mainnet.base.org';
+// Base mainnet RPCs with fallback
+const RPC_URLS = [
+  'https://mainnet.base.org',
+  'https://base-rpc.publicnode.com',
+  'https://base.meowrpc.com',
+];
 
 // Daily settlement ABI - weekly settlement is handled by /api/cron/settle-weekly
 const SETTLE_ABI = [
@@ -116,8 +123,8 @@ async function fetchGeckoTerminalPrice(): Promise<number> {
 
 // Robust price fetch with retries and fallback sources
 async function getPizzaPrice(): Promise<number> {
-  const maxRetries = 3;
-  const retryDelay = 2000; // 2 seconds between retries
+  const maxRetries = 2;
+  const retryDelay = 1000; // 1 second between retries
 
   // Try Dexscreener first with retries
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
@@ -198,17 +205,21 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'AUTO_SETTLE_PRIVATE_KEY not configured' }, { status: 500 });
     }
 
-    // Create clients with Base mainnet RPC
+    // Create clients with fallback RPCs and timeouts
+    const transport = fallback(
+      RPC_URLS.map(url => http(url, { timeout: 15_000 }))
+    );
+
     const publicClient = createPublicClient({
       chain: base,
-      transport: http(RPC_URL),
+      transport,
     });
 
     const account = privateKeyToAccount(`0x${privateKey.replace('0x', '')}`);
     const walletClient = createWalletClient({
       account,
       chain: base,
-      transport: http(RPC_URL),
+      transport,
     });
 
     console.log(`[Settle Bot] Running daily settlement check from wallet: ${account.address}`);
@@ -369,7 +380,7 @@ export async function GET(request: NextRequest) {
     // --- UPDATE HOLDINGS UNIT BASED ON CURRENT PRICE ---
     // This ensures holdings bonus is calculated correctly when players claim
     // Brief pause to avoid RPC rate limits after settlement transactions
-    await new Promise(resolve => setTimeout(resolve, 3000));
+    await new Promise(resolve => setTimeout(resolve, 1000));
     try {
       const pizzaPrice = await getPizzaPrice();
       if (pizzaPrice > 0) {

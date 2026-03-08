@@ -1,14 +1,21 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createPublicClient, createWalletClient, http, formatUnits } from 'viem';
+import { createPublicClient, createWalletClient, http, formatUnits, fallback } from 'viem';
 import { base } from 'viem/chains';
 import { privateKeyToAccount } from 'viem/accounts';
 import { PIZZA_PARTY_ADDRESS, PIZZA_TOKEN_ADDRESS } from '@/app/lib/constants';
 
+// Allow up to 60s for settlement (Pro plan)
+export const maxDuration = 60;
+
 // Contract address from constants (PIZZA Party v2)
 const CONTRACT_ADDRESS = PIZZA_PARTY_ADDRESS as `0x${string}`;
 
-// Base mainnet RPC
-const RPC_URL = 'https://mainnet.base.org';
+// Base mainnet RPCs with fallback
+const RPC_URLS = [
+  'https://mainnet.base.org',
+  'https://base-rpc.publicnode.com',
+  'https://base.meowrpc.com',
+];
 
 const SETTLE_ABI = [
   {
@@ -150,9 +157,14 @@ async function getPizzaPrice(): Promise<number> {
 }
 
 export async function GET(request: NextRequest) {
-  // Verify cron secret
+  // Verify this is from Vercel Cron or authorized
+  const cronHeader = request.headers.get('x-vercel-cron');
   const authHeader = request.headers.get('authorization');
-  if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
+
+  const isVercelCron = cronHeader === '1';
+  const isAuthorized = authHeader === `Bearer ${process.env.CRON_SECRET}`;
+
+  if (!isVercelCron && !isAuthorized) {
     console.log('[Weekly Settle] Unauthorized request');
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
@@ -185,15 +197,19 @@ export async function GET(request: NextRequest) {
 
     const account = privateKeyToAccount(privateKey as `0x${string}`);
 
+    const transport = fallback(
+      RPC_URLS.map(url => http(url, { timeout: 15_000 }))
+    );
+
     const publicClient = createPublicClient({
       chain: base,
-      transport: http(RPC_URL),
+      transport,
     });
 
     const walletClient = createWalletClient({
       account,
       chain: base,
-      transport: http(RPC_URL),
+      transport,
     });
 
     console.log(`[Weekly Settle] Starting weekly settlement at ${pstTime.toISOString()}`);
