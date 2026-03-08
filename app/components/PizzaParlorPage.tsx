@@ -295,6 +295,9 @@ export default function PizzaParlorPage({
       // Refetch data after successful transaction
       refetchContractData()
       refetchUserData()
+      // Delayed refetch to catch RPC propagation delay (balance may still show old value)
+      setTimeout(() => { refetchContractData(); refetchUserData() }, 2000)
+      setTimeout(() => { refetchContractData(); refetchUserData() }, 5000)
 
       // Show naming modal after purchase if user doesn't have a name yet
       if (isPurchasing && !userHasParlorName) {
