@@ -2,11 +2,11 @@
   "crons": [
     {
       "path": "/api/cron/settle-game",
-      "schedule": "1 20 * * *"
+      "schedule": "1 19 * * *"
     },
     {
       "path": "/api/cron/settle-weekly",
-      "schedule": "3 20 * * 1"
+      "schedule": "3 19 * * 1"
     },
     {
       "path": "/api/cron/daily-reminder",
@@ -14,11 +14,11 @@
     },
     {
       "path": "/api/cron/toppings-reminder",
-      "schedule": "0 21 * * 0"
+      "schedule": "0 20 * * 0"
     },
     {
       "path": "/api/cron/leaderboard-reminder",
-      "schedule": "30 20 * * 1-6"
+      "schedule": "30 19 * * 1-6"
     }
   ]
 }
