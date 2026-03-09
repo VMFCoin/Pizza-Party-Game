@@ -432,22 +432,11 @@ export async function GET(request: NextRequest) {
       console.error(`[Settle Bot] Holdings unit update error:`, error);
     }
 
-    // Sync any missing stakers to the database
-    // This catches stakers who might have been missed due to RPC issues
-    try {
-      const syncResponse = await fetch(`${process.env.NEXT_PUBLIC_URL || 'https://pizza-party-game.vercel.app'}/api/staking/sync-stakers`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-      });
-      if (syncResponse.ok) {
-        const syncData = await syncResponse.json();
-        if (syncData.count > 0) {
-          console.log(`[Settle Bot] Synced ${syncData.count} new stakers to database`);
-        }
-      }
-    } catch (e) {
-      console.error('[Settle Bot] Staker sync error:', e);
-    }
+    // Fire-and-forget staker sync — don't await, so it doesn't block settlement
+    fetch(`${process.env.NEXT_PUBLIC_URL || 'https://pizza-party-game.vercel.app'}/api/staking/sync-stakers`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+    }).catch(() => {}); // Ignore errors, this is non-critical
 
     return NextResponse.json({
       success: true,
