@@ -337,7 +337,7 @@ export async function GET(request: NextRequest) {
     }
 
     // NOTE: Weekly settlement is now handled by separate /api/cron/settle-weekly endpoint
-    // This runs 2 minutes later (20:03 UTC on Mondays) to avoid RPC rate limit conflicts
+    // This runs 2 minutes later (19:03 UTC on Mondays) to avoid nonce conflicts
 
     // --- PARLOR FEE ALLOCATION ---
     // Always check for pending parlor fees so owners can claim even if someone else settled the game
