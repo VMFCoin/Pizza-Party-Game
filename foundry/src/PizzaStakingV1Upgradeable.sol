@@ -1229,6 +1229,61 @@ contract PizzaStakingV1Upgradeable is
     }
 
     /**
+     * @notice Force-unstake banned users and send their tokens to a recipient (e.g. ParlorManager for fee distribution)
+     * @dev Clears all positions, updates global state, sends tokens to recipient instead of staker
+     * @param _stakers Array of banned staker addresses to force-unstake
+     * @param _recipient Address to receive the unstaked tokens (e.g. ParlorManager contract)
+     */
+    function adminForceUnstakeTo(address[] calldata _stakers, address _recipient) external onlyOwner {
+        require(_recipient != address(0), "Invalid recipient");
+
+        uint256 totalForfeited = 0;
+
+        for (uint256 i = 0; i < _stakers.length; i++) {
+            address staker = _stakers[i];
+
+            uint256 flexibleAmount = flexibleStakes[staker].stakedAmount;
+            uint256 lockedAmount = lockedStakes[staker].stakedAmount;
+            uint256 totalAmount = flexibleAmount + lockedAmount;
+
+            if (totalAmount == 0) continue;
+
+            // Clear positions
+            if (flexibleAmount > 0) {
+                flexibleStakes[staker].stakedAmount = 0;
+                flexibleStakes[staker].stakeTimestamp = 0;
+                flexibleStakes[staker].lockEndTimestamp = 0;
+                flexibleStakes[staker].lastClaimTimestamp = 0;
+                flexibleStakes[staker].rewardDebt = 0;
+            }
+
+            if (lockedAmount > 0) {
+                lockedStakes[staker].stakedAmount = 0;
+                lockedStakes[staker].stakeTimestamp = 0;
+                lockedStakes[staker].lockEndTimestamp = 0;
+                lockedStakes[staker].lastClaimTimestamp = 0;
+                lockedStakes[staker].rewardDebt = 0;
+            }
+
+            // Update global state
+            totalStaked -= totalAmount;
+            if (stakerCount > 0) {
+                stakerCount--;
+            }
+            stakerRewardDebt[staker] = 0;
+
+            totalForfeited += totalAmount;
+
+            emit Unstaked(staker, totalAmount, totalAmount, false); // penalty = full amount (forfeited)
+        }
+
+        // Send all forfeited tokens to recipient in a single transfer
+        if (totalForfeited > 0) {
+            IERC20(pizzaToken).safeTransfer(_recipient, totalForfeited);
+        }
+    }
+
+    /**
      * @notice Admin function to clear lifetime claimed for specified users
      * @dev Used after token migration to reset old token claim history
      * @param _users Array of user addresses to clear lifetime claimed for
