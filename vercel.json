@@ -6,7 +6,7 @@
     },
     {
       "path": "/api/cron/settle-weekly",
-      "schedule": "3 19 * * 1"
+      "schedule": "3 20 * * 1"
     },
     {
       "path": "/api/cron/daily-reminder",

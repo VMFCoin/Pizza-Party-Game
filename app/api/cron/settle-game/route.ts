@@ -5,8 +5,8 @@ import { privateKeyToAccount } from 'viem/accounts';
 import { PIZZA_PARTY_ADDRESS, PARLOR_MANAGER_ADDRESS, PIZZA_TOKEN_ADDRESS } from '@/app/lib/constants';
 import { isAddressBanned } from '@/app/lib/constants/banList';
 
-// Allow up to 60s for settlement (Pro plan)
-export const maxDuration = 60;
+// Allow up to 120s for settlement (Pro plan supports up to 300s)
+export const maxDuration = 120;
 
 // Contract address from constants (PIZZA Party v2)
 const CONTRACT_ADDRESS = PIZZA_PARTY_ADDRESS as `0x${string}`;
@@ -380,7 +380,7 @@ export async function GET(request: NextRequest) {
     // --- UPDATE HOLDINGS UNIT BASED ON CURRENT PRICE ---
     // This ensures holdings bonus is calculated correctly when players claim
     // Brief pause to avoid RPC rate limits after settlement transactions
-    await new Promise(resolve => setTimeout(resolve, 1000));
+    await new Promise(resolve => setTimeout(resolve, 500));
     try {
       const pizzaPrice = await getPizzaPrice();
       if (pizzaPrice > 0) {

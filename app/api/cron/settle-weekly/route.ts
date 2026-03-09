@@ -4,8 +4,8 @@ import { base } from 'viem/chains';
 import { privateKeyToAccount } from 'viem/accounts';
 import { PIZZA_PARTY_ADDRESS, PIZZA_TOKEN_ADDRESS } from '@/app/lib/constants';
 
-// Allow up to 60s for settlement (Pro plan)
-export const maxDuration = 60;
+// Allow up to 120s for settlement (Pro plan supports up to 300s)
+export const maxDuration = 120;
 
 // Contract address from constants (PIZZA Party v2)
 const CONTRACT_ADDRESS = PIZZA_PARTY_ADDRESS as `0x${string}`;
