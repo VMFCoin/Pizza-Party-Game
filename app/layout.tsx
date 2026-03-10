@@ -17,9 +17,9 @@ export async function generateMetadata(): Promise<Metadata> {
     title: 'Pizza Party',
     description: 'Win daily jackpots with Pizza Party! 🍕',
     icons: {
-      icon: [{ url: "/favicon.ico" }],
-      shortcut: [{ url: "/images/star-favicon.png" }],
-      apple: [{ url: "/images/pizza-final.png" }],
+      icon: [{ url: "/images/logo.png" }],
+      shortcut: [{ url: "/images/logo.png" }],
+      apple: [{ url: "/images/logo.png" }],
     },
     openGraph: {
       title: "Pizza Party",
@@ -70,7 +70,7 @@ export async function generateMetadata(): Promise<Metadata> {
       // Base manifest
       'miniapp:manifest': JSON.stringify({
         name: 'Pizza Party',
-        iconUrl: remoteOgImage,
+        iconUrl: "https://i.postimg.cc/Y2bLKkdC/E49A4767_F207_4D3C_9CE7_226129385659.png",
         splashImageUrl: "https://i.postimg.cc/Y2bLKkdC/E49A4767_F207_4D3C_9CE7_226129385659.png",
         splashBackgroundColor: '#DC2626',
         homeUrl: siteBaseUrl,
