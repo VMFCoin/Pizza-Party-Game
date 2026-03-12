@@ -90,8 +90,7 @@ export async function POST(request: NextRequest) {
 
     // Check if claimer IP matches sender IP (strong indicator of same person)
     if (sliceRecord.ipHash && sliceRecord.ipHash === ipHash) {
-      // Same IP - highly suspicious but might be legitimate (shared network)
-      // Flag but allow, alert owner
+      // Same IP - block the claim and alert owner
       await prisma.sliceSend.update({
         where: { id: sliceRecord.id },
         data: {
@@ -108,11 +107,15 @@ export async function POST(request: NextRequest) {
         claimerFid: claimerFid || 0,
         senderAddress: sliceRecord.senderAddress,
         claimerAddress: claimerAddress.toLowerCase(),
-        note: 'Sender and claimer have same IP address',
+        note: 'Sender and claimer have same IP address — BLOCKED',
       })
 
-      // Allow but flag - could be legitimate (same household, etc)
-      // You can change this to block if you want stricter enforcement
+      return NextResponse.json({
+        success: true,
+        allowed: false,
+        blocked: true,
+        reason: 'This slice cannot be claimed from the same network it was sent from. Self-serving is not allowed.',
+      })
     }
 
     // Update the slice record with claim info
