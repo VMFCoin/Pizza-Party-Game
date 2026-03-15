@@ -647,9 +647,9 @@ export default function StakingPage({
           refetchApyReward(),
         ])
 
-        // Update staker database for top stakers leaderboard (after stake/unstake)
+        // Update staker database for top stakers leaderboard (after stake/unstake/restake)
         // Uses retry logic to handle flaky RPC
-        if (address && (showConfirmModal === 'stake' || showConfirmModal === 'unstake')) {
+        if (address && (showConfirmModal === 'stake' || showConfirmModal === 'unstake' || showConfirmModal === 'spin-claim')) {
           const updateStakerWithRetry = async (retries = 3) => {
             for (let i = 0; i < retries; i++) {
               try {

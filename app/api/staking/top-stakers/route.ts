@@ -24,14 +24,8 @@ export async function OPTIONS() {
 // GET /api/staking/top-stakers - Get top 20 stakers from database (fast!)
 export async function GET() {
   try {
-    // Query top 20 stakers from database, sorted by totalStaked descending
-    // Note: totalStaked is stored as string, so we need to sort as numeric
-    const stakers = await prisma.staker.findMany({
-      orderBy: {
-        updatedAt: 'desc', // Fallback ordering
-      },
-      take: 100, // Get more than 20 so we can sort properly
-    })
+    // Query ALL stakers from database, then sort by totalStaked as BigInt
+    const stakers = await prisma.staker.findMany()
 
     // Sort by totalStaked (as BigInt) and take top 20
     const sortedStakers = stakers
