@@ -653,6 +653,28 @@ function GamePageContent({ onNavigateToWeekly, onNavigateToLeaderboard, onNaviga
             </span>
           </Button>
 
+          {/* Stickers & Chat */}
+          <div className="flex w-full gap-2">
+            <Button
+              onClick={() => window.location.href = '/sticker'}
+              className="flex-1 !bg-red-600 hover:!bg-red-700 text-white py-3 px-2 rounded-xl border-4 border-red-900 shadow-lg transform hover:scale-105 transition-all touch-manipulation"
+              style={{ ...customFontStyle, letterSpacing: "1px", fontSize: isMobile ? 14 : 16, fontWeight: '900' }}
+            >
+              <span className="flex items-center justify-center w-full gap-1">
+                <img src="/images/pizza-party-qr.png" alt="" className="inline-block" style={{ height: '1.2em', width: '1.2em' }} />
+                <span className="text-center">PIZZA STICKERS</span>
+                <img src="/images/pizza-party-qr.png" alt="" className="inline-block" style={{ height: '1.2em', width: '1.2em' }} />
+              </span>
+            </Button>
+            <Button
+              onClick={() => {}}
+              className="flex-1 !bg-red-600 hover:!bg-red-700 text-white py-3 px-2 rounded-xl border-4 border-red-900 shadow-lg transform hover:scale-105 transition-all touch-manipulation"
+              style={{ ...customFontStyle, letterSpacing: "1px", fontSize: isMobile ? 14 : 16, fontWeight: '900' }}
+            >
+              🍕 PIZZA CHAT 🍕
+            </Button>
+          </div>
+
           {/* Manage Wallet Button (when connected) */}
           {shouldShowManageWallet && (
             <Button

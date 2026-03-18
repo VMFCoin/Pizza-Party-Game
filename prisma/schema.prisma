@@ -82,3 +82,31 @@ model SliceSend {
   @@index([recipientAddress])
   @@index([flagged])
 }
+
+// QR Sticker finds - geotagged sticker discoveries around the world
+model StickerFind {
+  id            String   @id @default(cuid())
+  // Location data
+  latitude      Float
+  longitude     Float
+  city          String?
+  address       String?
+  businessName  String?
+  country       String?
+  // Image
+  imageUrl      String   // Pinata IPFS URL
+  // Finder info (anonymous allowed)
+  finderAddress String?  // Wallet address if connected
+  finderFid     Int?     // Farcaster FID if available
+  finderName    String?  // Display name
+  // On-chain recording
+  txHash        String?  // Base tx hash if recorded on-chain
+  // Timestamps
+  createdAt     DateTime @default(now())
+
+  @@index([finderAddress])
+  @@index([finderFid])
+  @@index([city])
+  @@index([country])
+  @@index([createdAt])
+}
