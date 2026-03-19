@@ -11,6 +11,7 @@ import { PARLOR_MANAGER_ADDRESS, PARLOR_MANAGER_ABI, PIZZA_TOKEN_ADDRESS, PIZZA_
 import { sdk } from '@farcaster/miniapp-sdk'
 import { fetchProfilesByAddresses } from '../lib/farcasterProfiles'
 import { isRecipientBanned } from '../lib/constants/banList'
+import { hasEarlyAccess } from '../lib/constants/earlyAccess'
 
 // Parlor price in USD - this is the fixed dollar amount
 const PARLOR_PRICE_USD = 50
@@ -1538,7 +1539,8 @@ export default function PizzaParlorPage({
             <div className="flex w-full gap-2">
               <Button
                 onClick={() => window.location.href = '/sticker'}
-                className="flex-1 !bg-red-600 hover:!bg-red-700 text-white py-3 px-2 rounded-xl border-4 border-red-900 shadow-lg transform hover:scale-105 transition-all touch-manipulation"
+                disabled={!hasEarlyAccess(userFid, userAddress)}
+                className="flex-1 !bg-red-600 hover:!bg-red-700 text-white py-3 px-2 rounded-xl border-4 border-red-900 shadow-lg transform hover:scale-105 transition-all touch-manipulation disabled:opacity-50 disabled:pointer-events-none"
                 style={{ ...customFontStyle, letterSpacing: "1px", fontSize: isMobile ? 14 : 16, fontWeight: '900' }}
               >
                 <span className="flex items-center justify-center w-full gap-1">
@@ -1548,8 +1550,9 @@ export default function PizzaParlorPage({
                 </span>
               </Button>
               <Button
-                onClick={() => {}}
-                className="flex-1 !bg-red-600 hover:!bg-red-700 text-white py-3 px-2 rounded-xl border-4 border-red-900 shadow-lg transform hover:scale-105 transition-all touch-manipulation"
+                onClick={() => window.location.href = '/chat'}
+                disabled={!hasEarlyAccess(userFid, userAddress)}
+                className="flex-1 !bg-red-600 hover:!bg-red-700 text-white py-3 px-2 rounded-xl border-4 border-red-900 shadow-lg transform hover:scale-105 transition-all touch-manipulation disabled:opacity-50 disabled:pointer-events-none"
                 style={{ ...customFontStyle, letterSpacing: "1px", fontSize: isMobile ? 14 : 16, fontWeight: '900' }}
               >
                 🍕 PIZZA CHAT 🍕

@@ -8,6 +8,7 @@ import { Users, Share2, X } from 'lucide-react'
 import { useGamePageData } from '../../lib/useGamePageData'
 import { sdk } from '@farcaster/miniapp-sdk'
 import { PIZZA_TOKEN_ADDRESS } from '../../lib/constants'
+import { hasEarlyAccess } from '../../lib/constants/earlyAccess'
 
 const SHARE_BASE_URL = 'https://farcaster.xyz/miniapps/wgY6OPqYoIkz/pizza-party'
 
@@ -657,7 +658,8 @@ function GamePageContent({ onNavigateToWeekly, onNavigateToLeaderboard, onNaviga
           <div className="flex w-full gap-2">
             <Button
               onClick={() => window.location.href = '/sticker'}
-              className="flex-1 !bg-red-600 hover:!bg-red-700 text-white py-3 px-2 rounded-xl border-4 border-red-900 shadow-lg transform hover:scale-105 transition-all touch-manipulation"
+              disabled={!hasEarlyAccess(null, wallet?.address)}
+              className="flex-1 !bg-red-600 hover:!bg-red-700 text-white py-3 px-2 rounded-xl border-4 border-red-900 shadow-lg transform hover:scale-105 transition-all touch-manipulation disabled:opacity-50 disabled:pointer-events-none"
               style={{ ...customFontStyle, letterSpacing: "1px", fontSize: isMobile ? 14 : 16, fontWeight: '900' }}
             >
               <span className="flex items-center justify-center w-full gap-1">
@@ -667,8 +669,9 @@ function GamePageContent({ onNavigateToWeekly, onNavigateToLeaderboard, onNaviga
               </span>
             </Button>
             <Button
-              onClick={() => {}}
-              className="flex-1 !bg-red-600 hover:!bg-red-700 text-white py-3 px-2 rounded-xl border-4 border-red-900 shadow-lg transform hover:scale-105 transition-all touch-manipulation"
+              onClick={() => window.location.href = '/chat'}
+              disabled={!hasEarlyAccess(null, wallet?.address)}
+              className="flex-1 !bg-red-600 hover:!bg-red-700 text-white py-3 px-2 rounded-xl border-4 border-red-900 shadow-lg transform hover:scale-105 transition-all touch-manipulation disabled:opacity-50 disabled:pointer-events-none"
               style={{ ...customFontStyle, letterSpacing: "1px", fontSize: isMobile ? 14 : 16, fontWeight: '900' }}
             >
               🍕 PIZZA CHAT 🍕
