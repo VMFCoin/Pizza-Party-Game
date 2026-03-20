@@ -110,3 +110,27 @@ model StickerFind {
   @@index([country])
   @@index([createdAt])
 }
+
+// Indexed chat messages from PizzaChat contract events
+model ChatMessage {
+  id              String   @id @default(cuid())
+  roomId          Int      @default(0)
+  messageId       Int      // On-chain message ID within room
+  senderAddress   String   // Wallet address
+  senderFid       Int?     // Farcaster FID (resolved by indexer)
+  senderName      String?  // Display name from Farcaster
+  senderPfp       String?  // Profile picture URL
+  message         String   @db.VarChar(250)
+  pizzaFeePaid    String   // BigInt as string (wei)
+  replyToHash     String?  // bytes32 hex of replied message
+  onchainTs       DateTime // Block timestamp
+  txHash          String?  // Transaction hash
+  blockNumber     BigInt?  // Block number for cursor
+  hidden          Boolean  @default(false) // Frontend moderation
+  createdAt       DateTime @default(now())
+
+  @@unique([roomId, messageId])
+  @@index([roomId, onchainTs])
+  @@index([senderAddress])
+  @@index([blockNumber])
+}

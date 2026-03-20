@@ -342,6 +342,25 @@ contract PizzaStakingV1Upgradeable is
     mapping(address => SpinOutcome) public committedSpinOutcome;
 
     // ==================================================================================
+    // GAME 100 + APY UPGRADE (appended — no storage slot shifts)
+    // ==================================================================================
+
+    /// @notice Configurable APY in BPS. 0 = fallback to LOCKED_APY_BPS constant (20%)
+    uint256 public lockedApyBps;
+
+    /// @notice Max spins per game day. 0 or 1 = normal. 2 = double spin (Game 100).
+    uint8 public maxSpinsPerDay;
+
+    /// @notice Spin count per user per game day (resets when lastSpinGameId changes)
+    mapping(address => uint8) public spinCountToday;
+
+    /// @notice 2nd spin outcome (used when maxSpinsPerDay == 2)
+    mapping(address => SpinOutcome) public committedSpinOutcome2;
+
+    /// @notice Tracks which game day the hidden gold was awarded (one per day max)
+    uint256 public game100GoldAwardedGameId;
+
+    // ==================================================================================
     // EVENTS
     // ==================================================================================
 
@@ -635,19 +654,45 @@ contract PizzaStakingV1Upgradeable is
         // Must have spin enabled
         if (!spinEnabled) revert Unauthorized();
 
-        // Check if user has already spun today
         uint256 currentGameId = _getCurrentGameId();
-        if (lastSpinGameId[msg.sender] == currentGameId) {
+        uint8 effectiveMax = maxSpinsPerDay < 1 ? 1 : maxSpinsPerDay;
+
+        // Reset spin count if new game day
+        if (lastSpinGameId[msg.sender] != currentGameId) {
+            spinCountToday[msg.sender] = 0;
+            lastSpinGameId[msg.sender] = currentGameId;
+        }
+
+        // Check spin limit
+        if (spinCountToday[msg.sender] >= effectiveMax) {
             revert AlreadySpunToday();
         }
 
-        // Record the spin - this prevents spinning on other devices
-        lastSpinGameId[msg.sender] = currentGameId;
-
-        // Determine and commit the spin outcome ON-CHAIN (not client-side)
-        // This ensures the UI animation matches what the contract will pay
+        // Determine spin outcome
         SpinOutcome outcome = _spin();
-        committedSpinOutcome[msg.sender] = outcome;
+
+        // Hidden gold check: 10% chance to force Jackpot during double-spin mode
+        // Only triggers once per game day, only when maxSpinsPerDay > 1
+        if (effectiveMax > 1 && game100GoldAwardedGameId != currentGameId && outcome != SpinOutcome.Jackpot) {
+            uint256 goldRoll = uint256(keccak256(abi.encodePacked(
+                block.timestamp, block.prevrandao, msg.sender, spinNonce, "gold"
+            ))) % 100;
+            if (goldRoll < 10) {
+                outcome = SpinOutcome.Jackpot;
+                lastJackpotGameId = currentGameId; // counts as the day's jackpot
+                game100GoldAwardedGameId = currentGameId;
+            }
+        }
+
+        // Store outcome in the right slot
+        uint8 spinNum = spinCountToday[msg.sender];
+        if (spinNum == 0) {
+            committedSpinOutcome[msg.sender] = outcome;
+        } else {
+            committedSpinOutcome2[msg.sender] = outcome;
+        }
+
+        spinCountToday[msg.sender] = spinNum + 1;
 
         emit SpinRecorded(msg.sender, currentGameId, outcome);
     }
@@ -684,6 +729,16 @@ contract PizzaStakingV1Upgradeable is
                 // Add fixed 10M PIZZA bonus on jackpot spin
                 if (outcome == SpinOutcome.Jackpot) {
                     spunReward += JACKPOT_FIXED_BONUS;
+                }
+
+                // If user did a 2nd spin, add that too
+                if (spinCountToday[msg.sender] >= 2) {
+                    SpinOutcome outcome2 = committedSpinOutcome2[msg.sender];
+                    uint256 multiplier2 = _getSpinMultiplier(outcome2);
+                    spunReward += (baseReward * multiplier2) / BPS_DENOMINATOR;
+                    if (outcome2 == SpinOutcome.Jackpot) {
+                        spunReward += JACKPOT_FIXED_BONUS;
+                    }
                 }
             }
         }
@@ -1415,12 +1470,22 @@ contract PizzaStakingV1Upgradeable is
             outcome = committedSpinOutcome[user];
             uint256 multiplierBPS = _getSpinMultiplier(outcome);
 
-            // Calculate spun reward (base × spin multiplier)
+            // Calculate spun reward for spin 1
             spunReward = (baseReward * multiplierBPS) / BPS_DENOMINATOR;
 
             // Add fixed 10M PIZZA bonus on jackpot spin
             if (outcome == SpinOutcome.Jackpot) {
                 spunReward += JACKPOT_FIXED_BONUS;
+            }
+
+            // If user did a 2nd spin, add that too
+            if (spinCountToday[user] >= 2) {
+                SpinOutcome outcome2 = committedSpinOutcome2[user];
+                uint256 multiplier2 = _getSpinMultiplier(outcome2);
+                spunReward += (baseReward * multiplier2) / BPS_DENOMINATOR;
+                if (outcome2 == SpinOutcome.Jackpot) {
+                    spunReward += JACKPOT_FIXED_BONUS;
+                }
             }
         }
 
@@ -1520,6 +1585,16 @@ contract PizzaStakingV1Upgradeable is
             if (outcome == SpinOutcome.Jackpot) {
                 spunReward += JACKPOT_FIXED_BONUS;
             }
+
+            // If user did a 2nd spin, add that too
+            if (spinCountToday[user] >= 2) {
+                SpinOutcome outcome2 = committedSpinOutcome2[user];
+                uint256 multiplier2 = _getSpinMultiplier(outcome2);
+                spunReward += (baseReward * multiplier2) / BPS_DENOMINATOR;
+                if (outcome2 == SpinOutcome.Jackpot) {
+                    spunReward += JACKPOT_FIXED_BONUS;
+                }
+            }
         }
 
         // Step 3: ADD BONUSES to spun result (tier + lock + early)
@@ -1599,7 +1674,13 @@ contract PizzaStakingV1Upgradeable is
     function canSpinToday(address user) external view returns (bool) {
         if (!spinEnabled) return false;
         uint256 currentGameId = _getCurrentGameId();
-        return lastSpinGameId[user] != currentGameId;
+        uint8 effectiveMax = maxSpinsPerDay < 1 ? 1 : maxSpinsPerDay;
+
+        // New game day — can always spin
+        if (lastSpinGameId[user] != currentGameId) return true;
+
+        // Same game day — check spin count
+        return spinCountToday[user] < effectiveMax;
     }
 
     /**
@@ -1706,9 +1787,12 @@ contract PizzaStakingV1Upgradeable is
         uint256 secondsElapsed = block.timestamp - apyStartTime;
         if (secondsElapsed == 0) return 0;
 
+        // Use configurable APY if set, otherwise fall back to constant (20%)
+        uint256 effectiveApyBps = lockedApyBps > 0 ? lockedApyBps : LOCKED_APY_BPS;
+
         // APY formula: (lockedAmount × APY_BPS × secondsElapsed) / (DAYS_PER_YEAR × 1 day × BPS_DENOMINATOR)
         // This gives us the proportional APY for the exact time elapsed
-        return (locked.stakedAmount * LOCKED_APY_BPS * secondsElapsed) /
+        return (locked.stakedAmount * effectiveApyBps * secondsElapsed) /
                (DAYS_PER_YEAR * 1 days * BPS_DENOMINATOR);
     }
 
@@ -1736,10 +1820,13 @@ contract PizzaStakingV1Upgradeable is
         // If no base reward and no APY, nothing pending
         if (baseReward == 0 && apyReward == 0) return 0;
 
-        // For display purposes, assume 100% spin (regular slice)
-        // Final = base + bonuses on base + APY
-        uint256 bonusAmount = baseReward > 0 ? _calculateBonusAmount(user, baseReward) : 0;
-        return baseReward + bonusAmount + apyReward;
+        // For display: assume 100% spin (regular slice) per spin
+        // If double spin is active, show 2x base as the minimum expected
+        uint8 effectiveMax = maxSpinsPerDay < 1 ? 1 : maxSpinsPerDay;
+        uint256 displayBase = baseReward * effectiveMax;
+
+        uint256 bonusAmount = displayBase > 0 ? _calculateBonusAmount(user, displayBase) : 0;
+        return displayBase + bonusAmount + apyReward;
     }
 
     /**

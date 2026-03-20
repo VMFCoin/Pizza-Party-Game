@@ -3,15 +3,14 @@ pragma solidity ^0.8.24;
 
 import {Script, console} from "forge-std/Script.sol";
 import {PizzaPartyV2Upgradeable} from "../src/PizzaPartyV2Upgradeable.sol";
-import {UUPSUpgradeable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 contract AddToDailyJackpot is Script {
     address constant PIZZA_PARTY_PROXY = 0xA1C31c3eF1448351da0b1D430148660982B6f3dD;
-    address constant PIZZA_TOKEN = 0xbD0e3768B9A7C3d53e7b92EDC4C38728E2fA9b69;
+    address constant PIZZA_TOKEN = 0xa821f2ee19F4f62e404C934D43eB6E5763fbdb07;
 
-    // $20 worth of PIZZA at $0.001377 per PIZZA = 14524.33 PIZZA
-    uint256 constant PIZZA_AMOUNT = 14524_329700072621105152;
+    // $25.12 worth of PIZZA at $0.000002011 per PIZZA = 12,489,806.07 PIZZA
+    uint256 constant PIZZA_AMOUNT = 12489806_070000000000000000;
 
     function run() external {
         string memory keyStr = vm.envString("PRIVATE_KEY");
@@ -23,7 +22,7 @@ contract AddToDailyJackpot is Script {
         IERC20 pizza = IERC20(PIZZA_TOKEN);
 
         console.log("=================================================");
-        console.log("ADD $20 TO DAILY JACKPOT FROM TREASURY");
+        console.log("ADD $25.12 TO DAILY JACKPOT FROM TREASURY");
         console.log("=================================================");
         console.log("Deployer:", deployer);
 
@@ -34,21 +33,12 @@ contract AddToDailyJackpot is Script {
         console.log("Treasury:", treasury);
         console.log("Treasury balance:", treasuryBalance / 1e18, "PIZZA");
         console.log("Current daily pot:", currentPot / 1e18, "PIZZA");
-        console.log("Adding:", PIZZA_AMOUNT / 1e18, "PIZZA (~$20)");
+        console.log("Adding:", PIZZA_AMOUNT / 1e18, "PIZZA (~$25.12)");
 
         require(treasuryBalance >= PIZZA_AMOUNT, "Treasury has insufficient PIZZA");
 
         vm.startBroadcast(deployerPrivateKey);
 
-        // Deploy new implementation with adminAddToDailyPotFromTreasury function
-        PizzaPartyV2Upgradeable newImpl = new PizzaPartyV2Upgradeable();
-        console.log("New implementation:", address(newImpl));
-
-        // Upgrade proxy
-        UUPSUpgradeable(PIZZA_PARTY_PROXY).upgradeToAndCall(address(newImpl), "");
-        console.log("Upgraded proxy");
-
-        // Pull from treasury and add to daily pot
         party.adminAddToDailyPotFromTreasury(PIZZA_AMOUNT);
         console.log("Added PIZZA from treasury to daily pot");
 

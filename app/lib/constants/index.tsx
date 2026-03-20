@@ -14,6 +14,9 @@ export const PIZZA_TOKEN_ADDRESS = "0xa821f2ee19f4f62e404c934d43eb6e5763fbdb07"
 // Pizza Staking Contract (UUPS proxy)
 export const PIZZA_STAKING_ADDRESS = "0xCbAf5bACe5419710C3852653d3DdEB831d7415be"
 
+// Pizza Chat Contract (UUPS proxy) - UPDATE after deploying
+export const PIZZA_CHAT_ADDRESS = "0x7e2E1b26a1172AF67f63Dd205028A806ce2fFBae"
+
 // ==============================
 // PIZZA Token ABI (ERC20 with EIP-2612 Permit)
 // ==============================
@@ -672,6 +675,37 @@ export const PARLOR_MANAGER_ABI = [
   }
 ] as const
 
+// ==============================
+// Pizza Chat ABI (event-log based onchain chat)
+// ==============================
+export const PIZZA_CHAT_ABI = [
+  // --- Core ---
+  { type: 'function', name: 'sendMessage', stateMutability: 'nonpayable', inputs: [{ type: 'uint256', name: '_roomId' }, { type: 'string', name: '_message' }, { type: 'bytes32', name: '_replyToHash' }], outputs: [] },
+  // --- View ---
+  { type: 'function', name: 'messageFee', stateMutability: 'view', inputs: [], outputs: [{ type: 'uint256' }] },
+  { type: 'function', name: 'cooldown', stateMutability: 'view', inputs: [], outputs: [{ type: 'uint256' }] },
+  { type: 'function', name: 'totalMessages', stateMutability: 'view', inputs: [], outputs: [{ type: 'uint256' }] },
+  { type: 'function', name: 'getRoomMessageCount', stateMutability: 'view', inputs: [{ type: 'uint256', name: '_roomId' }], outputs: [{ type: 'uint256' }] },
+  { type: 'function', name: 'getTimeUntilCanSend', stateMutability: 'view', inputs: [{ type: 'address', name: '_sender' }], outputs: [{ type: 'uint256' }] },
+  { type: 'function', name: 'isBanned', stateMutability: 'view', inputs: [{ type: 'uint256', name: '_roomId' }, { type: 'address', name: '_sender' }], outputs: [{ type: 'bool' }] },
+  { type: 'function', name: 'treasury', stateMutability: 'view', inputs: [], outputs: [{ type: 'address' }] },
+  { type: 'function', name: 'MAX_MESSAGE_LENGTH', stateMutability: 'view', inputs: [], outputs: [{ type: 'uint256' }] },
+  // --- Events ---
+  {
+    type: 'event',
+    name: 'MessagePosted',
+    inputs: [
+      { indexed: true, name: 'roomId', type: 'uint256' },
+      { indexed: true, name: 'messageId', type: 'uint256' },
+      { indexed: true, name: 'sender', type: 'address' },
+      { indexed: false, name: 'pizzaFeePaid', type: 'uint256' },
+      { indexed: false, name: 'timestamp', type: 'uint256' },
+      { indexed: false, name: 'replyToHash', type: 'bytes32' },
+      { indexed: false, name: 'message', type: 'string' }
+    ]
+  },
+] as const
+
 export const CONTRACT_REGISTRY = {
   pizzaParty: {
     address: PIZZA_PARTY_ADDRESS as `0x${string}`,
@@ -691,6 +725,11 @@ export const CONTRACT_REGISTRY = {
   pizzaStaking: {
     address: PIZZA_STAKING_ADDRESS as `0x${string}`,
     abi: PIZZA_STAKING_ABI as unknown as Abi,
+    chainId: BASE_CHAIN_ID,
+  },
+  pizzaChat: {
+    address: PIZZA_CHAT_ADDRESS as `0x${string}`,
+    abi: PIZZA_CHAT_ABI as unknown as Abi,
     chainId: BASE_CHAIN_ID,
   },
 } as const satisfies Record<string, ContractRegistryEntry>
