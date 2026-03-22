@@ -10,7 +10,7 @@ import { formatUnits, parseUnits, isAddress, parseAbiItem } from 'viem'
 import { PARLOR_MANAGER_ADDRESS, PARLOR_MANAGER_ABI, PIZZA_TOKEN_ADDRESS, PIZZA_TOKEN_ABI, PIZZA_PARTY_ADDRESS, PIZZA_PARTY_ABI } from '../lib/constants'
 import { sdk } from '@farcaster/miniapp-sdk'
 import { fetchProfilesByAddresses } from '../lib/farcasterProfiles'
-import { isRecipientBanned, isSlicePairBlocked } from '../lib/constants/banList'
+import { isRecipientBanned, isSliceBlocked, isSlicePairBlocked } from '../lib/constants/banList'
 import { hasEarlyAccess } from '../lib/constants/earlyAccess'
 
 // Parlor price in USD - this is the fixed dollar amount
@@ -535,6 +535,12 @@ export default function PizzaParlorPage({
     // Check if recipient is banned
     if (isRecipientBanned(recipientFid, resolvedAddress)) {
       setSelfSliceError("This user is restricted and cannot receive free slices.")
+      return
+    }
+
+    // Check if recipient is blocked from receiving any free slices
+    if (isSliceBlocked(recipientFid)) {
+      setSelfSliceError("This player is not eligible to receive free slices.")
       return
     }
 

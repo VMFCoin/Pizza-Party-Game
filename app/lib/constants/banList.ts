@@ -85,6 +85,23 @@ export function isRecipientBanned(
 }
 
 /**
+ * Slice-Blocked Recipients — users who cannot receive free slices from ANY parlor owner.
+ * Unlike a full ban, these users can still play the game normally (pay their own entry).
+ * They just can't receive free slices.
+ */
+export const SLICE_BLOCKED_FIDS = new Set<number>([
+  1102870, // @papusiek1111 — repeat pair abuse
+])
+
+/** Check if a recipient is blocked from receiving any free slices */
+export function isSliceBlocked(
+  recipientFid: number | null | undefined
+): boolean {
+  if (!recipientFid) return false
+  return SLICE_BLOCKED_FIDS.has(recipientFid)
+}
+
+/**
  * Blocked Slice Pairs — specific sender→recipient combinations that are blocked.
  * Use this when you don't want to fully ban either user, but need to stop
  * a specific sender from slicing a specific recipient.

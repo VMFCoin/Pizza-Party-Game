@@ -3,7 +3,7 @@ import { PrismaClient } from '@prisma/client'
 import crypto from 'crypto'
 import { getNotificationToken } from '../../../lib/kv-notifications'
 import { sendNotifications } from '../../../lib/notifications'
-import { isRecipientBanned } from '../../../lib/constants/banList'
+import { isRecipientBanned, isSliceBlocked } from '../../../lib/constants/banList'
 
 const prisma = new PrismaClient()
 
@@ -43,6 +43,16 @@ export async function POST(request: NextRequest) {
         allowed: false,
         blocked: true,
         reason: 'This account is restricted.',
+      })
+    }
+
+    // Block slice-blocked users from claiming any free slices
+    if (isSliceBlocked(claimerFid)) {
+      return NextResponse.json({
+        success: true,
+        allowed: false,
+        blocked: true,
+        reason: 'This account is not eligible to receive free slices.',
       })
     }
 
