@@ -83,3 +83,39 @@ export function isRecipientBanned(
 ): boolean {
   return isFidBanned(recipientFid) || isAddressBanned(recipientAddress)
 }
+
+/**
+ * Blocked Slice Pairs — specific sender→recipient combinations that are blocked.
+ * Use this when you don't want to fully ban either user, but need to stop
+ * a specific sender from slicing a specific recipient.
+ *
+ * The sender is blocked from sending to the recipient. The error message
+ * is shown to the sender when they try.
+ */
+export interface BlockedSlicePair {
+  senderFid: number
+  recipientFid: number
+  reason?: string
+}
+
+export const BLOCKED_SLICE_PAIRS: BlockedSlicePair[] = [
+  {
+    senderFid: 937375,   // @Coolguy Slices (kender7)
+    recipientFid: 1102870, // @papusiek1111
+    reason: 'Repeat pair abuse flagged',
+  },
+]
+
+// Pre-built set for O(1) lookup: "senderFid->recipientFid"
+const BLOCKED_PAIRS_SET = new Set<string>(
+  BLOCKED_SLICE_PAIRS.map(p => `${p.senderFid}->${p.recipientFid}`)
+)
+
+/** Check if a specific sender→recipient slice pair is blocked */
+export function isSlicePairBlocked(
+  senderFid: number | null | undefined,
+  recipientFid: number | null | undefined
+): boolean {
+  if (!senderFid || !recipientFid) return false
+  return BLOCKED_PAIRS_SET.has(`${senderFid}->${recipientFid}`)
+}

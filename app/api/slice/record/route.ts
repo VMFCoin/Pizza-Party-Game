@@ -3,7 +3,7 @@ import { PrismaClient } from '@prisma/client'
 import crypto from 'crypto'
 import { getNotificationToken } from '../../../lib/kv-notifications'
 import { sendNotifications } from '../../../lib/notifications'
-import { isRecipientBanned } from '../../../lib/constants/banList'
+import { isRecipientBanned, isSlicePairBlocked } from '../../../lib/constants/banList'
 
 const prisma = new PrismaClient()
 
@@ -39,6 +39,14 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({
         success: false,
         error: 'Recipient is restricted',
+      }, { status: 403 })
+    }
+
+    // Block specific sender→recipient pairs
+    if (isSlicePairBlocked(senderFid, recipientFid)) {
+      return NextResponse.json({
+        success: false,
+        error: 'Sending slices to this player has been blocked.',
       }, { status: 403 })
     }
 
