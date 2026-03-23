@@ -115,7 +115,7 @@
 }
 
 @layer base {
-  
+
 
   *:focus {
     @apply outline-none ring-2 ring-red-500/50; /* valid Tailwind */
@@ -126,4 +126,33 @@
     color: var(--foreground);
     font-family: "Comic Sans MS", "Marker Felt", "Chalkduster", "Kalam", "Caveat", cursive;
   }
+}
+
+/* Jackpot Celebration Animations */
+@keyframes pizza-rain {
+  0% {
+    transform: translateY(-40px) rotate(0deg);
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(600px) rotate(360deg);
+    opacity: 0;
+  }
+}
+
+@keyframes jackpot-glow {
+  0%, 100% {
+    box-shadow: 0 0 10px rgba(250, 204, 21, 0.4), 0 0 30px rgba(250, 204, 21, 0.2);
+  }
+  50% {
+    box-shadow: 0 0 20px rgba(250, 204, 21, 0.8), 0 0 60px rgba(250, 204, 21, 0.4), 0 0 100px rgba(250, 204, 21, 0.2);
+  }
+}
+
+.animate-pizza-rain {
+  animation: pizza-rain 3s linear infinite;
+}
+
+.animate-jackpot-glow {
+  animation: jackpot-glow 1.5s ease-in-out infinite;
 }

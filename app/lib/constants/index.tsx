@@ -164,6 +164,11 @@ export const PIZZA_STAKING_ABI = [
   { type: 'function', name: 'lastSpinGameId', stateMutability: 'view', inputs: [{ type: 'address', name: 'user' }], outputs: [{ type: 'uint256' }] },
   { type: 'function', name: 'lastApyClaimTimestamp', stateMutability: 'view', inputs: [{ type: 'address', name: 'user' }], outputs: [{ type: 'uint256' }] },
   { type: 'function', name: 'committedSpinOutcome', stateMutability: 'view', inputs: [{ type: 'address', name: 'user' }], outputs: [{ type: 'uint8' }] },
+  { type: 'function', name: 'committedSpinOutcome2', stateMutability: 'view', inputs: [{ type: 'address', name: 'user' }], outputs: [{ type: 'uint8' }] },
+  { type: 'function', name: 'lockedApyBps', stateMutability: 'view', inputs: [], outputs: [{ type: 'uint256' }] },
+  { type: 'function', name: 'maxSpinsPerDay', stateMutability: 'view', inputs: [], outputs: [{ type: 'uint8' }] },
+  { type: 'function', name: 'spinCountToday', stateMutability: 'view', inputs: [{ type: 'address', name: 'user' }], outputs: [{ type: 'uint8' }] },
+  { type: 'function', name: 'goldChancePct', stateMutability: 'view', inputs: [], outputs: [{ type: 'uint8' }] },
 
   // --- View Functions ---
   { type: 'function', name: 'getTier', stateMutability: 'view', inputs: [{ type: 'address', name: 'user' }], outputs: [{ type: 'uint8' }] },

@@ -178,8 +178,11 @@ export default function StakingPage({
   const [isSpinning, setIsSpinning] = useState(false)
   const [spinRotation, setSpinRotation] = useState(0)
   const [spinResult, setSpinResult] = useState<typeof SPIN_OUTCOMES[0] | null>(null)
+  const [spinResult2, setSpinResult2] = useState<typeof SPIN_OUTCOMES[0] | null>(null) // 2nd spin result (Game 100 double spin)
+  const [spinCount, setSpinCount] = useState(0) // How many spins done this game (0, 1, or 2)
   const [hasSpunThisGame, setHasSpunThisGame] = useState(false) // Track if user has spun for current game (persisted)
   const [hasClaimedThisGame, setHasClaimedThisGame] = useState(false) // Track if user has claimed for current game
+  const [awaitingSpin2, setAwaitingSpin2] = useState(false) // After spin 1 in double-spin mode, waiting for user to spin again or claim
   const [spinStorageChecked, setSpinStorageChecked] = useState(false) // Track if we've checked localStorage for spin result
   const [showShareModal, setShowShareModal] = useState(false) // Show share cast modal after claim
   const [claimedAmount, setClaimedAmount] = useState<bigint>(0n) // Store claimed amount for share message
@@ -404,6 +407,19 @@ export default function StakingPage({
     query: { enabled: !!address, refetchInterval: 30000 },
   })
 
+  // Read configurable APY rate (0 = use default 20%)
+  const { data: lockedApyBps } = useReadContract({
+    address: PIZZA_STAKING_ADDRESS as `0x${string}`,
+    abi: PIZZA_STAKING_ABI,
+    functionName: 'lockedApyBps',
+  })
+
+  // Calculate display APY percentage
+  const apyPercent = useMemo(() => {
+    const bps = Number(lockedApyBps || 0n)
+    return bps > 0 ? bps / 100 : 20 // 0 means use default 20%
+  }, [lockedApyBps])
+
   // === CONTRACT WRITES ===
 
   const { writeContract, data: writeHash, isPending: isWritePending, reset: resetWrite } = useWriteContract()
@@ -465,11 +481,23 @@ export default function StakingPage({
   }, [userPosition])
 
   // Check if user can spin today (from contract)
+  // Read canSpinToday from contract (accounts for maxSpinsPerDay)
+  const { data: canSpinTodayContract, refetch: refetchCanSpin } = useReadContract({
+    address: PIZZA_STAKING_ADDRESS as `0x${string}`,
+    abi: PIZZA_STAKING_ABI,
+    functionName: 'canSpinToday',
+    args: address ? [address] : undefined,
+    query: { enabled: !!address },
+  })
+
   const canSpinToday = useMemo(() => {
     if (!spinEnabled) return false
+    // If contract call available, use it (handles maxSpinsPerDay)
+    if (canSpinTodayContract !== undefined) return canSpinTodayContract as boolean
+    // Fallback: check lastSpinGameId
     if (!currentGameId || !lastSpinGameId) return true
     return lastSpinGameId !== currentGameId
-  }, [spinEnabled, currentGameId, lastSpinGameId])
+  }, [spinEnabled, canSpinTodayContract, currentGameId, lastSpinGameId])
 
   // localStorage key for persisting spin result
   const spinStorageKey = useMemo(() => {
@@ -498,6 +526,9 @@ export default function StakingPage({
       } else {
         // No stored result for this game - reset state
         setSpinResult(null)
+        setSpinResult2(null)
+        setSpinCount(0)
+        setAwaitingSpin2(false)
         setHasSpunThisGame(false)
         setHasClaimedThisGame(false)
       }
@@ -591,14 +622,26 @@ export default function StakingPage({
     const spinMultiplier = BigInt(spinMultiplierValue)
     const spunReward = (baseOnly * spinMultiplier) / 100n
 
-    // Calculate bonuses on spun reward (bonuses apply AFTER spin)
-    const bonusAmount = (spunReward * BigInt(totalBonusBPS)) / 10000n
-    const totalReward = spunReward + bonusAmount + apyReward
+    // Spin 2 (double spin mode)
+    const spin2MultiplierValue = spinResult2?.multiplierValue ?? 0
+    const spunReward2 = spin2MultiplierValue > 0 ? (baseOnly * BigInt(spin2MultiplierValue)) / 100n : 0n
+
+    // 10M PIZZA jackpot bonus (added flat on top when outcome is Jackpot)
+    const isJackpot = spinResult?.name === 'JACKPOT' || spinResult2?.name === 'JACKPOT'
+    const jackpotBonus1 = spinResult?.name === 'JACKPOT' ? 10_000_000n * (10n ** 18n) : 0n
+    const jackpotBonus2 = spinResult2?.name === 'JACKPOT' ? 10_000_000n * (10n ** 18n) : 0n
+    const jackpotBonus = jackpotBonus1 + jackpotBonus2
+
+    // Calculate bonuses on combined spun reward (bonuses apply AFTER spin)
+    const combinedSpunReward = spunReward + spunReward2
+    const bonusAmount = (combinedSpunReward * BigInt(totalBonusBPS)) / 10000n
+    const totalReward = combinedSpunReward + bonusAmount + jackpotBonus + apyReward
 
     return {
       baseOnly,           // Raw base before any modifiers
       spinMultiplier: spinMultiplierValue,
-      spunReward,         // After spin multiplier
+      spunReward,         // After spin 1 multiplier
+      spunReward2,        // After spin 2 multiplier (0 if no spin 2)
       tierBonus: currentTier.yieldBoost,
       tierBonusBPS: currentTier.yieldBoostBPS,
       hasLock,
@@ -607,10 +650,12 @@ export default function StakingPage({
       earlyBoostBPS: userPosition.isEarlyBoostActive ? EARLY_BOOST_BPS : 0,
       totalBonusBPS,
       bonusAmount,        // Total bonus in PIZZA
-      apyReward,          // 20% APY reward for locked position
+      jackpotBonus,       // 10M PIZZA flat bonus on Jackpot(s)
+      isJackpot,          // Whether any spin hit Jackpot
+      apyReward,          // APY reward for locked position
       totalReward,        // Final total
     }
-  }, [userPosition, spinResult, currentTier, pendingApyReward])
+  }, [userPosition, spinResult, spinResult2, currentTier, pendingApyReward])
 
   // Refetch data after successful transaction (but not during approval->stake flow)
   useEffect(() => {
@@ -637,6 +682,7 @@ export default function StakingPage({
           refetchLifetimeClaimed(),
           refetchApyReward(),
           refetchLastSpinGameId(),
+          refetchCanSpin(),
         ])
 
         // Second refetch after additional delay to ensure data is fresh
@@ -696,7 +742,7 @@ export default function StakingPage({
       setShowStakeInput(false)
       resetWrite()
     }
-  }, [isConfirmed, pendingApproval, showConfirmModal, refetchBalance, refetchAllowance, refetchStakeInfo, refetchLifetimeClaimed, refetchApyReward, refetchLastSpinGameId, resetWrite, rewardBreakdown])
+  }, [isConfirmed, pendingApproval, showConfirmModal, refetchBalance, refetchAllowance, refetchStakeInfo, refetchLifetimeClaimed, refetchApyReward, refetchLastSpinGameId, refetchCanSpin, resetWrite, rewardBreakdown])
 
   // === HANDLERS ===
 
@@ -911,13 +957,16 @@ export default function StakingPage({
 
   // Step 1: Handle SPIN button click - record spin on-chain FIRST to prevent multi-device exploit
   const handleSpin = () => {
-    if (isSpinning || hasSpunThisGame || pendingRecordSpin || isRecordSpinPending || isRecordSpinConfirming) return
+    if (isSpinning || pendingRecordSpin || isRecordSpinPending || isRecordSpinConfirming) return
+    // Block if already done all spins (hasSpunThisGame is true AND not awaiting spin 2)
+    if (hasSpunThisGame && !awaitingSpin2) return
 
     // Unlock audio on user gesture (required for mobile browsers)
     unlockAudio()
 
     // Call recordSpin() on contract - this prevents spinning on multiple devices
     setPendingRecordSpin(true)
+    setAwaitingSpin2(false)
     writeRecordSpin({
       address: PIZZA_STAKING_ADDRESS as `0x${string}`,
       abi: PIZZA_STAKING_ABI,
@@ -1003,14 +1052,29 @@ export default function StakingPage({
         animationFrameRef.current = null
       }
       setIsSpinning(false)
-      setSpinResult(outcome)
+      const newSpinCount = spinCount + 1
+      setSpinCount(newSpinCount)
+
+      if (newSpinCount === 1) {
+        setSpinResult(outcome)
+      } else {
+        setSpinResult2(outcome)
+      }
+
       setHasSpunThisGame(true)
       // Persist spin result so it survives app close/reopen
       saveSpinResult(outcome, targetRotation)
       // Heavy haptic feedback when spin completes
       triggerHaptic('heavy')
+
+      // After spin completes, check if user can spin again (double spin mode)
+      refetchCanSpin().then(({ data: canStillSpin }) => {
+        if (canStillSpin) {
+          setAwaitingSpin2(true)
+        }
+      })
     }, 3000)
-  }, [playTick, triggerHaptic, getSliceFromRotation, saveSpinResult])
+  }, [playTick, triggerHaptic, getSliceFromRotation, saveSpinResult, spinCount, refetchCanSpin])
 
   // After recordSpin tx confirms, read the outcome from the tx receipt and run animation
   // IMPORTANT: We read from the receipt (not contract state) because an RPC node may serve
@@ -1198,7 +1262,7 @@ export default function StakingPage({
                           <div className="flex items-center justify-between text-[10px] whitespace-nowrap">
                             <div className="flex items-center gap-0.5 text-blue-600">
                               <Lock size={10} />
-                              <span>Lock 20% APY</span>
+                              <span>Lock {apyPercent}% APY</span>
                             </div>
                             <span className="text-blue-500">{timeUntilUnlock}</span>
                           </div>
@@ -1780,11 +1844,11 @@ export default function StakingPage({
                   </div>
                   <div className="flex items-start gap-2 text-xs text-green-800" style={{ fontFamily: 'var(--font-luckiest-guy)' }}>
                     <span className="flex-shrink-0">🍅</span>
-                    <span>7-day lock = +5% spin bonus + 20% APY</span>
+                    <span>7-day lock = +5% spin bonus + {apyPercent}% APY</span>
                   </div>
                   <div className="flex items-start gap-2 text-xs text-green-800" style={{ fontFamily: 'var(--font-luckiest-guy)' }}>
                     <span className="flex-shrink-0">🍅</span>
-                    <span>Locked stakers earn 20% APY to their Rewards</span>
+                    <span>Locked stakers earn {apyPercent}% APY to their Rewards</span>
                   </div>
                   <div className="flex items-start gap-2 text-xs text-green-800" style={{ fontFamily: 'var(--font-luckiest-guy)' }}>
                     <span className="flex-shrink-0">🍅</span>
@@ -2094,12 +2158,12 @@ export default function StakingPage({
                 </div>
               </div>
 
-              {/* Pre-spin: Show SPIN button */}
-              {!hasSpunThisGame && !hasClaimedThisGame && !isSpinning && spinEnabled && canSpinToday && (
+              {/* Pre-spin: Show SPIN button (first spin OR second spin in double mode) */}
+              {((!hasSpunThisGame && !hasClaimedThisGame) || awaitingSpin2) && !isSpinning && spinEnabled && canSpinToday && (
                 <Button
                   onClick={handleSpin}
                   disabled={pendingRecordSpin || isRecordSpinPending || isRecordSpinConfirming || isBanned}
-                  className="w-full !bg-yellow-500 hover:!bg-yellow-600 text-white font-bold py-3 rounded-xl border-4 border-yellow-700 disabled:opacity-50"
+                  className={`w-full ${awaitingSpin2 ? '!bg-orange-500 hover:!bg-orange-600 border-orange-700 animate-pulse' : '!bg-yellow-500 hover:!bg-yellow-600 border-yellow-700'} text-white font-bold py-3 rounded-xl border-4 disabled:opacity-50`}
                   style={{ fontFamily: 'var(--font-luckiest-guy)', fontSize: 20 }}
                 >
                   {(pendingRecordSpin || isRecordSpinPending || isRecordSpinConfirming) ? (
@@ -2107,10 +2171,25 @@ export default function StakingPage({
                       <Loader2 className="animate-spin" size={20} />
                       {isRecordSpinConfirming ? 'CONFIRMING...' : 'RECORDING SPIN...'}
                     </span>
+                  ) : awaitingSpin2 ? (
+                    '🍕 SPIN AGAIN! 🍕'
                   ) : (
                     'SPIN THE PIE!'
                   )}
                 </Button>
+              )}
+
+              {/* Spin 1 result shown while awaiting spin 2 */}
+              {awaitingSpin2 && spinResult && !isSpinning && (
+                <div className="bg-gray-800 rounded-xl p-2 text-center border-2 border-orange-500">
+                  <p className="text-orange-400 text-xs" style={{ fontFamily: 'var(--font-luckiest-guy)' }}>Spin 1 Result:</p>
+                  <p className="text-white text-sm font-bold" style={{ fontFamily: 'var(--font-luckiest-guy)' }}>
+                    {spinResult.name} ({spinResult.multiplier})
+                  </p>
+                  <p className="text-yellow-400 text-xs mt-1" style={{ fontFamily: 'var(--font-luckiest-guy)' }}>
+                    Double Spin Active — Spin again to add to your rewards!
+                  </p>
+                </div>
               )}
 
               {/* During spin */}
@@ -2121,25 +2200,92 @@ export default function StakingPage({
               )}
 
               {/* Post-spin: Show result + lock selection + claim button */}
-              {hasSpunThisGame && !isSpinning && spinResult && rewardBreakdown && (
-                <div className="space-y-4">
+              {hasSpunThisGame && !awaitingSpin2 && !isSpinning && spinResult && rewardBreakdown && (
+                <div className="space-y-4 relative">
+
+                  {/* JACKPOT CELEBRATION OVERLAY */}
+                  {rewardBreakdown.isJackpot && (
+                    <div className="absolute inset-0 pointer-events-none z-10 overflow-hidden rounded-xl">
+                      {/* Pizza slice rain */}
+                      {Array.from({ length: 12 }).map((_, i) => (
+                        <span
+                          key={i}
+                          className="absolute text-2xl animate-pizza-rain"
+                          style={{
+                            left: `${(i * 8.3) + Math.random() * 5}%`,
+                            animationDelay: `${i * 0.3}s`,
+                            animationDuration: `${2 + Math.random() * 1.5}s`,
+                          }}
+                        >
+                          🍕
+                        </span>
+                      ))}
+                    </div>
+                  )}
+
                   {/* Spin Result Header */}
-                  <div className={`${spinResult.color} rounded-xl p-3 text-center text-white border-4 border-white/30`}>
-                    <p className="font-bold text-2xl" style={{ fontFamily: 'var(--font-luckiest-guy)' }}>{spinResult.name}!</p>
-                    <p className="text-lg" style={{ fontFamily: 'var(--font-luckiest-guy)' }}>{spinResult.multiplier} spin multiplier</p>
-                  </div>
+                  {rewardBreakdown.isJackpot ? (
+                    <div className="rounded-xl p-4 text-center text-white border-4 border-yellow-400 animate-jackpot-glow"
+                      style={{
+                        background: 'linear-gradient(135deg, #065f46, #047857, #10b981)',
+                        boxShadow: '0 8px 32px rgba(234, 88, 12, 0.6), 0 4px 16px rgba(220, 38, 38, 0.4)',
+                      }}>
+                      <p className="text-3xl mb-1">🏆🍕🏆</p>
+                      <p className="font-bold text-sm text-green-200 uppercase tracking-widest mb-1" style={{ fontFamily: 'var(--font-luckiest-guy)' }}>
+                        Congratulations!
+                      </p>
+                      <p className="font-bold text-3xl text-yellow-300" style={{ fontFamily: 'var(--font-luckiest-guy)', textShadow: '2px 2px 4px rgba(0,0,0,0.5)' }}>
+                        JACKPOT!
+                      </p>
+                      <p className="text-lg text-yellow-200 mt-1" style={{ fontFamily: 'var(--font-luckiest-guy)' }}>
+                        {spinResult.multiplier} Spin Multiplier
+                      </p>
+                      <p className="text-xl text-yellow-100 font-bold mt-1 animate-pulse" style={{ fontFamily: 'var(--font-luckiest-guy)', textShadow: '0 0 10px rgba(250, 204, 21, 0.6)' }}>
+                        + 10,000,000 PIZZA Bonus!
+                      </p>
+                    </div>
+                  ) : (
+                    <div className={`${spinResult.color} rounded-xl p-3 text-center text-white border-4 border-white/30`}>
+                      <p className="font-bold text-2xl" style={{ fontFamily: 'var(--font-luckiest-guy)' }}>{spinResult.name}!</p>
+                      <p className="text-lg" style={{ fontFamily: 'var(--font-luckiest-guy)' }}>{spinResult.multiplier} spin multiplier</p>
+                    </div>
+                  )}
 
                   {/* Reward Breakdown */}
-                  <div className="bg-gray-900 rounded-xl p-3 border-2 border-gray-700">
+                  <div className={`bg-gray-900 rounded-xl p-3 border-2 ${rewardBreakdown.isJackpot ? 'border-yellow-500' : 'border-gray-700'}`}>
                     <p className="text-yellow-400 font-bold text-sm mb-2 text-center" style={{ fontFamily: 'var(--font-luckiest-guy)' }}>
                       Reward Breakdown
                     </p>
                     <div className="space-y-1 text-sm" style={{ fontFamily: 'var(--font-luckiest-guy)' }}>
-                      {/* Spin Result */}
+                      {/* Spin Result(s) */}
                       <div className="flex justify-between text-white">
-                        <span>Spin Result ({spinResult.multiplier})</span>
+                        <span>{spinResult2 ? 'Spin 1' : 'Spin Result'} ({spinResult.multiplier})</span>
                         <span className="font-bold">{formatPizzaWei(rewardBreakdown.spunReward)} PIZZA</span>
                       </div>
+
+                      {/* Spin 1 Jackpot Bonus */}
+                      {spinResult.name === 'JACKPOT' && (
+                        <div className="flex justify-between text-yellow-300 text-sm animate-pulse">
+                          <span>🏆 Jackpot Bonus</span>
+                          <span className="font-bold">+10M PIZZA</span>
+                        </div>
+                      )}
+
+                      {/* Spin 2 Result (double spin mode) */}
+                      {spinResult2 && (
+                        <>
+                          <div className="flex justify-between text-orange-300">
+                            <span>Spin 2 ({spinResult2.multiplier})</span>
+                            <span className="font-bold">{formatPizzaWei(rewardBreakdown.spunReward2 || 0n)} PIZZA</span>
+                          </div>
+                          {spinResult2.name === 'JACKPOT' && (
+                            <div className="flex justify-between text-yellow-300 text-sm animate-pulse">
+                              <span>🏆 Jackpot Bonus (Spin 2)</span>
+                              <span className="font-bold">+10M PIZZA</span>
+                            </div>
+                          )}
+                        </>
+                      )}
 
                       {/* Bonuses Section */}
                       <div className="border-t border-gray-700 pt-1 mt-1">
@@ -2167,10 +2313,10 @@ export default function StakingPage({
                           </div>
                         )}
 
-                        {/* 20% APY Reward */}
+                        {/* APY Reward (dynamic %) */}
                         {rewardBreakdown.apyReward > 0n && (
                           <div className="flex justify-between text-cyan-400 text-xs">
-                            <span>Locked Staking APY (20%)</span>
+                            <span>Locked Staking APY ({apyPercent}%)</span>
                             <span>+{formatPizzaWei(rewardBreakdown.apyReward)} PIZZA</span>
                           </div>
                         )}
@@ -2186,7 +2332,9 @@ export default function StakingPage({
                       <div className="border-t-2 border-yellow-500 pt-2 mt-2">
                         <div className="flex justify-between text-yellow-400">
                           <span className="font-bold text-base" style={{ fontFamily: 'var(--font-luckiest-guy)' }}>TOTAL</span>
-                          <span className="font-bold text-base" style={{ fontFamily: 'var(--font-luckiest-guy)' }}>{formatPizzaWei(rewardBreakdown.totalReward)} PIZZA</span>
+                          <span className={`font-bold text-base ${rewardBreakdown.isJackpot ? 'text-yellow-300 animate-pulse' : ''}`} style={{ fontFamily: 'var(--font-luckiest-guy)' }}>
+                            {formatPizzaWei(rewardBreakdown.totalReward)} PIZZA
+                          </span>
                         </div>
                       </div>
                     </div>
@@ -2230,7 +2378,7 @@ export default function StakingPage({
                           +5% bonus
                         </p>
                         <p className={`text-xs ${claimLockType === 1 ? 'text-cyan-400' : 'text-gray-500'}`}>
-                          +20% APY
+                          +{apyPercent}% APY
                         </p>
                       </button>
                     </div>
@@ -2341,10 +2489,10 @@ export default function StakingPage({
                             </div>
                           )}
 
-                          {/* 20% APY Reward */}
+                          {/* APY Reward */}
                           {rewardBreakdown.apyReward > 0n && (
                             <div className="flex justify-between text-cyan-400 text-xs">
-                              <span>Locked Staking APY (20%)</span>
+                              <span>Locked Staking APY ({apyPercent}%)</span>
                               <span>+{formatPizzaWei(rewardBreakdown.apyReward)} PIZZA</span>
                             </div>
                           )}
@@ -2399,7 +2547,7 @@ export default function StakingPage({
                           +5% bonus
                         </p>
                         <p className={`text-xs ${claimLockType === 1 ? 'text-cyan-400' : 'text-gray-500'}`}>
-                          +20% APY
+                          +{apyPercent}% APY
                         </p>
                       </button>
                     </div>

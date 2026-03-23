@@ -360,6 +360,9 @@ contract PizzaStakingV1Upgradeable is
     /// @notice Tracks which game day the hidden gold was awarded (one per day max)
     uint256 public game100GoldAwardedGameId;
 
+    /// @notice Percent chance (0-100) of hidden gold per spin during double-spin mode. 0 = off.
+    uint8 public goldChancePct;
+
     // ==================================================================================
     // EVENTS
     // ==================================================================================
@@ -677,7 +680,7 @@ contract PizzaStakingV1Upgradeable is
             uint256 goldRoll = uint256(keccak256(abi.encodePacked(
                 block.timestamp, block.prevrandao, msg.sender, spinNonce, "gold"
             ))) % 100;
-            if (goldRoll < 10) {
+            if (goldChancePct > 0 && goldRoll < goldChancePct) {
                 outcome = SpinOutcome.Jackpot;
                 lastJackpotGameId = currentGameId; // counts as the day's jackpot
                 game100GoldAwardedGameId = currentGameId;
@@ -1347,6 +1350,27 @@ contract PizzaStakingV1Upgradeable is
         for (uint256 i = 0; i < _users.length; i++) {
             lifetimeClaimed[_users[i]] = 0;
         }
+    }
+
+    // ==================================================================================
+    // ADMIN - GAME 100 + APY
+    // ==================================================================================
+
+    /// @notice Set configurable APY rate. 0 = use default 20%. Max 2500 (25%).
+    function adminSetLockedApyBps(uint256 _bps) external onlyOwner {
+        require(_bps <= 2500, "Max 25%");
+        lockedApyBps = _bps;
+    }
+
+    /// @notice Set max spins per day. 1 = normal. 2 = Game 100 double spin.
+    function adminSetMaxSpinsPerDay(uint8 _max) external onlyOwner {
+        require(_max >= 1 && _max <= 2, "1 or 2");
+        maxSpinsPerDay = _max;
+    }
+
+    function adminSetGoldChancePct(uint8 _pct) external onlyOwner {
+        require(_pct <= 100, "Max 100");
+        goldChancePct = _pct;
     }
 
     // ==================================================================================
