@@ -1039,6 +1039,39 @@ contract PizzaParlorManagerUpgradeable is
         emit SliceSent(sponsor, recipient, currentGameId);
     }
 
+    /**
+     * @dev Admin transfer all parlors from one address to another, preserving name and fees
+     */
+    function adminTransferParlor(address from, address to) external onlyOwner {
+        if (from == address(0) || to == address(0)) revert InvalidAddress();
+        if (parlorCount[from] == 0) revert NoParlorOwned();
+        if (isParlorOwner[to]) revert RecipientIsParlorOwner();
+
+        uint256 count = parlorCount[from];
+        parlorCount[to] = count;
+        parlorCount[from] = 0;
+
+        isParlorOwner[to] = true;
+        isParlorOwner[from] = false;
+
+        for (uint256 i = 0; i < parlorOwners.length; i++) {
+            if (parlorOwners[i] == from) {
+                parlorOwners[i] = to;
+                break;
+            }
+        }
+
+        if (bytes(parlorName[from]).length > 0) {
+            parlorName[to] = parlorName[from];
+            delete parlorName[from];
+        }
+
+        if (claimableBalance[from] > 0) {
+            claimableBalance[to] = claimableBalance[from];
+            claimableBalance[from] = 0;
+        }
+    }
+
     // ============ UUPS Upgrade Authorization ============
 
     function _authorizeUpgrade(address newImplementation) internal override onlyOwner {}
