@@ -328,7 +328,10 @@ export default function WeeklyJackpotPage({
                 </div>
               ))}
             </div>
-            <p className="text-blue-600 text-xs mt-2" style={{ fontFamily: 'var(--font-luckiest-guy)' }}>
+            <p className="text-orange-500 text-xs mt-2" style={{ fontFamily: 'var(--font-luckiest-guy)' }}>
+              Claim Window Opens every Sunday at 12pm PST
+            </p>
+            <p className="text-blue-600 text-xs mt-0.5" style={{ fontFamily: 'var(--font-luckiest-guy)' }}>
               Draw happens every Monday at 12pm PST
             </p>
           </div>
