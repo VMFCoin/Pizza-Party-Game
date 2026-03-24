@@ -985,11 +985,13 @@ export default function StakingPage({
   // Step 2: Run spin animation AFTER recordSpin tx confirms
   // The outcome is determined ON-CHAIN and passed from the SpinRecorded event
   const runSpinAnimation = useCallback((onChainOutcome: number) => {
-    setIsSpinning(true)
     // Only clear spinResult on first spin — preserve spin 1 result during spin 2
     if (spinCount === 0) {
       setSpinResult(null)
     }
+
+    // Reset wheel to 0 instantly (transition is 0s when isSpinning=false)
+    setSpinRotation(0)
 
     // Map on-chain SpinOutcome enum to SPIN_OUTCOMES array
     // Contract: 0=RegularSlice, 1=LoadedSlice, 2=HotOutTheOven, 3=Jackpot
@@ -1007,8 +1009,11 @@ export default function StakingPage({
     const fullSpins = 3 + Math.floor(Math.random() * 3)
     const targetRotation = getTargetRotation(targetSlice, fullSpins)
 
-    // Apply rotation (additive to maintain continuous spinning feel)
-    setSpinRotation(targetRotation)
+    // Start spinning after reset renders (next frame)
+    requestAnimationFrame(() => {
+      setIsSpinning(true)
+      setSpinRotation(targetRotation)
+    })
 
     // Start tick sound/haptic loop using requestAnimationFrame
     // This polls the actual CSS transform during animation
