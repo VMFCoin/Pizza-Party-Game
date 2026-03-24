@@ -261,7 +261,7 @@ export default function HomePage() {
                   <g transform="rotate(12, 100, 100)">
                     <text
                       x="100"
-                      y="68"
+                      y="85"
                       textAnchor="middle"
                       fill="#D43127"
                       style={{ fontFamily: 'var(--font-luckiest-guy)', fontSize: '28px', fontWeight: 'bold' }}
@@ -271,33 +271,13 @@ export default function HomePage() {
                     </text>
                     <text
                       x="100"
-                      y="95"
+                      y="120"
                       textAnchor="middle"
                       fill="#D43127"
-                      style={{ fontFamily: 'var(--font-luckiest-guy)', fontSize: '32px', fontWeight: 'bold' }}
+                      style={{ fontFamily: 'var(--font-luckiest-guy)', fontSize: '42px', fontWeight: 'bold' }}
                       filter="url(#whiteShadow)"
                     >
                       100
-                    </text>
-                    <text
-                      x="100"
-                      y="125"
-                      textAnchor="middle"
-                      fill="#D43127"
-                      style={{ fontFamily: 'var(--font-luckiest-guy)', fontSize: '16px', fontWeight: 'bold' }}
-                      filter="url(#whiteShadow)"
-                    >
-                      BIG
-                    </text>
-                    <text
-                      x="100"
-                      y="145"
-                      textAnchor="middle"
-                      fill="#D43127"
-                      style={{ fontFamily: 'var(--font-luckiest-guy)', fontSize: '16px', fontWeight: 'bold' }}
-                      filter="url(#whiteShadow)"
-                    >
-                      REWARDS
                     </text>
                   </g>
                 </svg>
