@@ -261,20 +261,30 @@ export default function HomePage() {
                   <g transform="rotate(12, 100, 100)">
                     <text
                       x="100"
-                      y="85"
+                      y="68"
                       textAnchor="middle"
                       fill="#D43127"
-                      style={{ fontFamily: 'var(--font-luckiest-guy)', fontSize: '28px', fontWeight: 'bold' }}
+                      style={{ fontFamily: 'var(--font-luckiest-guy)', fontSize: '18px', fontWeight: 'bold' }}
+                      filter="url(#whiteShadow)"
+                    >
+                      WE DID IT!
+                    </text>
+                    <text
+                      x="100"
+                      y="95"
+                      textAnchor="middle"
+                      fill="#D43127"
+                      style={{ fontFamily: 'var(--font-luckiest-guy)', fontSize: '30px', fontWeight: 'bold' }}
                       filter="url(#whiteShadow)"
                     >
                       GAME
                     </text>
                     <text
                       x="100"
-                      y="120"
+                      y="135"
                       textAnchor="middle"
                       fill="#D43127"
-                      style={{ fontFamily: 'var(--font-luckiest-guy)', fontSize: '42px', fontWeight: 'bold' }}
+                      style={{ fontFamily: 'var(--font-luckiest-guy)', fontSize: '48px', fontWeight: 'bold' }}
                       filter="url(#whiteShadow)"
                     >
                       100
