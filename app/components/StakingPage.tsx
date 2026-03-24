@@ -481,6 +481,13 @@ export default function StakingPage({
   }, [userPosition])
 
   // Check if user can spin today (from contract)
+  // Read maxSpinsPerDay from contract (1 = normal, 2 = double spin mode)
+  const { data: maxSpinsPerDay } = useReadContract({
+    address: PIZZA_STAKING_ADDRESS as `0x${string}`,
+    abi: PIZZA_STAKING_ABI,
+    functionName: 'maxSpinsPerDay',
+  })
+
   // Read canSpinToday from contract (accounts for maxSpinsPerDay)
   const { data: canSpinTodayContract, refetch: refetchCanSpin } = useReadContract({
     address: PIZZA_STAKING_ADDRESS as `0x${string}`,
@@ -1070,14 +1077,17 @@ export default function StakingPage({
       // Heavy haptic feedback when spin completes
       triggerHaptic('heavy')
 
-      // After spin completes, check if user can spin again (double spin mode)
-      refetchCanSpin().then(({ data: canStillSpin }) => {
-        if (canStillSpin) {
-          setAwaitingSpin2(true)
-        }
-      })
+      // Check if user can spin again (double spin mode)
+      const effectiveMax = Number(maxSpinsPerDay || 0) < 1 ? 1 : Number(maxSpinsPerDay || 0)
+      if (newSpinCount < effectiveMax) {
+        setAwaitingSpin2(true)
+      } else {
+        setAwaitingSpin2(false)
+      }
+      // Also refetch contract state
+      refetchCanSpin()
     }, 3000)
-  }, [playTick, triggerHaptic, getSliceFromRotation, saveSpinResult, spinCount, refetchCanSpin])
+  }, [playTick, triggerHaptic, getSliceFromRotation, saveSpinResult, spinCount, maxSpinsPerDay, refetchCanSpin])
 
   // After recordSpin tx confirms, read the outcome from the tx receipt and run animation
   // IMPORTANT: We read from the receipt (not contract state) because an RPC node may serve
