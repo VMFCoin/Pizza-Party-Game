@@ -267,37 +267,37 @@ export default function HomePage() {
                       style={{ fontFamily: 'var(--font-luckiest-guy)', fontSize: '28px', fontWeight: 'bold' }}
                       filter="url(#whiteShadow)"
                     >
-                      30%
+                      GAME
                     </text>
                     <text
                       x="100"
-                      y="90"
+                      y="95"
+                      textAnchor="middle"
+                      fill="#D43127"
+                      style={{ fontFamily: 'var(--font-luckiest-guy)', fontSize: '32px', fontWeight: 'bold' }}
+                      filter="url(#whiteShadow)"
+                    >
+                      100
+                    </text>
+                    <text
+                      x="100"
+                      y="125"
                       textAnchor="middle"
                       fill="#D43127"
                       style={{ fontFamily: 'var(--font-luckiest-guy)', fontSize: '16px', fontWeight: 'bold' }}
                       filter="url(#whiteShadow)"
                     >
-                      Limited Time
+                      BIG
                     </text>
                     <text
                       x="100"
-                      y="115"
+                      y="145"
                       textAnchor="middle"
                       fill="#D43127"
-                      style={{ fontFamily: 'var(--font-luckiest-guy)', fontSize: '20px', fontWeight: 'bold' }}
+                      style={{ fontFamily: 'var(--font-luckiest-guy)', fontSize: '16px', fontWeight: 'bold' }}
                       filter="url(#whiteShadow)"
                     >
-                      Extra Spin
-                    </text>
-                    <text
-                      x="100"
-                      y="138"
-                      textAnchor="middle"
-                      fill="#D43127"
-                      style={{ fontFamily: 'var(--font-luckiest-guy)', fontSize: '20px', fontWeight: 'bold' }}
-                      filter="url(#whiteShadow)"
-                    >
-                      Rewards
+                      REWARDS
                     </text>
                   </g>
                 </svg>
