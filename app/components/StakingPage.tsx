@@ -979,7 +979,10 @@ export default function StakingPage({
   // The outcome is determined ON-CHAIN and passed from the SpinRecorded event
   const runSpinAnimation = useCallback((onChainOutcome: number) => {
     setIsSpinning(true)
-    setSpinResult(null)
+    // Only clear spinResult on first spin — preserve spin 1 result during spin 2
+    if (spinCount === 0) {
+      setSpinResult(null)
+    }
 
     // Map on-chain SpinOutcome enum to SPIN_OUTCOMES array
     // Contract: 0=RegularSlice, 1=LoadedSlice, 2=HotOutTheOven, 3=Jackpot
