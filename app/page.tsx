@@ -261,33 +261,43 @@ export default function HomePage() {
                   <g transform="rotate(12, 100, 100)">
                     <text
                       x="100"
-                      y="68"
+                      y="65"
                       textAnchor="middle"
                       fill="#D43127"
-                      style={{ fontFamily: 'var(--font-luckiest-guy)', fontSize: '18px', fontWeight: 'bold' }}
+                      style={{ fontFamily: 'var(--font-luckiest-guy)', fontSize: '16px', fontWeight: 'bold' }}
                       filter="url(#whiteShadow)"
                     >
-                      WE DID IT!
+                      NEW
                     </text>
                     <text
                       x="100"
-                      y="95"
+                      y="85"
                       textAnchor="middle"
                       fill="#D43127"
-                      style={{ fontFamily: 'var(--font-luckiest-guy)', fontSize: '30px', fontWeight: 'bold' }}
+                      style={{ fontFamily: 'var(--font-luckiest-guy)', fontSize: '16px', fontWeight: 'bold' }}
                       filter="url(#whiteShadow)"
                     >
-                      GAME
+                      STAKING
                     </text>
                     <text
                       x="100"
-                      y="135"
+                      y="108"
                       textAnchor="middle"
                       fill="#D43127"
-                      style={{ fontFamily: 'var(--font-luckiest-guy)', fontSize: '48px', fontWeight: 'bold' }}
+                      style={{ fontFamily: 'var(--font-luckiest-guy)', fontSize: '16px', fontWeight: 'bold' }}
                       filter="url(#whiteShadow)"
                     >
-                      100
+                      APY
+                    </text>
+                    <text
+                      x="100"
+                      y="140"
+                      textAnchor="middle"
+                      fill="#D43127"
+                      style={{ fontFamily: 'var(--font-luckiest-guy)', fontSize: '38px', fontWeight: 'bold' }}
+                      filter="url(#whiteShadow)"
+                    >
+                      25%
                     </text>
                   </g>
                 </svg>
