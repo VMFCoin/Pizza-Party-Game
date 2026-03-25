@@ -261,20 +261,10 @@ export default function HomePage() {
                   <g transform="rotate(12, 100, 100)">
                     <text
                       x="100"
-                      y="65"
+                      y="78"
                       textAnchor="middle"
                       fill="#D43127"
-                      style={{ fontFamily: 'var(--font-luckiest-guy)', fontSize: '16px', fontWeight: 'bold' }}
-                      filter="url(#whiteShadow)"
-                    >
-                      NEW
-                    </text>
-                    <text
-                      x="100"
-                      y="85"
-                      textAnchor="middle"
-                      fill="#D43127"
-                      style={{ fontFamily: 'var(--font-luckiest-guy)', fontSize: '16px', fontWeight: 'bold' }}
+                      style={{ fontFamily: 'var(--font-luckiest-guy)', fontSize: '26px', fontWeight: 'bold' }}
                       filter="url(#whiteShadow)"
                     >
                       STAKING
@@ -284,17 +274,17 @@ export default function HomePage() {
                       y="108"
                       textAnchor="middle"
                       fill="#D43127"
-                      style={{ fontFamily: 'var(--font-luckiest-guy)', fontSize: '16px', fontWeight: 'bold' }}
+                      style={{ fontFamily: 'var(--font-luckiest-guy)', fontSize: '26px', fontWeight: 'bold' }}
                       filter="url(#whiteShadow)"
                     >
                       APY
                     </text>
                     <text
                       x="100"
-                      y="140"
+                      y="138"
                       textAnchor="middle"
                       fill="#D43127"
-                      style={{ fontFamily: 'var(--font-luckiest-guy)', fontSize: '38px', fontWeight: 'bold' }}
+                      style={{ fontFamily: 'var(--font-luckiest-guy)', fontSize: '26px', fontWeight: 'bold' }}
                       filter="url(#whiteShadow)"
                     >
                       25%
