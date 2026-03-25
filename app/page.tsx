@@ -271,20 +271,20 @@ export default function HomePage() {
                     </text>
                     <text
                       x="100"
-                      y="108"
+                      y="110"
                       textAnchor="middle"
                       fill="#D43127"
-                      style={{ fontFamily: 'var(--font-luckiest-guy)', fontSize: '26px', fontWeight: 'bold' }}
+                      style={{ fontFamily: 'var(--font-luckiest-guy)', fontSize: '32px', fontWeight: 'bold' }}
                       filter="url(#whiteShadow)"
                     >
                       APY
                     </text>
                     <text
                       x="100"
-                      y="138"
+                      y="142"
                       textAnchor="middle"
                       fill="#D43127"
-                      style={{ fontFamily: 'var(--font-luckiest-guy)', fontSize: '26px', fontWeight: 'bold' }}
+                      style={{ fontFamily: 'var(--font-luckiest-guy)', fontSize: '32px', fontWeight: 'bold' }}
                       filter="url(#whiteShadow)"
                     >
                       25%
