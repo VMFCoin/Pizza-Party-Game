@@ -608,20 +608,39 @@ export function useGamePageData() {
           const startBlock = currentBlock > 345_600n ? currentBlock - 345_600n : 0n
 
           // Chunk getLogs into 49K block ranges (publicnode supports up to 50K)
-          // ~8 chunks to cover the full period
+          // If a chunk fails, retry with smaller 10K sub-chunks
           const CHUNK_SIZE = 49_000n
+          const SUB_CHUNK_SIZE = 10_000n
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           const toppingsLogs: any[] = []
-          for (let from = startBlock; from <= currentBlock; from += CHUNK_SIZE) {
-            const to = from + CHUNK_SIZE - 1n > currentBlock ? currentBlock : from + CHUNK_SIZE - 1n
-            const chunk = await logsClient.getLogs({
+
+          const fetchChunk = async (from: bigint, to: bigint) => {
+            return logsClient.getLogs({
               address: PIZZA_PARTY_ADDRESS as `0x${string}`,
               event: TOPPINGS_EARNED_EVENT,
               args: { weekId: currentWeekId },
               fromBlock: from,
               toBlock: to,
             })
-            toppingsLogs.push(...chunk)
+          }
+
+          for (let from = startBlock; from <= currentBlock; from += CHUNK_SIZE) {
+            const to = from + CHUNK_SIZE - 1n > currentBlock ? currentBlock : from + CHUNK_SIZE - 1n
+            try {
+              const chunk = await fetchChunk(from, to)
+              toppingsLogs.push(...chunk)
+            } catch {
+              // Retry with smaller sub-chunks on failure
+              for (let sub = from; sub <= to; sub += SUB_CHUNK_SIZE) {
+                const subTo = sub + SUB_CHUNK_SIZE - 1n > to ? to : sub + SUB_CHUNK_SIZE - 1n
+                try {
+                  const subChunk = await fetchChunk(sub, subTo)
+                  toppingsLogs.push(...subChunk)
+                } catch {
+                  // Skip failed sub-chunk
+                }
+              }
+            }
           }
 
           const oldContractLogs: typeof toppingsLogs = []
