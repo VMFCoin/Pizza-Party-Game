@@ -109,7 +109,7 @@ function getTargetRotation(sliceIndex: number, fullSpins: number = 4): number {
 
 // Lock Types - bonuses are ADDITIVE (not multiplicative)
 const LOCK_TYPES = [
-  { id: 'flexible', name: 'No Lock', perks: ['Tier Rewards', 'Daily pool allotment', 'Spin wheel'], icon: Unlock, lockType: 0 },
+  { id: 'flexible', name: 'No Lock', perks: ['Tier Rewards', 'Daily pool Rewards', 'Spin wheel'], icon: Unlock, lockType: 0 },
   { id: 'locked', name: '7-Day Lock', perks: ['25% APY', '+5% spin bonus', '15% early exit fee'], icon: Lock, lockType: 1 },
 ]
 
