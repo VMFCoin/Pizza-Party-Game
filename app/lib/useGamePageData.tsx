@@ -2,7 +2,8 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { toZonedTime, fromZonedTime } from 'date-fns-tz'
-import { parseAbiItem } from 'viem'
+import { parseAbiItem, createPublicClient as createViemClient, http as viemHttp } from 'viem'
+import { base as baseChain } from 'viem/chains'
 import { readContract, watchBlockNumber, getPublicClient } from '@wagmi/core'
 import { useAccount, useChainId, useWriteContract, useSignTypedData } from 'wagmi'
 import { useAppKit } from '@reown/appkit/react'
@@ -594,23 +595,35 @@ export function useGamePageData() {
 
       if (publicClient) {
         try {
-          // Look back ~10 days of blocks to cover the full weekly period
-          // Base produces blocks every 2s, so 10 days ≈ 432,000 blocks
-          const currentBlock = await publicClient.getBlockNumber()
-          const fromBlock = currentBlock > 432_000n ? currentBlock - 432_000n : 0n
-
-          // Query NEW contract for current week's toppings
-          const toppingsLogs = await publicClient.getLogs({
-            address: PIZZA_PARTY_ADDRESS as `0x${string}`,
-            event: TOPPINGS_EARNED_EVENT,
-            args: { weekId: currentWeekId },
-            fromBlock,
+          // Create a dedicated client for getLogs using an RPC that supports larger block ranges
+          // BlastAPI (wagmi default) only allows 10 blocks per getLogs — unusable for event scanning
+          const logsClient = createViemClient({
+            chain: baseChain,
+            transport: viemHttp('https://base-rpc.publicnode.com'),
           })
 
-          // MIGRATION NOTE: Old contract (0x5c3aaD450F0014292Ff363b2147e6571b16c8035) was used for Weekly 3.
-          // Weekly 3 has now been settled via emergencySettleWeekly. We are now on Weekly 4.
-          // The old contract events should NO LONGER be queried for the current week's jackpot.
-          // Weekly 4+ only uses the new contract at PIZZA_PARTY_ADDRESS.
+          // Look back ~8 days of blocks to cover the full weekly period
+          // Base produces blocks every 2s, so 8 days ≈ 345,600 blocks
+          const currentBlock = await logsClient.getBlockNumber()
+          const startBlock = currentBlock > 345_600n ? currentBlock - 345_600n : 0n
+
+          // Chunk getLogs into 49K block ranges (publicnode supports up to 50K)
+          // ~8 chunks to cover the full period
+          const CHUNK_SIZE = 49_000n
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const toppingsLogs: any[] = []
+          for (let from = startBlock; from <= currentBlock; from += CHUNK_SIZE) {
+            const to = from + CHUNK_SIZE - 1n > currentBlock ? currentBlock : from + CHUNK_SIZE - 1n
+            const chunk = await logsClient.getLogs({
+              address: PIZZA_PARTY_ADDRESS as `0x${string}`,
+              event: TOPPINGS_EARNED_EVENT,
+              args: { weekId: currentWeekId },
+              fromBlock: from,
+              toBlock: to,
+            })
+            toppingsLogs.push(...chunk)
+          }
+
           const oldContractLogs: typeof toppingsLogs = []
 
           let totalEarned = 0n
