@@ -190,7 +190,7 @@ export default function StakingPage({
 
   // UI state
   const [stakeAmount, setStakeAmount] = useState('')
-  const [selectedLockType, setSelectedLockType] = useState<0 | 1>(1) // 0 = flexible, 1 = locked
+  const [selectedLockType, setSelectedLockType] = useState<0 | 1>(0) // 0 = flexible, 1 = locked
   const [showStakeInput, setShowStakeInput] = useState(false)
   const [showConfirmModal, setShowConfirmModal] = useState<'stake' | 'unstake' | 'spin-claim' | null>(null)
   const [claimLockType, setClaimLockType] = useState<0 | 1>(0) // Lock type for claimed rewards
@@ -1262,33 +1262,36 @@ export default function StakingPage({
                       </div>
                     </div>
 
-                    {/* Staked Amounts - Compact Grid */}
-                    <div className="grid grid-cols-2 gap-2">
-                      {userPosition.flexibleAmount > 0n && (
-                        <div className="bg-green-50 rounded-lg p-2 border border-green-200">
-                          <div className="flex items-center gap-1 text-green-600 text-xs">
-                            <Unlock size={12} />
-                            <span>Flexible</span>
-                          </div>
-                          <p className="text-green-800 font-bold text-sm" style={{ fontFamily: 'var(--font-luckiest-guy)' }}>
-                            {formatPizzaWei(userPosition.flexibleAmount)}
-                          </p>
-                        </div>
-                      )}
-                      {userPosition.lockedAmount > 0n && (
-                        <div className="bg-blue-50 rounded-lg p-2 border border-blue-200">
-                          <div className="flex items-center justify-between text-[10px] whitespace-nowrap">
-                            <div className="flex items-center gap-0.5 text-blue-600">
-                              <Lock size={10} />
-                              <span>Lock {apyPercent}% APY</span>
+                    {/* Amount Staked - Full Width */}
+                    <div className="bg-blue-50 rounded-lg p-3 border border-blue-200">
+                      <p className="text-blue-600 text-xs mb-2" style={{ fontFamily: 'var(--font-luckiest-guy)' }}>Amount Staked</p>
+                      <div className="space-y-1.5">
+                        {userPosition.flexibleAmount > 0n && (
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-1 text-green-600 text-xs">
+                              <Unlock size={12} />
+                              <span style={{ fontFamily: 'var(--font-luckiest-guy)' }}>No Lock</span>
                             </div>
-                            <span className="text-blue-500">{timeUntilUnlock}</span>
+                            <p className="text-green-800 font-bold text-sm" style={{ fontFamily: 'var(--font-luckiest-guy)' }}>
+                              {formatPizzaWei(userPosition.flexibleAmount)}
+                            </p>
                           </div>
-                          <p className="text-blue-800 font-bold text-sm" style={{ fontFamily: 'var(--font-luckiest-guy)' }}>
-                            {formatPizzaWei(userPosition.lockedAmount)}
-                          </p>
-                        </div>
-                      )}
+                        )}
+                        {userPosition.lockedAmount > 0n && (
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-1 text-blue-600 text-xs">
+                              <Lock size={12} />
+                              <span style={{ fontFamily: 'var(--font-luckiest-guy)' }}>Locked ({apyPercent}% APY)</span>
+                            </div>
+                            <div className="text-right">
+                              <p className="text-blue-800 font-bold text-sm" style={{ fontFamily: 'var(--font-luckiest-guy)' }}>
+                                {formatPizzaWei(userPosition.lockedAmount)}
+                              </p>
+                              <p className="text-blue-400 text-[10px]" style={{ fontFamily: 'var(--font-luckiest-guy)' }}>{timeUntilUnlock}</p>
+                            </div>
+                          </div>
+                        )}
+                      </div>
                     </div>
 
                     {/* Pending Rewards - Compact */}
@@ -1739,7 +1742,7 @@ export default function StakingPage({
                     </div>
                     <div className="bg-white rounded-lg p-2 text-center border border-blue-200">
                       <p className="text-blue-500 text-xs" style={{ fontFamily: 'var(--font-luckiest-guy)' }}>Current APY</p>
-                      <p className="text-blue-700 font-bold" style={{ fontFamily: 'var(--font-luckiest-guy)' }}>25%</p>
+                      <p className="text-blue-700 font-bold" style={{ fontFamily: 'var(--font-luckiest-guy)' }}>{apyPercent}%</p>
                     </div>
                   </div>
                 </div>
