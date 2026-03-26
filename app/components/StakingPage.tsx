@@ -1738,8 +1738,8 @@ export default function StakingPage({
                       <p className="text-blue-700 font-bold text-sm" style={{ fontFamily: 'var(--font-luckiest-guy)' }}>{stakerCount?.toString() ?? '0'}</p>
                     </div>
                     <div className="bg-white rounded-lg p-2 text-center border border-blue-200">
-                      <p className="text-blue-500 text-xs" style={{ fontFamily: 'var(--font-luckiest-guy)' }}>Boost Days Left</p>
-                      <p className="text-blue-700 font-bold" style={{ fontFamily: 'var(--font-luckiest-guy)' }}>{boostDaysRemaining}</p>
+                      <p className="text-blue-500 text-xs" style={{ fontFamily: 'var(--font-luckiest-guy)' }}>Current APY</p>
+                      <p className="text-blue-700 font-bold" style={{ fontFamily: 'var(--font-luckiest-guy)' }}>25%</p>
                     </div>
                   </div>
                 </div>
