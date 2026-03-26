@@ -189,7 +189,7 @@ export function useGamePageData() {
   const { writeContract, isPending } = useWriteContract()
   const { signTypedDataAsync } = useSignTypedData()
   const networkId = useChainId()
-  const publicClient = useMemo(() => {
+  const _publicClient = useMemo(() => {
     try {
       return getPublicClient(wagmiConfig, { chainId: BASE_CHAIN_ID })
     } catch (err) {
@@ -521,7 +521,7 @@ export function useGamePageData() {
   })
   const fetchWeekly = useCallback(async () => {
     try {
-      const [weeklyData, currentWeekId, treasuryBonusRaw, toppingUnitPizzaRaw] = await Promise.all([
+      const [weeklyData, _currentWeekId, treasuryBonusRaw, toppingUnitPizzaRaw] = await Promise.all([
         readContract(wagmiConfig, {
           address: PIZZA_PARTY_ADDRESS as `0x${string}`,
           abi: PIZZA_PARTY_ABI,
