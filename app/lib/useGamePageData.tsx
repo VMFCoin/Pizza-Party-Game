@@ -607,41 +607,55 @@ export function useGamePageData() {
           const currentBlock = await logsClient.getBlockNumber()
           const startBlock = currentBlock > 345_600n ? currentBlock - 345_600n : 0n
 
-          // Chunk getLogs into 49K block ranges (publicnode supports up to 50K)
-          // If a chunk fails, retry with smaller 10K sub-chunks
+          // Fire all chunk requests in parallel for speed (~1-2s instead of ~10s)
           const CHUNK_SIZE = 49_000n
           const SUB_CHUNK_SIZE = 10_000n
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           const toppingsLogs: any[] = []
 
-          const fetchChunk = async (from: bigint, to: bigint) => {
-            return logsClient.getLogs({
+          const fetchChunk = (from: bigint, to: bigint) =>
+            logsClient.getLogs({
               address: PIZZA_PARTY_ADDRESS as `0x${string}`,
               event: TOPPINGS_EARNED_EVENT,
               args: { weekId: currentWeekId },
               fromBlock: from,
               toBlock: to,
             })
-          }
 
+          // Build chunk ranges
+          const chunks: { from: bigint; to: bigint }[] = []
           for (let from = startBlock; from <= currentBlock; from += CHUNK_SIZE) {
             const to = from + CHUNK_SIZE - 1n > currentBlock ? currentBlock : from + CHUNK_SIZE - 1n
-            try {
-              const chunk = await fetchChunk(from, to)
-              toppingsLogs.push(...chunk)
-            } catch {
-              // Retry with smaller sub-chunks on failure
+            chunks.push({ from, to })
+          }
+
+          // Fetch all chunks in parallel
+          const results = await Promise.allSettled(chunks.map(c => fetchChunk(c.from, c.to)))
+
+          // Collect successes, retry failures with smaller sub-chunks in parallel
+          const retryPromises: Promise<void>[] = []
+          for (let i = 0; i < results.length; i++) {
+            const r = results[i]
+            if (r.status === 'fulfilled') {
+              toppingsLogs.push(...r.value)
+            } else {
+              // Retry failed chunk with smaller sub-chunks
+              const { from, to } = chunks[i]
+              const subChunks: { from: bigint; to: bigint }[] = []
               for (let sub = from; sub <= to; sub += SUB_CHUNK_SIZE) {
                 const subTo = sub + SUB_CHUNK_SIZE - 1n > to ? to : sub + SUB_CHUNK_SIZE - 1n
-                try {
-                  const subChunk = await fetchChunk(sub, subTo)
-                  toppingsLogs.push(...subChunk)
-                } catch {
-                  // Skip failed sub-chunk
-                }
+                subChunks.push({ from: sub, to: subTo })
               }
+              retryPromises.push(
+                Promise.allSettled(subChunks.map(s => fetchChunk(s.from, s.to))).then(subResults => {
+                  for (const sr of subResults) {
+                    if (sr.status === 'fulfilled') toppingsLogs.push(...sr.value)
+                  }
+                })
+              )
             }
           }
+          if (retryPromises.length > 0) await Promise.all(retryPromises)
 
           const oldContractLogs: typeof toppingsLogs = []
 
