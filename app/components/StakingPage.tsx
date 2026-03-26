@@ -1272,8 +1272,8 @@ export default function StakingPage({
                               <Unlock size={12} />
                               <span style={{ fontFamily: 'var(--font-luckiest-guy)' }}>No Lock</span>
                             </div>
-                            <p className="text-green-800 font-bold text-sm" style={{ fontFamily: 'var(--font-luckiest-guy)' }}>
-                              {formatPizzaWei(userPosition.flexibleAmount)}
+                            <p className="text-green-800 font-bold text-xs" style={{ fontFamily: 'var(--font-luckiest-guy)' }}>
+                              {formatWeiExact(userPosition.flexibleAmount)} PIZZA
                             </p>
                           </div>
                         )}
@@ -1284,8 +1284,8 @@ export default function StakingPage({
                               <span style={{ fontFamily: 'var(--font-luckiest-guy)' }}>Locked ({apyPercent}% APY)</span>
                             </div>
                             <div className="text-right">
-                              <p className="text-blue-800 font-bold text-sm" style={{ fontFamily: 'var(--font-luckiest-guy)' }}>
-                                {formatPizzaWei(userPosition.lockedAmount)}
+                              <p className="text-blue-800 font-bold text-xs" style={{ fontFamily: 'var(--font-luckiest-guy)' }}>
+                                {formatWeiExact(userPosition.lockedAmount)} PIZZA
                               </p>
                               <p className="text-blue-400 text-[10px]" style={{ fontFamily: 'var(--font-luckiest-guy)' }}>{timeUntilUnlock}</p>
                             </div>
@@ -1370,6 +1370,24 @@ export default function StakingPage({
                             >
                               MAX
                             </Button>
+                          </div>
+                          <div className="flex gap-1 mt-1">
+                            {[25, 50, 75, 100].map((pct) => (
+                              <button
+                                key={pct}
+                                onClick={() => {
+                                  if (pizzaBalance) {
+                                    const bal = pizzaBalance as bigint
+                                    const amount = pct === 100 ? bal : (bal * BigInt(pct)) / 100n
+                                    setStakeAmount(formatUnits(amount, 18))
+                                  }
+                                }}
+                                className="flex-1 py-0.5 rounded-lg border border-green-400 bg-green-100 hover:bg-green-200 text-green-700 text-[10px] font-bold"
+                                style={{ fontFamily: 'var(--font-luckiest-guy)' }}
+                              >
+                                {pct}%
+                              </button>
+                            ))}
                           </div>
                           <p className="text-gray-500 text-xs mt-1" style={{ fontFamily: 'var(--font-luckiest-guy)' }}>
                             Available: {formatWeiExact(pizzaBalance as bigint)} PIZZA (Min: 1 PIZZA)
