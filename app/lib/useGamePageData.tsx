@@ -594,9 +594,10 @@ export function useGamePageData() {
 
       if (publicClient) {
         try {
-          // Count from ToppingsEarned events for the current week
-          // Query from genesis to ensure no events are missed (weekId filter ensures only current week)
-          const fromBlock = 0n
+          // Look back ~10 days of blocks to cover the full weekly period
+          // Base produces blocks every 2s, so 10 days ≈ 432,000 blocks
+          const currentBlock = await publicClient.getBlockNumber()
+          const fromBlock = currentBlock > 432_000n ? currentBlock - 432_000n : 0n
 
           // Query NEW contract for current week's toppings
           const toppingsLogs = await publicClient.getLogs({
