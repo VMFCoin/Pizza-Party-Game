@@ -58,6 +58,17 @@ export async function POST(request: NextRequest) {
       }, { status: 403 })
     }
 
+    // Block 3rd+ slice from the same sender to the same recipient
+    const priorSliceCount = await prisma.sliceSend.count({
+      where: { senderFid, recipientFid },
+    })
+    if (priorSliceCount >= 2) {
+      return NextResponse.json({
+        success: false,
+        error: "You've already sent this player 2 free slices. Sending more to the same player is not allowed.",
+      }, { status: 403 })
+    }
+
     // Hash IP for privacy-preserving comparison
     const forwarded = request.headers.get('x-forwarded-for')
     const ip = forwarded ? forwarded.split(',')[0].trim() : request.headers.get('x-real-ip') || 'unknown'

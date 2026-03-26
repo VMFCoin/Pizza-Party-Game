@@ -550,6 +550,21 @@ export default function PizzaParlorPage({
       return
     }
 
+    // Pre-check: block if this sender has already sliced this recipient 2+ times
+    if (recipientFid && userFid) {
+      try {
+        const checkRes = await fetch(`/api/slice/check-pair?senderFid=${userFid}&recipientFid=${recipientFid}`)
+        const checkData = await checkRes.json()
+        if (checkData.blocked) {
+          setSelfSliceError("You've already sent this player 2 free slices. Sending more to the same player is not allowed.")
+          return
+        }
+      } catch (err) {
+        console.error('Slice pair check failed:', err)
+        // Non-blocking — let the tx proceed if the check fails
+      }
+    }
+
     setIsSendingSlice(true)
 
     // Prepare user info for notification AFTER tx confirms
