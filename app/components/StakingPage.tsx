@@ -109,8 +109,8 @@ function getTargetRotation(sliceIndex: number, fullSpins: number = 4): number {
 
 // Lock Types - bonuses are ADDITIVE (not multiplicative)
 const LOCK_TYPES = [
-  { id: 'flexible', name: 'No Lock', bonus: '+0%', duration: 'No lock', penalty: 'None', icon: Unlock, lockType: 0 },
-  { id: 'locked', name: '7-Day Lock', bonus: '+5%', duration: '7 days', penalty: '15% early exit', icon: Lock, lockType: 1 },
+  { id: 'flexible', name: 'No Lock', perks: ['Tier Rewards', 'Daily pool allotment', 'Spin wheel'], icon: Unlock, lockType: 0 },
+  { id: 'locked', name: '7-Day Lock', perks: ['25% APY', '+5% spin bonus', '15% early exit fee'], icon: Lock, lockType: 1 },
 ]
 
 const customFontStyle = {
@@ -1399,14 +1399,11 @@ export default function StakingPage({
                                   <p className={`font-bold text-sm mt-1 ${isSelected ? 'text-green-700' : 'text-gray-600'}`} style={{ fontFamily: 'var(--font-luckiest-guy)' }}>
                                     {lockType.name}
                                   </p>
-                                  <p className={`text-xs ${isSelected ? 'text-green-600' : 'text-gray-500'}`} style={{ fontFamily: 'var(--font-luckiest-guy)' }}>
-                                    Bonus: {lockType.bonus}
-                                  </p>
-                                  {lockType.id === 'locked' && (
-                                    <p className="text-xs text-orange-500 mt-1" style={{ fontFamily: 'var(--font-luckiest-guy)' }}>
-                                      {lockType.penalty}
+                                  {lockType.perks.map((perk, i) => (
+                                    <p key={i} className={`text-[10px] ${lockType.id === 'locked' && i === lockType.perks.length - 1 ? 'text-orange-500' : isSelected ? 'text-green-600' : 'text-gray-500'}`} style={{ fontFamily: 'var(--font-luckiest-guy)' }}>
+                                      {perk}
                                     </p>
-                                  )}
+                                  ))}
                                 </button>
                               )
                             })}
@@ -1612,14 +1609,11 @@ export default function StakingPage({
                                   <p className={`font-bold text-sm mt-1 ${isSelected ? 'text-green-700' : 'text-gray-600'}`} style={{ fontFamily: 'var(--font-luckiest-guy)' }}>
                                     {lockType.name}
                                   </p>
-                                  <p className={`text-xs ${isSelected ? 'text-green-600' : 'text-gray-500'}`} style={{ fontFamily: 'var(--font-luckiest-guy)' }}>
-                                    Bonus: {lockType.bonus}
-                                  </p>
-                                  {lockType.id === 'locked' && (
-                                    <p className="text-xs text-orange-500 mt-1" style={{ fontFamily: 'var(--font-luckiest-guy)' }}>
-                                      {lockType.penalty}
+                                  {lockType.perks.map((perk, i) => (
+                                    <p key={i} className={`text-[10px] ${lockType.id === 'locked' && i === lockType.perks.length - 1 ? 'text-orange-500' : isSelected ? 'text-green-600' : 'text-gray-500'}`} style={{ fontFamily: 'var(--font-luckiest-guy)' }}>
+                                      {perk}
                                     </p>
-                                  )}
+                                  ))}
                                 </button>
                               )
                             })}
