@@ -357,6 +357,13 @@ export const PIZZA_PARTY_ABI = [
   },
   {
     type: 'function',
+    name: 'getDailyGamePlayers',
+    stateMutability: 'view',
+    inputs: [{ type: 'uint256', name: 'gameId' }],
+    outputs: [{ type: 'address[]' }]
+  },
+  {
+    type: 'function',
     name: 'getPlayerWeeklyInfo',
     stateMutability: 'view',
     inputs: [{ type: 'address', name: 'player' }],

@@ -2,8 +2,6 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { toZonedTime, fromZonedTime } from 'date-fns-tz'
-import { parseAbiItem, createPublicClient as createViemClient, http as viemHttp } from 'viem'
-import { base as baseChain } from 'viem/chains'
 import { readContract, watchBlockNumber, getPublicClient } from '@wagmi/core'
 import { useAccount, useChainId, useWriteContract, useSignTypedData } from 'wagmi'
 import { useAppKit } from '@reown/appkit/react'
@@ -33,13 +31,6 @@ const getLastKnownPrice = (): number => {
   }
   return DEFAULT_PIZZA_USD_PRICE
 }
-const TOPPINGS_EARNED_EVENT = parseAbiItem(
-  'event ToppingsEarned(uint256 indexed weekId, address indexed player, uint256 amount, string reason)',
-)
-
-// Old contract for migration - query ToppingsEarned events from Monday 12pm PST
-// This is needed because we deployed a new contract mid-week (Weekly 3)
-const _OLD_PIZZA_PARTY_ADDRESS = '0x5c3aaD450F0014292Ff363b2147e6571b16c8035'
 // Monday Dec 2, 2024 at 12:00 PM PST (20:00 UTC) = block 23190127
 const _WEEKLY_3_START_BLOCK = 23190127n
 
@@ -593,158 +584,97 @@ export function useGamePageData() {
       let projectedJackpotWei = jackpotWei
       let projectedPlayerCount = Number(claimerCount)
 
-      if (publicClient) {
-        try {
-          // Create a dedicated client for getLogs using an RPC that supports larger block ranges
-          // BlastAPI (wagmi default) only allows 10 blocks per getLogs — unusable for event scanning
-          const logsClient = createViemClient({
-            chain: baseChain,
-            transport: viemHttp('https://base-rpc.publicnode.com'),
-          })
+      // Get unique weekly players and projected jackpot using getDailyGamePlayers
+      // This is much faster than scanning event logs (~1s vs ~10s)
+      try {
+        const currentDailyId = await readContract(wagmiConfig, {
+          address: PIZZA_PARTY_ADDRESS as `0x${string}`,
+          abi: PIZZA_PARTY_ABI,
+          functionName: 'dailyGameId',
+        }) as bigint
 
-          // Look back ~8 days of blocks to cover the full weekly period
-          // Base produces blocks every 2s, so 8 days ≈ 345,600 blocks
-          const currentBlock = await logsClient.getBlockNumber()
-          const startBlock = currentBlock > 345_600n ? currentBlock - 345_600n : 0n
+        // The week started after the previous weekly claimEnd (Monday noon PDT)
+        // claimStart is Sunday noon PDT, so weekStart = claimStart - 6 days
+        const weekStartSec = Number(claimStart) - 6 * 24 * 60 * 60
 
-          // Fire all chunk requests in parallel for speed (~1-2s instead of ~10s)
-          const CHUNK_SIZE = 49_000n
-          const SUB_CHUNK_SIZE = 10_000n
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          const toppingsLogs: any[] = []
-
-          const fetchChunk = (from: bigint, to: bigint) =>
-            logsClient.getLogs({
-              address: PIZZA_PARTY_ADDRESS as `0x${string}`,
-              event: TOPPINGS_EARNED_EVENT,
-              args: { weekId: currentWeekId },
-              fromBlock: from,
-              toBlock: to,
-            })
-
-          // Build chunk ranges
-          const chunks: { from: bigint; to: bigint }[] = []
-          for (let from = startBlock; from <= currentBlock; from += CHUNK_SIZE) {
-            const to = from + CHUNK_SIZE - 1n > currentBlock ? currentBlock : from + CHUNK_SIZE - 1n
-            chunks.push({ from, to })
-          }
-
-          // Fetch all chunks in parallel
-          const results = await Promise.allSettled(chunks.map(c => fetchChunk(c.from, c.to)))
-
-          // Collect successes, retry failures with smaller sub-chunks in parallel
-          const retryPromises: Promise<void>[] = []
-          for (let i = 0; i < results.length; i++) {
-            const r = results[i]
-            if (r.status === 'fulfilled') {
-              toppingsLogs.push(...r.value)
-            } else {
-              // Retry failed chunk with smaller sub-chunks
-              const { from, to } = chunks[i]
-              const subChunks: { from: bigint; to: bigint }[] = []
-              for (let sub = from; sub <= to; sub += SUB_CHUNK_SIZE) {
-                const subTo = sub + SUB_CHUNK_SIZE - 1n > to ? to : sub + SUB_CHUNK_SIZE - 1n
-                subChunks.push({ from: sub, to: subTo })
-              }
-              retryPromises.push(
-                Promise.allSettled(subChunks.map(s => fetchChunk(s.from, s.to))).then(subResults => {
-                  for (const sr of subResults) {
-                    if (sr.status === 'fulfilled') toppingsLogs.push(...sr.value)
-                  }
-                })
-              )
-            }
-          }
-          if (retryPromises.length > 0) await Promise.all(retryPromises)
-
-          const oldContractLogs: typeof toppingsLogs = []
-
-          let totalEarned = 0n
-          const uniquePlayersThisWeek = new Set<string>()
-
-          // Debug: Track breakdown by reason
-          const toppingsByReason: Record<string, bigint> = {}
-          const playersByReason: Record<string, Set<string>> = {}
-
-          // Process logs from BOTH contracts
-          const allLogs = [...oldContractLogs, ...toppingsLogs]
-
-          for (const log of allLogs) {
-            const amount = log.args?.amount ?? 0n
-            const playerArg = log.args?.player
-            const reason = (log.args as { reason?: string })?.reason ?? 'unknown'
-
-            totalEarned += amount
-
-            // Track by reason for debugging
-            toppingsByReason[reason] = (toppingsByReason[reason] ?? 0n) + amount
-            if (!playersByReason[reason]) {
-              playersByReason[reason] = new Set()
-            }
-
-            // Track unique players who earned any toppings this week
-            if (playerArg) {
-              uniquePlayersThisWeek.add(playerArg.toLowerCase())
-              playersByReason[reason].add(playerArg.toLowerCase())
-            }
-          }
-
-          // Log detailed breakdown
-          console.log('=== WEEKLY JACKPOT DEBUG ===')
-          console.log('Old contract events (since Monday):', oldContractLogs.length)
-          console.log('New contract events:', toppingsLogs.length)
-          console.log('Total ToppingsEarned events:', allLogs.length)
-          console.log('Unique players (all reasons):', uniquePlayersThisWeek.size)
-          console.log('Total toppings earned:', totalEarned.toString())
-          console.log('toppingUnitPizza:', (Number(toppingUnitPizza) / 1e18).toString(), 'PIZZA per topping')
-          console.log('Projected jackpot:', (Number(totalEarned) * Number(toppingUnitPizza) / 1e18).toString(), 'PIZZA (earned) +', (Number(treasuryBonus) / 1e18).toString(), 'PIZZA (treasury)')
-          console.log('')
-          console.log('Breakdown by reason:')
-          for (const [reason, amount] of Object.entries(toppingsByReason)) {
-            const players = playersByReason[reason]
-            console.log(`  ${reason}: ${amount.toString()} toppings from ${players?.size ?? 0} unique players`)
-            if (players && players.size <= 10) {
-              console.log(`    Players: ${Array.from(players).join(', ')}`)
-            }
-          }
-          console.log('')
-          console.log('All unique player addresses:')
-          for (const addr of uniquePlayersThisWeek) {
-            console.log(`  ${addr}`)
-          }
-          console.log('=== END DEBUG ===')
-
-          console.debug('Weekly projection (from events):', {
-            toppingsEarnedEvents: allLogs.length,
-            oldContractEvents: oldContractLogs.length,
-            newContractEvents: toppingsLogs.length,
-            uniquePlayersFromEvents: uniquePlayersThisWeek.size,
-            currentWeekId: currentWeekId.toString(),
-            totalEarnedToppings: totalEarned.toString(),
-            claimerCount: claimerCount.toString(),
-          })
-
-          // Use ToppingsEarned as source of truth
-          if (totalEarned > 0n) {
-            // Jackpot = total toppings earned this week × toppingUnitPizza ($0.10 of PIZZA) + treasury bonus
-            // IMPORTANT: Toppings are added to weekly jackpot IMMEDIATELY when earned (daily plays, referrals)
-            // The only exception is holdings bonus (1 topping per $10 of PIZZA, max 5) which is calculated
-            // at claim time based on PIZZA balance snapshot at that moment
-            // This projection shows what the jackpot will be if all earned toppings are claimed
-            // Treasury bonus is added to ensure UI shows the full jackpot from week start
-            projectedJackpotWei = totalEarned * toppingUnitPizza + treasuryBonus
-            // Weekly Players = unique players only (one player counts as 1, regardless of how many times they played)
-            projectedPlayerCount = Math.max(uniquePlayersThisWeek.size, Number(claimerCount))
-
-          }
-
-          console.debug('Weekly projection (after processing):', {
-            projectedPlayerCount: projectedPlayerCount,
-            projectedJackpotWei: projectedJackpotWei.toString(),
-          })
-        } catch (projErr) {
-          console.error('Failed to compute projected weekly totals', projErr)
+        // Fetch dailyGames info for up to 7 recent games in parallel to find which are in this week
+        const gameIds: bigint[] = []
+        for (let id = currentDailyId; id > 0n && id > currentDailyId - 8n; id--) {
+          gameIds.push(id)
         }
+
+        const gameInfos = await Promise.all(
+          gameIds.map(id =>
+            readContract(wagmiConfig, {
+              address: PIZZA_PARTY_ADDRESS as `0x${string}`,
+              abi: PIZZA_PARTY_ABI,
+              functionName: 'dailyGames',
+              args: [id],
+            }).then(r => ({ id, data: r as { startTime: bigint } | [bigint, ...unknown[]] }))
+              .catch(() => null)
+          )
+        )
+
+        // Filter to games that started after this week began
+        const thisWeekGameIds: bigint[] = []
+        for (const info of gameInfos) {
+          if (!info) continue
+          const startTime = Array.isArray(info.data) ? Number(info.data[0]) : Number(info.data.startTime)
+          if (startTime >= weekStartSec) {
+            thisWeekGameIds.push(info.id)
+          }
+        }
+
+        // Fetch all players for this week's games in parallel
+        const playerArrays = await Promise.all(
+          thisWeekGameIds.map(id =>
+            readContract(wagmiConfig, {
+              address: PIZZA_PARTY_ADDRESS as `0x${string}`,
+              abi: PIZZA_PARTY_ABI,
+              functionName: 'getDailyGamePlayers',
+              args: [id],
+            }).then(r => r as string[])
+              .catch(() => [] as string[])
+          )
+        )
+
+        // Count unique players across all games this week
+        const uniquePlayersThisWeek = new Set<string>()
+        let totalPlays = 0
+        for (const players of playerArrays) {
+          for (const p of players) {
+            uniquePlayersThisWeek.add(p.toLowerCase())
+            totalPlays++
+          }
+        }
+
+        if (uniquePlayersThisWeek.size > 0) {
+          // Each daily play = 1 topping, plus streak bonuses (3 extra on 7th day)
+          // Estimate toppings: totalPlays + streak bonuses for players with 7 plays
+          const playCountByPlayer: Record<string, number> = {}
+          for (const players of playerArrays) {
+            for (const p of players) {
+              const key = p.toLowerCase()
+              playCountByPlayer[key] = (playCountByPlayer[key] ?? 0) + 1
+            }
+          }
+          let estimatedToppings = BigInt(totalPlays)
+          for (const count of Object.values(playCountByPlayer)) {
+            if (count >= 7) estimatedToppings += 3n // streak bonus
+          }
+
+          projectedJackpotWei = estimatedToppings * toppingUnitPizza + treasuryBonus
+          projectedPlayerCount = Math.max(uniquePlayersThisWeek.size, Number(claimerCount))
+        }
+
+        console.debug('Weekly projection (from getDailyGamePlayers):', {
+          thisWeekGames: thisWeekGameIds.map(Number),
+          totalPlays,
+          uniquePlayers: uniquePlayersThisWeek.size,
+          projectedPlayerCount,
+        })
+      } catch (projErr) {
+        console.error('Failed to compute projected weekly totals', projErr)
       }
 
       setWeekly({
@@ -767,7 +697,7 @@ export function useGamePageData() {
         error: err instanceof Error ? err : new Error('Failed to load weekly'),
       }))
     }
-  }, [publicClient])
+  }, [])
 
   const refreshDaily = useCallback(async () => {
     try {
