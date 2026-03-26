@@ -1263,9 +1263,9 @@ export default function StakingPage({
                     </div>
 
                     {/* Amount Staked - Full Width */}
-                    <div className="bg-blue-50 rounded-lg p-3 border border-blue-200">
-                      <p className="text-blue-600 text-xs mb-2" style={{ fontFamily: 'var(--font-luckiest-guy)' }}>Amount Staked</p>
-                      <div className="space-y-1.5">
+                    <div className="bg-blue-50 rounded-lg px-3 py-1.5 border-2 border-blue-700">
+                      <p className="text-black text-sm mb-0.5" style={{ fontFamily: 'var(--font-luckiest-guy)' }}>Amount Staked</p>
+                      <div className="space-y-0">
                         {userPosition.flexibleAmount > 0n && (
                           <div className="flex items-center justify-between">
                             <div className="flex items-center gap-1 text-green-600 text-xs">
@@ -1421,7 +1421,7 @@ export default function StakingPage({
                               setStakeAmount('')
                             }}
                             className="flex-1 !bg-gray-300 hover:!bg-gray-400 text-gray-700 font-bold py-2 rounded-xl border-2 border-gray-400"
-                            style={customFontStyle}
+                            style={{ fontFamily: 'var(--font-luckiest-guy)', fontWeight: 'bold' as const }}
                           >
                             CANCEL
                           </Button>
@@ -1631,7 +1631,7 @@ export default function StakingPage({
                           <Button
                             onClick={() => setShowStakeInput(false)}
                             className="flex-1 !bg-gray-300 hover:!bg-gray-400 text-gray-700 font-bold py-2 rounded-xl border-2 border-gray-400"
-                            style={customFontStyle}
+                            style={{ fontFamily: 'var(--font-luckiest-guy)', fontWeight: 'bold' as const }}
                           >
                             CANCEL
                           </Button>
