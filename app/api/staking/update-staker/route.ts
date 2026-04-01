@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/app/lib/db'
-import { createPublicClient, http } from 'viem'
+import { createPublicClient, http, fallback } from 'viem'
 import { base } from 'viem/chains'
 
 const PIZZA_STAKING_ADDRESS = '0xCbAf5bACe5419710C3852653d3DdEB831d7415be'
@@ -24,10 +24,16 @@ const STAKING_ABI = [
   }
 ] as const
 
-// Create public client
+// Base mainnet RPCs with fallback
+const RPC_URLS = [
+  'https://mainnet.base.org',
+  'https://base-rpc.publicnode.com',
+  'https://base.meowrpc.com',
+]
+
 const publicClient = createPublicClient({
   chain: base,
-  transport: http(process.env.BASE_RPC_URL || 'https://mainnet.base.org'),
+  transport: fallback(RPC_URLS.map(url => http(url, { timeout: 15_000 }))),
 })
 
 // Helper for JSON responses

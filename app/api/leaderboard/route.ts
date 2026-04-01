@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { createPublicClient, http, formatUnits } from 'viem'
+import { createPublicClient, http, fallback, formatUnits } from 'viem'
 import { base } from 'viem/chains'
 import { PIZZA_PARTY_ADDRESS, PIZZA_PARTY_ABI } from '@/app/lib/constants'
 
@@ -12,12 +12,16 @@ export const dynamic = 'force-dynamic'
 // Since new token winnings (~450K+ PIZZA per win) dominate the old base (~11K max),
 // we display values as-is without any multiplier adjustment.
 
-// Create server-side RPC client
-// Using Publicnode RPC which is fully public and works from edge functions
-// (mainnet.base.org blocks Vercel, Ankr requires API key)
+// Base mainnet RPCs with fallback
+const RPC_URLS = [
+  'https://base-rpc.publicnode.com',
+  'https://mainnet.base.org',
+  'https://base.meowrpc.com',
+]
+
 const publicClient = createPublicClient({
   chain: base,
-  transport: http('https://base-rpc.publicnode.com'),
+  transport: fallback(RPC_URLS.map(url => http(url, { timeout: 15_000 }))),
 })
 
 interface GameData {

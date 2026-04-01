@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { createPublicClient, http, parseAbiItem, formatUnits } from 'viem'
+import { createPublicClient, http, fallback, parseAbiItem, formatUnits } from 'viem'
 import { base } from 'viem/chains'
 import { Redis } from '@upstash/redis'
 import {
@@ -15,9 +15,15 @@ const redis = Redis.fromEnv()
 const CACHE_KEY = 'parlor:fees:sources:v4'
 const CACHE_TTL_SECONDS = 3600 // 1 hour
 
+const RPC_URLS = [
+  'https://base.drpc.org',
+  'https://mainnet.base.org',
+  'https://base-rpc.publicnode.com',
+]
+
 const publicClient = createPublicClient({
   chain: base,
-  transport: http('https://base.drpc.org', { timeout: 10000 }),
+  transport: fallback(RPC_URLS.map(url => http(url, { timeout: 15_000 }))),
 })
 
 const transferEvent = parseAbiItem('event Transfer(address indexed from, address indexed to, uint256 value)')
