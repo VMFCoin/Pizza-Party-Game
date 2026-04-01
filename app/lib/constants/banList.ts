@@ -92,6 +92,7 @@ export function isRecipientBanned(
 export const SLICE_BLOCKED_FIDS = new Set<number>([
   1102870, // @papusiek1111 — repeat pair abuse
   271946,  // @kindkknd — repeat pair abuse
+  1300255, // @richieboston — repeat pair abuse
 ])
 
 /** Check if a recipient is blocked from receiving any free slices */
