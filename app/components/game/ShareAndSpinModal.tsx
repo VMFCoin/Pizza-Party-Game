@@ -19,6 +19,10 @@ import {
 } from '@/app/lib/constants'
 
 // ── Wheel geometry ──────────────────────────────────────────────
+const SLICE_COUNT = 8
+const SLICE_ANGLE = 360 / SLICE_COUNT // 45°
+const SLICE_OFFSET = SLICE_ANGLE / 2   // 22.5°
+
 const SHARE_SPIN_OUTCOMES = [
   { name: 'Nothing'    as const, slices: [1, 3, 5, 7], color: 'bg-gray-700',   border: 'border-gray-500'   },
   { name: 'Free Slice' as const, slices: [2, 4, 6],    color: 'bg-orange-500', border: 'border-orange-300' },
@@ -26,8 +30,14 @@ const SHARE_SPIN_OUTCOMES = [
 ]
 
 function getTargetRotation(sliceIndex: number, fullSpins = 4): number {
-  const sliceCenterAngle = sliceIndex * 45 + 22.5
+  const sliceCenterAngle = sliceIndex * SLICE_ANGLE + SLICE_OFFSET
   return fullSpins * 360 + (360 - sliceCenterAngle)
+}
+
+function getSliceFromRotation(rotation: number): number {
+  const normalizedAngle = ((rotation % 360) + 360) % 360
+  const adjustedAngle = (normalizedAngle + SLICE_OFFSET) % 360
+  return Math.floor(adjustedAngle / SLICE_ANGLE) % SLICE_COUNT
 }
 
 function castHashToBytes32(castHash: string | null): `0x${string}` {
@@ -79,7 +89,7 @@ export default function ShareAndSpinModal({
   onGoToDaily,
   isBanned,
   pizzaUsdPrice = 0.000001,
-  wheelImageSrc = '/images/share_spin_wheel.png',
+  wheelImageSrc = '/images/pizza_wheel.png',
 }: ShareAndSpinModalProps) {
   const { address }  = useAccount()
   const publicClient = usePublicClient()
@@ -90,12 +100,49 @@ export default function ShareAndSpinModal({
   const [spinOutcome, setSpinOutcome] = useState<typeof SHARE_SPIN_OUTCOMES[number] | null>(null)
   const [rotation, setRotation]       = useState(0)
   const [isSpinning, setIsSpinning]   = useState(false)
+
+  // Refs for wheel animation, tick sound, haptics
   const wheelRef = useRef<HTMLDivElement>(null)
+  const tickAudioRef = useRef<HTMLAudioElement | null>(null)
+  const lastTickSliceRef = useRef<number>(-1)
+  const animationFrameRef = useRef<number | null>(null)
 
   // Calculate reward amount from live price
   const claimedRewardWei = pizzaUsdPrice > 0
     ? BigInt(Math.floor(0.01 / pizzaUsdPrice * 1e18))
     : 0n
+
+  // Preload tick sound
+  useEffect(() => {
+    tickAudioRef.current = new Audio('/sounds/pizza-tick.mp3')
+    tickAudioRef.current.volume = 0.3
+    return () => {
+      if (animationFrameRef.current) {
+        cancelAnimationFrame(animationFrameRef.current)
+      }
+    }
+  }, [])
+
+  // Haptic feedback
+  const triggerHaptic = useCallback(async (intensity: 'light' | 'medium' | 'heavy' = 'light') => {
+    try {
+      await sdk.haptics.impactOccurred(intensity)
+    } catch {
+      if (typeof navigator !== 'undefined' && 'vibrate' in navigator) {
+        const duration = intensity === 'heavy' ? 20 : intensity === 'medium' ? 12 : 8
+        navigator.vibrate(duration)
+      }
+    }
+  }, [])
+
+  // Play tick sound
+  const playTick = useCallback(() => {
+    if (tickAudioRef.current) {
+      const tick = tickAudioRef.current.cloneNode() as HTMLAudioElement
+      tick.volume = 0.3
+      tick.play().catch(() => {})
+    }
+  }, [])
 
   // ── Read share info ──────────────────────────────────────────
   const { data: shareInfoRaw, refetch: refetchShareInfo } = useReadContract({
@@ -130,7 +177,6 @@ export default function ShareAndSpinModal({
     console.log('[ShareAndSpin] recordShare confirmed! TX:', shareHash)
     console.log('[ShareAndSpin] Waiting 2s before calling recordShareSpin...')
 
-    // Small delay to ensure on-chain state is settled before next TX
     const timer = setTimeout(() => {
       resetShare()
       refetchShareInfo()
@@ -177,6 +223,8 @@ export default function ShareAndSpinModal({
             })
             if (decoded.eventName === 'ShareSpinRecorded') {
               outcomeIndex = Number((decoded.args as { outcome: number }).outcome)
+              console.log('[ShareAndSpin] On-chain outcome:', outcomeIndex,
+                ['Nothing', 'Free Slice', 'Gold'][outcomeIndex])
               break
             }
           } catch { /* not this log */ }
@@ -205,26 +253,73 @@ export default function ShareAndSpinModal({
     go()
   }, [spinConfirmed, publicClient, spinTxHash]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  // ── Spin animation ───────────────────────────────────────────
+  // ── Spin animation (adapted from StakingPage) ─────────────────
   const runSpinAnimation = useCallback((outcomeIndex: number) => {
     setStep('spinning')
     const outcome = SHARE_SPIN_OUTCOMES[outcomeIndex] ?? SHARE_SPIN_OUTCOMES[0]
     const slices  = outcome.slices
     const target  = slices[Math.floor(Math.random() * slices.length)]
-    const rot     = getTargetRotation(target, 3 + Math.floor(Math.random() * 3))
+    const fullSpins = 3 + Math.floor(Math.random() * 3)
+    const rot     = getTargetRotation(target, fullSpins)
 
+    // Reset to 0 instantly
     setRotation(0)
+
+    // Start spinning on next frame
     requestAnimationFrame(() => {
       setIsSpinning(true)
       setRotation(rot)
     })
 
+    // Tick sound + haptic loop during spin
+    lastTickSliceRef.current = -1
+    const startTime = performance.now()
+    const animationDuration = 3000
+
+    const tickLoop = () => {
+      const elapsed = performance.now() - startTime
+      if (elapsed >= animationDuration) {
+        animationFrameRef.current = null
+        return
+      }
+
+      if (wheelRef.current) {
+        const style = window.getComputedStyle(wheelRef.current)
+        const transform = style.transform
+        if (transform && transform !== 'none') {
+          const values = transform.match(/matrix\(([^)]+)\)/)
+          if (values) {
+            const parts = values[1].split(',').map(Number)
+            const angle = Math.atan2(parts[1], parts[0]) * (180 / Math.PI)
+            const normalizedAngle = ((angle % 360) + 360) % 360
+            const currentSlice = getSliceFromRotation(normalizedAngle)
+
+            if (currentSlice !== lastTickSliceRef.current && lastTickSliceRef.current !== -1) {
+              playTick()
+              triggerHaptic()
+            }
+            lastTickSliceRef.current = currentSlice
+          }
+        }
+      }
+
+      animationFrameRef.current = requestAnimationFrame(tickLoop)
+    }
+
+    animationFrameRef.current = requestAnimationFrame(tickLoop)
+
+    // After animation completes
     setTimeout(() => {
+      if (animationFrameRef.current) {
+        cancelAnimationFrame(animationFrameRef.current)
+        animationFrameRef.current = null
+      }
       setIsSpinning(false)
       setSpinOutcome(outcome)
       setStep('spin_result')
+      triggerHaptic('heavy')
     }, 3000)
-  }, [])
+  }, [playTick, triggerHaptic])
 
   // ── Handlers ─────────────────────────────────────────────────
   const handleShare = useCallback(async () => {
@@ -248,7 +343,6 @@ export default function ShareAndSpinModal({
     setStep('verifying')
     setVerifyError(null)
 
-    // Give Neynar a moment to index the cast
     await new Promise(r => setTimeout(r, 2000))
 
     try {
@@ -286,7 +380,7 @@ export default function ShareAndSpinModal({
     }
   }, [address, userFid, castHash, writeShare, claimedRewardWei])
 
-  // Post-spin share — optional, no reward, just virality
+  // Post-spin share
   const handleShareResult = useCallback(async (outcomeName: string) => {
     const resultText: Record<string, string> = {
       'Nothing': "I spun the Pizza Wheel and got... nothing this time! \u{1F605}\u{1F355} Come join the hottest Party on Base and grab a slice of Pizza with us!",
@@ -357,8 +451,19 @@ export default function ShareAndSpinModal({
               <p className="text-orange-400 text-center" style={{ ...F, fontSize: 32 }}>
                 SHARE & SPIN
               </p>
+
+              {/* Wheel preview (static) */}
+              <div className="relative mx-auto" style={{ width: 200, height: 200 }}>
+                <div className="absolute inset-0 flex items-center justify-center z-10 pointer-events-none">
+                  <Image src="/images/Pizza-Ring.png" alt="Ring" width={200} height={200} priority />
+                </div>
+                <div className="absolute inset-0 flex items-center justify-center">
+                  <Image src={wheelImageSrc} alt="Share Spin Wheel" width={178} height={178} priority />
+                </div>
+              </div>
+
               <p className="text-gray-500 text-xs text-center">
-                Every share also earns ~$0.01 PIZZA + 1 Topping
+                Every share earns ~$0.01 PIZZA + 1 Topping
               </p>
               <p className="text-gray-400 text-xs text-center">
                 {shareInfo.sharesUsed}/3 shares used this week
@@ -474,10 +579,14 @@ export default function ShareAndSpinModal({
               <p className="text-orange-400 text-center" style={{ ...F, fontSize: 28 }}>
                 SPIN THE PIE
               </p>
-              <div className="relative mx-auto" style={{ width: 260, height: 260 }}>
+
+              {/* Wheel — same layout as StakingPage */}
+              <div className="relative mx-auto mb-4" style={{ width: 260, height: 260 }}>
+                {/* Static outer ring with pointer at 12 o'clock */}
                 <div className="absolute inset-0 flex items-center justify-center z-10 pointer-events-none">
-                  <Image src="/images/Pizza-Ring.png" alt="Ring" width={260} height={260} priority />
+                  <Image src="/images/Pizza-Ring.png" alt="Spin Ring" width={260} height={260} priority />
                 </div>
+                {/* Spinning wheel */}
                 <div
                   ref={wheelRef}
                   className="absolute inset-0 flex items-center justify-center"
@@ -488,16 +597,18 @@ export default function ShareAndSpinModal({
                     transitionTimingFunction: 'cubic-bezier(0.17, 0.67, 0.12, 0.99)',
                   }}
                 >
-                  <Image src={wheelImageSrc} alt="Share Spin Wheel" width={232} height={232} priority />
+                  <Image src={wheelImageSrc} alt="Pizza Wheel" width={232} height={232} priority />
                 </div>
               </div>
 
               {step === 'spinning' && (
-                <p className="text-yellow-400 text-center text-xl" style={F}>SPINNING...</p>
+                <p className="text-yellow-400 text-center text-xl animate-pulse" style={F}>SPINNING...</p>
               )}
 
               {step === 'spin_result' && spinOutcome && (
                 <div className="space-y-3">
+
+                  {/* Nothing */}
                   {spinOutcome.name === 'Nothing' && (
                     <>
                       <div className="bg-gray-700 border-2 border-gray-500 rounded-xl p-4 text-center">
@@ -512,6 +623,8 @@ export default function ShareAndSpinModal({
                       </Button>
                     </>
                   )}
+
+                  {/* Free Slice */}
                   {spinOutcome.name === 'Free Slice' && (
                     <>
                       <div className="bg-orange-500 border-4 border-orange-300 rounded-xl p-4 text-center">
@@ -534,13 +647,39 @@ export default function ShareAndSpinModal({
                       </Button>
                     </>
                   )}
+
+                  {/* Gold — with pizza rain celebration */}
                   {spinOutcome.name === 'Gold' && (
                     <>
-                      <div className="bg-yellow-500 border-4 border-yellow-300 rounded-xl p-5 text-center">
-                        <p className="text-yellow-900 text-4xl font-bold" style={F}>YOU WON!</p>
-                        <p className="text-yellow-800 text-xl font-bold mt-1" style={F}>REAL PIZZA IRL</p>
-                        <p className="text-yellow-700 text-sm mt-2">@vmfcoin has been notified and will reach out.</p>
-                        <p className="text-yellow-600 text-xs mt-1">Your win is permanently recorded on Base.</p>
+                      <div className="relative overflow-hidden rounded-xl">
+                        {/* Pizza rain */}
+                        <div className="absolute inset-0 pointer-events-none z-10 overflow-hidden rounded-xl">
+                          {Array.from({ length: 12 }).map((_, i) => (
+                            <span
+                              key={i}
+                              className="absolute text-2xl animate-pizza-rain"
+                              style={{
+                                left: `${(i * 8.3) + Math.random() * 5}%`,
+                                animationDelay: `${i * 0.3}s`,
+                                animationDuration: `${2 + Math.random() * 1.5}s`,
+                              }}
+                            >
+                              {'\u{1F355}'}
+                            </span>
+                          ))}
+                        </div>
+                        <div className="rounded-xl p-5 text-center text-white border-4 border-yellow-400 animate-jackpot-glow"
+                          style={{
+                            background: 'linear-gradient(135deg, #065f46, #047857, #10b981)',
+                            boxShadow: '0 8px 32px rgba(234, 88, 12, 0.6), 0 4px 16px rgba(220, 38, 38, 0.4)',
+                          }}>
+                          <p className="text-3xl mb-1">{'\u{1F3C6}\u{1F355}\u{1F3C6}'}</p>
+                          <p className="font-bold text-sm text-green-200 uppercase tracking-widest mb-1" style={F}>Congratulations!</p>
+                          <p className="font-bold text-3xl text-yellow-300" style={F}>GOLD SLICE!</p>
+                          <p className="text-lg text-yellow-200 mt-1" style={F}>REAL PIZZA IRL</p>
+                          <p className="text-yellow-100 text-sm mt-2">@vmfcoin has been notified and will reach out.</p>
+                          <p className="text-yellow-200/70 text-xs mt-1">Your win is permanently recorded on Base.</p>
+                        </div>
                       </div>
                       <Button onClick={() => handleShareResult('Gold')} className="w-full !bg-purple-600 hover:!bg-purple-700 text-white font-bold py-2 rounded-xl border-2 border-purple-800" style={F}>
                         <Share2 size={16} className="inline mr-2" />Share Result
@@ -568,6 +707,20 @@ export default function ShareAndSpinModal({
           {step === 'done' && (
             <>
               <p className="text-green-400 text-center" style={{ ...F, fontSize: 32 }}>All done!</p>
+              <div className="bg-green-900/30 border border-green-600 rounded-xl p-3 space-y-1 text-sm">
+                <p className="text-green-300 font-bold" style={F}>Earned this share:</p>
+                <p className="text-green-200">{'\u2713'} ~$0.01 PIZZA</p>
+                <p className="text-green-200">{'\u2713'} +1 Topping toward weekly jackpot</p>
+                {spinOutcome?.name === 'Free Slice' && (
+                  <p className="text-orange-300">{'\u2713'} Free daily game entry</p>
+                )}
+                {spinOutcome?.name === 'Gold' && (
+                  <p className="text-yellow-300">{'\u2713'} Real Pizza IRL - @vmfcoin notified!</p>
+                )}
+                <p className="text-gray-400 text-xs mt-2">
+                  {shareInfo.sharesUsed}/3 shares used this week
+                </p>
+              </div>
               <Button onClick={onGoToDaily} className="w-full !bg-red-600 hover:!bg-red-700 text-white font-bold py-3 rounded-xl border-2 border-red-800" style={{ ...F, fontSize: 18 }}>
                 BACK TO DAILY GAME
               </Button>
