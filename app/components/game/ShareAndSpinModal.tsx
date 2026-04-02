@@ -224,10 +224,12 @@ export default function ShareAndSpinModal({
         text: SHARE_TEXT,
         embeds: [SHARE_EMBED],
       })
+      console.log('[ShareAndSpin] composeCast result:', JSON.stringify(result))
       const hash = (result as { cast?: { hash?: string } | null })?.cast?.hash ?? null
+      console.log('[ShareAndSpin] cast hash:', hash)
       setCastHash(hash)
     } catch (err) {
-      console.error('[ShareAndSpin] composeCast:', err)
+      console.error('[ShareAndSpin] composeCast error:', err)
     }
     setStep('posted')
   }, [])
@@ -236,6 +238,9 @@ export default function ShareAndSpinModal({
     if (!address || !userFid) return
     setStep('verifying')
     setVerifyError(null)
+
+    // Give Neynar a moment to index the cast
+    await new Promise(r => setTimeout(r, 2000))
 
     try {
       const res = await fetch('/api/share/verify-cast', {
