@@ -555,11 +555,11 @@ function GamePageContent({ onNavigateToWeekly, onNavigateToLeaderboard, onNaviga
 
           {/* Share & Spin */}
           {wallet?.isAuthenticated && (
-            <div className="bg-white/95 backdrop-blur-md rounded-xl border-2 border-red-300 p-3 w-full" style={{ borderColor: '#000000' }}>
-              <p className="text-red-800 text-sm mb-1" style={{ fontFamily: 'var(--font-luckiest-guy)' }}>
-                <Share2 className="inline mr-1 h-4 w-4" /> Share & Earn
+            <div className="bg-white/95 backdrop-blur-md rounded-xl border-2 border-red-300 p-3 w-full text-center" style={{ borderColor: '#000000' }}>
+              <p className="text-red-800 text-lg mb-1" style={{ fontFamily: 'var(--font-luckiest-guy)' }}>
+                Share & Earn FREE $PIZZA
               </p>
-              <p className="text-xs text-gray-500">
+              <p className="text-xs text-gray-500" style={{ fontFamily: 'var(--font-luckiest-guy)' }}>
                 Share once a day &middot; max 3/week &middot; ~$0.01 PIZZA + topping + spin
               </p>
               <Button
