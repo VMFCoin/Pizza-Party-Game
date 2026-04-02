@@ -359,21 +359,11 @@ export function useGamePageData() {
 
       // Handle both tuple and object formats
       let lifetimeToppings: bigint
-      let lifetimeReferrals: bigint
 
       if (Array.isArray(lifetimeStatsRaw)) {
         lifetimeToppings = lifetimeStatsRaw[3]
-        lifetimeReferrals = lifetimeStatsRaw[4]
       } else {
-        const statsObj = lifetimeStatsRaw as {
-          totalDailyWins: bigint
-          totalWeeklyWins: bigint
-          totalPizzaWon: bigint
-          lifetimeToppings: bigint
-          lifetimeReferrals: bigint
-        }
-        lifetimeToppings = statsObj.lifetimeToppings
-        lifetimeReferrals = statsObj.lifetimeReferrals
+        lifetimeToppings = (lifetimeStatsRaw as { lifetimeToppings: bigint }).lifetimeToppings
       }
 
       // Check if this is the player's first time ever playing
@@ -1029,7 +1019,7 @@ export function useGamePageData() {
     }
   }, [networkId, wallet.isAuthenticated, wallet.address, hasPendingSlice, _pendingSliceSponsor, hasEnteredToday, pizzaUsdPrice, daily.dailyGameId, writeContract, fetchPlayerInfo, refreshDaily, fetchWeekly, fetchPizzaBalance, fetchPlayerLifetimeStats])
 
-  const handleEnterGame = useCallback(async (referralCode?: string) => {
+  const handleEnterGame = useCallback(async (_referralCode?: string) => {
     console.log('=== ENTER GAME WITH PERMIT CLICKED ===')
 
     if (networkId !== BASE_CHAIN_ID) {
