@@ -343,20 +343,6 @@ export default function ShareAndSpinModal({
               <p className="text-orange-400 text-center" style={{ ...F, fontSize: 32 }}>
                 SHARE & SPIN
               </p>
-              <div className="grid grid-cols-3 gap-2 text-center text-xs">
-                <div className="bg-gray-700 border border-gray-500 rounded-lg p-2">
-                  <p className="text-gray-200 font-bold" style={F}>Nothing</p>
-                  <p className="text-gray-400 mt-0.5">94%</p>
-                </div>
-                <div className="bg-orange-600 border border-orange-400 rounded-lg p-2">
-                  <p className="text-white font-bold" style={F}>Free Slice</p>
-                  <p className="text-orange-200 mt-0.5">5%</p>
-                </div>
-                <div className="bg-yellow-500 border border-yellow-300 rounded-lg p-2">
-                  <p className="text-yellow-900 font-bold" style={F}>Gold</p>
-                  <p className="text-yellow-700 mt-0.5">1%</p>
-                </div>
-              </div>
               <p className="text-gray-500 text-xs text-center">
                 Every share also earns ~$0.01 PIZZA + 1 Topping
               </p>

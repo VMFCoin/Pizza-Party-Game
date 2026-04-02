@@ -562,11 +562,6 @@ function GamePageContent({ onNavigateToWeekly, onNavigateToLeaderboard, onNaviga
               <p className="text-xs text-gray-500">
                 Share once a day &middot; max 3/week &middot; ~$0.01 PIZZA + topping + spin
               </p>
-              <div className="flex gap-1.5 mt-1.5 flex-wrap">
-                <span className="bg-gray-200 text-gray-600 px-2 py-0.5 rounded text-xs font-bold">Nothing 94%</span>
-                <span className="bg-orange-100 text-orange-700 px-2 py-0.5 rounded text-xs font-bold">Free Slice 5%</span>
-                <span className="bg-yellow-100 text-yellow-700 px-2 py-0.5 rounded text-xs font-bold">Gold 1%</span>
-              </div>
               <Button
                 onClick={() => setShowShareAndSpin(true)}
                 disabled={isBanned || userFid !== 1013491}
