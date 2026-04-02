@@ -383,9 +383,9 @@ export default function ShareAndSpinModal({
   // Post-spin share
   const handleShareResult = useCallback(async (outcomeName: string) => {
     const resultText: Record<string, string> = {
-      'Nothing': "I spun the Pizza Wheel and got... nothing this time! \u{1F605}\u{1F355} Come join the hottest Party on Base and grab a slice of Pizza with us!",
-      'Free Slice': "I spun the Pizza Wheel and won a FREE SLICE! \u{1F355}\u{1F525} Come join the hottest Party on Base and grab a slice of Pizza with us!",
-      'Gold': "I spun the Pizza Wheel and hit GOLD! \u{1F3C6}\u{1F355} Real Pizza IRL! Come join the hottest Party on Base and grab a slice of Pizza with us!",
+      'Nothing': "I just spun the Pizza Wheel \u{1F355}\nDidn\u2019t hit the big one this time\u2026 but I still walked away with free $PIZZA and a topping just for sharing \u{1F60F}\nThat topping goes straight into my weekly jackpot odds too\u2026 so every spin is building something bigger.\nThis game really pays you to show up.",
+      'Free Slice': "Just landed a FREE SLICE on the Pizza Wheel \u{1F355}\u{1F525}\nStacked some $PIZZA, grabbed a topping, and boosted my weekly odds all in one spin\nEvery time I play it feels like I\u2019m leveling up my chances\nThis thing really adds up fast",
+      'Gold': "Just spun the GOLD SLICE \u{1F3C6}\u{1F355}\nGot real pizza IRL, $PIZZA rewards, and stacked toppings all from one play\nStarted with a simple share and ended up hitting big\nNot gonna lie\u2026 this game actually pays people to play \u{1F633}\u{1F525}",
     }
     try {
       await sdk.actions.composeCast({
