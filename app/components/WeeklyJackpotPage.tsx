@@ -406,9 +406,9 @@ export default function WeeklyJackpotPage({
               style={{ ...customFontStyle, letterSpacing: "1px", fontSize: isMobile ? 14 : 16, fontWeight: '900' }}
             >
               <span className="flex items-center justify-center w-full gap-1">
-                <img src="/images/pizza_party_BW_qr.png" alt="" className="inline-block" style={{ height: '1.2em', width: '1.2em' }} />
+                <img src="/images/pizza_party_BW_qr.png" alt="" className="inline-block" style={{ height: '0.9em', width: '0.9em' }} />
                 <span className="text-center">PIZZA STICKERS</span>
-                <img src="/images/pizza_party_BW_qr.png" alt="" className="inline-block" style={{ height: '1.2em', width: '1.2em' }} />
+                <img src="/images/pizza_party_BW_qr.png" alt="" className="inline-block" style={{ height: '0.9em', width: '0.9em' }} />
               </span>
             </Button>
             <Button
