@@ -1135,7 +1135,7 @@ export function useGamePageData() {
         address: PIZZA_PARTY_ADDRESS as `0x${string}`,
         abi: PIZZA_PARTY_ABI,
         functionName: 'enterDailyGame',
-        args: [entryFeeWei, code],
+        args: [entryFeeWei, ''],
       })
 
       return result
@@ -1219,14 +1219,14 @@ export function useGamePageData() {
       // 5. Call enterDailyGameWithPermit - single transaction!
       // Contract signature: enterDailyGameWithPermit(uint256 amountPaid, string referralCode, uint256 deadline, uint8 v, bytes32 r, bytes32 s)
       console.log('=== CALLING enterDailyGameWithPermit ===')
-      console.log('Referral code being passed:', code || '(empty string)')
+      console.log('Referral code being passed: (disabled)')
 
       try {
         const result = await writeContract({
           address: PIZZA_PARTY_ADDRESS as `0x${string}`,
           abi: PIZZA_PARTY_ABI,
           functionName: 'enterDailyGameWithPermit',
-          args: [entryFeeWei, code, deadline, v, r, s],
+          args: [entryFeeWei, '', deadline, v, r, s],
         })
         console.log('✅ Transaction sent successfully:', result)
       } catch (permitTxErr) {
