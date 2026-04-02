@@ -127,17 +127,26 @@ export default function ShareAndSpinModal({
 
   useEffect(() => {
     if (!shareConfirmed) return
-    resetShare()
-    refetchShareInfo()
+    console.log('[ShareAndSpin] recordShare confirmed! TX:', shareHash)
+    console.log('[ShareAndSpin] Waiting 2s before calling recordShareSpin...')
 
-    const bytes32 = castHashToBytes32(castHash)
-    writeSpin({
-      address: SHARE_AND_SPIN_ADDRESS as `0x${string}`,
-      abi: SHARE_AND_SPIN_ABI,
-      functionName: 'recordShareSpin',
-      args: [bytes32],
-      gas: 150_000n,
-    })
+    // Small delay to ensure on-chain state is settled before next TX
+    const timer = setTimeout(() => {
+      resetShare()
+      refetchShareInfo()
+
+      const bytes32 = castHashToBytes32(castHash)
+      console.log('[ShareAndSpin] Calling recordShareSpin with castHash:', bytes32)
+      writeSpin({
+        address: SHARE_AND_SPIN_ADDRESS as `0x${string}`,
+        abi: SHARE_AND_SPIN_ABI,
+        functionName: 'recordShareSpin',
+        args: [bytes32],
+        gas: 150_000n,
+      })
+    }, 2000)
+
+    return () => clearTimeout(timer)
   }, [shareConfirmed]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── recordShareSpin tx ───────────────────────────────────────
