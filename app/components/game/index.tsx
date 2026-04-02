@@ -560,7 +560,10 @@ function GamePageContent({ onNavigateToWeekly, onNavigateToLeaderboard, onNaviga
                 Share & Earn FREE $PIZZA
               </p>
               <p className="text-xs text-red-700" style={{ fontFamily: 'var(--font-luckiest-guy)' }}>
-                Share once a day &middot; max 3/week &middot; ~$0.01 PIZZA + topping + spin
+                Share once a day &middot; max 3/week
+              </p>
+              <p className="text-xs text-red-700" style={{ fontFamily: 'var(--font-luckiest-guy)' }}>
+                $0.01 PIZZA + 1 topping + spin for free Pizza
               </p>
               <Button
                 onClick={() => setShowShareAndSpin(true)}
