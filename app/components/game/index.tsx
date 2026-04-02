@@ -559,7 +559,7 @@ function GamePageContent({ onNavigateToWeekly, onNavigateToLeaderboard, onNaviga
               <p className="text-red-600 text-center mb-1" style={{ fontFamily: 'var(--font-luckiest-guy)', fontSize: '24px', lineHeight: '1', textShadow: '2px 2px 0px #FFA500, 3px 3px 0px rgba(255, 165, 0, 0.5)' }}>
                 Share & Earn FREE $PIZZA
               </p>
-              <p className="text-xs text-gray-500" style={{ fontFamily: 'var(--font-luckiest-guy)' }}>
+              <p className="text-xs text-red-700" style={{ fontFamily: 'var(--font-luckiest-guy)' }}>
                 Share once a day &middot; max 3/week &middot; ~$0.01 PIZZA + topping + spin
               </p>
               <Button
