@@ -139,6 +139,10 @@ contract PizzaPartyV2Upgradeable is OwnableUpgradeable, UUPSUpgradeable, Reentra
     /// @dev When activated, this will replace the current ownerFeeBPS for parlor distribution
     uint256 public parlorFeeBPS;
 
+    // ============ Share & Spin Integration ============
+
+    address public shareAndSpinContract;
+
     // ============ Events ============
 
     event DailyGameStarted(uint256 indexed gameId, uint256 startTime, uint256 endTime);
@@ -238,36 +242,20 @@ contract PizzaPartyV2Upgradeable is OwnableUpgradeable, UUPSUpgradeable, Reentra
 
     /**
      * @dev Enter daily game with dynamic amount
-     * @param amountPaid PIZZA amount to pay (must be within MIN/MAX bounds)
-     * @param referralCode Optional referral code (empty string if none)
      */
-    function enterDailyGame(uint256 amountPaid, string calldata referralCode) external nonReentrant {
+    function enterDailyGame(uint256 amountPaid, string calldata) external nonReentrant {
         require(amountPaid >= MIN_ENTRY_FEE, "<");
         require(amountPaid <= MAX_ENTRY_FEE, ">");
-
-        // Process referral if provided (only for new players)
-        if (bytes(referralCode).length > 0) {
-            require(_isNewPlayer(msg.sender), "1st");
-            require(!hasUsedReferral[msg.sender], "used");
-            _processReferral(msg.sender, referralCode);
-        }
 
         _enterDaily(msg.sender, amountPaid);
     }
 
     /**
      * @dev Enter daily game with permit (single transaction - no prior approval needed)
-     * Uses EIP-2612 permit to approve and enter in one transaction
-     * @param amountPaid PIZZA amount to pay (must be within MIN/MAX bounds)
-     * @param referralCode Optional referral code (empty string if none)
-     * @param deadline Timestamp after which the permit is no longer valid
-     * @param v Recovery byte of the signature
-     * @param r Half of the ECDSA signature pair
-     * @param s Half of the ECDSA signature pair
      */
     function enterDailyGameWithPermit(
         uint256 amountPaid,
-        string calldata referralCode,
+        string calldata,
         uint256 deadline,
         uint8 v,
         bytes32 r,
@@ -275,13 +263,6 @@ contract PizzaPartyV2Upgradeable is OwnableUpgradeable, UUPSUpgradeable, Reentra
     ) external nonReentrant {
         require(amountPaid >= MIN_ENTRY_FEE, "<");
         require(amountPaid <= MAX_ENTRY_FEE, ">");
-
-        // Process referral if provided (only for new players)
-        if (bytes(referralCode).length > 0) {
-            require(_isNewPlayer(msg.sender), "1st");
-            require(!hasUsedReferral[msg.sender], "used");
-            _processReferral(msg.sender, referralCode);
-        }
 
         // Use try/catch for permit as recommended by OpenZeppelin
         try IERC20Permit(address(pizzaToken)).permit(
@@ -390,14 +371,6 @@ contract PizzaPartyV2Upgradeable is OwnableUpgradeable, UUPSUpgradeable, Reentra
             emit ToppingsEarned(weeklyGameId, player, 3, "weekly_streak_bonus");
         }
 
-        // Auto-register referral code on first entry
-        if (bytes(playerReferralCode[player]).length == 0) {
-            string memory myCode = _generateCode(player);
-            playerReferralCode[player] = myCode;
-            codeToPlayer[myCode] = player;
-            emit ReferralCodeCreated(player, myCode);
-        }
-
         emit DailyGameEntered(gameId, player, isFirst, amount);
     }
 
@@ -446,13 +419,6 @@ contract PizzaPartyV2Upgradeable is OwnableUpgradeable, UUPSUpgradeable, Reentra
             weekly.toppingsEarned += 3;
             playerStats[player].lifetimeToppings += 3;
             emit ToppingsEarned(weeklyGameId, player, 3, "weekly_streak_bonus");
-        }
-
-        if (bytes(playerReferralCode[player]).length == 0) {
-            string memory myCode = _generateCode(player);
-            playerReferralCode[player] = myCode;
-            codeToPlayer[myCode] = player;
-            emit ReferralCodeCreated(player, myCode);
         }
 
         emit DailyGameEntered(gameId, player, isFirst, amount);
@@ -784,100 +750,6 @@ contract PizzaPartyV2Upgradeable is OwnableUpgradeable, UUPSUpgradeable, Reentra
         // Start next week
         weeklyGameId++;
         _initializeWeeklyGame(weeklyGameId);
-    }
-
-    // ============ Referral System ============
-
-    /**
-     * @dev Get referral code for a player (view function - no transaction needed!)
-     * Code is deterministically generated from player address
-     */
-    function getReferralCode(address player) external view returns (string memory) {
-        return _generateCode(player);
-    }
-
-    /**
-     * @dev Get player address from a referral code (if registered)
-     */
-    function getPlayerFromCode(string memory code) external view returns (address) {
-        return codeToPlayer[code];
-    }
-
-    function createReferralCode() external {
-        require(bytes(playerReferralCode[msg.sender]).length == 0, "ex");
-        require(!_isNewPlayer(msg.sender), "1st");
-
-        string memory code = _generateCode(msg.sender);
-
-        // Deterministic generation; collision check for safety
-        require(codeToPlayer[code] == address(0), "col");
-
-        playerReferralCode[msg.sender] = code;
-        codeToPlayer[code] = msg.sender;
-
-        emit ReferralCodeCreated(msg.sender, code);
-    }
-
-    function _generateCode(address player) internal view returns (string memory) {
-        // Deterministic hash based on player + contract address
-        bytes32 h = keccak256(abi.encodePacked(player, address(this)));
-        bytes memory alphabet = "0123456789ABCDEFGHJKLMNPQRSTUVWXYZ"; // 34 chars (no I/O)
-        bytes memory out = new bytes(8);
-
-        // Use both nibbles of each byte for better entropy
-        for (uint256 i = 0; i < 4; i++) {
-            uint8 highNibble = uint8(h[i]) >> 4;
-            uint8 lowNibble = uint8(h[i]) & 0x0F;
-
-            // Ensure we stay within alphabet bounds (0-33)
-            out[i*2] = alphabet[highNibble % 34];
-            out[i*2 + 1] = alphabet[lowNibble % 34];
-        }
-
-        return string(abi.encodePacked("PZ", out));
-    }
-
-    /**
-     * @dev Validate and get referrer address from code
-     */
-    function _getReferrerFromCode(string memory code) internal view returns (address) {
-        require(bytes(code).length == 10, "len");
-        require(bytes(code)[0] == 'P' && bytes(code)[1] == 'Z', "pfx");
-
-        // Check if it's registered in the mapping
-        address registered = codeToPlayer[code];
-        require(registered != address(0), "!cod");
-
-        // Ensure referrer has played at least once
-        require(playerStats[registered].lifetimeToppings > 0, "rfr");
-
-        return registered;
-    }
-
-    function _processReferral(address referee, string memory code) internal {
-        require(!hasUsedReferral[referee], "used");
-
-        address referrer = _getReferrerFromCode(code);
-        require(referrer != referee, "self");
-
-        uint256 weekId = weeklyGameId;
-        PlayerWeekly storage referrerWeekly = weeklyPlayers[weekId][referrer];
-
-        require(referrerWeekly.referralsUsed < MAX_REFERRALS_PER_WEEK, "lim");
-
-        // Mark as used (lifetime)
-        hasUsedReferral[referee] = true;
-
-        // Increment referral count
-        referrerWeekly.referralsUsed++;
-
-        // Award 2 toppings to referrer
-        referrerWeekly.toppingsEarned += 2;
-        playerStats[referrer].lifetimeToppings += 2;
-        playerStats[referrer].lifetimeReferrals += 1;
-
-        emit ReferralUsed(referrer, referee);
-        emit ToppingsEarned(weekId, referrer, 2, "referral");
     }
 
     // ============ Random Selection ============
@@ -1565,6 +1437,28 @@ contract PizzaPartyV2Upgradeable is OwnableUpgradeable, UUPSUpgradeable, Reentra
         for (uint256 i = 0; i < sponsors.length; i++) {
             hasSlicedPlayer[sponsors[i]][players[i]] = false;
         }
+    }
+
+    // ============ Share & Spin Bridge ============
+
+    function adminSetShareAndSpinContract(address _contract) external onlyOwner {
+        shareAndSpinContract = _contract;
+    }
+
+    function addToppingsFromShareAndSpin(address player, uint256 amount) external {
+        require(msg.sender == shareAndSpinContract, "!sns");
+        uint256 weekId = weeklyGameId;
+        PlayerWeekly storage pw = weeklyPlayers[weekId][player];
+        pw.toppingsEarned += amount;
+        playerStats[player].lifetimeToppings += amount;
+        emit ToppingsEarned(weekId, player, amount, "share");
+    }
+
+    function enterDailyFromShareAndSpin(address player, uint256 entryFee) external {
+        require(msg.sender == shareAndSpinContract, "!sns");
+        pizzaToken.safeTransferFrom(treasuryWallet, address(this), entryFee);
+        currentDailyPot += entryFee;
+        _enterDaily(player, 0);
     }
 
 }

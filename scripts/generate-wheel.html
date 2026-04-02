@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Share & Spin Wheel Generator</title>
+<style>
+  body { background: #1a1a1a; display: flex; flex-direction: column; align-items: center; padding: 40px; font-family: Arial, sans-serif; color: white; }
+  canvas { border: 2px solid #333; border-radius: 50%; }
+  .controls { margin-top: 20px; display: flex; gap: 12px; }
+  button { padding: 12px 24px; font-size: 16px; font-weight: bold; border: none; border-radius: 8px; cursor: pointer; }
+  #downloadBtn { background: #F59E0B; color: #000; }
+  #previewBtn { background: #EA580C; color: #fff; }
+  .preview { margin-top: 20px; }
+  .preview img { border: 2px dashed #555; }
+  p.note { color: #888; font-size: 13px; max-width: 512px; text-align: center; margin-top: 16px; }
+</style>
+</head>
+<body>
+
+<h1>Share & Spin Wheel</h1>
+<p>Pizza Party — 8 slices, transparent background</p>
+
+<canvas id="wheel" width="512" height="512"></canvas>
+
+<div class="controls">
+  <button id="previewBtn" onclick="previewOnCheckerboard()">Preview Transparency</button>
+  <button id="downloadBtn" onclick="downloadWheel()">Download PNG</button>
+</div>
+
+<div class="preview" id="previewArea"></div>
+<p class="note">
+  The downloaded PNG has a transparent background.
+  Save it to <code>/public/images/share_spin_wheel.png</code>
+</p>
+
+<script>
+const canvas = document.getElementById('wheel');
+const ctx = canvas.getContext('2d');
+const W = 512;
+const H = 512;
+const CX = W / 2;
+const CY = H / 2;
+const RADIUS = 240;
+const INNER_RADIUS = 40;
+const SLICE_COUNT = 8;
+const SLICE_ANGLE = (2 * Math.PI) / SLICE_COUNT;
+
+// Slice definitions — clockwise from 12 o'clock (top)
+// Index 0 starts at 12 o'clock right boundary
+const SLICES = [
+  { label: 'GOLD',       sub: 'REAL PIZZA!', color: '#F59E0B', textColor: '#78350F', icon: 'star'  },
+  { label: 'TRY',        sub: 'AGAIN',       color: '#991B1B', textColor: '#FCA5A5', icon: null    },
+  { label: 'FREE',       sub: 'SLICE!',      color: '#EA580C', textColor: '#FFFFFF', icon: 'pizza' },
+  { label: 'TRY',        sub: 'AGAIN',       color: '#7F1D1D', textColor: '#FCA5A5', icon: null    },
+  { label: 'FREE',       sub: 'SLICE!',      color: '#EA580C', textColor: '#FFFFFF', icon: 'pizza' },
+  { label: 'TRY',        sub: 'AGAIN',       color: '#374151', textColor: '#9CA3AF', icon: null    },
+  { label: 'TRY',        sub: 'AGAIN',       color: '#991B1B', textColor: '#FCA5A5', icon: null    },
+  { label: 'TRY',        sub: 'AGAIN',       color: '#4B5563', textColor: '#9CA3AF', icon: null    },
+];
+
+function drawWheel() {
+  ctx.clearRect(0, 0, W, H);
+
+  // Draw each slice
+  for (let i = 0; i < SLICE_COUNT; i++) {
+    const slice = SLICES[i];
+    // Start angle: 12 o'clock = -PI/2, go clockwise
+    const startAngle = -Math.PI / 2 + i * SLICE_ANGLE;
+    const endAngle = startAngle + SLICE_ANGLE;
+    const midAngle = startAngle + SLICE_ANGLE / 2;
+
+    // Draw slice
+    ctx.beginPath();
+    ctx.moveTo(CX, CY);
+    ctx.arc(CX, CY, RADIUS, startAngle, endAngle);
+    ctx.closePath();
+    ctx.fillStyle = slice.color;
+    ctx.fill();
+
+    // Slice border
+    ctx.strokeStyle = 'rgba(0,0,0,0.3)';
+    ctx.lineWidth = 2;
+    ctx.stroke();
+
+    // Draw text along the slice (rotated to center of slice)
+    ctx.save();
+    ctx.translate(CX, CY);
+    ctx.rotate(midAngle);
+
+    // Main label
+    const textRadius = RADIUS * 0.58;
+    ctx.fillStyle = slice.textColor;
+    ctx.font = 'bold 22px Arial, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(slice.label, textRadius, -8);
+
+    // Sub label
+    ctx.font = 'bold 16px Arial, sans-serif';
+    ctx.fillText(slice.sub, textRadius, 12);
+
+    // Icon
+    if (slice.icon === 'star') {
+      drawStar(ctx, textRadius, -30, 10, 5, slice.textColor);
+    } else if (slice.icon === 'pizza') {
+      drawPizzaIcon(ctx, textRadius, -30, slice.textColor);
+    }
+
+    ctx.restore();
+  }
+
+  // Inner circle (hub)
+  ctx.beginPath();
+  ctx.arc(CX, CY, INNER_RADIUS, 0, Math.PI * 2);
+  ctx.fillStyle = '#1F2937';
+  ctx.fill();
+  ctx.strokeStyle = '#F59E0B';
+  ctx.lineWidth = 4;
+  ctx.stroke();
+
+  // Hub text
+  ctx.fillStyle = '#F59E0B';
+  ctx.font = 'bold 14px Arial, sans-serif';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText('SPIN', CX, CY);
+
+  // Outer ring border
+  ctx.beginPath();
+  ctx.arc(CX, CY, RADIUS, 0, Math.PI * 2);
+  ctx.strokeStyle = '#92400E';
+  ctx.lineWidth = 6;
+  ctx.stroke();
+
+  // Outer golden edge
+  ctx.beginPath();
+  ctx.arc(CX, CY, RADIUS + 3, 0, Math.PI * 2);
+  ctx.strokeStyle = '#F59E0B';
+  ctx.lineWidth = 2;
+  ctx.stroke();
+}
+
+function drawStar(ctx, x, y, r, points, color) {
+  ctx.fillStyle = color;
+  ctx.beginPath();
+  for (let i = 0; i < points * 2; i++) {
+    const radius = i % 2 === 0 ? r : r * 0.45;
+    const angle = (i * Math.PI) / points - Math.PI / 2;
+    const px = x + Math.cos(angle) * radius;
+    const py = y + Math.sin(angle) * radius;
+    if (i === 0) ctx.moveTo(px, py);
+    else ctx.lineTo(px, py);
+  }
+  ctx.closePath();
+  ctx.fill();
+}
+
+function drawPizzaIcon(ctx, x, y, color) {
+  // Simple pizza slice triangle
+  ctx.fillStyle = color;
+  ctx.beginPath();
+  ctx.moveTo(x, y - 10);
+  ctx.lineTo(x - 7, y + 5);
+  ctx.lineTo(x + 7, y + 5);
+  ctx.closePath();
+  ctx.fill();
+  // Pepperoni dots
+  ctx.fillStyle = color === '#FFFFFF' ? '#FCD34D' : '#F59E0B';
+  ctx.beginPath();
+  ctx.arc(x - 2, y - 2, 2, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.beginPath();
+  ctx.arc(x + 2, y + 1, 1.5, 0, Math.PI * 2);
+  ctx.fill();
+}
+
+function downloadWheel() {
+  const link = document.createElement('a');
+  link.download = 'share_spin_wheel.png';
+  link.href = canvas.toDataURL('image/png');
+  link.click();
+}
+
+function previewOnCheckerboard() {
+  const area = document.getElementById('previewArea');
+  const dataUrl = canvas.toDataURL('image/png');
+  area.innerHTML = `
+    <p style="color:#888; font-size:13px;">Checkerboard = transparent areas:</p>
+    <img src="${dataUrl}" width="256" height="256"
+         style="background: repeating-conic-gradient(#808080 0% 25%, #a0a0a0 0% 50%) 50% / 20px 20px; border-radius: 50%;" />
+  `;
+}
+
+// Draw on load
+drawWheel();
+</script>
+
+</body>
+</html>

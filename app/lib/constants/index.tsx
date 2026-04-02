@@ -14,6 +14,9 @@ export const PIZZA_TOKEN_ADDRESS = "0xa821f2ee19f4f62e404c934d43eb6e5763fbdb07"
 // Pizza Staking Contract (UUPS proxy)
 export const PIZZA_STAKING_ADDRESS = "0xCbAf5bACe5419710C3852653d3DdEB831d7415be"
 
+// Share & Spin Contract (UUPS proxy)
+export const SHARE_AND_SPIN_ADDRESS = "0xE45be9456E9da420f85CE69D5F0Ca96Ffe035b5C"
+
 // Pizza Chat Contract (UUPS proxy) - UPDATE after deploying
 export const PIZZA_CHAT_ADDRESS = "0x7e2E1b26a1172AF67f63Dd205028A806ce2fFBae"
 
@@ -718,6 +721,23 @@ export const PIZZA_CHAT_ABI = [
   },
 ] as const
 
+// ============ Share & Spin ABI ============
+
+export const SHARE_AND_SPIN_ABI = [
+  { type: 'function', name: 'recordShare', stateMutability: 'nonpayable', inputs: [{ type: 'uint256', name: 'claimedReward' }], outputs: [] },
+  { type: 'function', name: 'recordShareSpin', stateMutability: 'nonpayable', inputs: [{ type: 'bytes32', name: 'castHashBytes32' }], outputs: [{ type: 'uint8', name: 'outcome' }] },
+  { type: 'function', name: 'getShareInfo', stateMutability: 'view', inputs: [{ type: 'address', name: 'player' }], outputs: [{ type: 'uint256', name: 'sharesUsed' }, { type: 'bool', name: 'canShareNow' }, { type: 'uint256', name: 'nextShareAt' }] },
+  { type: 'function', name: 'shareRewardAmount', stateMutability: 'view', inputs: [], outputs: [{ type: 'uint256' }] },
+  { type: 'function', name: 'playerLastShareTimestamp', stateMutability: 'view', inputs: [{ type: 'address', name: 'player' }], outputs: [{ type: 'uint256' }] },
+  { type: 'function', name: 'lastShareGameId', stateMutability: 'view', inputs: [{ type: 'address', name: 'player' }], outputs: [{ type: 'uint256' }] },
+  { type: 'function', name: 'shareSpinGoldAwardedWeekId', stateMutability: 'view', inputs: [], outputs: [{ type: 'uint256' }] },
+  { type: 'function', name: 'adminSetShareRewardAmount', stateMutability: 'nonpayable', inputs: [{ type: 'uint256', name: 'amount' }], outputs: [] },
+  { type: 'event', name: 'ShareRecorded', inputs: [{ indexed: true, name: 'player', type: 'address' }, { indexed: true, name: 'gameId', type: 'uint256' }, { indexed: true, name: 'weekId', type: 'uint256' }, { indexed: false, name: 'sharesThisWeek', type: 'uint256' }, { indexed: false, name: 'rewardPaid', type: 'uint256' }] },
+  { type: 'event', name: 'ShareSpinRecorded', inputs: [{ indexed: true, name: 'player', type: 'address' }, { indexed: true, name: 'gameId', type: 'uint256' }, { indexed: true, name: 'weekId', type: 'uint256' }, { indexed: false, name: 'outcome', type: 'uint8' }, { indexed: false, name: 'castHash', type: 'bytes32' }] },
+  { type: 'event', name: 'ShareSpinGoldWinner', inputs: [{ indexed: true, name: 'player', type: 'address' }, { indexed: true, name: 'gameId', type: 'uint256' }, { indexed: false, name: 'timestamp', type: 'uint256' }] },
+  { type: 'function', name: 'claimFreeSlice', stateMutability: 'nonpayable', inputs: [{ type: 'uint256', name: 'entryFee' }], outputs: [] },
+] as const
+
 export const CONTRACT_REGISTRY = {
   pizzaParty: {
     address: PIZZA_PARTY_ADDRESS as `0x${string}`,
@@ -742,6 +762,11 @@ export const CONTRACT_REGISTRY = {
   pizzaChat: {
     address: PIZZA_CHAT_ADDRESS as `0x${string}`,
     abi: PIZZA_CHAT_ABI as unknown as Abi,
+    chainId: BASE_CHAIN_ID,
+  },
+  shareAndSpin: {
+    address: SHARE_AND_SPIN_ADDRESS as `0x${string}`,
+    abi: SHARE_AND_SPIN_ABI as unknown as Abi,
     chainId: BASE_CHAIN_ID,
   },
 } as const satisfies Record<string, ContractRegistryEntry>

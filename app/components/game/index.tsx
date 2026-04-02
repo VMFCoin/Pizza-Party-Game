@@ -8,6 +8,7 @@ import { Users, Share2, X } from 'lucide-react'
 import { useGamePageData } from '../../lib/useGamePageData'
 import { sdk } from '@farcaster/miniapp-sdk'
 import { PIZZA_TOKEN_ADDRESS } from '../../lib/constants'
+import ShareAndSpinModal from './ShareAndSpinModal'
 import { hasEarlyAccess } from '../../lib/constants/earlyAccess'
 
 const SHARE_BASE_URL = 'https://farcaster.xyz/miniapps/wgY6OPqYoIkz/pizza-party'
@@ -137,17 +138,18 @@ interface GamePageProps {
   onNavigateToParlor?: () => void
   onNavigateToStaking?: () => void
   isBanned?: boolean
+  userFid?: number | null
 }
 
-export default function GamePage({ onNavigateToWeekly, onNavigateToLeaderboard, onNavigateToParlor, onNavigateToStaking, isBanned }: GamePageProps) {
+export default function GamePage({ onNavigateToWeekly, onNavigateToLeaderboard, onNavigateToParlor, onNavigateToStaking, isBanned, userFid }: GamePageProps) {
   return (
     <Suspense fallback={<div>Loading...</div>}>
-      <GamePageContent onNavigateToWeekly={onNavigateToWeekly} onNavigateToLeaderboard={onNavigateToLeaderboard} onNavigateToParlor={onNavigateToParlor} onNavigateToStaking={onNavigateToStaking} isBanned={isBanned} />
+      <GamePageContent onNavigateToWeekly={onNavigateToWeekly} onNavigateToLeaderboard={onNavigateToLeaderboard} onNavigateToParlor={onNavigateToParlor} onNavigateToStaking={onNavigateToStaking} isBanned={isBanned} userFid={userFid} />
     </Suspense>
   )
 }
 
-function GamePageContent({ onNavigateToWeekly, onNavigateToLeaderboard, onNavigateToParlor, onNavigateToStaking, isBanned }: GamePageProps) {
+function GamePageContent({ onNavigateToWeekly, onNavigateToLeaderboard, onNavigateToParlor, onNavigateToStaking, isBanned, userFid }: GamePageProps) {
   const [isMobile, setIsMobile] = useState(false)
   const [referralCodeInput, setReferralCodeInput] = useState('')
   const [showReferralInput, setShowReferralInput] = useState(false)
@@ -155,6 +157,7 @@ function GamePageContent({ onNavigateToWeekly, onNavigateToLeaderboard, onNaviga
   const [showShareModal, setShowShareModal] = useState(false)
   const [isFarcasterMiniApp, setIsFarcasterMiniApp] = useState(false)
   const [isBaseInApp, setIsBaseInApp] = useState(false)
+  const [showShareAndSpin, setShowShareAndSpin] = useState(false)
 
   useEffect(() => {
     const checkMobile = () => {
@@ -229,11 +232,8 @@ function GamePageContent({ onNavigateToWeekly, onNavigateToLeaderboard, onNaviga
   // Debug render
   console.debug('GamePageContent render — hasEnteredToday:', hasEnteredToday, 'isFirstTimePlayer:', isFirstTimePlayer, 'hasUsedReferral:', hasUsedReferral)
 
-  // Check if player can use a referral code (only on their FIRST EVER game entry)
-  // isFirstTimePlayer = true means lifetimeToppings = 0 (they've never played before)
-  // hasUsedReferral tracks if they've submitted a referral code already (they can only do this once)
-  // The modal should ONLY show for first-time players who haven't used a referral yet
-  const canUseReferral = isFirstTimePlayer && !hasUsedReferral
+  // Referral system disabled — replaced by Share & Spin
+  const canUseReferral = false
 
   useEffect(() => {
     if (typeof window === 'undefined') return
@@ -553,40 +553,31 @@ function GamePageContent({ onNavigateToWeekly, onNavigateToLeaderboard, onNaviga
             </Button>
           )}
 
-          {/* Referral Code Management */}
+          {/* Share & Spin */}
           {wallet?.isAuthenticated && (
             <div className="bg-white/95 backdrop-blur-md rounded-xl border-2 border-red-300 p-3 w-full" style={{ borderColor: '#000000' }}>
-              <div className="flex items-center justify-between mb-2">
-                <p className="text-red-800 text-sm" style={{ fontFamily: 'var(--font-luckiest-guy)' }}>
-                  <Users className="inline mr-1 h-4 w-4" /> Your Referral Code
-                </p>
-                {referralInfo?.referralCode && (
-                  <Button
-                    className="!bg-red-600 hover:!bg-red-700 text-white text-xs py-1 px-2 rounded disabled:opacity-50 disabled:pointer-events-none"
-                    onClick={() => setShowShareModal(true)}
-                    disabled={isBanned}
-                  >
-                    <Share2 className="inline h-3 w-3 mr-1" />
-                    Share
-                  </Button>
-                )}
+              <p className="text-red-800 text-sm mb-1" style={{ fontFamily: 'var(--font-luckiest-guy)' }}>
+                <Share2 className="inline mr-1 h-4 w-4" /> Share & Earn
+              </p>
+              <p className="text-xs text-gray-500">
+                Share once a day &middot; max 3/week &middot; ~$0.01 PIZZA + topping + spin
+              </p>
+              <div className="flex gap-1.5 mt-1.5 flex-wrap">
+                <span className="bg-gray-200 text-gray-600 px-2 py-0.5 rounded text-xs font-bold">Nothing 94%</span>
+                <span className="bg-orange-100 text-orange-700 px-2 py-0.5 rounded text-xs font-bold">Free Slice 5%</span>
+                <span className="bg-yellow-100 text-yellow-700 px-2 py-0.5 rounded text-xs font-bold">Gold 1%</span>
               </div>
-              
-    <div>
-      <p className="text-red-900 text-xl text-center mb-1 tracking-wider" style={{ fontFamily: 'var(--font-luckiest-guy)' }}>
-        {referralInfo?.referralCode
-          ? referralInfo.referralCode
-          : referralInfo === null
-            ? 'Loading...'
-            : 'Code not available'}
-      </p>
-      <p className="text-xs text-red-600 text-center" style={{ fontFamily: 'var(--font-luckiest-guy)' }}>
-        Referrals: {Number(referralInfo?.totalReferrals ?? 0n)}/3 this week • {Number(referralInfo?.lifetimeReferrals ?? 0n)} lifetime
-      </p>
-      <p className="text-xs text-red-500 text-center mt-1" style={{ fontFamily: 'var(--font-luckiest-guy)' }}>
-        Invite friends to earn 2 toppings each! (Max 3/week)
-      </p>
-    </div>
+              <Button
+                onClick={() => setShowShareAndSpin(true)}
+                disabled={isBanned || userFid !== 1013491}
+                className="mt-2 w-full !bg-red-500 hover:!bg-red-600 text-white font-bold py-2 rounded-xl border-2 border-red-700 disabled:opacity-50"
+                style={customFontStyle}
+              >
+                SHARE & SPIN
+              </Button>
+              {userFid !== 1013491 && (
+                <p className="text-xs text-gray-400 text-center mt-1" style={{ fontFamily: 'var(--font-luckiest-guy)' }}>Coming Soon</p>
+              )}
             </div>
           )}
 
@@ -768,6 +759,15 @@ function GamePageContent({ onNavigateToWeekly, onNavigateToLeaderboard, onNaviga
             )}
           </div>
         </div>
+      )}
+      {showShareAndSpin && (
+        <ShareAndSpinModal
+          userFid={userFid}
+          pizzaUsdPrice={pizzaUsd}
+          onClose={() => setShowShareAndSpin(false)}
+          onGoToDaily={() => setShowShareAndSpin(false)}
+          isBanned={isBanned}
+        />
       )}
     </main>
   )

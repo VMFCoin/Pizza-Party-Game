@@ -21,13 +21,10 @@ const frameHtml = (image: string, buttonText: string, target: string) => `<!DOCT
 export async function POST(req: NextRequest) {
   const baseUrl = getBaseUrl()
   try {
-    const body = await req.json()
-    const { untrustedData } = body ?? {}
-    const state = untrustedData?.state ? JSON.parse(untrustedData.state) : {}
-    const referralCode = state.referralCode ?? ''
+    await req.json() // consume body
 
     const thankYouImage = `${baseUrl}/images/frame-thankyou.png`
-    const target = `${baseUrl}${referralCode ? `/?ref=${referralCode}` : ''}`
+    const target = baseUrl
 
     return new NextResponse(frameHtml(thankYouImage, '🎮 Play Now', target), {
       status: 200,
