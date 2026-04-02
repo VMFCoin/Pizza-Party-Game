@@ -516,7 +516,7 @@ export default function ShareAndSpinModal({
                     <>
                       <div className="bg-orange-500 border-4 border-orange-300 rounded-xl p-4 text-center">
                         <p className="text-white text-3xl font-bold" style={F}>FREE SLICE!</p>
-                        <p className="text-orange-100 text-sm mt-1">Free entry into today's daily game!</p>
+                        <p className="text-orange-100 text-sm mt-1">Free entry into today&apos;s daily game!</p>
                         <p className="text-orange-200 text-xs mt-1">$1.00 of $PIZZA added to the jackpot from treasury</p>
                       </div>
                       <Button onClick={() => handleShareResult('Free Slice')} className="w-full !bg-purple-600 hover:!bg-purple-700 text-white font-bold py-2 rounded-xl border-2 border-purple-800" style={F}>
