@@ -89,7 +89,7 @@ export default function ShareAndSpinModal({
   onGoToDaily,
   isBanned,
   pizzaUsdPrice = 0.000001,
-  wheelImageSrc = '/images/pizza_wheel.png',
+  wheelImageSrc = '/images/share_spin_wheel.png',
 }: ShareAndSpinModalProps) {
   const { address }  = useAccount()
   const publicClient = usePublicClient()
