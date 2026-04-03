@@ -620,7 +620,7 @@ export default function ShareAndSpinModal({
                         <p className="text-gray-200 text-2xl font-bold" style={NEON}>Better luck next time!</p>
                         <p className="text-gray-400 text-sm mt-1">You still earned ~$0.01 PIZZA + 1 Topping for sharing.</p>
                       </div>
-                      <Button onClick={() => handleShareResult('Nothing')} className="w-full !bg-purple-600 hover:!bg-purple-700 text-white font-bold py-2 rounded-xl border-2 border-purple-800" style={F}>
+                      <Button onClick={() => { handleShareResult('Nothing'); }} className="w-full !bg-purple-600 hover:!bg-purple-700 text-white font-bold py-2 rounded-xl border-2 border-purple-800" style={F}>
                         <Share2 size={16} className="inline mr-2" />Share Result
                       </Button>
                       <Button onClick={onGoToDaily} className="w-full !bg-red-600 hover:!bg-red-700 text-white font-bold py-3 rounded-xl border-2 border-red-800" style={{ ...BSHADOW, fontSize: 18 }}>
@@ -637,9 +637,6 @@ export default function ShareAndSpinModal({
                         <p className="text-orange-100 text-sm mt-1">Free entry into today&apos;s daily game!</p>
                         <p className="text-orange-200 text-xs mt-1">$1.00 of $PIZZA added to the jackpot from treasury</p>
                       </div>
-                      <Button onClick={() => handleShareResult('Free Slice')} className="w-full !bg-purple-600 hover:!bg-purple-700 text-white font-bold py-2 rounded-xl border-2 border-purple-800" style={F}>
-                        <Share2 size={16} className="inline mr-2" />Share Result
-                      </Button>
                       <Button
                         onClick={handleClaimFreeSlice}
                         disabled={claimSlicePending || claimSliceConfirming || isBanned}
@@ -686,11 +683,15 @@ export default function ShareAndSpinModal({
                           <p className="text-yellow-200/70 text-xs mt-1">Your win is permanently recorded on Base.</p>
                         </div>
                       </div>
-                      <Button onClick={() => handleShareResult('Gold')} className="w-full !bg-purple-600 hover:!bg-purple-700 text-white font-bold py-2 rounded-xl border-2 border-purple-800" style={F}>
-                        <Share2 size={16} className="inline mr-2" />Share Result
-                      </Button>
-                      <Button onClick={onGoToDaily} className="w-full !bg-red-600 hover:!bg-red-700 text-white font-bold py-3 rounded-xl border-2 border-red-800" style={{ ...BSHADOW, fontSize: 18 }}>
-                        BACK TO DAILY GAME
+                      <Button
+                        onClick={handleClaimFreeSlice}
+                        disabled={claimSlicePending || claimSliceConfirming || isBanned}
+                        className="w-full !bg-yellow-500 hover:!bg-yellow-600 text-yellow-900 font-bold py-3 rounded-xl border-2 border-yellow-700 disabled:opacity-50"
+                        style={{ ...BSHADOW, fontSize: 18 }}
+                      >
+                        {(claimSlicePending || claimSliceConfirming)
+                          ? <Loader2 className="animate-spin mx-auto" size={20} />
+                          : 'CLAIM GOLD SLICE'}
                       </Button>
                     </>
                   )}
@@ -726,7 +727,10 @@ export default function ShareAndSpinModal({
                   {shareInfo.sharesUsed}/3 shares used this week
                 </p>
               </div>
-              <Button onClick={onGoToDaily} className="w-full !bg-red-600 hover:!bg-red-700 text-white font-bold py-3 rounded-xl border-2 border-red-800" style={{ ...F, fontSize: 18 }}>
+              <Button onClick={() => handleShareResult(spinOutcome?.name ?? 'Nothing')} className="w-full !bg-purple-600 hover:!bg-purple-700 text-white font-bold py-2 rounded-xl border-2 border-purple-800" style={F}>
+                <Share2 size={16} className="inline mr-2" />Share Result
+              </Button>
+              <Button onClick={onGoToDaily} className="w-full !bg-red-600 hover:!bg-red-700 text-white font-bold py-3 rounded-xl border-2 border-red-800" style={{ ...BSHADOW, fontSize: 18 }}>
                 BACK TO DAILY GAME
               </Button>
             </>
