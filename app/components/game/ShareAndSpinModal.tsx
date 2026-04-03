@@ -62,6 +62,8 @@ Come eat \u{1F355}\u{1F525}`
 
 const SHARE_EMBED = 'https://farcaster.xyz/miniapps/wgY6OPqYoIkz/pizza-party'
 const F = { fontFamily: 'var(--font-luckiest-guy)', fontWeight: 'bold' as const }
+const NEON = { ...F, textShadow: '0 0 10px #00ff00, 0 0 20px #00ff00, 0 0 40px #00ff00, 0 3px 6px rgba(0, 255, 0, 0.8)' }
+const BSHADOW = { ...F, textShadow: '2px 2px 4px rgba(0, 0, 0, 0.8)' }
 
 type Step =
   | 'compose'
@@ -448,7 +450,7 @@ export default function ShareAndSpinModal({
           {/* ── compose ─────────────────────────────────────── */}
           {step === 'compose' && (
             <>
-              <p className="text-orange-400 text-center" style={{ ...F, fontSize: 32 }}>
+              <p className="text-orange-400 text-center" style={{ ...NEON, fontSize: 32 }}>
                 SHARE & SPIN
               </p>
 
@@ -462,9 +464,12 @@ export default function ShareAndSpinModal({
                 </div>
               </div>
 
-              <p className="text-gray-500 text-xs text-center">
-                Every share earns ~$0.01 PIZZA + 1 Topping
-              </p>
+              <div className="text-center space-y-0.5">
+                <p className="text-green-400 text-xs" style={F}>$0.01 of $PIZZA</p>
+                <p className="text-green-400 text-xs" style={F}>1 Topping</p>
+                <p className="text-orange-400 text-xs" style={F}>Free Slice to Play</p>
+                <p className="text-yellow-400 text-xs" style={F}>Pizza Ordered IRL</p>
+              </div>
               <p className="text-gray-400 text-xs text-center">
                 {shareInfo.sharesUsed}/3 shares used this week
               </p>
@@ -482,7 +487,7 @@ export default function ShareAndSpinModal({
                   onClick={handleShare}
                   disabled={isBanned}
                   className="w-full !bg-red-600 hover:!bg-red-700 text-white font-bold py-3 rounded-xl border-2 border-red-800 disabled:opacity-50"
-                  style={{ ...F, fontSize: 18 }}
+                  style={{ ...BSHADOW, fontSize: 18 }}
                 >
                   <Share2 size={18} className="inline mr-2" />
                   SHARE & SPIN
@@ -576,7 +581,7 @@ export default function ShareAndSpinModal({
           {/* ── spinning + spin_result ──────────────────────── */}
           {(step === 'spinning' || step === 'spin_result') && (
             <>
-              <p className="text-orange-400 text-center" style={{ ...F, fontSize: 28 }}>
+              <p className="text-orange-400 text-center" style={{ ...NEON, fontSize: 28 }}>
                 SPIN THE PIE
               </p>
 
@@ -602,7 +607,7 @@ export default function ShareAndSpinModal({
               </div>
 
               {step === 'spinning' && (
-                <p className="text-yellow-400 text-center text-xl animate-pulse" style={F}>SPINNING...</p>
+                <p className="text-yellow-400 text-center text-xl animate-pulse" style={NEON}>SPINNING...</p>
               )}
 
               {step === 'spin_result' && spinOutcome && (
@@ -612,13 +617,13 @@ export default function ShareAndSpinModal({
                   {spinOutcome.name === 'Nothing' && (
                     <>
                       <div className="bg-gray-700 border-2 border-gray-500 rounded-xl p-4 text-center">
-                        <p className="text-gray-200 text-2xl font-bold" style={F}>Better luck next time!</p>
+                        <p className="text-gray-200 text-2xl font-bold" style={NEON}>Better luck next time!</p>
                         <p className="text-gray-400 text-sm mt-1">You still earned ~$0.01 PIZZA + 1 Topping for sharing.</p>
                       </div>
                       <Button onClick={() => handleShareResult('Nothing')} className="w-full !bg-purple-600 hover:!bg-purple-700 text-white font-bold py-2 rounded-xl border-2 border-purple-800" style={F}>
                         <Share2 size={16} className="inline mr-2" />Share Result
                       </Button>
-                      <Button onClick={onGoToDaily} className="w-full !bg-red-600 hover:!bg-red-700 text-white font-bold py-3 rounded-xl border-2 border-red-800" style={{ ...F, fontSize: 18 }}>
+                      <Button onClick={onGoToDaily} className="w-full !bg-red-600 hover:!bg-red-700 text-white font-bold py-3 rounded-xl border-2 border-red-800" style={{ ...BSHADOW, fontSize: 18 }}>
                         BACK TO DAILY GAME
                       </Button>
                     </>
@@ -628,7 +633,7 @@ export default function ShareAndSpinModal({
                   {spinOutcome.name === 'Free Slice' && (
                     <>
                       <div className="bg-orange-500 border-4 border-orange-300 rounded-xl p-4 text-center">
-                        <p className="text-white text-3xl font-bold" style={F}>FREE SLICE!</p>
+                        <p className="text-white text-3xl font-bold" style={NEON}>FREE SLICE!</p>
                         <p className="text-orange-100 text-sm mt-1">Free entry into today&apos;s daily game!</p>
                         <p className="text-orange-200 text-xs mt-1">$1.00 of $PIZZA added to the jackpot from treasury</p>
                       </div>
@@ -639,7 +644,7 @@ export default function ShareAndSpinModal({
                         onClick={handleClaimFreeSlice}
                         disabled={claimSlicePending || claimSliceConfirming || isBanned}
                         className="w-full !bg-orange-500 hover:!bg-orange-600 text-white font-bold py-3 rounded-xl border-2 border-orange-700 disabled:opacity-50"
-                        style={{ ...F, fontSize: 18 }}
+                        style={{ ...BSHADOW, fontSize: 18 }}
                       >
                         {(claimSlicePending || claimSliceConfirming)
                           ? <Loader2 className="animate-spin mx-auto" size={20} />
@@ -675,7 +680,7 @@ export default function ShareAndSpinModal({
                           }}>
                           <p className="text-3xl mb-1">{'\u{1F3C6}\u{1F355}\u{1F3C6}'}</p>
                           <p className="font-bold text-sm text-green-200 uppercase tracking-widest mb-1" style={F}>Congratulations!</p>
-                          <p className="font-bold text-3xl text-yellow-300" style={F}>GOLD SLICE!</p>
+                          <p className="font-bold text-3xl text-yellow-300" style={NEON}>GOLD SLICE!</p>
                           <p className="text-lg text-yellow-200 mt-1" style={F}>REAL PIZZA IRL</p>
                           <p className="text-yellow-100 text-sm mt-2">@vmfcoin has been notified and will reach out.</p>
                           <p className="text-yellow-200/70 text-xs mt-1">Your win is permanently recorded on Base.</p>
@@ -684,7 +689,7 @@ export default function ShareAndSpinModal({
                       <Button onClick={() => handleShareResult('Gold')} className="w-full !bg-purple-600 hover:!bg-purple-700 text-white font-bold py-2 rounded-xl border-2 border-purple-800" style={F}>
                         <Share2 size={16} className="inline mr-2" />Share Result
                       </Button>
-                      <Button onClick={onGoToDaily} className="w-full !bg-red-600 hover:!bg-red-700 text-white font-bold py-3 rounded-xl border-2 border-red-800" style={{ ...F, fontSize: 18 }}>
+                      <Button onClick={onGoToDaily} className="w-full !bg-red-600 hover:!bg-red-700 text-white font-bold py-3 rounded-xl border-2 border-red-800" style={{ ...BSHADOW, fontSize: 18 }}>
                         BACK TO DAILY GAME
                       </Button>
                     </>
@@ -706,7 +711,7 @@ export default function ShareAndSpinModal({
           {/* ── done ────────────────────────────────────────── */}
           {step === 'done' && (
             <>
-              <p className="text-green-400 text-center" style={{ ...F, fontSize: 32 }}>All done!</p>
+              <p className="text-green-400 text-center" style={{ ...NEON, fontSize: 32 }}>All done!</p>
               <div className="bg-green-900/30 border border-green-600 rounded-xl p-3 space-y-1 text-sm">
                 <p className="text-green-300 font-bold" style={F}>Earned this share:</p>
                 <p className="text-green-200">{'\u2713'} ~$0.01 PIZZA</p>
