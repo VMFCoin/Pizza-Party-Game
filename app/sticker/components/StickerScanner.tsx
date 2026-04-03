@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useRef, useCallback } from 'react'
-import jsQR from 'jsqr'
+import QrScanner from 'qr-scanner'
 import Image from 'next/image'
 import { useWriteContract } from 'wagmi'
 import { STICKER_REGISTRY_ABI, STICKER_REGISTRY_ADDRESS } from '../lib/stickerRegistryAbi'
@@ -44,6 +44,10 @@ async function reverseGeocode(lat: number, lng: number): Promise<ReverseGeocodeR
   }
 }
 
+function isValidQRData(data: string): boolean {
+  return VALID_QR_URLS.some((url) => data.includes(url) || url.includes(data))
+}
+
 interface StickerScannerProps {
   onComplete: () => void
   walletAddress?: string
@@ -63,71 +67,14 @@ export default function StickerScanner({ onComplete, walletAddress, userFid, use
   const [onChainRecording, setOnChainRecording] = useState(false)
   const [onChainTxHash, setOnChainTxHash] = useState<string | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
-  const canvasRef = useRef<HTMLCanvasElement>(null)
 
   const { writeContractAsync } = useWriteContract()
-
-  const isValidQRData = useCallback((data: string): boolean => {
-    return VALID_QR_URLS.some((url) => data.includes(url) || url.includes(data))
-  }, [])
-
-  // Try scanning a canvas region for QR codes
-  const scanRegion = useCallback((
-    ctx: CanvasRenderingContext2D,
-    canvas: HTMLCanvasElement,
-    bitmap: ImageBitmap,
-    sx: number, sy: number, sw: number, sh: number,
-    targetSize: number
-  ): string | null => {
-    const scale = Math.min(targetSize / sw, targetSize / sh, 1)
-    const w = Math.round(sw * scale)
-    const h = Math.round(sh * scale)
-    canvas.width = w
-    canvas.height = h
-    ctx.drawImage(bitmap, sx, sy, sw, sh, 0, 0, w, h)
-    const imageData = ctx.getImageData(0, 0, w, h)
-    const qr = jsQR(imageData.data, imageData.width, imageData.height)
-    return qr?.data || null
-  }, [])
-
-  // Multi-pass QR scanner: tries full image, then quadrants, then center crop at various sizes
-  const validateQR = useCallback((bitmap: ImageBitmap, canvas: HTMLCanvasElement): boolean => {
-    const ctx = canvas.getContext('2d')!
-    const { width: bw, height: bh } = bitmap
-
-    // Pass 1: Full image at different scales
-    for (const size of [1000, 1500, 800, 600]) {
-      const data = scanRegion(ctx, canvas, bitmap, 0, 0, bw, bh, size)
-      if (data && isValidQRData(data)) return true
-    }
-
-    // Pass 2: Quadrants (QR might be in a corner)
-    const hw = bw / 2, hh = bh / 2
-    const quadrants = [
-      [0, 0, hw, hh],      // top-left
-      [hw, 0, hw, hh],     // top-right
-      [0, hh, hw, hh],     // bottom-left
-      [hw, hh, hw, hh],    // bottom-right
-    ]
-    for (const [sx, sy, sw, sh] of quadrants) {
-      const data = scanRegion(ctx, canvas, bitmap, sx, sy, sw, sh, 800)
-      if (data && isValidQRData(data)) return true
-    }
-
-    // Pass 3: Center crop (60% of image)
-    const cx = bw * 0.2, cy = bh * 0.2, cw = bw * 0.6, ch = bh * 0.6
-    const data = scanRegion(ctx, canvas, bitmap, cx, cy, cw, ch, 800)
-    if (data && isValidQRData(data)) return true
-
-    return false
-  }, [scanRegion, isValidQRData])
 
   const handleRecordOnChain = useCallback(async () => {
     if (!savedCoords || !STICKER_REGISTRY_ADDRESS || !walletAddress) return
 
     setOnChainRecording(true)
     try {
-      // Scale coordinates by 1e6 for contract (e.g., 40.7128 → 40712800)
       const latScaled = BigInt(Math.round(savedCoords.lat * 1_000_000))
       const lngScaled = BigInt(Math.round(savedCoords.lng * 1_000_000))
       const city = locationData?.city || 'Unknown'
@@ -141,13 +88,12 @@ export default function StickerScanner({ onComplete, walletAddress, userFid, use
 
       setOnChainTxHash(hash)
 
-      // Save tx hash back to database
       if (savedFindId) {
         await fetch('/api/sticker/report', {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ findId: savedFindId, txHash: hash }),
-        }).catch(() => {}) // Non-critical if this fails
+        }).catch(() => {})
       }
     } catch (err) {
       console.error('On-chain recording failed:', err)
@@ -164,18 +110,19 @@ export default function StickerScanner({ onComplete, walletAddress, userFid, use
     setError(null)
 
     try {
-      // Read image and validate QR (multi-pass scan)
-      const imageBitmap = await createImageBitmap(file)
-      const canvas = canvasRef.current!
+      // Use qr-scanner (ZXing WASM engine) to scan the photo — handles colorful/artistic QR codes
+      const result = await QrScanner.scanImage(file, {
+        returnDetailedScanResult: true,
+        alsoTryWithoutScanRegion: true,
+      })
 
-      const isValid = validateQR(imageBitmap, canvas)
-      if (!isValid) {
+      if (!result?.data || !isValidQRData(result.data)) {
         setStep('error')
-        setError('No valid Pizza Party QR code detected in this image. Make sure the QR sticker is clearly visible.')
+        setError('No valid Pizza Party QR code detected. Make sure the sticker is clearly visible in the photo.')
         return
       }
 
-      // Store captured image
+      // Store captured image for display
       const reader = new FileReader()
       reader.onload = () => setCapturedImage(reader.result as string)
       reader.readAsDataURL(file)
@@ -241,14 +188,14 @@ export default function StickerScanner({ onComplete, walletAddress, userFid, use
         { enableHighAccuracy: true, timeout: 15000 }
       )
     } catch {
+      // qr-scanner throws if no QR found at all
       setStep('error')
-      setError('Something went wrong. Please try again.')
+      setError('No valid Pizza Party QR code detected. Make sure the sticker is clearly visible in the photo.')
     }
-  }, [validateQR, walletAddress, userFid, userName])
+  }, [walletAddress, userFid, userName])
 
   return (
     <div className="bg-red-800/80 backdrop-blur-md rounded-2xl border-4 border-black p-6 shadow-2xl">
-      <canvas ref={canvasRef} style={{ display: 'none' }} />
       <input
         ref={fileInputRef}
         type="file"
@@ -293,7 +240,7 @@ export default function StickerScanner({ onComplete, walletAddress, userFid, use
       {step === 'validating' && (
         <div className="text-center py-8">
           <div className="animate-spin w-12 h-12 border-4 border-white border-t-transparent rounded-full mx-auto mb-4" />
-          <p className="text-white" style={customFontStyle}>Scanning for QR code...</p>
+          <p className="text-white" style={customFontStyle}>Verifying sticker...</p>
         </div>
       )}
 
@@ -345,7 +292,6 @@ export default function StickerScanner({ onComplete, walletAddress, userFid, use
             Your discovery has been added to the global map!
           </p>
 
-          {/* Record On-Chain Button — only if wallet connected */}
           {walletAddress && STICKER_REGISTRY_ADDRESS && !onChainTxHash && (
             <button
               onClick={handleRecordOnChain}
@@ -357,7 +303,6 @@ export default function StickerScanner({ onComplete, walletAddress, userFid, use
             </button>
           )}
 
-          {/* On-chain success */}
           {onChainTxHash && (
             <div className="mb-3 p-3 bg-green-800/60 rounded-xl border-2 border-green-500">
               <p className="text-green-300 text-sm" style={{ fontFamily: 'var(--font-luckiest-guy)' }}>
