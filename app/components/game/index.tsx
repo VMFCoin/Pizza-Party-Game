@@ -567,13 +567,13 @@ function GamePageContent({ onNavigateToWeekly, onNavigateToLeaderboard, onNaviga
               </p>
               <Button
                 onClick={() => setShowShareAndSpin(true)}
-                disabled={isBanned || userFid !== 1013491}
+                disabled={isBanned || ![1013491, 392134, 2182791, 200506, 792821].includes(userFid ?? 0)}
                 className="mt-2 w-full !bg-red-500 hover:!bg-red-600 text-white font-bold py-2 rounded-xl border-2 border-red-700 disabled:opacity-50"
                 style={customFontStyle}
               >
                 SHARE & SPIN
               </Button>
-              {userFid !== 1013491 && (
+              {![1013491, 392134, 2182791, 200506, 792821].includes(userFid ?? 0) && (
                 <p className="text-xs text-gray-400 text-center mt-1" style={{ fontFamily: 'var(--font-luckiest-guy)' }}>Coming Soon</p>
               )}
             </div>
