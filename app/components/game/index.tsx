@@ -769,6 +769,7 @@ function GamePageContent({ onNavigateToWeekly, onNavigateToLeaderboard, onNaviga
           onClose={() => setShowShareAndSpin(false)}
           onGoToDaily={() => setShowShareAndSpin(false)}
           isBanned={isBanned}
+          hasEnteredToday={hasEnteredToday}
         />
       )}
     </main>

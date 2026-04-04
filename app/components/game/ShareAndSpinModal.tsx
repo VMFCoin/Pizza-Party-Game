@@ -74,15 +74,26 @@ type Step =
   | 'spinning'
   | 'spin_result'
   | 'claiming_slice'
+  | 'gifting'
+  | 'saving'
   | 'done'
 
+interface FarcasterUser {
+  fid: number
+  username: string
+  displayName: string
+  pfpUrl: string
+  walletAddress: string
+}
+
 interface ShareAndSpinModalProps {
-  userFid?:       number | null
-  onClose:        () => void
-  onGoToDaily:    () => void
-  isBanned?:      boolean
-  pizzaUsdPrice?: number
-  wheelImageSrc?: string
+  userFid?:         number | null
+  onClose:          () => void
+  onGoToDaily:      () => void
+  isBanned?:        boolean
+  pizzaUsdPrice?:   number
+  wheelImageSrc?:   string
+  hasEnteredToday?: boolean
 }
 
 export default function ShareAndSpinModal({
@@ -92,6 +103,7 @@ export default function ShareAndSpinModal({
   isBanned,
   pizzaUsdPrice = 0.000001,
   wheelImageSrc = '/images/Share & Spin_Wheel.png',
+  hasEnteredToday = false,
 }: ShareAndSpinModalProps) {
   const { address }  = useAccount()
   const publicClient = usePublicClient()
@@ -102,6 +114,14 @@ export default function ShareAndSpinModal({
   const [spinOutcome, setSpinOutcome] = useState<typeof SHARE_SPIN_OUTCOMES[number] | null>(null)
   const [rotation, setRotation]       = useState(0)
   const [isSpinning, setIsSpinning]   = useState(false)
+
+  // Gift slice state
+  const [recipientInput, setRecipientInput] = useState('')
+  const [selectedUser, setSelectedUser] = useState<FarcasterUser | null>(null)
+  const [farcasterResults, setFarcasterResults] = useState<FarcasterUser[]>([])
+  const [isSearching, setIsSearching] = useState(false)
+  const [showSuggestions, setShowSuggestions] = useState(false)
+  const [giftError, setGiftError] = useState<string | null>(null)
 
   // Refs for wheel animation, tick sound, haptics
   const wheelRef = useRef<HTMLDivElement>(null)
@@ -434,7 +454,110 @@ export default function ShareAndSpinModal({
     })
   }, [pizzaUsdPrice, writeClaimSlice])
 
-  const anyPending = sharePending || shareConfirming || spinConfirming || claimSlicePending || claimSliceConfirming
+  // ── Gift free slice tx ──────────────────────────────────────
+  const {
+    writeContract: writeGift,
+    data: giftHash,
+    isPending: giftPending,
+    reset: resetGift,
+  } = useWriteContract()
+
+  const { isLoading: giftConfirming, isSuccess: giftConfirmed } =
+    useWaitForTransactionReceipt({ hash: giftHash })
+
+  useEffect(() => {
+    if (!giftConfirmed) return
+    resetGift()
+    setStep('done')
+  }, [giftConfirmed]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ── Save free slice tx ────────────────────────────────────
+  const {
+    writeContract: writeSave,
+    data: saveHash,
+    isPending: savePending,
+    reset: resetSave,
+  } = useWriteContract()
+
+  const { isLoading: saveConfirming, isSuccess: saveConfirmed } =
+    useWaitForTransactionReceipt({ hash: saveHash })
+
+  useEffect(() => {
+    if (!saveConfirmed) return
+    resetSave()
+    setStep('done')
+  }, [saveConfirmed]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Farcaster user search (same as parlor slice)
+  const searchFarcasterUsers = useCallback(async (query: string) => {
+    if (!query || query.length < 1 || query.startsWith('0x')) {
+      setFarcasterResults([])
+      return
+    }
+    setIsSearching(true)
+    try {
+      const response = await fetch(`/api/users/search?q=${encodeURIComponent(query)}`)
+      const data = await response.json()
+      if (data.success && data.users) {
+        setFarcasterResults(data.users)
+      } else {
+        setFarcasterResults([])
+      }
+    } catch {
+      setFarcasterResults([])
+    } finally {
+      setIsSearching(false)
+    }
+  }, [])
+
+  // Debounce search
+  useEffect(() => {
+    const trimmed = recipientInput.trim()
+    if (!trimmed || trimmed.startsWith('0x')) {
+      setFarcasterResults([])
+      return
+    }
+    if (selectedUser && recipientInput !== `@${selectedUser.username}`) {
+      setSelectedUser(null)
+    }
+    const timer = setTimeout(() => searchFarcasterUsers(trimmed), 300)
+    return () => clearTimeout(timer)
+  }, [recipientInput, searchFarcasterUsers, selectedUser])
+
+  const handleGiftSlice = useCallback(() => {
+    if (!pizzaUsdPrice || pizzaUsdPrice <= 0) return
+    const recipientAddress = selectedUser?.walletAddress
+    if (!recipientAddress) {
+      setGiftError('Select a player to send the free slice to.')
+      return
+    }
+    if (recipientAddress.toLowerCase() === address?.toLowerCase()) {
+      setGiftError("You can't send a free slice to yourself!")
+      return
+    }
+    setGiftError(null)
+    const entryFeeAmount = BigInt(Math.floor((1 / pizzaUsdPrice) * 1e18))
+    setStep('gifting')
+    writeGift({
+      address: SHARE_AND_SPIN_ADDRESS as `0x${string}`,
+      abi: SHARE_AND_SPIN_ABI,
+      functionName: 'giftFreeSlice',
+      args: [recipientAddress as `0x${string}`, entryFeeAmount],
+      gas: 300_000n,
+    })
+  }, [pizzaUsdPrice, selectedUser, address, writeGift])
+
+  const handleSaveSlice = useCallback(() => {
+    setStep('saving')
+    writeSave({
+      address: SHARE_AND_SPIN_ADDRESS as `0x${string}`,
+      abi: SHARE_AND_SPIN_ABI,
+      functionName: 'saveFreeSlice',
+      gas: 100_000n,
+    })
+  }, [writeSave])
+
+  const anyPending = sharePending || shareConfirming || spinConfirming || claimSlicePending || claimSliceConfirming || giftPending || giftConfirming || savePending || saveConfirming
 
   // ── Render ────────────────────────────────────────────────────
   return (
@@ -642,19 +765,107 @@ export default function ShareAndSpinModal({
                     <>
                       <div className="bg-orange-500 border-4 border-orange-300 rounded-xl p-4 text-center">
                         <p className="text-white text-3xl font-bold" style={NEON}>FREE SLICE!</p>
-                        <p className="text-orange-100 text-sm mt-1">Free entry into today&apos;s daily game!</p>
+                        <p className="text-orange-100 text-sm mt-1">
+                          {hasEnteredToday ? 'You already entered today!' : 'Free entry into today\u2019s daily game!'}
+                        </p>
                         <p className="text-orange-200 text-xs mt-1">$1.00 of $PIZZA added to the jackpot from treasury</p>
                       </div>
-                      <Button
-                        onClick={handleClaimFreeSlice}
-                        disabled={claimSlicePending || claimSliceConfirming || isBanned}
-                        className="w-full !bg-orange-500 hover:!bg-orange-600 text-white font-bold py-3 rounded-xl border-2 border-orange-700 disabled:opacity-50"
-                        style={{ ...BSHADOW, fontSize: 18 }}
-                      >
-                        {(claimSlicePending || claimSliceConfirming)
-                          ? <Loader2 className="animate-spin mx-auto" size={20} />
-                          : 'CLAIM FREE SLICE'}
-                      </Button>
+
+                      {!hasEnteredToday ? (
+                        <Button
+                          onClick={handleClaimFreeSlice}
+                          disabled={claimSlicePending || claimSliceConfirming || isBanned}
+                          className="w-full !bg-orange-500 hover:!bg-orange-600 text-white font-bold py-3 rounded-xl border-2 border-orange-700 disabled:opacity-50"
+                          style={{ ...BSHADOW, fontSize: 18 }}
+                        >
+                          {(claimSlicePending || claimSliceConfirming)
+                            ? <Loader2 className="animate-spin mx-auto" size={20} />
+                            : 'CLAIM FREE SLICE'}
+                        </Button>
+                      ) : (
+                        <>
+                          {/* Search for friend */}
+                          <div className="relative">
+                            <input
+                              type="text"
+                              placeholder="Search @username to gift slice..."
+                              value={recipientInput}
+                              onChange={(e) => {
+                                setRecipientInput(e.target.value)
+                                setShowSuggestions(true)
+                                if (selectedUser) setSelectedUser(null)
+                                if (giftError) setGiftError(null)
+                              }}
+                              onFocus={() => setShowSuggestions(true)}
+                              className="w-full p-2 rounded-xl border-2 border-orange-400 bg-gray-900 text-white"
+                              style={{ ...F, fontSize: 14 }}
+                            />
+                            {selectedUser && (
+                              <div className="mt-2 p-2 bg-orange-900/30 rounded-lg flex items-center gap-2">
+                                {selectedUser.pfpUrl && (
+                                  <Image src={selectedUser.pfpUrl} alt={selectedUser.username} width={24} height={24} className="rounded-full" />
+                                )}
+                                <span className="text-orange-200 text-sm" style={F}>@{selectedUser.username}</span>
+                                <span className="text-orange-400 text-xs truncate flex-1">
+                                  {selectedUser.walletAddress.slice(0, 6)}...{selectedUser.walletAddress.slice(-4)}
+                                </span>
+                              </div>
+                            )}
+                            {showSuggestions && !isSearching && farcasterResults.length > 0 && !selectedUser && (
+                              <div className="absolute top-full left-0 right-0 bg-gray-800 border-2 border-orange-400 rounded-b-xl shadow-lg z-20 max-h-48 overflow-y-auto">
+                                {farcasterResults.map((user) => (
+                                  <button
+                                    key={user.fid}
+                                    onClick={() => {
+                                      setSelectedUser(user)
+                                      setRecipientInput(`@${user.username}`)
+                                      setShowSuggestions(false)
+                                      setFarcasterResults([])
+                                    }}
+                                    className="w-full p-2 text-left hover:bg-gray-700 flex items-center gap-2"
+                                  >
+                                    {user.pfpUrl && (
+                                      <Image src={user.pfpUrl} alt={user.username} width={28} height={28} className="rounded-full" />
+                                    )}
+                                    <div className="flex-1 min-w-0">
+                                      <p className="text-white font-bold truncate text-sm">@{user.username}</p>
+                                      <p className="text-gray-400 text-xs truncate">{user.displayName}</p>
+                                    </div>
+                                  </button>
+                                ))}
+                              </div>
+                            )}
+                            {isSearching && (
+                              <div className="absolute top-full left-0 right-0 bg-gray-800 border-2 border-orange-400 rounded-b-xl p-2 text-center z-20">
+                                <span className="text-orange-400 text-xs">Searching...</span>
+                              </div>
+                            )}
+                          </div>
+                          {giftError && (
+                            <p className="text-red-400 text-xs text-center">{giftError}</p>
+                          )}
+                          <Button
+                            onClick={handleGiftSlice}
+                            disabled={!selectedUser || giftPending || giftConfirming || isBanned}
+                            className="w-full !bg-orange-500 hover:!bg-orange-600 text-white font-bold py-3 rounded-xl border-2 border-orange-700 disabled:opacity-50"
+                            style={{ ...BSHADOW, fontSize: 16 }}
+                          >
+                            {(giftPending || giftConfirming)
+                              ? <Loader2 className="animate-spin mx-auto" size={20} />
+                              : 'SEND FREE SLICE TO FRIEND'}
+                          </Button>
+                          <Button
+                            onClick={handleSaveSlice}
+                            disabled={savePending || saveConfirming}
+                            className="w-full !bg-gray-700 hover:!bg-gray-600 text-white font-bold py-2 rounded-xl border-2 border-gray-500 disabled:opacity-50"
+                            style={{ ...BSHADOW, fontSize: 16 }}
+                          >
+                            {(savePending || saveConfirming)
+                              ? <Loader2 className="animate-spin mx-auto" size={20} />
+                              : 'SAVE FOR TOMORROW'}
+                          </Button>
+                        </>
+                      )}
                     </>
                   )}
 
@@ -691,16 +902,34 @@ export default function ShareAndSpinModal({
                           <p className="text-yellow-200/70 text-xs mt-1">Your win is permanently recorded on Base.</p>
                         </div>
                       </div>
-                      <Button
-                        onClick={handleClaimFreeSlice}
-                        disabled={claimSlicePending || claimSliceConfirming || isBanned}
-                        className="w-full !bg-yellow-500 hover:!bg-yellow-600 text-yellow-900 font-bold py-3 rounded-xl border-2 border-yellow-700 disabled:opacity-50"
-                        style={{ ...BSHADOW, fontSize: 18 }}
-                      >
-                        {(claimSlicePending || claimSliceConfirming)
-                          ? <Loader2 className="animate-spin mx-auto" size={20} />
-                          : 'CLAIM GOLD SLICE'}
-                      </Button>
+                      {!hasEnteredToday ? (
+                        <Button
+                          onClick={handleClaimFreeSlice}
+                          disabled={claimSlicePending || claimSliceConfirming || isBanned}
+                          className="w-full !bg-yellow-500 hover:!bg-yellow-600 text-yellow-900 font-bold py-3 rounded-xl border-2 border-yellow-700 disabled:opacity-50"
+                          style={{ ...BSHADOW, fontSize: 18 }}
+                        >
+                          {(claimSlicePending || claimSliceConfirming)
+                            ? <Loader2 className="animate-spin mx-auto" size={20} />
+                            : 'CLAIM GOLD SLICE'}
+                        </Button>
+                      ) : (
+                        <>
+                          <p className="text-yellow-300 text-sm text-center" style={F}>
+                            You already entered today! Send it or save it.
+                          </p>
+                          <Button
+                            onClick={handleSaveSlice}
+                            disabled={savePending || saveConfirming}
+                            className="w-full !bg-yellow-500 hover:!bg-yellow-600 text-yellow-900 font-bold py-3 rounded-xl border-2 border-yellow-700 disabled:opacity-50"
+                            style={{ ...BSHADOW, fontSize: 18 }}
+                          >
+                            {(savePending || saveConfirming)
+                              ? <Loader2 className="animate-spin mx-auto" size={20} />
+                              : 'SAVE FOR TOMORROW'}
+                          </Button>
+                        </>
+                      )}
                     </>
                   )}
                 </div>
@@ -714,6 +943,23 @@ export default function ShareAndSpinModal({
               <Loader2 className="animate-spin mx-auto text-orange-400" size={36} />
               <p className="text-orange-400" style={F}>Entering the daily game...</p>
               <p className="text-gray-500 text-xs">$1.00 of $PIZZA from treasury added to the jackpot</p>
+            </div>
+          )}
+
+          {/* ── gifting ───────────────────────────────────────── */}
+          {step === 'gifting' && (
+            <div className="text-center py-8 space-y-3">
+              <Loader2 className="animate-spin mx-auto text-orange-400" size={36} />
+              <p className="text-orange-400" style={F}>Sending free slice to {selectedUser ? `@${selectedUser.username}` : 'friend'}...</p>
+              <p className="text-gray-500 text-xs">$1.00 of $PIZZA from treasury added to the jackpot</p>
+            </div>
+          )}
+
+          {/* ── saving ────────────────────────────────────────── */}
+          {step === 'saving' && (
+            <div className="text-center py-8 space-y-3">
+              <Loader2 className="animate-spin mx-auto text-green-400" size={36} />
+              <p className="text-green-400" style={F}>Saving free slice for tomorrow...</p>
             </div>
           )}
 

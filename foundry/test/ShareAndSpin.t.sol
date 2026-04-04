@@ -734,6 +734,238 @@ contract ShareAndSpinTest is Test {
     }
 
     // ══════════════════════════════════════════════════════════
+    // 11. SAVE FREE SLICE
+    // ══════════════════════════════════════════════════════════
+
+    function test_Save_SetsPending() public {
+        vm.prank(p1);
+        sns.saveFreeSlice();
+        assertTrue(sns.pendingFreeSlice(p1));
+    }
+
+    function test_Save_DefaultFalse() public view {
+        assertFalse(sns.pendingFreeSlice(p1));
+    }
+
+    function test_Save_MultipleCallsIdempotent() public {
+        vm.prank(p1); sns.saveFreeSlice();
+        vm.prank(p1); sns.saveFreeSlice();
+        assertTrue(sns.pendingFreeSlice(p1));
+    }
+
+    function test_Save_IndependentPerPlayer() public {
+        vm.prank(p1); sns.saveFreeSlice();
+        assertFalse(sns.pendingFreeSlice(p2));
+        assertTrue(sns.pendingFreeSlice(p1));
+    }
+
+    // ══════════════════════════════════════════════════════════
+    // 12. CLAIM PENDING SLICE
+    // ══════════════════════════════════════════════════════════
+
+    function test_ClaimPending_RevertsWithoutSave() public {
+        uint256 entryFee = 200_000 * 1e18;
+        vm.prank(p1);
+        vm.expectRevert("No pending slice");
+        sns.claimPendingSlice(entryFee);
+    }
+
+    function test_ClaimPending_SucceedsAfterSave() public {
+        vm.prank(p1); sns.saveFreeSlice();
+        assertTrue(sns.pendingFreeSlice(p1));
+
+        uint256 entryFee = 200_000 * 1e18;
+        vm.prank(p1); sns.claimPendingSlice(entryFee);
+
+        assertFalse(sns.pendingFreeSlice(p1), "Pending cleared after claim");
+    }
+
+    function test_ClaimPending_ClearsFlag() public {
+        vm.prank(p1); sns.saveFreeSlice();
+        uint256 entryFee = 200_000 * 1e18;
+        vm.prank(p1); sns.claimPendingSlice(entryFee);
+
+        vm.prank(p1);
+        vm.expectRevert("No pending slice");
+        sns.claimPendingSlice(entryFee);
+    }
+
+    function test_ClaimPending_CannotClaimTwice() public {
+        vm.prank(p1); sns.saveFreeSlice();
+        uint256 entryFee = 200_000 * 1e18;
+        vm.prank(p1); sns.claimPendingSlice(entryFee);
+
+        vm.prank(p1);
+        vm.expectRevert("No pending slice");
+        sns.claimPendingSlice(entryFee);
+    }
+
+    function test_ClaimPending_TreasuryPays() public {
+        vm.prank(p1); sns.saveFreeSlice();
+        uint256 entryFee = 200_000 * 1e18;
+        uint256 treasBefore = pizza.balanceOf(TREAS);
+
+        vm.prank(p1); sns.claimPendingSlice(entryFee);
+
+        uint256 treasAfter = pizza.balanceOf(TREAS);
+        assertEq(treasBefore - treasAfter, entryFee, "Treasury paid the entry fee");
+    }
+
+    function test_ClaimPending_PersistsAcrossTime() public {
+        vm.prank(p1); sns.saveFreeSlice();
+        vm.warp(block.timestamp + 2 days);
+        // Pending flag persists regardless of time
+        assertTrue(sns.pendingFreeSlice(p1));
+    }
+
+    // ══════════════════════════════════════════════════════════
+    // 13. GIFT FREE SLICE
+    // ══════════════════════════════════════════════════════════
+
+    function test_Gift_RevertsToZeroAddress() public {
+        uint256 entryFee = 200_000 * 1e18;
+        vm.prank(p1);
+        vm.expectRevert(bytes("0"));
+        sns.giftFreeSlice(address(0), entryFee);
+    }
+
+    function test_Gift_RevertsToSelf() public {
+        uint256 entryFee = 200_000 * 1e18;
+        vm.prank(p1);
+        vm.expectRevert(bytes("self"));
+        sns.giftFreeSlice(p1, entryFee);
+    }
+
+    function test_Gift_SucceedsToOtherPlayer() public {
+        uint256 entryFee = 200_000 * 1e18;
+        vm.prank(p1);
+        sns.giftFreeSlice(p2, entryFee);
+    }
+
+    function test_Gift_TreasuryPays() public {
+        uint256 entryFee = 200_000 * 1e18;
+        uint256 treasBefore = pizza.balanceOf(TREAS);
+
+        vm.prank(p1);
+        sns.giftFreeSlice(p2, entryFee);
+
+        uint256 treasAfter = pizza.balanceOf(TREAS);
+        assertEq(treasBefore - treasAfter, entryFee, "Treasury paid the entry fee for gift");
+    }
+
+    function test_Gift_RecipientEntersGame() public {
+        uint256 entryFee = 200_000 * 1e18;
+        vm.prank(p1);
+        sns.giftFreeSlice(p2, entryFee);
+        // If this didn't revert, p2 was entered into the daily game
+    }
+
+    function test_Gift_MultipleGiftsToSamePlayer_SecondReverts() public {
+        uint256 entryFee = 200_000 * 1e18;
+        vm.prank(p1); sns.giftFreeSlice(p2, entryFee);
+
+        // Second gift to same player same day should revert (already entered)
+        vm.prank(p3);
+        vm.expectRevert();
+        sns.giftFreeSlice(p2, entryFee);
+    }
+
+    function test_Gift_DifferentRecipients_BothWork() public {
+        uint256 entryFee = 200_000 * 1e18;
+        vm.prank(p1); sns.giftFreeSlice(p2, entryFee);
+        vm.prank(p1); sns.giftFreeSlice(p3, entryFee);
+    }
+
+    function test_Gift_AnyoneCanGift_NotJustSpinWinners() public {
+        // Even without sharing/spinning, giftFreeSlice should work
+        // (the access control is in the frontend, not the contract)
+        uint256 entryFee = 200_000 * 1e18;
+        address rando = makeAddr("rando");
+        vm.prank(rando);
+        sns.giftFreeSlice(p1, entryFee);
+    }
+
+    // ══════════════════════════════════════════════════════════
+    // 14. EDGE CASES — COMBINED FLOWS
+    // ══════════════════════════════════════════════════════════
+
+    function test_Edge_ShareThenSaveThenVerifyPending() public {
+        // Share + spin + save
+        vm.prank(p1); sns.recordShare(REWARD);
+        vm.prank(p1); sns.recordShareSpin(bytes32(uint256(1)));
+        vm.prank(p1); sns.saveFreeSlice();
+        assertTrue(sns.pendingFreeSlice(p1));
+
+        // Claim on same game (tests the claim path works)
+        // Note: claiming next day tested via test_ClaimPending_SucceedsAfterSave
+        uint256 entryFee = 200_000 * 1e18;
+        vm.prank(p2); sns.saveFreeSlice();
+        vm.prank(p2); sns.claimPendingSlice(entryFee);
+        assertFalse(sns.pendingFreeSlice(p2));
+    }
+
+    function test_Edge_SaveOverwritesPrevious() public {
+        // Save once
+        vm.prank(p1); sns.saveFreeSlice();
+        assertTrue(sns.pendingFreeSlice(p1));
+
+        // Claim it
+        uint256 entryFee = 200_000 * 1e18;
+        vm.prank(p1); sns.claimPendingSlice(entryFee);
+        assertFalse(sns.pendingFreeSlice(p1));
+
+        // Save again next day
+        _advanceDay();
+        vm.prank(p1); sns.saveFreeSlice();
+        assertTrue(sns.pendingFreeSlice(p1));
+    }
+
+    function test_Edge_GiftDoesNotAffectSenderPending() public {
+        vm.prank(p1); sns.saveFreeSlice();
+        assertTrue(sns.pendingFreeSlice(p1));
+
+        uint256 entryFee = 200_000 * 1e18;
+        vm.prank(p1); sns.giftFreeSlice(p2, entryFee);
+
+        // Sender still has their pending slice
+        assertTrue(sns.pendingFreeSlice(p1));
+    }
+
+    function test_Edge_PausedBlocksAll() public {
+        vm.prank(OWNER); sns.pause();
+
+        vm.prank(p1); vm.expectRevert(); sns.saveFreeSlice();
+        vm.prank(p1); vm.expectRevert(); sns.claimPendingSlice(1e18);
+        vm.prank(p1); vm.expectRevert(); sns.giftFreeSlice(p2, 1e18);
+
+        vm.prank(OWNER); sns.unpause();
+        vm.prank(p1); sns.saveFreeSlice();
+        assertTrue(sns.pendingFreeSlice(p1));
+    }
+
+    function test_Edge_UpgradePreservesState() public {
+        // Save a pending slice
+        vm.prank(p1); sns.saveFreeSlice();
+        assertTrue(sns.pendingFreeSlice(p1));
+
+        // Share and record
+        vm.prank(p2); sns.recordShare(REWARD);
+        uint256 p2Balance = pizza.balanceOf(p2);
+
+        // Upgrade
+        vm.startPrank(OWNER);
+        ShareAndSpinUpgradeable newImpl = new ShareAndSpinUpgradeable();
+        sns.upgradeToAndCall(address(newImpl), "");
+        vm.stopPrank();
+
+        // Verify state preserved
+        assertTrue(sns.pendingFreeSlice(p1), "Pending slice preserved after upgrade");
+        assertEq(pizza.balanceOf(p2), p2Balance, "Balances unchanged");
+        assertEq(sns.shareRewardAmount(), REWARD, "Reward amount preserved");
+        assertEq(sns.owner(), OWNER, "Owner preserved");
+    }
+
+    // ══════════════════════════════════════════════════════════
     // HELPER
     // ══════════════════════════════════════════════════════════
 

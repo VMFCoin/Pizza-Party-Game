@@ -55,6 +55,9 @@ contract ShareAndSpinUpgradeable is OwnableUpgradeable, UUPSUpgradeable, Reentra
     // Cast hash dedup — prevents same cast being used twice
     mapping(bytes32 => bool) public usedCastHashes;
 
+    // Pending free slice — saved for next game when player already entered today
+    mapping(address => bool) public pendingFreeSlice;
+
     // ============ Events ============
 
     event ShareRecorded(
@@ -71,6 +74,24 @@ contract ShareAndSpinUpgradeable is OwnableUpgradeable, UUPSUpgradeable, Reentra
         uint256 indexed weekId,
         uint8   outcome,
         bytes32 castHash
+    );
+
+    event FreeSliceSaved(
+        address indexed player,
+        uint256 timestamp
+    );
+
+    event FreeSliceGifted(
+        address indexed sender,
+        address indexed recipient,
+        uint256 indexed gameId,
+        uint256 entryFee
+    );
+
+    event PendingSliceClaimed(
+        address indexed player,
+        uint256 indexed gameId,
+        uint256 entryFee
     );
 
     event ShareSpinGoldWinner(
@@ -197,6 +218,25 @@ contract ShareAndSpinUpgradeable is OwnableUpgradeable, UUPSUpgradeable, Reentra
 
     function claimFreeSlice(uint256 entryFee) external nonReentrant whenNotPaused {
         pizzaParty.enterDailyFromShareAndSpin(msg.sender, entryFee);
+    }
+
+    function saveFreeSlice() external nonReentrant whenNotPaused {
+        pendingFreeSlice[msg.sender] = true;
+        emit FreeSliceSaved(msg.sender, block.timestamp);
+    }
+
+    function claimPendingSlice(uint256 entryFee) external nonReentrant whenNotPaused {
+        require(pendingFreeSlice[msg.sender], "No pending slice");
+        pendingFreeSlice[msg.sender] = false;
+        pizzaParty.enterDailyFromShareAndSpin(msg.sender, entryFee);
+        emit PendingSliceClaimed(msg.sender, pizzaParty.dailyGameId(), entryFee);
+    }
+
+    function giftFreeSlice(address recipient, uint256 entryFee) external nonReentrant whenNotPaused {
+        require(recipient != address(0), "0");
+        require(recipient != msg.sender, "self");
+        pizzaParty.enterDailyFromShareAndSpin(recipient, entryFee);
+        emit FreeSliceGifted(msg.sender, recipient, pizzaParty.dailyGameId(), entryFee);
     }
 
     // ============ View Functions ============

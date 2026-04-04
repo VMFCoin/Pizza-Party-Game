@@ -736,6 +736,13 @@ export const SHARE_AND_SPIN_ABI = [
   { type: 'event', name: 'ShareSpinRecorded', inputs: [{ indexed: true, name: 'player', type: 'address' }, { indexed: true, name: 'gameId', type: 'uint256' }, { indexed: true, name: 'weekId', type: 'uint256' }, { indexed: false, name: 'outcome', type: 'uint8' }, { indexed: false, name: 'castHash', type: 'bytes32' }] },
   { type: 'event', name: 'ShareSpinGoldWinner', inputs: [{ indexed: true, name: 'player', type: 'address' }, { indexed: true, name: 'gameId', type: 'uint256' }, { indexed: false, name: 'timestamp', type: 'uint256' }] },
   { type: 'function', name: 'claimFreeSlice', stateMutability: 'nonpayable', inputs: [{ type: 'uint256', name: 'entryFee' }], outputs: [] },
+  { type: 'function', name: 'saveFreeSlice', stateMutability: 'nonpayable', inputs: [], outputs: [] },
+  { type: 'function', name: 'claimPendingSlice', stateMutability: 'nonpayable', inputs: [{ type: 'uint256', name: 'entryFee' }], outputs: [] },
+  { type: 'function', name: 'giftFreeSlice', stateMutability: 'nonpayable', inputs: [{ type: 'address', name: 'recipient' }, { type: 'uint256', name: 'entryFee' }], outputs: [] },
+  { type: 'function', name: 'pendingFreeSlice', stateMutability: 'view', inputs: [{ type: 'address', name: 'player' }], outputs: [{ type: 'bool' }] },
+  { type: 'event', name: 'FreeSliceSaved', inputs: [{ indexed: true, name: 'player', type: 'address' }, { indexed: false, name: 'timestamp', type: 'uint256' }] },
+  { type: 'event', name: 'FreeSliceGifted', inputs: [{ indexed: true, name: 'sender', type: 'address' }, { indexed: true, name: 'recipient', type: 'address' }, { indexed: true, name: 'gameId', type: 'uint256' }, { indexed: false, name: 'entryFee', type: 'uint256' }] },
+  { type: 'event', name: 'PendingSliceClaimed', inputs: [{ indexed: true, name: 'player', type: 'address' }, { indexed: true, name: 'gameId', type: 'uint256' }, { indexed: false, name: 'entryFee', type: 'uint256' }] },
 ] as const
 
 export const CONTRACT_REGISTRY = {
