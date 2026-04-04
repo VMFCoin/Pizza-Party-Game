@@ -586,11 +586,11 @@ export default function ShareAndSpinModal({
           {/* ── spinning + spin_result ──────────────────────── */}
           {(step === 'spinning' || step === 'spin_result') && (
             <>
-              <p className="text-orange-400 text-center" style={{ ...NEON, fontSize: 24 }}>
-                SPIN FOR IRL PIZZA
+              <p className="text-orange-400 text-center" style={{ ...NEON, fontSize: 28 }}>
+                SPIN THE PIZZA
               </p>
               <p className="text-orange-400 text-center" style={{ ...NEON, fontSize: 24 }}>
-                OR A FREE SLICE TO PLAY
+                FOR EXTRA REWARDS
               </p>
 
               {/* Wheel — same layout as StakingPage */}
