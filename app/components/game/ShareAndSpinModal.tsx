@@ -257,21 +257,26 @@ export default function ShareAndSpinModal({
 
   // ── Spin animation (adapted from StakingPage) ─────────────────
   const runSpinAnimation = useCallback((outcomeIndex: number) => {
-    setStep('spinning')
     const outcome = SHARE_SPIN_OUTCOMES[outcomeIndex] ?? SHARE_SPIN_OUTCOMES[0]
     const slices  = outcome.slices
     const target  = slices[Math.floor(Math.random() * slices.length)]
     const fullSpins = 3 + Math.floor(Math.random() * 3)
     const rot     = getTargetRotation(target, fullSpins)
 
-    // Reset to 0 instantly
+    // Reset to 0 instantly, show spinning step
     setRotation(0)
+    setIsSpinning(false)
+    setStep('spinning')
 
-    // Start spinning on next frame
-    requestAnimationFrame(() => {
-      setIsSpinning(true)
-      setRotation(rot)
-    })
+    // Wait for the spinning step to render and image to paint, then start
+    setTimeout(() => {
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          setIsSpinning(true)
+          setRotation(rot)
+        })
+      })
+    }, 300)
 
     // Tick sound + haptic loop during spin
     lastTickSliceRef.current = -1
@@ -310,7 +315,7 @@ export default function ShareAndSpinModal({
 
     animationFrameRef.current = requestAnimationFrame(tickLoop)
 
-    // After animation completes
+    // After animation completes (3s spin + 300ms delay)
     setTimeout(() => {
       if (animationFrameRef.current) {
         cancelAnimationFrame(animationFrameRef.current)
@@ -320,7 +325,7 @@ export default function ShareAndSpinModal({
       setSpinOutcome(outcome)
       setStep('spin_result')
       triggerHaptic('heavy')
-    }, 3000)
+    }, 3300)
   }, [playTick, triggerHaptic])
 
   // ── Handlers ─────────────────────────────────────────────────
@@ -617,7 +622,7 @@ export default function ShareAndSpinModal({
                   {spinOutcome.name === 'Nothing' && (
                     <>
                       <div className="bg-gray-700 border-2 border-gray-500 rounded-xl p-4 text-center">
-                        <p className="text-gray-200 text-2xl font-bold" style={NEON}>Better luck next time!</p>
+                        <p className="text-gray-200 text-2xl font-bold" style={F}>Better luck next time!</p>
                         <p className="text-gray-400 text-sm mt-1">You still earned ~$0.01 PIZZA + 1 Topping for sharing.</p>
                       </div>
                       <Button onClick={() => { handleShareResult('Nothing'); }} className="w-full !bg-purple-600 hover:!bg-purple-700 text-white font-bold py-2 rounded-xl border-2 border-purple-800" style={F}>
