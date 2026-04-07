@@ -650,6 +650,7 @@ contract PizzaStakingV1Upgradeable is
      * The frontend should call this, wait for confirmation, then show animation.
      */
     function recordSpin() external nonReentrant whenNotPaused tokenSet {
+        require(tx.origin == msg.sender, "no contracts");
         // Must have a staking position to spin
         uint256 userTotalStaked = flexibleStakes[msg.sender].stakedAmount + lockedStakes[msg.sender].stakedAmount;
         if (userTotalStaked == 0) revert NoStakePosition();

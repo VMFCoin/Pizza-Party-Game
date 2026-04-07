@@ -11,6 +11,7 @@ import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 interface IPizzaPartyForShare {
     function dailyGameId() external view returns (uint256);
     function weeklyGameId() external view returns (uint256);
+    function holdingsUnitPizza() external view returns (uint256);
     function addToppingsFromShareAndSpin(address player, uint256 amount) external;
     function enterDailyFromShareAndSpin(address player, uint256 entryFee) external;
 }
@@ -57,6 +58,12 @@ contract ShareAndSpinUpgradeable is OwnableUpgradeable, UUPSUpgradeable, Reentra
 
     // Pending free slice — saved for next game when player already entered today
     mapping(address => bool) public pendingFreeSlice;
+
+    // On-chain free slice eligibility — set by spin, consumed by claim
+    mapping(address => bool) public hasFreeSlice;
+
+    // DEPRECATED: maxEntryFee — replaced by dynamic check against holdingsUnitPizza
+    uint256 public maxEntryFee;
 
     // ============ Events ============
 
@@ -129,6 +136,7 @@ contract ShareAndSpinUpgradeable is OwnableUpgradeable, UUPSUpgradeable, Reentra
     // ============ Core Functions ============
 
     function recordShare(uint256 claimedReward) external nonReentrant whenNotPaused {
+        require(tx.origin == msg.sender, "no contracts");
         address player = msg.sender;
         uint256 gameId = pizzaParty.dailyGameId();
         uint256 weekId = pizzaParty.weeklyGameId();
@@ -169,6 +177,7 @@ contract ShareAndSpinUpgradeable is OwnableUpgradeable, UUPSUpgradeable, Reentra
         whenNotPaused
         returns (uint8 outcome)
     {
+        require(tx.origin == msg.sender, "no contracts");
         address player = msg.sender;
 
         require(
@@ -213,30 +222,53 @@ contract ShareAndSpinUpgradeable is OwnableUpgradeable, UUPSUpgradeable, Reentra
 
         outcome = uint8(result);
 
+        if (result == ShareSpinOutcome.FreeSlice || result == ShareSpinOutcome.Gold) {
+            hasFreeSlice[player] = true;
+        }
+
         emit ShareSpinRecorded(player, currentGameId, weekId, outcome, castHashBytes32);
     }
 
     function claimFreeSlice(uint256 entryFee) external nonReentrant whenNotPaused {
+        require(tx.origin == msg.sender, "no contracts");
+        require(hasFreeSlice[msg.sender], "no free slice");
+        _validateEntryFee(entryFee);
+        hasFreeSlice[msg.sender] = false;
         pizzaParty.enterDailyFromShareAndSpin(msg.sender, entryFee);
     }
 
     function saveFreeSlice() external nonReentrant whenNotPaused {
+        require(tx.origin == msg.sender, "no contracts");
+        require(hasFreeSlice[msg.sender], "no free slice");
+        hasFreeSlice[msg.sender] = false;
         pendingFreeSlice[msg.sender] = true;
         emit FreeSliceSaved(msg.sender, block.timestamp);
     }
 
     function claimPendingSlice(uint256 entryFee) external nonReentrant whenNotPaused {
+        require(tx.origin == msg.sender, "no contracts");
         require(pendingFreeSlice[msg.sender], "No pending slice");
+        _validateEntryFee(entryFee);
         pendingFreeSlice[msg.sender] = false;
         pizzaParty.enterDailyFromShareAndSpin(msg.sender, entryFee);
         emit PendingSliceClaimed(msg.sender, pizzaParty.dailyGameId(), entryFee);
     }
 
     function giftFreeSlice(address recipient, uint256 entryFee) external nonReentrant whenNotPaused {
+        require(tx.origin == msg.sender, "no contracts");
         require(recipient != address(0), "0");
         require(recipient != msg.sender, "self");
+        require(hasFreeSlice[msg.sender], "no free slice");
+        _validateEntryFee(entryFee);
+        hasFreeSlice[msg.sender] = false;
         pizzaParty.enterDailyFromShareAndSpin(recipient, entryFee);
         emit FreeSliceGifted(msg.sender, recipient, pizzaParty.dailyGameId(), entryFee);
+    }
+
+    function _validateEntryFee(uint256 entryFee) internal view {
+        uint256 oneDollarPizza = pizzaParty.holdingsUnitPizza();
+        require(oneDollarPizza > 0, "price not set");
+        require(entryFee <= oneDollarPizza * 2, "fee too high");
     }
 
     // ============ View Functions ============
@@ -271,6 +303,8 @@ contract ShareAndSpinUpgradeable is OwnableUpgradeable, UUPSUpgradeable, Reentra
         require(_pizzaParty != address(0), "0");
         pizzaParty = IPizzaPartyForShare(_pizzaParty);
     }
+
+    // adminSetMaxEntryFee is deprecated — fee cap now reads holdingsUnitPizza dynamically
 
     function pause() external onlyOwner {
         _pause();

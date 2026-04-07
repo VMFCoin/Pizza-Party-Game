@@ -48,6 +48,13 @@ export const BANNED_USERS: BannedUser[] = [
     addresses: [],
     reason: 'Throwaway FID registered with @siadude wallet 0x3c51 (addresses covered above)',
   },
+  {
+    fid: 0,
+    addresses: [
+      '0xd5af1246946e9183bab39d37127eaf5fa8e5fb27',
+    ],
+    reason: 'ShareAndSpin exploit — drained ~84M PIZZA from treasury via contract sybil attack (2026-04-05)',
+  },
 ]
 
 // Pre-built sets for O(1) lookup
