@@ -72,7 +72,7 @@ export async function GET(request: NextRequest) {
     let totalRemaining = 0n
 
     for (let i = 0; i < entries.length; i++) {
-      const [addr, label] = entries[i]
+      const [, label] = entries[i]
       const balance = balances[i]
       const pizzaAmount = formatPizza(balance)
       results[label] = pizzaAmount
