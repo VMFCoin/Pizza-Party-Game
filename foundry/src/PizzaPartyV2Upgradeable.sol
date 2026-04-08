@@ -443,7 +443,7 @@ contract PizzaPartyV2Upgradeable is OwnableUpgradeable, UUPSUpgradeable, Reentra
      * Locks the USD value at settlement time so it doesn't change with price
      * @param usdCentsPerWinner USD value per winner in cents (e.g., 591 = $5.91)
      */
-    function settleDailyGameWithUsd(uint256 usdCentsPerWinner) external nonReentrant {
+    function settleDailyGameWithUsd(uint256 usdCentsPerWinner) external onlyOwner nonReentrant {
         uint256 gameId = dailyGameId;
         DailyGame storage game = dailyGames[gameId];
 
@@ -665,7 +665,7 @@ contract PizzaPartyV2Upgradeable is OwnableUpgradeable, UUPSUpgradeable, Reentra
      * Locks the USD value at settlement time so it doesn't change with price
      * @param usdCentsPerWinner USD value per winner in cents (e.g., 652 = $6.52)
      */
-    function settleWeeklyGameWithUsd(uint256 usdCentsPerWinner) external nonReentrant {
+    function settleWeeklyGameWithUsd(uint256 usdCentsPerWinner) external onlyOwner nonReentrant {
         uint256 weekId = weeklyGameId;
         WeeklyGame storage week = weeklyGames[weekId];
 
