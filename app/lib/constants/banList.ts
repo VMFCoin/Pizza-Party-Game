@@ -55,6 +55,14 @@ export const BANNED_USERS: BannedUser[] = [
     ],
     reason: 'ShareAndSpin exploit — drained ~84M PIZZA from treasury via contract sybil attack (2026-04-05)',
   },
+  {
+    fid: 2809448,
+    addresses: [
+      '0xdb12050ac19f24648692cb530c7fc7a4fc2d0e6d', // Farcaster custody
+      '0x982b560b649c785a523e08f44079a2979d998a47', // Connected Ethereum wallet
+    ],
+    reason: 'TBD',
+  },
 ]
 
 // Pre-built sets for O(1) lookup
