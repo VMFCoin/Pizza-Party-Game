@@ -740,11 +740,11 @@ export default function ShareAndSpinModal({
                       {!hasEnteredToday ? (
                         <Button
                           onClick={handleClaimFreeSlice}
-                          disabled={claimSlicePending || claimSliceConfirming || isBanned}
+                          disabled={claimSlicePending || false || isBanned}
                           className="w-full !bg-orange-500 hover:!bg-orange-600 text-white font-bold py-3 rounded-xl border-2 border-orange-700 disabled:opacity-50"
                           style={{ ...BSHADOW, fontSize: 18 }}
                         >
-                          {(claimSlicePending || claimSliceConfirming)
+                          {(claimSlicePending || false)
                             ? <Loader2 className="animate-spin mx-auto" size={20} />
                             : 'CLAIM FREE SLICE'}
                         </Button>
@@ -812,21 +812,21 @@ export default function ShareAndSpinModal({
                           )}
                           <Button
                             onClick={handleGiftSlice}
-                            disabled={!selectedUser || giftPending || giftConfirming || isBanned}
+                            disabled={!selectedUser || giftPending || false || isBanned}
                             className="w-full !bg-orange-500 hover:!bg-orange-600 text-white font-bold py-3 rounded-xl border-2 border-orange-700 disabled:opacity-50"
                             style={{ ...BSHADOW, fontSize: 16 }}
                           >
-                            {(giftPending || giftConfirming)
+                            {(giftPending || false)
                               ? <Loader2 className="animate-spin mx-auto" size={20} />
                               : 'SEND FREE SLICE TO FRIEND'}
                           </Button>
                           <Button
                             onClick={handleSaveSlice}
-                            disabled={savePending || saveConfirming}
+                            disabled={savePending || false}
                             className="w-full !bg-gray-700 hover:!bg-gray-600 text-white font-bold py-2 rounded-xl border-2 border-gray-500 disabled:opacity-50"
                             style={{ ...BSHADOW, fontSize: 16 }}
                           >
-                            {(savePending || saveConfirming)
+                            {(savePending || false)
                               ? <Loader2 className="animate-spin mx-auto" size={20} />
                               : 'SAVE FOR TOMORROW'}
                           </Button>
@@ -871,11 +871,11 @@ export default function ShareAndSpinModal({
                       {!hasEnteredToday ? (
                         <Button
                           onClick={handleClaimFreeSlice}
-                          disabled={claimSlicePending || claimSliceConfirming || isBanned}
+                          disabled={claimSlicePending || false || isBanned}
                           className="w-full !bg-yellow-500 hover:!bg-yellow-600 text-yellow-900 font-bold py-3 rounded-xl border-2 border-yellow-700 disabled:opacity-50"
                           style={{ ...BSHADOW, fontSize: 18 }}
                         >
-                          {(claimSlicePending || claimSliceConfirming)
+                          {(claimSlicePending || false)
                             ? <Loader2 className="animate-spin mx-auto" size={20} />
                             : 'CLAIM GOLD SLICE'}
                         </Button>
@@ -886,11 +886,11 @@ export default function ShareAndSpinModal({
                           </p>
                           <Button
                             onClick={handleSaveSlice}
-                            disabled={savePending || saveConfirming}
+                            disabled={savePending || false}
                             className="w-full !bg-yellow-500 hover:!bg-yellow-600 text-yellow-900 font-bold py-3 rounded-xl border-2 border-yellow-700 disabled:opacity-50"
                             style={{ ...BSHADOW, fontSize: 18 }}
                           >
-                            {(savePending || saveConfirming)
+                            {(savePending || false)
                               ? <Loader2 className="animate-spin mx-auto" size={20} />
                               : 'SAVE FOR TOMORROW'}
                           </Button>
