@@ -7,11 +7,8 @@ import { Button } from '@/app/components/ui/button'
 import {
   useAccount,
   useReadContract,
-  useWriteContract,
-  useWaitForTransactionReceipt,
   usePublicClient,
 } from 'wagmi'
-import { decodeEventLog } from 'viem'
 import { sdk } from '@farcaster/miniapp-sdk'
 import {
   SHARE_AND_SPIN_ADDRESS,
@@ -183,49 +180,47 @@ export default function ShareAndSpinModal({
       }
     : { sharesUsed: 0, canShareNow: true, nextShareAt: 0 }
 
-  // ── recordShare tx ───────────────────────────────────────────
-  const {
-    writeContract: writeShare,
-    data: shareHash,
-    isPending: sharePending,
-    reset: resetShare,
-  } = useWriteContract()
+  // ── Backend-signed transaction state ─────────────────────────
+  const [shareHash, setShareHash] = useState<`0x${string}` | undefined>()
+  const [sharePending, setSharePending] = useState(false)
+  const [shareConfirmed, setShareConfirmed] = useState(false)
+  const [spinTxHash, setSpinTxHash] = useState<`0x${string}` | undefined>()
+  const [spinConfirmed, setSpinConfirmed] = useState(false)
 
-  const { isLoading: shareConfirming, isSuccess: shareConfirmed } =
-    useWaitForTransactionReceipt({ hash: shareHash })
+  // Helper to call backend signer API
+  const executeBackend = useCallback(async (action: string, params: Record<string, string>) => {
+    const res = await fetch('/api/share/execute', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action, playerAddress: address, ...params }),
+    })
+    const data = await res.json()
+    if (!res.ok || !data.success) throw new Error(data.error || 'Transaction failed')
+    return data.txHash as `0x${string}`
+  }, [address])
 
+  // After share confirmed, auto-trigger spin
   useEffect(() => {
     if (!shareConfirmed) return
     console.log('[ShareAndSpin] recordShare confirmed! TX:', shareHash)
-    console.log('[ShareAndSpin] Waiting 2s before calling recordShareSpin...')
 
-    const timer = setTimeout(() => {
-      resetShare()
+    const timer = setTimeout(async () => {
+      setShareConfirmed(false)
       refetchShareInfo()
 
       const bytes32 = castHashToBytes32(castHash)
       console.log('[ShareAndSpin] Calling recordShareSpin with castHash:', bytes32)
-      writeSpin({
-        address: SHARE_AND_SPIN_ADDRESS as `0x${string}`,
-        abi: SHARE_AND_SPIN_ABI,
-        functionName: 'recordShareSpin',
-        args: [bytes32],
-        gas: 150_000n,
-      })
+      try {
+        const txHash = await executeBackend('recordShareSpin', { castHashBytes32: bytes32 })
+        setSpinTxHash(txHash)
+        setSpinConfirmed(true)
+      } catch (err) {
+        console.error('[ShareAndSpin] recordShareSpin error:', err)
+      }
     }, 2000)
 
     return () => clearTimeout(timer)
   }, [shareConfirmed]) // eslint-disable-line react-hooks/exhaustive-deps
-
-  // ── recordShareSpin tx ───────────────────────────────────────
-  const {
-    writeContract: writeSpin,
-    data: spinTxHash,
-    reset: resetSpin,
-  } = useWriteContract()
-
-  const { isLoading: spinConfirming, isSuccess: spinConfirmed } =
-    useWaitForTransactionReceipt({ hash: spinTxHash, pollingInterval: 1_000 })
 
   useEffect(() => {
     if (!spinConfirmed || !publicClient || !spinTxHash) return
@@ -387,25 +382,31 @@ export default function ShareAndSpinModal({
       }
 
       setStep('claiming_share')
-      writeShare({
-        address: SHARE_AND_SPIN_ADDRESS as `0x${string}`,
-        abi: SHARE_AND_SPIN_ABI,
-        functionName: 'recordShare',
-        args: [claimedRewardWei],
-        gas: 200_000n,
-      })
+      setSharePending(true)
+      try {
+        const txHash = await executeBackend('recordShare', { claimedReward: claimedRewardWei.toString() })
+        setShareHash(txHash)
+        setSharePending(false)
+        setShareConfirmed(true)
+      } catch (err2) {
+        console.error('[ShareAndSpin] recordShare error:', err2)
+        setSharePending(false)
+      }
     } catch (err) {
       console.error('[ShareAndSpin] verify error:', err)
       setStep('claiming_share')
-      writeShare({
-        address: SHARE_AND_SPIN_ADDRESS as `0x${string}`,
-        abi: SHARE_AND_SPIN_ABI,
-        functionName: 'recordShare',
-        args: [claimedRewardWei],
-        gas: 200_000n,
-      })
+      setSharePending(true)
+      try {
+        const txHash = await executeBackend('recordShare', { claimedReward: claimedRewardWei.toString() })
+        setShareHash(txHash)
+        setSharePending(false)
+        setShareConfirmed(true)
+      } catch (err2) {
+        console.error('[ShareAndSpin] recordShare error:', err2)
+        setSharePending(false)
+      }
     }
-  }, [address, userFid, castHash, writeShare, claimedRewardWei])
+  }, [address, userFid, castHash, executeBackend, claimedRewardWei])
 
   // Post-spin share
   const handleShareResult = useCallback(async (outcomeName: string) => {
@@ -424,69 +425,29 @@ export default function ShareAndSpinModal({
     }
   }, [])
 
-  // ── claimFreeSlice tx ────────────────────────────────────────
-  const {
-    writeContract: writeClaimSlice,
-    data: claimSliceHash,
-    isPending: claimSlicePending,
-    reset: resetClaimSlice,
-  } = useWriteContract()
+  // ── claimFreeSlice (backend-signed) ──────────────────────────
+  const [claimSlicePending, setClaimSlicePending] = useState(false)
 
-  const { isLoading: claimSliceConfirming, isSuccess: claimSliceConfirmed } =
-    useWaitForTransactionReceipt({ hash: claimSliceHash })
-
-  useEffect(() => {
-    if (!claimSliceConfirmed) return
-    resetClaimSlice()
-    setStep('done')
-  }, [claimSliceConfirmed]) // eslint-disable-line react-hooks/exhaustive-deps
-
-  const handleClaimFreeSlice = useCallback(() => {
+  const handleClaimFreeSlice = useCallback(async () => {
     if (!pizzaUsdPrice || pizzaUsdPrice <= 0) return
     const entryFeeAmount = BigInt(Math.floor((1 / pizzaUsdPrice) * 1e18))
     setStep('claiming_slice')
-    writeClaimSlice({
-      address: SHARE_AND_SPIN_ADDRESS as `0x${string}`,
-      abi: SHARE_AND_SPIN_ABI,
-      functionName: 'claimFreeSlice',
-      args: [entryFeeAmount],
-      gas: 300_000n,
-    })
-  }, [pizzaUsdPrice, writeClaimSlice])
+    setClaimSlicePending(true)
+    try {
+      await executeBackend('claimFreeSlice', { entryFee: entryFeeAmount.toString() })
+      setClaimSlicePending(false)
+      setStep('done')
+    } catch (err) {
+      console.error('[ShareAndSpin] claimFreeSlice error:', err)
+      setClaimSlicePending(false)
+    }
+  }, [pizzaUsdPrice, executeBackend])
 
-  // ── Gift free slice tx ──────────────────────────────────────
-  const {
-    writeContract: writeGift,
-    data: giftHash,
-    isPending: giftPending,
-    reset: resetGift,
-  } = useWriteContract()
+  // ── Gift free slice (backend-signed) ────────────────────────
+  const [giftPending, setGiftPending] = useState(false)
 
-  const { isLoading: giftConfirming, isSuccess: giftConfirmed } =
-    useWaitForTransactionReceipt({ hash: giftHash })
-
-  useEffect(() => {
-    if (!giftConfirmed) return
-    resetGift()
-    setStep('done')
-  }, [giftConfirmed]) // eslint-disable-line react-hooks/exhaustive-deps
-
-  // ── Save free slice tx ────────────────────────────────────
-  const {
-    writeContract: writeSave,
-    data: saveHash,
-    isPending: savePending,
-    reset: resetSave,
-  } = useWriteContract()
-
-  const { isLoading: saveConfirming, isSuccess: saveConfirmed } =
-    useWaitForTransactionReceipt({ hash: saveHash })
-
-  useEffect(() => {
-    if (!saveConfirmed) return
-    resetSave()
-    setStep('done')
-  }, [saveConfirmed]) // eslint-disable-line react-hooks/exhaustive-deps
+  // ── Save free slice (backend-signed) ──────────────────────
+  const [savePending, setSavePending] = useState(false)
 
   // Farcaster user search (same as parlor slice)
   const searchFarcasterUsers = useCallback(async (query: string) => {
@@ -524,7 +485,7 @@ export default function ShareAndSpinModal({
     return () => clearTimeout(timer)
   }, [recipientInput, searchFarcasterUsers, selectedUser])
 
-  const handleGiftSlice = useCallback(() => {
+  const handleGiftSlice = useCallback(async () => {
     if (!pizzaUsdPrice || pizzaUsdPrice <= 0) return
     const recipientAddress = selectedUser?.walletAddress
     if (!recipientAddress) {
@@ -538,24 +499,29 @@ export default function ShareAndSpinModal({
     setGiftError(null)
     const entryFeeAmount = BigInt(Math.floor((1 / pizzaUsdPrice) * 1e18))
     setStep('gifting')
-    writeGift({
-      address: SHARE_AND_SPIN_ADDRESS as `0x${string}`,
-      abi: SHARE_AND_SPIN_ABI,
-      functionName: 'giftFreeSlice',
-      args: [recipientAddress as `0x${string}`, entryFeeAmount],
-      gas: 300_000n,
-    })
-  }, [pizzaUsdPrice, selectedUser, address, writeGift])
+    setGiftPending(true)
+    try {
+      await executeBackend('giftFreeSlice', { recipient: recipientAddress, entryFee: entryFeeAmount.toString() })
+      setGiftPending(false)
+      setStep('done')
+    } catch (err) {
+      console.error('[ShareAndSpin] giftFreeSlice error:', err)
+      setGiftPending(false)
+    }
+  }, [pizzaUsdPrice, selectedUser, address, executeBackend])
 
-  const handleSaveSlice = useCallback(() => {
+  const handleSaveSlice = useCallback(async () => {
     setStep('saving')
-    writeSave({
-      address: SHARE_AND_SPIN_ADDRESS as `0x${string}`,
-      abi: SHARE_AND_SPIN_ABI,
-      functionName: 'saveFreeSlice',
-      gas: 100_000n,
-    })
-  }, [writeSave])
+    setSavePending(true)
+    try {
+      await executeBackend('saveFreeSlice', {})
+      setSavePending(false)
+      setStep('done')
+    } catch (err) {
+      console.error('[ShareAndSpin] saveFreeSlice error:', err)
+      setSavePending(false)
+    }
+  }, [executeBackend])
 
   const anyPending = sharePending || shareConfirming || spinConfirming || claimSlicePending || claimSliceConfirming || giftPending || giftConfirming || savePending || saveConfirming
 

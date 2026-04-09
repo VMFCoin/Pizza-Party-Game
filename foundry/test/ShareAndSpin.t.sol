@@ -26,6 +26,7 @@ contract ShareAndSpinTest is Test {
     IERC20 pizza;
 
     address p1; address p2; address p3;
+    address signer;
 
     uint256 constant REWARD = 100_000 * 1e18;
     uint256 currentMockGameId;
@@ -42,6 +43,7 @@ contract ShareAndSpinTest is Test {
         p1 = makeAddr("p1");
         p2 = makeAddr("p2");
         p3 = makeAddr("p3");
+        signer = makeAddr("backendSigner");
 
         // Upgrade PizzaParty with bridge function
         vm.startPrank(OWNER);
@@ -62,6 +64,7 @@ contract ShareAndSpinTest is Test {
         vm.startPrank(OWNER);
         game.adminSetShareAndSpinContract(address(sns));
         sns.adminSetShareRewardAmount(REWARD);
+        sns.adminSetBackendSigner(signer);
         vm.stopPrank();
 
         // Treasury approves ShareAndSpin contract to pull PIZZA
@@ -102,32 +105,32 @@ contract ShareAndSpinTest is Test {
     function test_Share_PaysFromTreasury() public {
         uint256 pBefore = pizza.balanceOf(p1);
         uint256 tBefore = pizza.balanceOf(TREAS);
-        vm.prank(p1); sns.recordShare(REWARD);
+        vm.prank(signer); sns.recordShare(p1, REWARD);
         assertEq(pizza.balanceOf(p1) - pBefore, REWARD, "player receives reward");
         assertEq(tBefore - pizza.balanceOf(TREAS), REWARD, "treasury pays reward");
     }
 
     function test_Share_AddsToppingToPizzaParty() public {
-        vm.prank(p1); sns.recordShare(REWARD);
+        vm.prank(signer); sns.recordShare(p1, REWARD);
         (uint256 toppings,,,,, ) = game.getPlayerWeeklyInfo(p1);
         assertEq(toppings, 1, "1 topping added to PizzaParty");
     }
 
     function test_Share_IncrementsLifetimeToppings() public {
         (,,,uint256 ltBefore,) = game.getPlayerLifetimeStats(p1);
-        vm.prank(p1); sns.recordShare(REWARD);
+        vm.prank(signer); sns.recordShare(p1, REWARD);
         (,,,uint256 ltAfter,) = game.getPlayerLifetimeStats(p1);
         assertEq(ltAfter - ltBefore, 1, "lifetime toppings incremented");
     }
 
     function test_Share_RecordsTimestamp() public {
         uint256 t = block.timestamp;
-        vm.prank(p1); sns.recordShare(REWARD);
+        vm.prank(signer); sns.recordShare(p1, REWARD);
         assertApproxEqAbs(sns.playerLastShareTimestamp(p1), t, 1);
     }
 
     function test_Share_IncrementsWeeklyCount() public {
-        vm.prank(p1); sns.recordShare(REWARD);
+        vm.prank(signer); sns.recordShare(p1, REWARD);
         (uint256 used,,) = sns.getShareInfo(p1);
         assertEq(used, 1);
     }
@@ -137,56 +140,60 @@ contract ShareAndSpinTest is Test {
         uint256 weekId = game.weeklyGameId();
         vm.expectEmit(true, true, true, false);
         emit ShareRecorded(p1, gameId, weekId, 1, REWARD);
-        vm.prank(p1); sns.recordShare(REWARD);
+        vm.prank(signer); sns.recordShare(p1, REWARD);
     }
 
     function test_Share_WorksWithoutPlayingGameFirst() public {
         uint256 b = pizza.balanceOf(p1);
-        vm.prank(p1); sns.recordShare(REWARD);
+        vm.prank(signer); sns.recordShare(p1, REWARD);
         assertTrue(pizza.balanceOf(p1) > b);
     }
 
     function test_Share_ZeroClaimedReward_NoTransfer() public {
         uint256 b = pizza.balanceOf(p1);
-        vm.prank(p1); sns.recordShare(0);
+        vm.prank(signer); sns.recordShare(p1, 0);
         assertEq(pizza.balanceOf(p1), b, "no transfer when claimed is 0");
     }
 
     function test_Share_RevertsWhenOracleNotSet() public {
         vm.prank(OWNER); sns.adminSetShareRewardAmount(0);
-        vm.prank(p1);
+        vm.prank(signer);
         vm.expectRevert(bytes("Share: reward not set"));
-        sns.recordShare(REWARD);
+        sns.recordShare(p1, REWARD);
     }
 
     function test_Share_RevertsWhenClaimedTooHigh() public {
-        // Oracle set to REWARD, claimed is 2x + 1 = over limit
-        vm.prank(p1);
+        vm.prank(signer);
         vm.expectRevert(bytes("Share: reward too high"));
-        sns.recordShare(REWARD * 2 + 1);
+        sns.recordShare(p1, REWARD * 2 + 1);
     }
 
     function test_Share_AllowsExactly2xOracle() public {
         uint256 doubleReward = REWARD * 2;
         uint256 b = pizza.balanceOf(p1);
-        vm.prank(p1); sns.recordShare(doubleReward);
+        vm.prank(signer); sns.recordShare(p1, doubleReward);
         assertEq(pizza.balanceOf(p1) - b, doubleReward, "2x oracle amount accepted");
     }
 
     function test_Share_AllowsLessThanOracle() public {
         uint256 halfReward = REWARD / 2;
         uint256 b = pizza.balanceOf(p1);
-        vm.prank(p1); sns.recordShare(halfReward);
+        vm.prank(signer); sns.recordShare(p1, halfReward);
         assertEq(pizza.balanceOf(p1) - b, halfReward, "half oracle amount accepted");
     }
 
     function test_Share_PaysExactClaimedAmount() public {
-        // Frontend calculates precise amount, contract pays exactly that
         uint256 preciseAmount = 2_065 * 1e18;
         vm.prank(OWNER); sns.adminSetShareRewardAmount(preciseAmount);
         uint256 b = pizza.balanceOf(p1);
-        vm.prank(p1); sns.recordShare(preciseAmount);
+        vm.prank(signer); sns.recordShare(p1, preciseAmount);
         assertEq(pizza.balanceOf(p1) - b, preciseAmount, "exact amount paid");
+    }
+
+    function test_Share_UnauthorizedCallerReverts() public {
+        vm.prank(p1);
+        vm.expectRevert("unauthorized");
+        sns.recordShare(p1, REWARD);
     }
 
     // ══════════════════════════════════════════════════════════
@@ -194,23 +201,23 @@ contract ShareAndSpinTest is Test {
     // ══════════════════════════════════════════════════════════
 
     function test_PerGame_BlocksSameGame() public {
-        vm.prank(p1); sns.recordShare(REWARD);
-        vm.prank(p1);
+        vm.prank(signer); sns.recordShare(p1, REWARD);
+        vm.prank(signer);
         vm.expectRevert("Share: already shared this game");
-        sns.recordShare(REWARD);
+        sns.recordShare(p1, REWARD);
     }
 
     function test_PerGame_BlocksSameGameEvenAfterTimePass() public {
-        vm.prank(p1); sns.recordShare(REWARD);
+        vm.prank(signer); sns.recordShare(p1, REWARD);
         vm.warp(block.timestamp + 12 hours);
-        vm.prank(p1);
+        vm.prank(signer);
         vm.expectRevert("Share: already shared this game");
-        sns.recordShare(REWARD);
+        sns.recordShare(p1, REWARD);
     }
 
     function test_PerGame_TracksGameId() public {
         uint256 gameId = game.dailyGameId();
-        vm.prank(p1); sns.recordShare(REWARD);
+        vm.prank(signer); sns.recordShare(p1, REWARD);
         assertEq(sns.lastShareGameId(p1), gameId);
     }
 
@@ -221,14 +228,14 @@ contract ShareAndSpinTest is Test {
     function test_Weekly_BlocksAfterThree() public {
         _share3(p1);
         _advanceDay();
-        vm.prank(p1);
+        vm.prank(signer);
         vm.expectRevert("Share: weekly limit");
-        sns.recordShare(REWARD);
+        sns.recordShare(p1, REWARD);
     }
 
     function test_Weekly_IndependentPerPlayer() public {
         _share3(p1);
-        vm.prank(p2); sns.recordShare(REWARD);
+        vm.prank(signer); sns.recordShare(p2, REWARD);
         (uint256 used,,) = sns.getShareInfo(p2);
         assertEq(used, 1);
     }
@@ -256,14 +263,14 @@ contract ShareAndSpinTest is Test {
     }
 
     function test_ShareInfo_FalseAfterShare() public {
-        vm.prank(p1); sns.recordShare(REWARD);
+        vm.prank(signer); sns.recordShare(p1, REWARD);
         (, bool canNow,) = sns.getShareInfo(p1);
         assertFalse(canNow);
     }
 
     function test_ShareInfo_NextShareAtCorrect() public {
         uint256 t = block.timestamp;
-        vm.prank(p1); sns.recordShare(REWARD);
+        vm.prank(signer); sns.recordShare(p1, REWARD);
         (,, uint256 nextAt) = sns.getShareInfo(p1);
         assertEq(nextAt, t + 1 days);
     }
@@ -275,7 +282,7 @@ contract ShareAndSpinTest is Test {
     }
 
     function test_ShareInfo_TrueAfterNewGame() public {
-        vm.prank(p1); sns.recordShare(REWARD);
+        vm.prank(signer); sns.recordShare(p1, REWARD);
         _advanceDay();
         (, bool canNow,) = sns.getShareInfo(p1);
         assertTrue(canNow);
@@ -286,51 +293,51 @@ contract ShareAndSpinTest is Test {
     // ══════════════════════════════════════════════════════════
 
     function test_Spin_RevertsWithoutShare() public {
-        vm.prank(p1);
+        vm.prank(signer);
         vm.expectRevert("Spin: share first");
-        sns.recordShareSpin(bytes32(0));
+        sns.recordShareSpin(p1, bytes32(0));
     }
 
     function test_Spin_SucceedsAfterShare() public {
-        vm.prank(p1); sns.recordShare(REWARD);
-        vm.prank(p1); sns.recordShareSpin(bytes32(0));
+        vm.prank(signer); sns.recordShare(p1, REWARD);
+        vm.prank(signer); sns.recordShareSpin(p1,bytes32(0));
     }
 
     function test_Spin_OutcomeInValidRange() public {
-        vm.prank(p1); sns.recordShare(REWARD);
-        vm.prank(p1); uint8 o = sns.recordShareSpin(bytes32(0));
+        vm.prank(signer); sns.recordShare(p1, REWARD);
+        vm.prank(signer); uint8 o = sns.recordShareSpin(p1, bytes32(0));
         assertTrue(o <= 2, "outcome must be 0, 1, or 2");
     }
 
     function test_Spin_EmitsEvent() public {
-        vm.prank(p1); sns.recordShare(REWARD);
+        vm.prank(signer); sns.recordShare(p1, REWARD);
         uint256 gameId = game.dailyGameId();
         uint256 weekId = game.weeklyGameId();
         // Check indexed topics match (player, gameId, weekId)
         vm.expectEmit(true, true, true, false);
         emit ShareSpinRecorded(p1, gameId, weekId, 0, bytes32(0));
-        vm.prank(p1); sns.recordShareSpin(bytes32(0));
+        vm.prank(signer); sns.recordShareSpin(p1,bytes32(0));
     }
 
     function test_Spin_CastHashStoredOnChain() public {
         bytes32 h = keccak256("my_cast_hash");
-        vm.prank(p1); sns.recordShare(REWARD);
-        vm.prank(p1); sns.recordShareSpin(h);
+        vm.prank(signer); sns.recordShare(p1, REWARD);
+        vm.prank(signer); sns.recordShareSpin(p1,h);
         assertTrue(sns.usedCastHashes(h), "cast hash should be marked as used");
     }
 
     function test_Spin_RevertsAfterWindowExpires() public {
-        vm.prank(p1); sns.recordShare(REWARD);
+        vm.prank(signer); sns.recordShare(p1, REWARD);
         vm.warp(block.timestamp + 26 hours);
-        vm.prank(p1);
+        vm.prank(signer);
         vm.expectRevert("Spin: share first");
-        sns.recordShareSpin(bytes32(0));
+        sns.recordShareSpin(p1, bytes32(0));
     }
 
     function test_Spin_SucceedsJustBeforeWindowExpires() public {
-        vm.prank(p1); sns.recordShare(REWARD);
+        vm.prank(signer); sns.recordShare(p1, REWARD);
         vm.warp(block.timestamp + 25 hours - 1);
-        vm.prank(p1); sns.recordShareSpin(bytes32(0));
+        vm.prank(signer); sns.recordShareSpin(p1,bytes32(0));
     }
 
     // ══════════════════════════════════════════════════════════
@@ -339,34 +346,34 @@ contract ShareAndSpinTest is Test {
 
     function test_CastHash_BlocksReuse() public {
         bytes32 h = keccak256("cast1");
-        vm.prank(p1); sns.recordShare(REWARD);
-        vm.prank(p1); sns.recordShareSpin(h);
+        vm.prank(signer); sns.recordShare(p1, REWARD);
+        vm.prank(signer); sns.recordShareSpin(p1,h);
 
         // p2 tries same cast hash
-        vm.prank(p2); sns.recordShare(REWARD);
-        vm.prank(p2);
+        vm.prank(signer); sns.recordShare(p2, REWARD);
+        vm.prank(signer);
         vm.expectRevert("Spin: cast used");
-        sns.recordShareSpin(h);
+        sns.recordShareSpin(p2, h);
     }
 
     function test_CastHash_ZeroBypassesDedup() public {
         // bytes32(0) = no cast hash provided, skip dedup
-        vm.prank(p1); sns.recordShare(REWARD);
-        vm.prank(p1); sns.recordShareSpin(bytes32(0));
+        vm.prank(signer); sns.recordShare(p1, REWARD);
+        vm.prank(signer); sns.recordShareSpin(p1,bytes32(0));
 
-        vm.prank(p2); sns.recordShare(REWARD);
-        vm.prank(p2); sns.recordShareSpin(bytes32(0));
+        vm.prank(signer); sns.recordShare(p2, REWARD);
+        vm.prank(signer); sns.recordShareSpin(p2,bytes32(0));
     }
 
     function test_CastHash_DifferentHashesWork() public {
         bytes32 h1 = keccak256("cast1");
         bytes32 h2 = keccak256("cast2");
 
-        vm.prank(p1); sns.recordShare(REWARD);
-        vm.prank(p1); sns.recordShareSpin(h1);
+        vm.prank(signer); sns.recordShare(p1, REWARD);
+        vm.prank(signer); sns.recordShareSpin(p1,h1);
 
-        vm.prank(p2); sns.recordShare(REWARD);
-        vm.prank(p2); sns.recordShareSpin(h2);
+        vm.prank(signer); sns.recordShare(p2, REWARD);
+        vm.prank(signer); sns.recordShareSpin(p2,h2);
     }
 
     // ══════════════════════════════════════════════════════════
@@ -379,9 +386,9 @@ contract ShareAndSpinTest is Test {
 
         for (uint i; i < 30; i++) {
             address p = makeAddr(string(abi.encodePacked("g", i)));
-            vm.prank(p); sns.recordShare(REWARD);
+            vm.prank(signer); sns.recordShare(p, REWARD);
             vm.warp(block.timestamp + 1);
-            vm.prank(p); uint8 o = sns.recordShareSpin(bytes32(uint256(i)));
+            vm.prank(signer); uint8 o = sns.recordShareSpin(p, bytes32(uint256(i)));
             if (o == 2) goldCount++;
         }
 
@@ -398,9 +405,9 @@ contract ShareAndSpinTest is Test {
         bool goldHit;
         for (uint i; i < 150; i++) {
             address p = makeAddr(string(abi.encodePacked("gh", i)));
-            vm.prank(p); sns.recordShare(REWARD);
+            vm.prank(signer); sns.recordShare(p, REWARD);
             vm.warp(block.timestamp + 1);
-            vm.prank(p); uint8 o = sns.recordShareSpin(bytes32(uint256(i)));
+            vm.prank(signer); uint8 o = sns.recordShareSpin(p, bytes32(uint256(i)));
             if (o == 2) {
                 if (!goldHit) {
                     goldHit = true;
@@ -420,9 +427,9 @@ contract ShareAndSpinTest is Test {
 
         for (uint i; i < 200; i++) {
             address p = makeAddr(string(abi.encodePacked("gd", i)));
-            vm.prank(p); sns.recordShare(REWARD);
+            vm.prank(signer); sns.recordShare(p, REWARD);
             vm.warp(block.timestamp + 1);
-            vm.prank(p); uint8 o = sns.recordShareSpin(bytes32(uint256(i)));
+            vm.prank(signer); uint8 o = sns.recordShareSpin(p, bytes32(uint256(i)));
 
             if (o == 2 && !firstGoldFound) {
                 firstGoldFound = true;
@@ -460,9 +467,9 @@ contract ShareAndSpinTest is Test {
         uint256[3] memory counts;
         for (uint i; i < 50; i++) {
             address p = makeAddr(string(abi.encodePacked("dist", i)));
-            vm.prank(p); sns.recordShare(REWARD);
+            vm.prank(signer); sns.recordShare(p, REWARD);
             vm.warp(block.timestamp + 1);
-            vm.prank(p); uint8 o = sns.recordShareSpin(bytes32(uint256(i + 100)));
+            vm.prank(signer); uint8 o = sns.recordShareSpin(p, bytes32(uint256(i + 100)));
             counts[o]++;
         }
         assertEq(counts[0] + counts[1] + counts[2], 50, "All spins accounted for");
@@ -471,11 +478,11 @@ contract ShareAndSpinTest is Test {
     }
 
     function test_Probability_EachSpinIsIndependent() public {
-        vm.prank(p1); sns.recordShare(REWARD);
-        vm.prank(p1); uint8 o1 = sns.recordShareSpin(bytes32(uint256(1)));
+        vm.prank(signer); sns.recordShare(p1, REWARD);
+        vm.prank(signer); uint8 o1 = sns.recordShareSpin(p1, bytes32(uint256(1)));
         _advanceDay();
-        vm.prank(p1); sns.recordShare(REWARD);
-        vm.prank(p1); uint8 o2 = sns.recordShareSpin(bytes32(uint256(2)));
+        vm.prank(signer); sns.recordShare(p1, REWARD);
+        vm.prank(signer); uint8 o2 = sns.recordShareSpin(p1, bytes32(uint256(2)));
         assertTrue(o1 <= 2);
         assertTrue(o2 <= 2);
         console.log("Day 1:", o1, "Day 2:", o2);
@@ -486,9 +493,9 @@ contract ShareAndSpinTest is Test {
     // ══════════════════════════════════════════════════════════
 
     function test_MultiPlayer_SameBlock_AllWork() public {
-        vm.prank(p1); sns.recordShare(REWARD);
-        vm.prank(p2); sns.recordShare(REWARD);
-        vm.prank(p3); sns.recordShare(REWARD);
+        vm.prank(signer); sns.recordShare(p1, REWARD);
+        vm.prank(signer); sns.recordShare(p2, REWARD);
+        vm.prank(signer); sns.recordShare(p3, REWARD);
         (uint256 u1,,) = sns.getShareInfo(p1);
         (uint256 u2,,) = sns.getShareInfo(p2);
         (uint256 u3,,) = sns.getShareInfo(p3);
@@ -496,13 +503,13 @@ contract ShareAndSpinTest is Test {
     }
 
     function test_MultiPlayer_SpinSameBlock_DifferentOutcomes() public {
-        vm.prank(p1); sns.recordShare(REWARD);
-        vm.prank(p2); sns.recordShare(REWARD);
-        vm.prank(p3); sns.recordShare(REWARD);
+        vm.prank(signer); sns.recordShare(p1, REWARD);
+        vm.prank(signer); sns.recordShare(p2, REWARD);
+        vm.prank(signer); sns.recordShare(p3, REWARD);
 
-        vm.prank(p1); uint8 o1 = sns.recordShareSpin(bytes32(uint256(1)));
-        vm.prank(p2); uint8 o2 = sns.recordShareSpin(bytes32(uint256(2)));
-        vm.prank(p3); uint8 o3 = sns.recordShareSpin(bytes32(uint256(3)));
+        vm.prank(signer); uint8 o1 = sns.recordShareSpin(p1, bytes32(uint256(1)));
+        vm.prank(signer); uint8 o2 = sns.recordShareSpin(p2, bytes32(uint256(2)));
+        vm.prank(signer); uint8 o3 = sns.recordShareSpin(p3, bytes32(uint256(3)));
         assertTrue(o1 <= 2); assertTrue(o2 <= 2); assertTrue(o3 <= 2);
         console.log("Outcomes p1/p2/p3:", o1, o2, o3);
     }
@@ -547,19 +554,19 @@ contract ShareAndSpinTest is Test {
 
     function test_Paused_RecordShare_Reverts() public {
         vm.prank(OWNER); sns.pause();
-        vm.prank(p1); vm.expectRevert(); sns.recordShare(REWARD);
+        vm.prank(signer); vm.expectRevert(); sns.recordShare(p1, REWARD);
     }
 
     function test_Paused_RecordShareSpin_Reverts() public {
-        vm.prank(p1); sns.recordShare(REWARD);
+        vm.prank(signer); sns.recordShare(p1, REWARD);
         vm.prank(OWNER); sns.pause();
-        vm.prank(p1); vm.expectRevert(); sns.recordShareSpin(bytes32(0));
+        vm.prank(signer); vm.expectRevert(); sns.recordShareSpin(p1, bytes32(0));
     }
 
     function test_Unpaused_WorksAgain() public {
         vm.prank(OWNER); sns.pause();
         vm.prank(OWNER); sns.unpause();
-        vm.prank(p1); sns.recordShare(REWARD);
+        vm.prank(signer); sns.recordShare(p1, REWARD);
     }
 
     // ══════════════════════════════════════════════════════════
@@ -603,7 +610,7 @@ contract ShareAndSpinTest is Test {
 
     function test_Upgrade_StatePreserved() public {
         // Share first
-        vm.prank(p1); sns.recordShare(REWARD);
+        vm.prank(signer); sns.recordShare(p1, REWARD);
         uint256 ts = sns.playerLastShareTimestamp(p1);
 
         // Upgrade
@@ -622,46 +629,45 @@ contract ShareAndSpinTest is Test {
 
     function test_Edge_ShareThenSpinThenShareNextDay() public {
         // Day 1: share + spin
-        vm.prank(p1); sns.recordShare(REWARD);
-        vm.prank(p1); sns.recordShareSpin(bytes32(uint256(1)));
+        vm.prank(signer); sns.recordShare(p1, REWARD);
+        vm.prank(signer); sns.recordShareSpin(p1,bytes32(uint256(1)));
 
         // Day 2: share + spin again
         _advanceDay();
-        vm.prank(p1); sns.recordShare(REWARD);
-        vm.prank(p1); sns.recordShareSpin(bytes32(uint256(2)));
+        vm.prank(signer); sns.recordShare(p1, REWARD);
+        vm.prank(signer); sns.recordShareSpin(p1,bytes32(uint256(2)));
 
         (uint256 used,,) = sns.getShareInfo(p1);
         assertEq(used, 2);
     }
 
     function test_Edge_SpinWithoutCastHash_Works() public {
-        vm.prank(p1); sns.recordShare(REWARD);
-        vm.prank(p1); uint8 o = sns.recordShareSpin(bytes32(0));
+        vm.prank(signer); sns.recordShare(p1, REWARD);
+        vm.prank(signer); uint8 o = sns.recordShareSpin(p1, bytes32(0));
         assertTrue(o <= 2);
     }
 
     function test_Edge_ShareDoesNotRequireStake() public {
         // p1 has no stake, no game plays, nothing
         uint256 b = pizza.balanceOf(p1);
-        vm.prank(p1); sns.recordShare(REWARD);
+        vm.prank(signer); sns.recordShare(p1, REWARD);
         assertEq(pizza.balanceOf(p1) - b, REWARD);
     }
 
     function test_Edge_CannotSpinTwicePerShare() public {
-        vm.prank(p1); sns.recordShare(REWARD);
-        vm.prank(p1); sns.recordShareSpin(bytes32(uint256(1)));
+        vm.prank(signer); sns.recordShare(p1, REWARD);
+        vm.prank(signer); sns.recordShareSpin(p1,bytes32(uint256(1)));
 
         // Second spin with different cast hash — should still work within window
         // (spin is not limited per share, only per cast hash)
-        vm.prank(p1); sns.recordShareSpin(bytes32(uint256(2)));
+        vm.prank(signer); sns.recordShareSpin(p1,bytes32(uint256(2)));
     }
 
     function test_Edge_TreasuryWithZeroBalance_Reverts() public {
-        // Set reward very high — more than treasury has
         vm.prank(OWNER); sns.adminSetShareRewardAmount(type(uint256).max);
-        vm.prank(p1);
+        vm.prank(signer);
         vm.expectRevert();
-        sns.recordShare(REWARD);
+        sns.recordShare(p1, REWARD);
     }
 
     // ══════════════════════════════════════════════════════════
@@ -678,8 +684,8 @@ contract ShareAndSpinTest is Test {
 
         uint256 potBefore = game.currentDailyPot();
 
-        vm.prank(p1);
-        sns.claimFreeSlice(entryFee);
+        vm.prank(signer);
+        sns.claimFreeSlice(p1, entryFee);
 
         uint256 potAfter = game.currentDailyPot();
         assertEq(potAfter - potBefore, entryFee, "Entry fee added to daily pot");
@@ -693,8 +699,8 @@ contract ShareAndSpinTest is Test {
         vm.prank(TREAS);
         pizza.approve(PP, type(uint256).max);
 
-        vm.prank(p1);
-        sns.claimFreeSlice(entryFee);
+        vm.prank(signer);
+        sns.claimFreeSlice(p1, entryFee);
 
         (uint256 toppings,,,,, ) = game.getPlayerWeeklyInfo(p1);
         assertTrue(toppings >= 1, "Player earned topping from entry");
@@ -705,12 +711,12 @@ contract ShareAndSpinTest is Test {
         vm.prank(TREAS);
         pizza.approve(PP, type(uint256).max);
 
-        vm.prank(p1);
-        sns.claimFreeSlice(entryFee);
+        vm.prank(signer);
+        sns.claimFreeSlice(p1, entryFee);
 
         vm.prank(p1);
-        vm.expectRevert();
-        sns.claimFreeSlice(entryFee);
+        vm.expectRevert("unauthorized");
+        sns.claimFreeSlice(p1, entryFee);
     }
 
     function test_FreeSlice_OnlyShareAndSpinCanCall() public {
@@ -726,8 +732,8 @@ contract ShareAndSpinTest is Test {
 
         uint256 treasBefore = pizza.balanceOf(TREAS);
 
-        vm.prank(p1);
-        sns.claimFreeSlice(entryFee);
+        vm.prank(signer);
+        sns.claimFreeSlice(p1, entryFee);
 
         uint256 treasAfter = pizza.balanceOf(TREAS);
         assertEq(treasBefore - treasAfter, entryFee, "Treasury paid the entry fee");
@@ -738,8 +744,8 @@ contract ShareAndSpinTest is Test {
     // ══════════════════════════════════════════════════════════
 
     function test_Save_SetsPending() public {
-        vm.prank(p1);
-        sns.saveFreeSlice();
+        vm.prank(signer);
+        sns.saveFreeSlice(p1);
         assertTrue(sns.pendingFreeSlice(p1));
     }
 
@@ -748,13 +754,13 @@ contract ShareAndSpinTest is Test {
     }
 
     function test_Save_MultipleCallsIdempotent() public {
-        vm.prank(p1); sns.saveFreeSlice();
-        vm.prank(p1); sns.saveFreeSlice();
+        vm.prank(signer); sns.saveFreeSlice(p1);
+        vm.prank(signer); sns.saveFreeSlice(p1);
         assertTrue(sns.pendingFreeSlice(p1));
     }
 
     function test_Save_IndependentPerPlayer() public {
-        vm.prank(p1); sns.saveFreeSlice();
+        vm.prank(signer); sns.saveFreeSlice(p1);
         assertFalse(sns.pendingFreeSlice(p2));
         assertTrue(sns.pendingFreeSlice(p1));
     }
@@ -765,54 +771,54 @@ contract ShareAndSpinTest is Test {
 
     function test_ClaimPending_RevertsWithoutSave() public {
         uint256 entryFee = 200_000 * 1e18;
-        vm.prank(p1);
+        vm.prank(signer);
         vm.expectRevert("No pending slice");
-        sns.claimPendingSlice(entryFee);
+        sns.claimPendingSlice(p1, entryFee);
     }
 
     function test_ClaimPending_SucceedsAfterSave() public {
-        vm.prank(p1); sns.saveFreeSlice();
+        vm.prank(signer); sns.saveFreeSlice(p1);
         assertTrue(sns.pendingFreeSlice(p1));
 
         uint256 entryFee = 200_000 * 1e18;
-        vm.prank(p1); sns.claimPendingSlice(entryFee);
+        vm.prank(signer); sns.claimPendingSlice(p1, entryFee);
 
         assertFalse(sns.pendingFreeSlice(p1), "Pending cleared after claim");
     }
 
     function test_ClaimPending_ClearsFlag() public {
-        vm.prank(p1); sns.saveFreeSlice();
+        vm.prank(signer); sns.saveFreeSlice(p1);
         uint256 entryFee = 200_000 * 1e18;
-        vm.prank(p1); sns.claimPendingSlice(entryFee);
+        vm.prank(signer); sns.claimPendingSlice(p1, entryFee);
 
-        vm.prank(p1);
+        vm.prank(signer);
         vm.expectRevert("No pending slice");
-        sns.claimPendingSlice(entryFee);
+        sns.claimPendingSlice(p1, entryFee);
     }
 
     function test_ClaimPending_CannotClaimTwice() public {
-        vm.prank(p1); sns.saveFreeSlice();
+        vm.prank(signer); sns.saveFreeSlice(p1);
         uint256 entryFee = 200_000 * 1e18;
-        vm.prank(p1); sns.claimPendingSlice(entryFee);
+        vm.prank(signer); sns.claimPendingSlice(p1, entryFee);
 
-        vm.prank(p1);
+        vm.prank(signer);
         vm.expectRevert("No pending slice");
-        sns.claimPendingSlice(entryFee);
+        sns.claimPendingSlice(p1, entryFee);
     }
 
     function test_ClaimPending_TreasuryPays() public {
-        vm.prank(p1); sns.saveFreeSlice();
+        vm.prank(signer); sns.saveFreeSlice(p1);
         uint256 entryFee = 200_000 * 1e18;
         uint256 treasBefore = pizza.balanceOf(TREAS);
 
-        vm.prank(p1); sns.claimPendingSlice(entryFee);
+        vm.prank(signer); sns.claimPendingSlice(p1, entryFee);
 
         uint256 treasAfter = pizza.balanceOf(TREAS);
         assertEq(treasBefore - treasAfter, entryFee, "Treasury paid the entry fee");
     }
 
     function test_ClaimPending_PersistsAcrossTime() public {
-        vm.prank(p1); sns.saveFreeSlice();
+        vm.prank(signer); sns.saveFreeSlice(p1);
         vm.warp(block.timestamp + 2 days);
         // Pending flag persists regardless of time
         assertTrue(sns.pendingFreeSlice(p1));
@@ -824,30 +830,30 @@ contract ShareAndSpinTest is Test {
 
     function test_Gift_RevertsToZeroAddress() public {
         uint256 entryFee = 200_000 * 1e18;
-        vm.prank(p1);
+        vm.prank(signer);
         vm.expectRevert(bytes("0"));
-        sns.giftFreeSlice(address(0), entryFee);
+        sns.giftFreeSlice(p1, address(0), entryFee);
     }
 
     function test_Gift_RevertsToSelf() public {
         uint256 entryFee = 200_000 * 1e18;
-        vm.prank(p1);
+        vm.prank(signer);
         vm.expectRevert(bytes("self"));
-        sns.giftFreeSlice(p1, entryFee);
+        sns.giftFreeSlice(p1, p1, entryFee);
     }
 
     function test_Gift_SucceedsToOtherPlayer() public {
         uint256 entryFee = 200_000 * 1e18;
-        vm.prank(p1);
-        sns.giftFreeSlice(p2, entryFee);
+        vm.prank(signer);
+        sns.giftFreeSlice(p1, p2, entryFee);
     }
 
     function test_Gift_TreasuryPays() public {
         uint256 entryFee = 200_000 * 1e18;
         uint256 treasBefore = pizza.balanceOf(TREAS);
 
-        vm.prank(p1);
-        sns.giftFreeSlice(p2, entryFee);
+        vm.prank(signer);
+        sns.giftFreeSlice(p1, p2, entryFee);
 
         uint256 treasAfter = pizza.balanceOf(TREAS);
         assertEq(treasBefore - treasAfter, entryFee, "Treasury paid the entry fee for gift");
@@ -855,34 +861,30 @@ contract ShareAndSpinTest is Test {
 
     function test_Gift_RecipientEntersGame() public {
         uint256 entryFee = 200_000 * 1e18;
-        vm.prank(p1);
-        sns.giftFreeSlice(p2, entryFee);
-        // If this didn't revert, p2 was entered into the daily game
+        vm.prank(signer);
+        sns.giftFreeSlice(p1, p2, entryFee);
     }
 
     function test_Gift_MultipleGiftsToSamePlayer_SecondReverts() public {
         uint256 entryFee = 200_000 * 1e18;
-        vm.prank(p1); sns.giftFreeSlice(p2, entryFee);
+        vm.prank(signer); sns.giftFreeSlice(p1, p2, entryFee);
 
-        // Second gift to same player same day should revert (already entered)
-        vm.prank(p3);
+        vm.prank(signer);
         vm.expectRevert();
-        sns.giftFreeSlice(p2, entryFee);
+        sns.giftFreeSlice(p3, p2, entryFee);
     }
 
     function test_Gift_DifferentRecipients_BothWork() public {
         uint256 entryFee = 200_000 * 1e18;
-        vm.prank(p1); sns.giftFreeSlice(p2, entryFee);
-        vm.prank(p1); sns.giftFreeSlice(p3, entryFee);
+        vm.prank(signer); sns.giftFreeSlice(p1, p2, entryFee);
+        vm.prank(signer); sns.giftFreeSlice(p1, p3, entryFee);
     }
 
-    function test_Gift_AnyoneCanGift_NotJustSpinWinners() public {
-        // Even without sharing/spinning, giftFreeSlice should work
-        // (the access control is in the frontend, not the contract)
+    function test_Gift_UnauthorizedCallerReverts() public {
         uint256 entryFee = 200_000 * 1e18;
-        address rando = makeAddr("rando");
-        vm.prank(rando);
-        sns.giftFreeSlice(p1, entryFee);
+        vm.prank(p1);
+        vm.expectRevert("unauthorized");
+        sns.giftFreeSlice(p1, p2, entryFee);
     }
 
     // ══════════════════════════════════════════════════════════
@@ -891,41 +893,41 @@ contract ShareAndSpinTest is Test {
 
     function test_Edge_ShareThenSaveThenVerifyPending() public {
         // Share + spin + save
-        vm.prank(p1); sns.recordShare(REWARD);
-        vm.prank(p1); sns.recordShareSpin(bytes32(uint256(1)));
-        vm.prank(p1); sns.saveFreeSlice();
+        vm.prank(signer); sns.recordShare(p1, REWARD);
+        vm.prank(signer); sns.recordShareSpin(p1,bytes32(uint256(1)));
+        vm.prank(signer); sns.saveFreeSlice(p1);
         assertTrue(sns.pendingFreeSlice(p1));
 
         // Claim on same game (tests the claim path works)
         // Note: claiming next day tested via test_ClaimPending_SucceedsAfterSave
         uint256 entryFee = 200_000 * 1e18;
-        vm.prank(p2); sns.saveFreeSlice();
-        vm.prank(p2); sns.claimPendingSlice(entryFee);
+        vm.prank(signer); sns.saveFreeSlice(p2);
+        vm.prank(signer); sns.claimPendingSlice(p2, entryFee);
         assertFalse(sns.pendingFreeSlice(p2));
     }
 
     function test_Edge_SaveOverwritesPrevious() public {
         // Save once
-        vm.prank(p1); sns.saveFreeSlice();
+        vm.prank(signer); sns.saveFreeSlice(p1);
         assertTrue(sns.pendingFreeSlice(p1));
 
         // Claim it
         uint256 entryFee = 200_000 * 1e18;
-        vm.prank(p1); sns.claimPendingSlice(entryFee);
+        vm.prank(signer); sns.claimPendingSlice(p1, entryFee);
         assertFalse(sns.pendingFreeSlice(p1));
 
         // Save again next day
         _advanceDay();
-        vm.prank(p1); sns.saveFreeSlice();
+        vm.prank(signer); sns.saveFreeSlice(p1);
         assertTrue(sns.pendingFreeSlice(p1));
     }
 
     function test_Edge_GiftDoesNotAffectSenderPending() public {
-        vm.prank(p1); sns.saveFreeSlice();
+        vm.prank(signer); sns.saveFreeSlice(p1);
         assertTrue(sns.pendingFreeSlice(p1));
 
         uint256 entryFee = 200_000 * 1e18;
-        vm.prank(p1); sns.giftFreeSlice(p2, entryFee);
+        vm.prank(signer); sns.giftFreeSlice(p1, p2, entryFee);
 
         // Sender still has their pending slice
         assertTrue(sns.pendingFreeSlice(p1));
@@ -934,22 +936,22 @@ contract ShareAndSpinTest is Test {
     function test_Edge_PausedBlocksAll() public {
         vm.prank(OWNER); sns.pause();
 
-        vm.prank(p1); vm.expectRevert(); sns.saveFreeSlice();
-        vm.prank(p1); vm.expectRevert(); sns.claimPendingSlice(1e18);
-        vm.prank(p1); vm.expectRevert(); sns.giftFreeSlice(p2, 1e18);
+        vm.prank(signer); vm.expectRevert(); sns.saveFreeSlice(p1);
+        vm.prank(signer); vm.expectRevert(); sns.claimPendingSlice(p1, 1e18);
+        vm.prank(signer); vm.expectRevert(); sns.giftFreeSlice(p1, p2, 1e18);
 
         vm.prank(OWNER); sns.unpause();
-        vm.prank(p1); sns.saveFreeSlice();
+        vm.prank(signer); sns.saveFreeSlice(p1);
         assertTrue(sns.pendingFreeSlice(p1));
     }
 
     function test_Edge_UpgradePreservesState() public {
         // Save a pending slice
-        vm.prank(p1); sns.saveFreeSlice();
+        vm.prank(signer); sns.saveFreeSlice(p1);
         assertTrue(sns.pendingFreeSlice(p1));
 
         // Share and record
-        vm.prank(p2); sns.recordShare(REWARD);
+        vm.prank(signer); sns.recordShare(p2, REWARD);
         uint256 p2Balance = pizza.balanceOf(p2);
 
         // Upgrade
@@ -970,11 +972,11 @@ contract ShareAndSpinTest is Test {
     // ══════════════════════════════════════════════════════════
 
     function _share3(address p) internal {
-        vm.prank(p); sns.recordShare(REWARD);
+        vm.prank(signer); sns.recordShare(p, REWARD);
         _advanceDay();
-        vm.prank(p); sns.recordShare(REWARD);
+        vm.prank(signer); sns.recordShare(p, REWARD);
         _advanceDay();
-        vm.prank(p); sns.recordShare(REWARD);
+        vm.prank(signer); sns.recordShare(p, REWARD);
         _advanceDay();
     }
 }

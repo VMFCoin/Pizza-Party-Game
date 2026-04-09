@@ -65,6 +65,9 @@ contract ShareAndSpinUpgradeable is OwnableUpgradeable, UUPSUpgradeable, Reentra
     // DEPRECATED: maxEntryFee — replaced by dynamic check against holdingsUnitPizza
     uint256 public maxEntryFee;
 
+    // Backend signer — dedicated EOA that calls reward functions on behalf of players
+    address public backendSigner;
+
     // ============ Events ============
 
     event ShareRecorded(
@@ -135,9 +138,9 @@ contract ShareAndSpinUpgradeable is OwnableUpgradeable, UUPSUpgradeable, Reentra
 
     // ============ Core Functions ============
 
-    function recordShare(uint256 claimedReward) external nonReentrant whenNotPaused {
-        require(tx.origin == msg.sender, "no contracts");
-        address player = msg.sender;
+    function recordShare(address player, uint256 claimedReward) external nonReentrant whenNotPaused {
+        require(msg.sender == backendSigner, "unauthorized");
+        require(player != address(0), "0");
         uint256 gameId = pizzaParty.dailyGameId();
         uint256 weekId = pizzaParty.weeklyGameId();
 
@@ -171,14 +174,14 @@ contract ShareAndSpinUpgradeable is OwnableUpgradeable, UUPSUpgradeable, Reentra
         emit ShareRecorded(player, gameId, weekId, weeklySharesUsed[weekId][player], claimedReward);
     }
 
-    function recordShareSpin(bytes32 castHashBytes32)
+    function recordShareSpin(address player, bytes32 castHashBytes32)
         external
         nonReentrant
         whenNotPaused
         returns (uint8 outcome)
     {
-        require(tx.origin == msg.sender, "no contracts");
-        address player = msg.sender;
+        require(msg.sender == backendSigner, "unauthorized");
+        require(player != address(0), "0");
 
         require(
             block.timestamp < playerLastShareTimestamp[player] + 1 days + 1 hours,
@@ -229,40 +232,40 @@ contract ShareAndSpinUpgradeable is OwnableUpgradeable, UUPSUpgradeable, Reentra
         emit ShareSpinRecorded(player, currentGameId, weekId, outcome, castHashBytes32);
     }
 
-    function claimFreeSlice(uint256 entryFee) external nonReentrant whenNotPaused {
-        require(tx.origin == msg.sender, "no contracts");
-        require(hasFreeSlice[msg.sender], "no free slice");
+    function claimFreeSlice(address player, uint256 entryFee) external nonReentrant whenNotPaused {
+        require(msg.sender == backendSigner, "unauthorized");
+        require(hasFreeSlice[player], "no free slice");
         _validateEntryFee(entryFee);
-        hasFreeSlice[msg.sender] = false;
-        pizzaParty.enterDailyFromShareAndSpin(msg.sender, entryFee);
+        hasFreeSlice[player] = false;
+        pizzaParty.enterDailyFromShareAndSpin(player, entryFee);
     }
 
-    function saveFreeSlice() external nonReentrant whenNotPaused {
-        require(tx.origin == msg.sender, "no contracts");
-        require(hasFreeSlice[msg.sender], "no free slice");
-        hasFreeSlice[msg.sender] = false;
-        pendingFreeSlice[msg.sender] = true;
-        emit FreeSliceSaved(msg.sender, block.timestamp);
+    function saveFreeSlice(address player) external nonReentrant whenNotPaused {
+        require(msg.sender == backendSigner, "unauthorized");
+        require(hasFreeSlice[player], "no free slice");
+        hasFreeSlice[player] = false;
+        pendingFreeSlice[player] = true;
+        emit FreeSliceSaved(player, block.timestamp);
     }
 
-    function claimPendingSlice(uint256 entryFee) external nonReentrant whenNotPaused {
-        require(tx.origin == msg.sender, "no contracts");
-        require(pendingFreeSlice[msg.sender], "No pending slice");
+    function claimPendingSlice(address player, uint256 entryFee) external nonReentrant whenNotPaused {
+        require(msg.sender == backendSigner, "unauthorized");
+        require(pendingFreeSlice[player], "No pending slice");
         _validateEntryFee(entryFee);
-        pendingFreeSlice[msg.sender] = false;
-        pizzaParty.enterDailyFromShareAndSpin(msg.sender, entryFee);
-        emit PendingSliceClaimed(msg.sender, pizzaParty.dailyGameId(), entryFee);
+        pendingFreeSlice[player] = false;
+        pizzaParty.enterDailyFromShareAndSpin(player, entryFee);
+        emit PendingSliceClaimed(player, pizzaParty.dailyGameId(), entryFee);
     }
 
-    function giftFreeSlice(address recipient, uint256 entryFee) external nonReentrant whenNotPaused {
-        require(tx.origin == msg.sender, "no contracts");
+    function giftFreeSlice(address player, address recipient, uint256 entryFee) external nonReentrant whenNotPaused {
+        require(msg.sender == backendSigner, "unauthorized");
         require(recipient != address(0), "0");
-        require(recipient != msg.sender, "self");
-        require(hasFreeSlice[msg.sender], "no free slice");
+        require(recipient != player, "self");
+        require(hasFreeSlice[player], "no free slice");
         _validateEntryFee(entryFee);
-        hasFreeSlice[msg.sender] = false;
+        hasFreeSlice[player] = false;
         pizzaParty.enterDailyFromShareAndSpin(recipient, entryFee);
-        emit FreeSliceGifted(msg.sender, recipient, pizzaParty.dailyGameId(), entryFee);
+        emit FreeSliceGifted(player, recipient, pizzaParty.dailyGameId(), entryFee);
     }
 
     function _validateEntryFee(uint256 entryFee) internal view {
@@ -304,7 +307,10 @@ contract ShareAndSpinUpgradeable is OwnableUpgradeable, UUPSUpgradeable, Reentra
         pizzaParty = IPizzaPartyForShare(_pizzaParty);
     }
 
-    // adminSetMaxEntryFee is deprecated — fee cap now reads holdingsUnitPizza dynamically
+    function adminSetBackendSigner(address _signer) external onlyOwner {
+        require(_signer != address(0), "0");
+        backendSigner = _signer;
+    }
 
     function pause() external onlyOwner {
         _pause();

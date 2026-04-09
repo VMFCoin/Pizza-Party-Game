@@ -127,8 +127,11 @@ contract PizzaParlorManagerUpgradeable is
     // Max entry fee cap - prevents callers from passing inflated entryFee values
     uint256 public maxSliceEntryFee;
 
+    // Backend signer — dedicated EOA that calls reward functions on behalf of players
+    address public backendSigner;
+
     // Upgrade safety gap - reserves storage slots for future upgrades
-    uint256[40] private __gap;  // Reduced by 1 for maxSliceEntryFee
+    uint256[39] private __gap;  // Reduced by 2 for maxSliceEntryFee + backendSigner
 
     // ============ Events ============
 
@@ -342,12 +345,13 @@ contract PizzaParlorManagerUpgradeable is
      * THIS is when the slice counts against the sponsor's weekly/daily limit
      * @param entryFeeAmount The $1 worth of PIZZA to pull from treasury (calculated by frontend)
      */
-    function claimSlice(uint256 entryFeeAmount) external nonReentrant {
-        require(tx.origin == msg.sender, "no contracts");
+    function claimSlice(address player, uint256 entryFeeAmount) external nonReentrant {
+        require(msg.sender == backendSigner, "unauthorized");
+        require(player != address(0), "0");
         // Cannot claim slices if you're a parlor owner (prevents gaming the system)
-        if (parlorCount[msg.sender] > 0) revert RecipientIsParlorOwner();
+        if (parlorCount[player] > 0) revert RecipientIsParlorOwner();
 
-        PendingSlice storage pending = pendingSlices[msg.sender];
+        PendingSlice storage pending = pendingSlices[player];
 
         // Must have a pending slice
         if (pending.sponsor == address(0)) revert NoPendingSlice();
@@ -362,7 +366,7 @@ contract PizzaParlorManagerUpgradeable is
         address sponsor = pending.sponsor;
 
         // Clear pending slice before external call (reentrancy protection)
-        delete pendingSlices[msg.sender];
+        delete pendingSlices[player];
 
         // NOW consume the slice - counts against sponsor's daily/weekly limit
         _consumeSlice(sponsor);
@@ -375,9 +379,9 @@ contract PizzaParlorManagerUpgradeable is
         }
 
         // Enter daily game for recipient with sponsor (treasury-funded)
-        pizzaParty.enterDailyWithSlice(msg.sender, sponsor, entryFeeAmount);
+        pizzaParty.enterDailyWithSlice(player, sponsor, entryFeeAmount);
 
-        emit SliceClaimed(msg.sender, sponsor, currentGameId);
+        emit SliceClaimed(player, sponsor, currentGameId);
     }
 
     /**
@@ -432,6 +436,7 @@ contract PizzaParlorManagerUpgradeable is
      * @param entryFeeAmount The $1 worth of PIZZA to pull from treasury (calculated by frontend)
      */
     function redeemSlice(
+        address player,
         address sponsor,
         uint256 dailyGameId,
         uint256 nonce,
@@ -439,12 +444,13 @@ contract PizzaParlorManagerUpgradeable is
         bytes calldata signature,
         uint256 entryFeeAmount
     ) external nonReentrant {
-        require(tx.origin == msg.sender, "no contracts");
+        require(msg.sender == backendSigner, "unauthorized");
+        require(player != address(0), "0");
         if (sponsor == address(0)) revert InvalidAddress();
-        if (msg.sender == sponsor) revert NoSelfSlice();
+        if (player == sponsor) revert NoSelfSlice();
 
         // Cannot redeem slices if recipient is a parlor owner (prevents gaming the system)
-        if (parlorCount[msg.sender] > 0) revert RecipientIsParlorOwner();
+        if (parlorCount[player] > 0) revert RecipientIsParlorOwner();
 
         // Check deadline
         if (block.timestamp > deadline) revert SliceExpired();
@@ -487,9 +493,9 @@ contract PizzaParlorManagerUpgradeable is
         }
 
         // Enter daily game for redeemer (treasury-funded)
-        pizzaParty.enterDailyWithSlice(msg.sender, sponsor, entryFeeAmount);
+        pizzaParty.enterDailyWithSlice(player, sponsor, entryFeeAmount);
 
-        emit SliceRedeemed(sponsor, msg.sender, currentGameId, nonce);
+        emit SliceRedeemed(sponsor, player, currentGameId, nonce);
     }
 
     // ============ Slice Limit Enforcement ============
@@ -959,7 +965,10 @@ contract PizzaParlorManagerUpgradeable is
         pizzaToken = IERC20(newToken);
     }
 
-    // adminSetMaxSliceEntryFee is deprecated — fee cap now reads holdingsUnitPizza dynamically
+    function adminSetBackendSigner(address _signer) external onlyOwner {
+        require(_signer != address(0), "0");
+        backendSigner = _signer;
+    }
 
     function _validateSliceEntryFee(uint256 entryFeeAmount) internal view {
         uint256 oneDollarPizza = pizzaParty.holdingsUnitPizza();

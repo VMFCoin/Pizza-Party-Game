@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback } from 'react'
 import { X } from 'lucide-react'
-import { useAccount, useWriteContract, useWaitForTransactionReceipt } from 'wagmi'
+import { useAccount } from 'wagmi'
 import { readContract } from '@wagmi/core'
 import { wagmiConfig as config } from './config/wagmiConfig'
 import { PIZZA_PARTY_ADDRESS, PIZZA_PARTY_ABI, PARLOR_MANAGER_ADDRESS, PARLOR_MANAGER_ABI } from '../lib/constants'
@@ -39,10 +39,9 @@ export function PizzaPartyResultPopup() {
   const [lastSettledWeeklyGameIdRef, setLastSettledWeeklyGameIdRef] = useState<bigint>(0n)
 
   // Contract write for claiming slice
-  const { writeContract, data: claimTxHash, isPending: isClaimPending } = useWriteContract()
-  const { isLoading: isClaimConfirming, isSuccess: isClaimSuccess } = useWaitForTransactionReceipt({
-    hash: claimTxHash,
-  })
+  const [isClaimPending, setIsClaimPending] = useState(false)
+  const isClaimConfirming = false
+  const [isClaimSuccess, setIsClaimSuccess] = useState(false)
 
   // Handle successful slice claim - update UI to show claimed state
   useEffect(() => {
@@ -89,13 +88,23 @@ export function PizzaPartyResultPopup() {
     const pizzaPerDollar = 1 / price
     const entryFeeWei = BigInt(Math.floor(pizzaPerDollar * 1e18))
 
-    writeContract({
-      address: PARLOR_MANAGER_ADDRESS as `0x${string}`,
-      abi: PARLOR_MANAGER_ABI,
-      functionName: 'claimSlice',
-      args: [entryFeeWei],
-    })
-  }, [address, isClaiming, isClaimPending, isClaimConfirming, writeContract, pizzaUsd])
+    setIsClaimPending(true)
+    try {
+      const res = await fetch('/api/slice/claim-backend', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ playerAddress: address, entryFeeAmount: entryFeeWei.toString() }),
+      })
+      const data = await res.json()
+      if (data.success) {
+        setIsClaimSuccess(true)
+      }
+    } catch (err) {
+      console.error('[PizzaPartyResultPopup] claimSlice error:', err)
+    }
+    setIsClaimPending(false)
+    setIsClaiming(false)
+  }, [address, isClaiming, isClaimPending, isClaimConfirming, pizzaUsd])
 
   // Fetch PIZZA/USD price
   useEffect(() => {

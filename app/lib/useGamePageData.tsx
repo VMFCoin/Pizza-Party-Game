@@ -988,12 +988,13 @@ export function useGamePageData() {
 
       console.log('Claiming free slice with entry fee:', (Number(entryFeeAmount) / 1e18).toFixed(4), 'PIZZA')
 
-      await writeContract({
-        address: PARLOR_MANAGER_ADDRESS as `0x${string}`,
-        abi: PARLOR_MANAGER_ABI,
-        functionName: 'claimSlice',
-        args: [entryFeeAmount],
+      const claimRes = await fetch('/api/slice/claim-backend', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ playerAddress: address, entryFeeAmount: entryFeeAmount.toString() }),
       })
+      const claimData = await claimRes.json()
+      if (!claimData.success) throw new Error(claimData.error || 'Claim failed')
 
       console.log('✅ Free slice claimed successfully!')
       setHasEnteredToday(true)

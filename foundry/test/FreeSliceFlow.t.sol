@@ -65,6 +65,9 @@ contract FreeSliceFlowTest is Test {
     address public player2 = makeAddr("player2");
     address public player3 = makeAddr("player3");
 
+    // Backend signer
+    address public backendSigner = makeAddr("backendSigner");
+
     uint256 public constant ENTRY_FEE = 143e18; // ~143 PIZZA for $1 at $0.007
     uint256 public constant PARLOR_PRICE = 7143e18; // ~7143 PIZZA for $50
 
@@ -109,6 +112,7 @@ contract FreeSliceFlowTest is Test {
         pizzaParty.setParlorManager(address(parlorManager));
         pizzaParty.setOwnerFeeRecipient(address(parlorManager));
         pizzaParty.setToppingUnitPizza(10e18);
+        parlorManager.adminSetBackendSigner(backendSigner);
         vm.stopPrank();
 
         // Treasury approves PizzaParty for weekly jackpot payouts
@@ -213,8 +217,8 @@ contract FreeSliceFlowTest is Test {
         console.log("Player in game before claim:", playedBefore);
 
         // Step 2: Player claims slice
-        vm.prank(player1);
-        parlorManager.claimSlice(ENTRY_FEE);
+        vm.prank(backendSigner);
+        parlorManager.claimSlice(player1, ENTRY_FEE);
         console.log("Step 2: Player claimed slice");
 
         // Verify player is now in game
@@ -311,8 +315,8 @@ contract FreeSliceFlowTest is Test {
         console.log("First slice sent");
 
         // Player claims
-        vm.prank(player1);
-        parlorManager.claimSlice(ENTRY_FEE);
+        vm.prank(backendSigner);
+        parlorManager.claimSlice(player1, ENTRY_FEE);
         console.log("Player claimed first slice");
 
         // Player already played this game, so they can't get another slice for THIS game
@@ -338,8 +342,8 @@ contract FreeSliceFlowTest is Test {
         console.log("Slice 1 sent to player1");
 
         // Player1 claims so sponsor2 can try again
-        vm.prank(player1);
-        parlorManager.claimSlice(ENTRY_FEE);
+        vm.prank(backendSigner);
+        parlorManager.claimSlice(player1, ENTRY_FEE);
         console.log("Player1 claimed");
 
         // Settle game to get new dailyGameId (daily limit reset)
@@ -360,8 +364,8 @@ contract FreeSliceFlowTest is Test {
         // Sponsor2 uses their 1 weekly slice
         vm.prank(sponsor2);
         parlorManager.sendSlice(player1);
-        vm.prank(player1);
-        parlorManager.claimSlice(ENTRY_FEE);
+        vm.prank(backendSigner);
+        parlorManager.claimSlice(player1, ENTRY_FEE);
         console.log("Sponsor2 used their weekly slice");
 
         uint256 currentWeekId = pizzaParty.weeklyGameId();
@@ -425,8 +429,8 @@ contract FreeSliceFlowTest is Test {
         console.log("Slice sent to player1");
 
         // Player1 claims
-        vm.prank(player1);
-        parlorManager.claimSlice(ENTRY_FEE);
+        vm.prank(backendSigner);
+        parlorManager.claimSlice(player1, ENTRY_FEE);
 
         // Try to send another slice same day - should fail
         vm.prank(sponsor1);
@@ -442,8 +446,8 @@ contract FreeSliceFlowTest is Test {
         // Use daily slice
         vm.prank(sponsor1);
         parlorManager.sendSlice(player1);
-        vm.prank(player1);
-        parlorManager.claimSlice(ENTRY_FEE);
+        vm.prank(backendSigner);
+        parlorManager.claimSlice(player1, ENTRY_FEE);
         console.log("Sponsor1 used daily slice");
 
         // Daily limit is per dailyGameId, so we need to settle to get new game
@@ -523,9 +527,9 @@ contract FreeSliceFlowTest is Test {
         pizzaParty.settleDailyGame();
 
         // Try to claim expired slice
-        vm.prank(player1);
+        vm.prank(backendSigner);
         vm.expectRevert(PizzaParlorManagerUpgradeable.SliceExpiredWrongGame.selector);
-        parlorManager.claimSlice(ENTRY_FEE);
+        parlorManager.claimSlice(player1, ENTRY_FEE);
 
         console.log("SUCCESS: Cannot claim expired slice");
     }
@@ -537,9 +541,9 @@ contract FreeSliceFlowTest is Test {
     function test_ClaimSlice_RevertsWhenNoPendingSlice() public {
         console.log("\n=== TEST: Cannot claim when no pending slice ===");
 
-        vm.prank(player1);
+        vm.prank(backendSigner);
         vm.expectRevert(PizzaParlorManagerUpgradeable.NoPendingSlice.selector);
-        parlorManager.claimSlice(ENTRY_FEE);
+        parlorManager.claimSlice(player1, ENTRY_FEE);
 
         console.log("SUCCESS: Correctly reverted with NoPendingSlice");
     }
@@ -560,8 +564,8 @@ contract FreeSliceFlowTest is Test {
         vm.prank(sponsor1);
         parlorManager.sendSlice(player1);
 
-        vm.prank(player1);
-        parlorManager.claimSlice(ENTRY_FEE);
+        vm.prank(backendSigner);
+        parlorManager.claimSlice(player1, ENTRY_FEE);
 
         uint256 treasuryAfter = pizzaToken.balanceOf(treasury);
         uint256 potAfter = pizzaParty.currentDailyPot();
@@ -698,8 +702,8 @@ contract FreeSliceFlowTest is Test {
         // STEP 6: Player claims slice (this is what happens when they tap "CLAIM YOUR SLICE!")
         console.log("\n--- STEP 6: Player claims slice ---");
         console.log("Calling claimSlice with entry fee:", ENTRY_FEE / 1e18, "PIZZA");
-        vm.prank(player1);
-        parlorManager.claimSlice(ENTRY_FEE);
+        vm.prank(backendSigner);
+        parlorManager.claimSlice(player1, ENTRY_FEE);
         console.log("claimSlice() executed successfully");
 
         // STEP 7: Verify player is now in game
@@ -761,9 +765,9 @@ contract FreeSliceFlowTest is Test {
         console.log("Player1 bought a parlor, now has:", parlorManager.parlorCount(player1));
 
         // Player can NOT claim their pending slice (they're now a parlor owner)
-        vm.prank(player1);
+        vm.prank(backendSigner);
         vm.expectRevert(PizzaParlorManagerUpgradeable.RecipientIsParlorOwner.selector);
-        parlorManager.claimSlice(ENTRY_FEE);
+        parlorManager.claimSlice(player1, ENTRY_FEE);
 
         console.log("SUCCESS: Correctly blocked claiming after becoming parlor owner");
         console.log("(Parlor owners cannot receive free slices - prevents gaming the system)");
@@ -993,8 +997,8 @@ contract FreeSliceFlowTest is Test {
         assertEq(sponsorBefore, address(0), "Sponsor should be 0 before");
 
         console.log("\n--- PLAYER TAPS 'CLAIM YOUR SLICE!' ---");
-        vm.prank(player1);
-        parlorManager.claimSlice(ENTRY_FEE);
+        vm.prank(backendSigner);
+        parlorManager.claimSlice(player1, ENTRY_FEE);
         console.log("claimSlice() called successfully");
 
         console.log("\n--- AFTER CLAIM ---");
@@ -1040,8 +1044,8 @@ contract FreeSliceFlowTest is Test {
         console.log("hasSlicedPlayer[sponsor1][player1] before claim:", hasSlicedBeforeClaim);
 
         // Step 2: Player claims slice
-        vm.prank(player1);
-        parlorManager.claimSlice(ENTRY_FEE);
+        vm.prank(backendSigner);
+        parlorManager.claimSlice(player1, ENTRY_FEE);
         console.log("Player1 claimed slice");
 
         // Verify hasSlicedPlayer is now true after claim
@@ -1130,8 +1134,8 @@ contract FreeSliceFlowTest is Test {
         console.log("Game 1: Sponsor1 sent FIRST slice to Player1");
 
         // Player claims
-        vm.prank(player1);
-        parlorManager.claimSlice(ENTRY_FEE);
+        vm.prank(backendSigner);
+        parlorManager.claimSlice(player1, ENTRY_FEE);
 
         // Verify sponsor recorded for game 1
         address sponsor1G1 = pizzaParty.dailySliceSponsor(gameId1, player1);
@@ -1157,8 +1161,8 @@ contract FreeSliceFlowTest is Test {
         console.log("Game 2: Sponsor1 sent REPEAT slice to Player1");
 
         // Player claims
-        vm.prank(player1);
-        parlorManager.claimSlice(ENTRY_FEE);
+        vm.prank(backendSigner);
+        parlorManager.claimSlice(player1, ENTRY_FEE);
 
         // CRITICAL CHECK: Sponsor should NOT be recorded for game 2!
         address sponsor2G2 = pizzaParty.dailySliceSponsor(gameId2, player1);
@@ -1183,8 +1187,8 @@ contract FreeSliceFlowTest is Test {
 
         vm.prank(sponsor1);
         parlorManager.sendSlice(player1);
-        vm.prank(player1);
-        parlorManager.claimSlice(ENTRY_FEE);
+        vm.prank(backendSigner);
+        parlorManager.claimSlice(player1, ENTRY_FEE);
 
         address sponsorG1 = pizzaParty.dailySliceSponsor(gameId1, player1);
         assertEq(sponsorG1, sponsor1, "Sponsor1 should be recorded");
@@ -1198,8 +1202,8 @@ contract FreeSliceFlowTest is Test {
 
         vm.prank(sponsor2);
         parlorManager.sendSlice(player1);
-        vm.prank(player1);
-        parlorManager.claimSlice(ENTRY_FEE);
+        vm.prank(backendSigner);
+        parlorManager.claimSlice(player1, ENTRY_FEE);
 
         address sponsorG2 = pizzaParty.dailySliceSponsor(gameId2, player1);
         assertEq(sponsorG2, sponsor2, "Sponsor2 should be recorded (first time slicing this player)");
@@ -1222,8 +1226,8 @@ contract FreeSliceFlowTest is Test {
         // Sponsor sends slice
         vm.prank(sponsor1);
         parlorManager.sendSlice(player1);
-        vm.prank(player1);
-        parlorManager.claimSlice(ENTRY_FEE);
+        vm.prank(backendSigner);
+        parlorManager.claimSlice(player1, ENTRY_FEE);
 
         // Add more players to increase pot and randomness
         for (uint i = 0; i < 5; i++) {
