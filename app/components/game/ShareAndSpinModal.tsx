@@ -9,6 +9,7 @@ import {
   useReadContract,
   usePublicClient,
 } from 'wagmi'
+import { decodeEventLog } from 'viem'
 import { sdk } from '@farcaster/miniapp-sdk'
 import {
   SHARE_AND_SPIN_ADDRESS,
@@ -226,7 +227,6 @@ export default function ShareAndSpinModal({
     if (!spinConfirmed || !publicClient || !spinTxHash) return
 
     const go = async () => {
-      resetSpin()
       let outcomeIndex = 0
 
       try {
