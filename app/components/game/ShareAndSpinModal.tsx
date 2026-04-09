@@ -523,7 +523,7 @@ export default function ShareAndSpinModal({
     }
   }, [executeBackend])
 
-  const anyPending = sharePending || shareConfirming || spinConfirming || claimSlicePending || claimSliceConfirming || giftPending || giftConfirming || savePending || saveConfirming
+  const anyPending = sharePending || claimSlicePending || giftPending || savePending
 
   // ── Render ────────────────────────────────────────────────────
   return (
