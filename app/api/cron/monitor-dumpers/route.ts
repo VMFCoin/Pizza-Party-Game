@@ -11,12 +11,16 @@ const RPC_URL = 'https://mainnet.base.org'
 
 // Known dumper wallets to monitor
 const WATCHED_WALLETS: Record<string, string> = {
+  '0xc1b1996dfb67a12c58d57b89105db9050c01cbee': '0xc1b1 (2.4B LP bot - TOP THREAT)',
   '0x28b2018489b5b6ed7d3f0697b5b1bb2123093358': '0x28B2 (0x57d5 network)',
   '0x13181f33c3b8e07df6a5f13e43b3d4113c5f4113': '0x1318 (0x57d5 network)',
   '0xece081ce3ae9c5be80a05e9ba7fa3f8c855b5533': '0xece0 (0x57d5 network)',
   '0xb23c2e7046dd29aa4a85cbf0da72e5b6b82f2610': '0xB23C (active seller)',
-  '0x982b560b649c785a523e08f44079a2979d998a47': 'tomdoecrypto',
+  '0x982b560b649c785a523e08f44079a2979d998a47': 'tomdoecrypto (BANNED)',
   '0x8eedc84e1e69cd9ddfa3da2aa176b9d0bfa0e869': '0x8eED (EIP-7702 bot)',
+  '0x186ff660dbd2098fcb8bcb29cdeb6c2587fa1490': '0x186F (EIP-7702 bot)',
+  '0xbb70129e065b65d38309e0d1be21e02cb9a115dc': '0xbb70 (EIP-7702 bot)',
+  '0x34e836abdbbafc4da915b38a3c69b1585e006558': '0x34e8 (LP bot - active today)',
   '0xd5af1246946e9183bab39d37127eaf5fa8e5fb27': 'Exploit attacker',
 }
 
