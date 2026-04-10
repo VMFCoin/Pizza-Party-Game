@@ -9,6 +9,11 @@ const OWNER_FID = 1013491
 const PIZZA_TOKEN = '0xa821f2ee19f4f62e404c934d43eb6e5763fbdb07'
 const RPC_URL = 'https://mainnet.base.org'
 
+// Wallets with special movement alerts (alert if balance drops at all)
+const MOVEMENT_WATCH: Record<string, string> = {
+  '0x982b560b649c785a523e08f44079a2979d998a47': 'tomdoecrypto (BANNED)',
+}
+
 // Known dumper wallets to monitor
 const WATCHED_WALLETS: Record<string, string> = {
   '0xc1b1996dfb67a12c58d57b89105db9050c01cbee': '0xc1b1 (2.4B LP bot - TOP THREAT)',
@@ -85,6 +90,22 @@ export async function GET(request: NextRequest) {
       // Alert if a wallet that had PIZZA now has 0 (they sold everything)
       if (balance === 0n) {
         alerts.push(`${label} is EMPTY`)
+      }
+    }
+
+    // Special movement watch — alert if banned users move ANY PIZZA
+    const movementEntries = Object.entries(MOVEMENT_WATCH)
+    const movementBalances = await Promise.all(
+      movementEntries.map(([addr]) => getBalance(addr))
+    )
+    for (let i = 0; i < movementEntries.length; i++) {
+      const [addr, label] = movementEntries[i]
+      const balance = movementBalances[i]
+      const whole = balance / BigInt(1e18)
+      results[`WATCH: ${label}`] = formatPizza(balance)
+      // tomdoecrypto last known balance: ~793M. Alert if it drops at all.
+      if (whole < 790_000_000n && whole > 0n) {
+        alerts.push(`${label} moved PIZZA! Now ${formatPizza(balance)}. Check ${addr} for destination wallet and BAN IT.`)
       }
     }
 
