@@ -65,6 +65,19 @@ export const BANNED_USERS: BannedUser[] = [
     ],
     reason: '@tomdoecrypto — bot operator, bought 2.75B PIZZA for $3.23 during exploit crash, sold 3B for $2,731, stake/unstake abuse (30min + 2min cycles)',
   },
+  {
+    fid: 0, // EIP-7702 LP bot network — 10 wallets, 1 operator, 4B PIZZA
+    addresses: [
+      '0xc1b1996dfb67a12c58d57b89105db9050c01cbee', // Main wallet (2.2B PIZZA, pulled 3.49B from LP)
+      '0x8eedc84e1e69cd9ddfa3da2aa176b9d0bfa0e869', // Sibling bot (448M)
+      '0xf7d38cd26f65ea4aad8b197b68273d4e953709f2', // Bot 3 (500M)
+      '0x18d700d7da8718c876f6362694bcbb11acd29949', // Bot 4 (300M)
+      '0x186ff660dbd2098fcb8bcb29cdeb6c2587fa1490', // Bot 5 (152M)
+      '0xb23c2e7046dd449266b533702041e05d45f82610', // Parent/funder EOA (49M, funded 0xc1b1)
+      '0x34e836abdbbafc4da915b38a3c69b1585e006558', // Sub-wallet (247M, active seller)
+    ],
+    reason: 'EIP-7702 LP bot network — pulled 4.5B PIZZA from LP, drip-selling ~200M/day across 10 wallets',
+  },
 ]
 
 // Pre-built sets for O(1) lookup
