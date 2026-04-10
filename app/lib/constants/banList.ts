@@ -56,12 +56,14 @@ export const BANNED_USERS: BannedUser[] = [
     reason: 'ShareAndSpin exploit — drained ~84M PIZZA from treasury via contract sybil attack (2026-04-05)',
   },
   {
-    fid: 2809448,
+    fid: 2809448, // @tomdoecrypto
     addresses: [
       '0xdb12050ac19f24648692cb530c7fc7a4fc2d0e6d', // Farcaster custody
-      '0x982b560b649c785a523e08f44079a2979d998a47', // Connected Ethereum wallet
+      '0x982b560b649c785a523e08f44079a2979d998a47', // Connected wallet (793M PIZZA, bot trading)
+      '0xf70da97812cb96acdf810712aa562db8dfa3dbef', // Whale funder wallet (179 ETH, confirmed same operator via Relay tx params)
+      '0xe209e00477ee4a9d0c655e1d24b5f3fbbb2a8a15', // ETH intermediary (funded by 0xf70da978, funded 0x982b)
     ],
-    reason: 'TBD',
+    reason: '@tomdoecrypto — bot operator, bought 2.75B PIZZA for $3.23 during exploit crash, sold 3B for $2,731, stake/unstake abuse (30min + 2min cycles)',
   },
 ]
 
