@@ -9,7 +9,7 @@ import { ArrowLeft, X } from 'lucide-react'
 import { readContract } from '@wagmi/core'
 import { sdk } from '@farcaster/miniapp-sdk'
 import { useGamePageData } from '../lib/useGamePageData'
-import { PIZZA_STAKING_ADDRESS, PIZZA_STAKING_ABI } from '../lib/constants'
+import { PIZZA_STAKING_ADDRESS, PIZZA_STAKING_ABI, SHARE_AND_SPIN_ADDRESS, SHARE_AND_SPIN_ABI } from '../lib/constants'
 import { wagmiConfig } from './config/wagmiConfig'
 import ToppingBreakdownModal from './ToppingBreakdownModal'
 import { hasEarlyAccess } from '../lib/constants/earlyAccess'
@@ -128,6 +128,23 @@ export default function WeeklyJackpotPage({
   const [showShareAfterClaim, setShowShareAfterClaim] = useState(false)
   const [claimedToppingCount, setClaimedToppingCount] = useState(0)
   const [tierBonus, setTierBonus] = useState(0)
+  const [shareToppings, setShareToppings] = useState(0)
+
+  // Fetch share toppings from ShareAndSpin contract
+  const fetchShareToppings = useCallback(async () => {
+    if (!wallet?.address) { setShareToppings(0); return }
+    try {
+      const result = await readContract(wagmiConfig, {
+        address: SHARE_AND_SPIN_ADDRESS as `0x${string}`,
+        abi: SHARE_AND_SPIN_ABI,
+        functionName: 'getShareInfo',
+        args: [wallet.address as `0x${string}`],
+      }) as [bigint, boolean, bigint]
+      setShareToppings(Number(result[0]))
+    } catch { setShareToppings(0) }
+  }, [wallet?.address])
+
+  useEffect(() => { fetchShareToppings() }, [fetchShareToppings])
 
   // Fetch tier bonus from staking contract
   const fetchTierBonus = useCallback(async () => {
@@ -209,10 +226,9 @@ export default function WeeklyJackpotPage({
   // Calculate topping breakdown
   const dailyPlays = Number(playerWeekly?.dailyPlays ?? 0n)
   const dailyPlayToppings = dailyPlays + (dailyPlays === 7 ? 3 : 0) // 1 per play + 3 streak bonus
-  const referralToppings = Number(playerWeekly?.referralsUsed ?? 0n) * 2
   const holdingsToppings = Number(playerWeekly?.projectedHoldingsBonus ?? 0n)
   // tierBonus: 0 (Slice Runner), +1 (Oven Operator), +3 (Pie Boss), +5 (Pizza Tycoon)
-  const totalToppingsBeforeClaim = dailyPlayToppings + referralToppings + holdingsToppings + tierBonus
+  const totalToppingsBeforeClaim = dailyPlayToppings + shareToppings + holdingsToppings + tierBonus
 
   const handleOpenToppingBreakdown = () => {
     if (!claimButtonDisabled) {
@@ -459,7 +475,7 @@ export default function WeeklyJackpotPage({
         onClose={() => setShowToppingBreakdown(false)}
         dailyPlays={dailyPlays}
         dailyPlayToppings={dailyPlayToppings}
-        referralToppings={referralToppings}
+        shareToppings={shareToppings}
         holdingsToppings={holdingsToppings}
         tierBonus={tierBonus}
         totalToppings={totalToppingsBeforeClaim}

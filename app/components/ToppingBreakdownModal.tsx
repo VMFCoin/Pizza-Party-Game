@@ -9,7 +9,7 @@ interface ToppingBreakdownModalProps {
   onClose: () => void
   dailyPlays: number
   dailyPlayToppings: number
-  referralToppings: number
+  shareToppings: number
   holdingsToppings: number
   tierBonus: number
   totalToppings: number
@@ -34,7 +34,7 @@ export default function ToppingBreakdownModal({
   onClose,
   dailyPlays,
   dailyPlayToppings,
-  referralToppings,
+  shareToppings,
   holdingsToppings,
   tierBonus,
   totalToppings,
@@ -99,15 +99,15 @@ export default function ToppingBreakdownModal({
             </span>
           </div>
 
-          {/* Referrals */}
+          {/* Share & Spin */}
           <div className={`flex justify-between items-center bg-gradient-to-r from-green-400 to-green-500 rounded-xl border-2 border-green-600 ${isMobile ? 'p-2' : 'p-3'}`}>
             <div className="flex items-center gap-2 min-w-0">
-              <Image src="/images/mushroom-icon2.png" alt="Referrals" width={isMobile ? 20 : 24} height={isMobile ? 20 : 24} />
+              <Image src="/images/mushroom-icon2.png" alt="Share & Spin" width={isMobile ? 20 : 24} height={isMobile ? 20 : 24} />
               <span className={`text-black font-bold truncate ${isMobile ? 'text-sm' : ''}`} style={labelFontStyle}>
-                Referrals
+                Share & Spin
               </span>
             </div>
-            <span className={`text-black font-black flex-shrink-0 ${isMobile ? 'text-base' : 'text-lg'}`}>{referralToppings}</span>
+            <span className={`text-black font-black flex-shrink-0 ${isMobile ? 'text-base' : 'text-lg'}`}>{shareToppings}</span>
           </div>
 
           {/* Holdings Bonus */}

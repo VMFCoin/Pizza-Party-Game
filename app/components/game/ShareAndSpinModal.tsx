@@ -558,12 +558,20 @@ export default function ShareAndSpinModal({
                 </div>
               </div>
 
-              <div className="text-center space-y-0.5">
-                <p className="text-green-400 text-xs" style={F}>$0.01 of $PIZZA</p>
-                <p className="text-green-400 text-xs" style={F}>1 Topping</p>
-                <p className="text-orange-400 text-xs" style={F}>Free Slice to Play</p>
-                <p className="text-yellow-400 text-xs" style={F}>Pizza Ordered IRL</p>
+              <p className="text-red-500 text-xs text-center" style={{ ...F, textShadow: '1px 1px 0px rgba(255,255,255,0.5), 2px 2px 0px rgba(255,255,255,0.2)' }}>Every spin earns $0.01 of $PIZZA and 1 Topping</p>
+
+              <div className="grid grid-cols-2 gap-2">
+                <div className="bg-orange-900/30 border border-orange-600 rounded-lg p-2 text-center">
+                  <p className="text-orange-400 text-xs font-bold" style={F}>{'\u{1F355}'} FREE SLICE</p>
+                  <p className="text-orange-300 text-[10px] mt-1" style={F}>Free Slice to Play</p>
+                </div>
+                <div className="bg-yellow-900/30 border border-yellow-600 rounded-lg p-2 text-center">
+                  <p className="text-yellow-400 text-xs font-bold" style={F}>{'\u2B50'} GOLD SLICE</p>
+                  <p className="text-yellow-300 text-[10px] mt-1" style={F}>Pizza IRL</p>
+                  <p className="text-yellow-300 text-[10px]" style={F}>+ Free Slice</p>
+                </div>
               </div>
+              <p className="text-gray-500 text-[9px] text-center">*Free Slice valid for 24 hrs</p>
               <p className="text-gray-400 text-xs text-center">
                 {shareInfo.sharesUsed}/3 shares used this week
               </p>
