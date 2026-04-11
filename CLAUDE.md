@@ -274,3 +274,156 @@ Referral functions are disabled on-chain. Storage slots preserved. See Share & S
 - Outcomes: Regular (73%, 1x), Loaded (20%, 1.1x), Hot (5%, 1.5x), Jackpot (2%, 3x + 10M PIZZA)
 - Uses `pizza_wheel.png` asset (different from Share & Spin wheel)
 - `recordSpin()` on staking contract, requires `tx.origin == msg.sender`
+
+---
+
+## Security Incident: April 5-9, 2026 (ShareAndSpin Sybil Exploit)
+
+### What Happened
+On April 5 at 10:41 UTC, attacker `0xd5af1246946e9183bab39d37127eaf5fa8e5fb27` exploited `recordShare()` on the ShareAndSpin contract. They deployed a factory contract that spawned 120 micro-contracts in one transaction. Each called `recordShare()` as a unique `msg.sender`, bypassing the per-address daily limit. Each received ~4,100 PIZZA from treasury. Total drained: ~492,000 PIZZA (~$29).
+
+### Root Cause
+`recordShare()` had no check that the caller was a real wallet (EOA) vs a smart contract. The attacker bypassed per-address limits by using 120 different contract addresses.
+
+### How They Found The Contract
+- Foundry `--verify` auto-published full source to Blockscout within 13 seconds of deployment
+- Treasury `approve(max)` 30 minutes later was visible on-chain to monitoring bots
+- Attacker had 3.7 days between deployment (Apr 1) and exploit (Apr 5)
+
+### Cascade Effects
+1. **LP whale exit** — `0x57d5` pulled 5.4B PIZZA from Uniswap LP over 48 hours (~$931)
+2. **Arbitrage bot** — tomdoecrypto bought 2.75B for $3.23 during crash, sold 3B for $2,731
+3. **LP bot network** — 10 EIP-7702 wallets pulled ~4.5B PIZZA from LP, drip-selling ~200M/day
+4. **Price crashed** to ~$21K mcap floor (Clanker locked LP)
+
+### All Fixes Deployed (April 6-8)
+
+| Fix | Contract | Status |
+|-----|----------|--------|
+| Backend signer on recordShare, recordShareSpin, claimFreeSlice, saveFreeSlice, claimPendingSlice, giftFreeSlice | ShareAndSpin | DEPLOYED |
+| Backend signer on claimSlice, redeemSlice | ParlorManager | DEPLOYED |
+| EOA check on recordSpin | Staking | DEPLOYED |
+| `onlyOwner` on settleDailyGameWithUsd, settleWeeklyGameWithUsd | PizzaParty | DEPLOYED |
+| Treasury approval capped at 1M PIZZA | PIZZA Token | DONE |
+| Staking rewards approval capped at 500M PIZZA | PIZZA Token | DONE |
+| Dumper monitoring cron (every 4 hours) | Vercel | LIVE |
+| All exploiter/bot wallets banned | Frontend | DEPLOYED |
+
+### What Was NOT Affected
+- No player funds stolen
+- No staking positions touched
+- No game results changed
+- Daily games continued settling normally
+- All PIZZA in treasury, staking, and game contracts is safe
+
+---
+
+## Backend Signer Architecture (Deployed)
+
+### How It Works
+Instead of players calling reward contracts directly, the Vercel backend calls on their behalf:
+
+```
+Player clicks button → Vercel API verifies (FID, Neynar, rate limits) → Backend signer wallet calls contract → Player gets reward
+```
+
+### Backend Signer Wallet
+- **Address:** `0x528952ae107198011C2a1df8c05A82702D5778D6`
+- **Purpose:** Dedicated EOA for calling reward functions. Low-privilege — can ONLY call functions gated by `backendSigner`.
+- **Gas:** Funded with ~0.002 ETH on Base. Costs ~$1/month at current usage.
+- **Key storage:** `BACKEND_SIGNER_PRIVATE_KEY` env var on Vercel + local `.env`
+- **Rotation:** Call `adminSetBackendSigner(newAddress)` on ShareAndSpin + ParlorManager if key is compromised.
+
+### Functions Using Backend Signer (8 total)
+
+| Contract | Function | What It Gives Free |
+|----------|----------|--------------------|
+| ShareAndSpin | `recordShare(player, reward)` | ~$0.01 PIZZA from treasury |
+| ShareAndSpin | `recordShareSpin(player, castHash)` | Spin for free slice / gold |
+| ShareAndSpin | `claimFreeSlice(player, entryFee)` | Free game entry from treasury |
+| ShareAndSpin | `saveFreeSlice(player)` | Save free slice for tomorrow |
+| ShareAndSpin | `claimPendingSlice(player, entryFee)` | Claim saved free slice |
+| ShareAndSpin | `giftFreeSlice(player, recipient, entryFee)` | Gift free entry to friend |
+| ParlorManager | `claimSlice(player, entryFee)` | Claim parlor slice, treasury pays |
+| ParlorManager | `redeemSlice(player, sponsor, ...)` | Redeem signed slice voucher |
+
+### Functions NOT Using Backend Signer (player signs directly)
+
+| Contract | Function | Why Safe |
+|----------|----------|----------|
+| PizzaParty | `enterDailyGame` | Player pays own PIZZA |
+| PizzaParty | `enterDailyGameWithPermit` | Player pays own PIZZA |
+| Staking | `stake` / `unstake` | Player's own tokens |
+| Staking | `claim` / `restake` | Earns from own stake |
+| Staking | `recordSpin` | EOA check, requires stake |
+| ParlorManager | `purchaseParlor` | Player pays own PIZZA |
+| ParlorManager | `sendSlice` | Parlor owner action |
+| ParlorManager | `claimMyFees` | Claims own earned fees |
+| PizzaParty | `claimToppings` | Internal accounting only |
+| PizzaParty | `settleDailyGame` | Public fallback, no free value |
+
+### API Routes (Backend Signer)
+
+| Route | Purpose |
+|-------|---------|
+| `POST /api/share/execute` | Calls all 6 ShareAndSpin functions from backend |
+| `POST /api/slice/claim-backend` | Calls ParlorManager `claimSlice` from backend |
+| `POST /api/share/verify-cast` | Neynar cast verification (called before execute) |
+
+---
+
+## Banned Wallets & Monitoring
+
+### Ban List (`app/lib/constants/banList.ts`)
+Banned users can open the app but ALL CTA buttons are disabled. They cannot play, stake, spin, or receive slices.
+
+### Currently Banned
+
+| Actor | FID | Wallets | PIZZA Held | Reason |
+|-------|-----|---------|-----------|--------|
+| Exploit attacker | — | `0xd5af` | 0 | Sybil exploit, drained 492K PIZZA |
+| @tomdoecrypto | 2809448 | `0x982b`, `0xdb12`, `0xf70da978`, `0xe209e004` | 793M | Bought exploit crash for $3.23, sold for $2,731, stake/unstake abuse |
+| EIP-7702 bot network | — | `0xc1b1`, `0x8eED`, `0xf7d3`, `0x18D7`, `0x186F`, `0xB23C`, `0x34e8` | 4,044M | LP bot network pulling/selling ~200M/day |
+| @siadude | 273708 | 6 wallets | — | Multi-wallet game manipulation |
+| Parlor abusers | 1547858, 1548166 | 3 wallets | — | Self-serving abuse |
+
+### Dumper Monitoring (`/api/cron/monitor-dumpers`)
+- Runs every 4 hours via Vercel cron
+- Checks PIZZA balance of all known dumper wallets
+- Sends Farcaster notification to owner (FID 1013491) when:
+  - Any wallet goes to zero (dumper finished)
+  - Total remaining drops below 50M PIZZA
+  - tomdoecrypto moves ANY PIZZA (movement watch — alert to ban destination wallet)
+
+### Known Remaining Sell Pressure (~5.9B PIZZA)
+
+| Wallet | PIZZA | Sell Rate | Est. Empty |
+|--------|-------|-----------|------------|
+| `0xc1b1` (LP bot main) | 2,215M | ~90M/day | ~3 weeks |
+| `0x8eED` (LP bot sibling) | 448M | moderate | ~2 weeks |
+| `0xf7d3` (LP bot sub) | 500M | unknown | unknown |
+| `0x18D7` (LP bot sub) | 300M | unknown | unknown |
+| `0x13181F` (0x57d5 network) | 400M | hasn't sold yet | unknown |
+| `0xece081` (0x57d5 network) | 490M | hasn't sold yet | unknown |
+| tomdoecrypto | 793M | holding | BANNED |
+| Others | ~750M | varies | varies |
+
+All got PIZZA from Uniswap V4 LP removal — legitimate holdings, not from exploit. Cannot be blocked from DEX selling, only from game interaction.
+
+---
+
+## Security Checklist — Before ANY Contract Deployment
+
+1. `forge inspect <Contract> storage-layout > before.json`
+2. Make changes
+3. `forge inspect <Contract> storage-layout > after.json && diff before.json after.json`
+4. `forge build --sizes | grep <Contract>` — verify under 24,576 bytes
+5. Verify NO unlimited approvals introduced
+6. Verify ALL free-reward functions use `backendSigner` pattern
+7. Verify ALL caller-supplied amounts validated against dynamic caps
+8. Deploy + verify on Sourcify
+9. Check token approvals post-deploy:
+   ```bash
+   cast call <PIZZA_TOKEN> "allowance(address,address)(uint256)" <WALLET> <CONTRACT> --rpc-url https://mainnet.base.org
+   ```
+10. Test the flow end-to-end in the app
