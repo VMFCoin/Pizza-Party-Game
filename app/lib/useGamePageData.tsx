@@ -131,6 +131,7 @@ interface WeeklyData {
   jackpotWei: bigint
   projectedJackpotWei: bigint
   projectedPlayerCount: number
+  estimatedToppings: number
   settled: boolean
   loading: boolean
   error: Error | null
@@ -318,6 +319,7 @@ export function useGamePageData() {
     jackpotWei: 0n,
     projectedJackpotWei: 0n,
     projectedPlayerCount: 0,
+    estimatedToppings: 0,
     settled: false,
     loading: true,
     error: null,
@@ -543,6 +545,7 @@ export function useGamePageData() {
 
       let projectedJackpotWei = jackpotWei
       let projectedPlayerCount = Number(claimerCount)
+      let projectedEstimatedToppings = 0
 
       // Get unique weekly players and projected jackpot using getDailyGamePlayers
       // This is much faster than scanning event logs (~1s vs ~10s)
@@ -625,6 +628,7 @@ export function useGamePageData() {
 
           projectedJackpotWei = estimatedToppings * toppingUnitPizza + treasuryBonus
           projectedPlayerCount = Math.max(uniquePlayersThisWeek.size, Number(claimerCount))
+          projectedEstimatedToppings = Number(estimatedToppings)
         }
 
         console.debug('Weekly projection (from getDailyGamePlayers):', {
@@ -645,6 +649,7 @@ export function useGamePageData() {
         jackpotWei,
         projectedJackpotWei,
         projectedPlayerCount,
+        estimatedToppings: projectedEstimatedToppings,
         settled,
         loading: false,
         error: null,

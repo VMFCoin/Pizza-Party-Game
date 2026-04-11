@@ -121,7 +121,6 @@ export default function WeeklyJackpotPage({
     claimableToppings,
     handleClaimToppings,
     isEntryInProgress,
-    pizzaUsd,
   } = useGamePageData()
   const [isMobile, setIsMobile] = useState(false)
   const [showToppingBreakdown, setShowToppingBreakdown] = useState(false)
@@ -211,10 +210,9 @@ export default function WeeklyJackpotPage({
   const nowSec = Math.floor(Date.now() / 1000)
   const claimWindowOpen =
     claimStart > 0 && nowSec >= claimStart && nowSec < claimEnd
-  const jackpotWeiToDisplay =
-    weekly.projectedJackpotWei > weekly.jackpotWei ? weekly.projectedJackpotWei : weekly.jackpotWei
-  const jackpotPizza = Number(jackpotWeiToDisplay) / 1e18
-  const jackpotUsdValue = jackpotPizza * pizzaUsd
+  // Use fixed USD values so the jackpot display doesn't drift with PIZZA price swings.
+  // Treasury bonus is always $20. Each topping is always $0.10.
+  const jackpotUsdValue = 20 + (weekly.estimatedToppings * 0.10)
   const jackpotDisplay = jackpotUsdValue.toFixed(2)
   const claimButtonDisabled =
     !wallet?.isAuthenticated || !claimWindowOpen || hasClaimed || claimableNumber <= 0 || isEntryInProgress
