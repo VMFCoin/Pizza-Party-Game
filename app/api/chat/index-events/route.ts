@@ -31,7 +31,7 @@ const MESSAGE_POSTED_EVENT = parseAbiItem(
  */
 export async function POST(_request: NextRequest) {
   // Skip if contract not deployed yet
-  if (PIZZA_CHAT_ADDRESS === ZERO_ADDRESS) {
+  if ((PIZZA_CHAT_ADDRESS as string) === ZERO_ADDRESS) {
     return NextResponse.json({ success: false, error: 'Chat contract not deployed yet' }, { status: 503 })
   }
 

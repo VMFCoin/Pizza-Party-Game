@@ -124,6 +124,7 @@ interface PlayerLifetimeStats {
 }
 
 interface WeeklyData {
+  weeklyGameId: number
   claimStart: number
   claimEnd: number
   totalToppings: bigint
@@ -312,6 +313,7 @@ export function useGamePageData() {
   const [isFirstTimePlayer, setIsFirstTimePlayer] = useState<boolean>(false) // Default false to hide modal until we confirm it's first time
 
   const [weekly, setWeekly] = useState<WeeklyData>({
+    weeklyGameId: 0,
     claimStart: 0,
     claimEnd: 0,
     totalToppings: 0n,
@@ -483,7 +485,7 @@ export function useGamePageData() {
   })
   const fetchWeekly = useCallback(async () => {
     try {
-      const [weeklyData, _currentWeekId, treasuryBonusRaw, toppingUnitPizzaRaw] = await Promise.all([
+      const [weeklyData, currentWeekId, treasuryBonusRaw, toppingUnitPizzaRaw] = await Promise.all([
         readContract(wagmiConfig, {
           address: PIZZA_PARTY_ADDRESS as `0x${string}`,
           abi: PIZZA_PARTY_ABI,
@@ -642,6 +644,7 @@ export function useGamePageData() {
       }
 
       setWeekly({
+        weeklyGameId: Number(currentWeekId),
         claimStart: Number(claimStart),
         claimEnd: Number(claimEnd),
         totalToppings,

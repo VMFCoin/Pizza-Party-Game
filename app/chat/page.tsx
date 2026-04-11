@@ -56,7 +56,7 @@ export default function PizzaChatPage() {
   const pollRef = useRef<NodeJS.Timeout | null>(null)
   const cooldownRef = useRef<NodeJS.Timeout | null>(null)
 
-  const contractNotDeployed = PIZZA_CHAT_ADDRESS === ZERO_ADDRESS
+  const contractNotDeployed = (PIZZA_CHAT_ADDRESS as string) === ZERO_ADDRESS
 
   // Read contract state
   const { data: messageFee } = useReadContract({

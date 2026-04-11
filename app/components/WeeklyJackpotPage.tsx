@@ -311,6 +311,9 @@ export default function WeeklyJackpotPage({
             <p className="text-white text-sm" style={{ fontFamily: 'var(--font-luckiest-guy)', marginTop: '0px', marginBottom: '0px', textShadow: '2px 2px 0px #8B0000, 3px 3px 0px rgba(139, 0, 0, 0.5)' }}>
               Weekly Players {weeklyPlayersDisplay}
             </p>
+            <p className="text-white text-xs" style={{ fontFamily: 'var(--font-luckiest-guy)', marginTop: '0px', marginBottom: '0px', textShadow: '2px 2px 0px #8B0000, 3px 3px 0px rgba(139, 0, 0, 0.5)', opacity: 0.8 }}>
+              Weekly Game #{weekly.weeklyGameId}
+            </p>
             <div className="flex justify-center items-center gap-3" style={{ marginTop: '0px' }}>
               <span className="text-white" style={{ fontFamily: 'var(--font-luckiest-guy)', fontSize: '14px', textShadow: '2px 2px 0px #8B0000, 3px 3px 0px rgba(139, 0, 0, 0.5)' }}>Daily Entry Streak:</span>
               <div className="flex gap-0.5">
