@@ -29,6 +29,8 @@ export async function POST(req: NextRequest) {
       entryFeeAmount: string
     }
 
+    console.log('[slice/claim-backend] Request:', { playerAddress, entryFeeAmount })
+
     if (!playerAddress || !entryFeeAmount) {
       return NextResponse.json({ error: 'Missing playerAddress or entryFeeAmount' }, { status: 400 })
     }
@@ -62,8 +64,12 @@ export async function POST(req: NextRequest) {
       player: playerAddress,
     })
   } catch (error) {
-    console.error('[slice/claim-backend] Error:', error)
     const message = error instanceof Error ? error.message : 'Unknown error'
+    console.error('[slice/claim-backend] FULL ERROR:', {
+      message,
+      name: error instanceof Error ? error.name : 'unknown',
+      stack: error instanceof Error ? error.stack?.slice(0, 500) : 'no stack',
+    })
     return NextResponse.json({ error: message }, { status: 500 })
   }
 }
