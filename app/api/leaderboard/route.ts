@@ -14,9 +14,9 @@ export const dynamic = 'force-dynamic'
 
 // Base mainnet RPCs with fallback
 const RPC_URLS = [
-  'https://base-rpc.publicnode.com',
   'https://mainnet.base.org',
-  'https://base.meowrpc.com',
+  'https://base-rpc.publicnode.com',
+  'https://1rpc.io/base',
 ]
 
 const publicClient = createPublicClient({
