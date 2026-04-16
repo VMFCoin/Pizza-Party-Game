@@ -1,16 +1,9 @@
 'use client'
 
 import { useState, useRef, useCallback } from 'react'
-import QrScanner from 'qr-scanner'
 import Image from 'next/image'
 import { useWriteContract } from 'wagmi'
 import { STICKER_REGISTRY_ABI, STICKER_REGISTRY_ADDRESS } from '../lib/stickerRegistryAbi'
-
-const VALID_QR_URLS = [
-  'https://farcaster.xyz/miniapps/wgY6OPqYoIkz/pizza-party',
-  'https://pizza-party-game.vmfcoin.com',
-  'https://pizza-party-game.vmfcoin.com/',
-]
 
 const customFontStyle = {
   fontFamily: 'var(--font-luckiest-guy)',
@@ -44,10 +37,6 @@ async function reverseGeocode(lat: number, lng: number): Promise<ReverseGeocodeR
   }
 }
 
-function isValidQRData(data: string): boolean {
-  return VALID_QR_URLS.some((url) => data.includes(url) || url.includes(data))
-}
-
 interface StickerScannerProps {
   onComplete: () => void
   walletAddress?: string
@@ -55,7 +44,7 @@ interface StickerScannerProps {
   userName?: string | null
 }
 
-type Step = 'camera' | 'validating' | 'location' | 'uploading' | 'success' | 'error'
+type Step = 'camera' | 'verifying' | 'location' | 'saving' | 'success' | 'error'
 
 export default function StickerScanner({ onComplete, walletAddress, userFid, userName }: StickerScannerProps) {
   const [step, setStep] = useState<Step>('camera')
@@ -106,28 +95,32 @@ export default function StickerScanner({ onComplete, walletAddress, userFid, use
     const file = e.target.files?.[0]
     if (!file) return
 
-    setStep('validating')
+    setStep('verifying')
     setError(null)
 
     try {
-      // Use qr-scanner (ZXing WASM engine) to scan the photo — handles colorful/artistic QR codes
-      const result = await QrScanner.scanImage(file, {
-        returnDetailedScanResult: true,
-        alsoTryWithoutScanRegion: true,
-      })
-
-      if (!result?.data || !isValidQRData(result.data)) {
-        setStep('error')
-        setError('No valid Pizza Party QR code detected. Make sure the sticker is clearly visible in the photo.')
-        return
-      }
-
       // Store captured image for display
       const reader = new FileReader()
       reader.onload = () => setCapturedImage(reader.result as string)
       reader.readAsDataURL(file)
 
-      // Get location
+      // Step 1: Upload to server — server verifies QR using ZXing + uploads to Pinata
+      const formData = new FormData()
+      formData.append('file', file)
+
+      const uploadRes = await fetch('/api/sticker/upload', {
+        method: 'POST',
+        body: formData,
+      })
+      const uploadData = await uploadRes.json()
+
+      if (!uploadData.success) {
+        setStep('error')
+        setError(uploadData.error || 'No valid Pizza Party QR sticker detected. Make sure the QR code is clearly visible in the photo.')
+        return
+      }
+
+      // Step 2: Get location
       setStep('location')
       navigator.geolocation.getCurrentPosition(
         async (position) => {
@@ -135,25 +128,9 @@ export default function StickerScanner({ onComplete, walletAddress, userFid, use
           setSavedCoords({ lat: latitude, lng: longitude })
           const geo = await reverseGeocode(latitude, longitude)
           setLocationData(geo)
-          setStep('uploading')
+          setStep('saving')
 
-          // Upload to Pinata
-          const formData = new FormData()
-          formData.append('file', file)
-
-          const uploadRes = await fetch('/api/sticker/upload', {
-            method: 'POST',
-            body: formData,
-          })
-          const uploadData = await uploadRes.json()
-
-          if (!uploadData.success) {
-            setStep('error')
-            setError('Failed to upload image. Please try again.')
-            return
-          }
-
-          // Save the find
+          // Step 3: Save the find to database
           const reportRes = await fetch('/api/sticker/report', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -188,9 +165,8 @@ export default function StickerScanner({ onComplete, walletAddress, userFid, use
         { enableHighAccuracy: true, timeout: 15000 }
       )
     } catch {
-      // qr-scanner throws if no QR found at all
       setStep('error')
-      setError('No valid Pizza Party QR code detected. Make sure the sticker is clearly visible in the photo.')
+      setError('Something went wrong. Please try again.')
     }
   }, [walletAddress, userFid, userName])
 
@@ -236,8 +212,8 @@ export default function StickerScanner({ onComplete, walletAddress, userFid, use
         </div>
       )}
 
-      {/* VALIDATING */}
-      {step === 'validating' && (
+      {/* VERIFYING — server-side QR check + upload */}
+      {step === 'verifying' && (
         <div className="text-center py-8">
           <div className="animate-spin w-12 h-12 border-4 border-white border-t-transparent rounded-full mx-auto mb-4" />
           <p className="text-white" style={customFontStyle}>Verifying sticker...</p>
@@ -252,11 +228,11 @@ export default function StickerScanner({ onComplete, walletAddress, userFid, use
         </div>
       )}
 
-      {/* UPLOADING */}
-      {step === 'uploading' && (
+      {/* SAVING */}
+      {step === 'saving' && (
         <div className="text-center py-8">
           <div className="animate-spin w-12 h-12 border-4 border-green-500 border-t-transparent rounded-full mx-auto mb-4" />
-          <p className="text-white" style={customFontStyle}>Uploading your find...</p>
+          <p className="text-white" style={customFontStyle}>Saving your find...</p>
           {locationData?.city && (
             <p className="text-sm text-white/70 mt-2">
               {locationData.city}{locationData.country ? `, ${locationData.country}` : ''}
