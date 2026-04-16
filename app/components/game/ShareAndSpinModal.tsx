@@ -661,8 +661,14 @@ export default function ShareAndSpinModal({
               <div className="bg-red-900/30 border border-red-600 rounded-xl p-4 flex items-start gap-3">
                 <AlertCircle size={20} className="text-red-400 flex-shrink-0 mt-0.5" />
                 <div>
-                  <p className="text-red-300 font-bold text-sm" style={F}>Verification failed</p>
-                  <p className="text-red-400 text-xs mt-1">{verifyError}</p>
+                  <p className="text-red-300 font-bold text-sm" style={F}>
+                    {verifyError?.includes('Transaction failed') ? 'Something went wrong' : 'Verification failed'}
+                  </p>
+                  <p className="text-red-400 text-xs mt-1">
+                    {verifyError?.includes('Transaction failed')
+                      ? 'Please try again. If the problem persists, contact @vmfcoin.'
+                      : verifyError}
+                  </p>
                 </div>
               </div>
               <Button
