@@ -217,6 +217,8 @@ export default function ShareAndSpinModal({
         setSpinConfirmed(true)
       } catch (err) {
         console.error('[ShareAndSpin] recordShareSpin error:', err)
+        setVerifyError(err instanceof Error ? err.message : 'Spin transaction failed. Try again.')
+        setStep('verify_failed')
       }
     }, 2000)
 
@@ -391,6 +393,8 @@ export default function ShareAndSpinModal({
       } catch (err2) {
         console.error('[ShareAndSpin] recordShare error:', err2)
         setSharePending(false)
+        setVerifyError(err2 instanceof Error ? err2.message : 'Share transaction failed. Try again.')
+        setStep('verify_failed')
       }
     } catch (err) {
       console.error('[ShareAndSpin] verify error:', err)
@@ -404,6 +408,8 @@ export default function ShareAndSpinModal({
       } catch (err2) {
         console.error('[ShareAndSpin] recordShare error:', err2)
         setSharePending(false)
+        setVerifyError(err2 instanceof Error ? err2.message : 'Share transaction failed. Try again.')
+        setStep('verify_failed')
       }
     }
   }, [address, userFid, castHash, executeBackend, claimedRewardWei])

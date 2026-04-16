@@ -72,6 +72,8 @@ export async function POST(req: NextRequest) {
 
     const { action, playerAddress } = body
 
+    console.log('[share/execute] Request:', { action, playerAddress, claimedReward: body.claimedReward, castHash: body.castHashBytes32?.slice(0, 20) })
+
     if (!action || !playerAddress) {
       return NextResponse.json({ error: 'Missing action or playerAddress' }, { status: 400 })
     }
@@ -168,8 +170,12 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ error: 'Unknown action' }, { status: 400 })
     }
 
+    console.log('[share/execute] TX submitted:', hash)
+
     // Wait for receipt
     const receipt = await publicClient.waitForTransactionReceipt({ hash, timeout: 15_000 })
+
+    console.log('[share/execute] TX result:', { status: receipt.status, gasUsed: receipt.gasUsed.toString() })
 
     return NextResponse.json({
       success: receipt.status === 'success',
@@ -178,8 +184,8 @@ export async function POST(req: NextRequest) {
       player: playerAddress,
     })
   } catch (error) {
-    console.error('[share/execute] Error:', error)
     const message = error instanceof Error ? error.message : 'Unknown error'
+    console.error('[share/execute] FAILED:', { action: 'unknown', message, stack: error instanceof Error ? error.stack?.slice(0, 300) : '' })
     return NextResponse.json({ error: message }, { status: 500 })
   }
 }
