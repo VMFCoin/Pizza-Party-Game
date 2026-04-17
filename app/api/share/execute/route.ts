@@ -104,7 +104,7 @@ export async function POST(req: NextRequest) {
           abi: ABI,
           functionName: 'recordShare',
           args: [player, reward],
-          gas: 200_000n,
+          gas: 500_000n,
         })
         break
       }
@@ -115,7 +115,7 @@ export async function POST(req: NextRequest) {
           abi: ABI,
           functionName: 'recordShareSpin',
           args: [player, castBytes],
-          gas: 150_000n,
+          gas: 500_000n,
         })
         break
       }
@@ -126,7 +126,7 @@ export async function POST(req: NextRequest) {
           abi: ABI,
           functionName: 'claimFreeSlice',
           args: [player, fee],
-          gas: 300_000n,
+          gas: 500_000n,
         })
         break
       }
@@ -136,7 +136,7 @@ export async function POST(req: NextRequest) {
           abi: ABI,
           functionName: 'saveFreeSlice',
           args: [player],
-          gas: 100_000n,
+          gas: 500_000n,
         })
         break
       }
@@ -147,7 +147,7 @@ export async function POST(req: NextRequest) {
           abi: ABI,
           functionName: 'claimPendingSlice',
           args: [player, fee],
-          gas: 300_000n,
+          gas: 500_000n,
         })
         break
       }
@@ -162,7 +162,7 @@ export async function POST(req: NextRequest) {
           abi: ABI,
           functionName: 'giftFreeSlice',
           args: [player, recipient, fee],
-          gas: 300_000n,
+          gas: 500_000n,
         })
         break
       }

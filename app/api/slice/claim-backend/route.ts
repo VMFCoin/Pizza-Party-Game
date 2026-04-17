@@ -53,7 +53,7 @@ export async function POST(req: NextRequest) {
       abi: ABI,
       functionName: 'claimSlice',
       args: [playerAddress as `0x${string}`, BigInt(entryFeeAmount)],
-      gas: 300_000n,
+      gas: 500_000n,
     })
 
     const receipt = await publicClient.waitForTransactionReceipt({ hash, timeout: 15_000 })
