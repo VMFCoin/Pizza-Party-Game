@@ -44,7 +44,7 @@ interface StickerScannerProps {
   userName?: string | null
 }
 
-type Step = 'camera' | 'verifying' | 'location' | 'saving' | 'success' | 'error'
+type Step = 'camera' | 'uploading' | 'location' | 'saving' | 'success' | 'error'
 
 export default function StickerScanner({ onComplete, walletAddress, userFid, userName }: StickerScannerProps) {
   const [step, setStep] = useState<Step>('camera')
@@ -95,16 +95,16 @@ export default function StickerScanner({ onComplete, walletAddress, userFid, use
     const file = e.target.files?.[0]
     if (!file) return
 
-    setStep('verifying')
+    setStep('uploading')
     setError(null)
 
     try {
-      // Store captured image for display
+      // Show preview
       const reader = new FileReader()
       reader.onload = () => setCapturedImage(reader.result as string)
       reader.readAsDataURL(file)
 
-      // Step 1: Upload to server — server verifies QR using ZXing + uploads to Pinata
+      // Step 1: Upload photo to Pinata
       const formData = new FormData()
       formData.append('file', file)
 
@@ -116,7 +116,7 @@ export default function StickerScanner({ onComplete, walletAddress, userFid, use
 
       if (!uploadData.success) {
         setStep('error')
-        setError(uploadData.error || 'No valid Pizza Party QR sticker detected. Make sure the QR code is clearly visible in the photo.')
+        setError(uploadData.error || 'Failed to upload image. Please try again.')
         return
       }
 
@@ -130,7 +130,7 @@ export default function StickerScanner({ onComplete, walletAddress, userFid, use
           setLocationData(geo)
           setStep('saving')
 
-          // Step 3: Save the find to database
+          // Step 3: Save to database
           const reportRes = await fetch('/api/sticker/report', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -191,7 +191,7 @@ export default function StickerScanner({ onComplete, walletAddress, userFid, use
             Found a Sticker?
           </h3>
           <p className="text-white/80 mb-6 text-sm">
-            Take a photo of the Pizza Party QR sticker. Make sure the QR code is clearly visible!
+            Take a photo of the Pizza Party QR sticker!
           </p>
           <div className="mb-4">
             <Image
@@ -212,11 +212,11 @@ export default function StickerScanner({ onComplete, walletAddress, userFid, use
         </div>
       )}
 
-      {/* VERIFYING — server-side QR check + upload */}
-      {step === 'verifying' && (
+      {/* UPLOADING */}
+      {step === 'uploading' && (
         <div className="text-center py-8">
           <div className="animate-spin w-12 h-12 border-4 border-white border-t-transparent rounded-full mx-auto mb-4" />
-          <p className="text-white" style={customFontStyle}>Verifying sticker...</p>
+          <p className="text-white" style={customFontStyle}>Uploading photo...</p>
         </div>
       )}
 

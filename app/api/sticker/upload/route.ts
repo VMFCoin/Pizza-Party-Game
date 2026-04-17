@@ -1,151 +1,186 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { MultiFormatReader, BarcodeFormat, DecodeHintType, RGBLuminanceSource, BinaryBitmap, HybridBinarizer } from '@zxing/library'
 import sharp from 'sharp'
-
-const VALID_QR_URLS = [
-  'https://farcaster.xyz/miniapps/wgY6OPqYoIkz/pizza-party',
-  'https://pizza-party-game.vmfcoin.com',
-  'https://pizza-party-game.vmfcoin.com/',
-]
+import path from 'path'
+import fs from 'fs'
 
 /**
- * Server-side QR verification using ZXing (handles colorful/artistic QR codes).
- * Tries multiple sizes and crops to find the QR code in real-world photos.
+ * Generate a simple perceptual hash (average hash) for an image region.
+ * Returns a 64-bit hash as a hex string.
  */
-async function verifyQRInImage(buffer: Buffer): Promise<{ valid: boolean; url?: string }> {
-  const hints = new Map()
-  hints.set(DecodeHintType.POSSIBLE_FORMATS, [BarcodeFormat.QR_CODE])
-  hints.set(DecodeHintType.TRY_HARDER, true)
+async function getImageHash(buffer: Buffer): Promise<string> {
+  // Resize to 8x8, convert to grayscale
+  const { data } = await sharp(buffer)
+    .resize(8, 8, { fit: 'fill' })
+    .grayscale()
+    .raw()
+    .toBuffer({ resolveWithObject: true })
 
-  const reader = new MultiFormatReader()
-  reader.setHints(hints)
+  // Calculate average pixel value
+  let sum = 0
+  for (let i = 0; i < 64; i++) sum += data[i]
+  const avg = sum / 64
 
-  // Try scanning at different sizes and crops
-  const attempts = [
-    { width: 800, height: 800 },
-    { width: 1200, height: 1200 },
-    { width: 600, height: 600 },
-    { width: 1500, height: 1500 },
-  ]
-
-  for (const size of attempts) {
-    try {
-      // Full image at this size
-      const { data, info } = await sharp(buffer)
-        .resize(size.width, size.height, { fit: 'inside', withoutEnlargement: false })
-        .grayscale()
-        .ensureAlpha()
-        .raw()
-        .toBuffer({ resolveWithObject: true })
-
-      const width = info.width
-      const height = info.height
-
-      const luminances = new Uint8ClampedArray(width * height)
-      for (let i = 0; i < width * height; i++) {
-        luminances[i] = data[i * 4] // Already grayscale, just take R channel
-      }
-
-      const source = new RGBLuminanceSource(luminances, width, height)
-      const bitmap = new BinaryBitmap(new HybridBinarizer(source))
-      const result = reader.decode(bitmap)
-      const decoded = result.getText()
-
-      if (decoded && VALID_QR_URLS.some(url => decoded.includes(url) || url.includes(decoded))) {
-        return { valid: true, url: decoded }
-      }
-    } catch {
-      // ZXing throws when it can't find a QR code — try next size
-    }
+  // Generate hash: 1 if above average, 0 if below
+  let hash = ''
+  for (let i = 0; i < 64; i++) {
+    hash += data[i] >= avg ? '1' : '0'
   }
 
-  // Try center crop (QR might be in the middle of a wider photo)
-  for (const cropPct of [0.5, 0.6, 0.7]) {
-    try {
-      const metadata = await sharp(buffer).metadata()
-      const w = metadata.width || 1000
-      const h = metadata.height || 1000
-      const cropW = Math.round(w * cropPct)
-      const cropH = Math.round(h * cropPct)
-      const left = Math.round((w - cropW) / 2)
-      const top = Math.round((h - cropH) / 2)
-
-      const { data, info } = await sharp(buffer)
-        .extract({ left, top, width: cropW, height: cropH })
-        .resize(800, 800, { fit: 'inside' })
-        .grayscale()
-        .ensureAlpha()
-        .raw()
-        .toBuffer({ resolveWithObject: true })
-
-      const luminances = new Uint8ClampedArray(info.width * info.height)
-      for (let i = 0; i < info.width * info.height; i++) {
-        luminances[i] = data[i * 4]
-      }
-
-      const source = new RGBLuminanceSource(luminances, info.width, info.height)
-      const bitmap = new BinaryBitmap(new HybridBinarizer(source))
-      const result = reader.decode(bitmap)
-      const decoded = result.getText()
-
-      if (decoded && VALID_QR_URLS.some(url => decoded.includes(url) || url.includes(decoded))) {
-        return { valid: true, url: decoded }
-      }
-    } catch {
-      // Try next crop
-    }
-  }
-
-  // Try each quadrant
-  try {
-    const metadata = await sharp(buffer).metadata()
-    const w = metadata.width || 1000
-    const h = metadata.height || 1000
-    const hw = Math.round(w / 2)
-    const hh = Math.round(h / 2)
-    const quadrants = [
-      { left: 0, top: 0 },
-      { left: hw, top: 0 },
-      { left: 0, top: hh },
-      { left: hw, top: hh },
-    ]
-
-    for (const q of quadrants) {
-      try {
-        const { data, info } = await sharp(buffer)
-          .extract({ left: q.left, top: q.top, width: Math.min(hw, w - q.left), height: Math.min(hh, h - q.top) })
-          .resize(800, 800, { fit: 'inside' })
-          .grayscale()
-          .ensureAlpha()
-          .raw()
-          .toBuffer({ resolveWithObject: true })
-
-        const luminances = new Uint8ClampedArray(info.width * info.height)
-        for (let i = 0; i < info.width * info.height; i++) {
-          luminances[i] = data[i * 4]
-        }
-
-        const source = new RGBLuminanceSource(luminances, info.width, info.height)
-        const bitmap = new BinaryBitmap(new HybridBinarizer(source))
-        const result = reader.decode(bitmap)
-        const decoded = result.getText()
-
-        if (decoded && VALID_QR_URLS.some(url => decoded.includes(url) || url.includes(decoded))) {
-          return { valid: true, url: decoded }
-        }
-      } catch {
-        // Try next quadrant
-      }
-    }
-  } catch {
-    // metadata failed
-  }
-
-  return { valid: false }
+  return hash
 }
 
 /**
- * Upload sticker photo to Pinata IPFS + verify QR code server-side
+ * Compare two hashes — returns similarity as 0-1 (1 = identical)
+ */
+function hashSimilarity(hash1: string, hash2: string): number {
+  let matches = 0
+  for (let i = 0; i < hash1.length; i++) {
+    if (hash1[i] === hash2[i]) matches++
+  }
+  return matches / hash1.length
+}
+
+/**
+ * Check if the uploaded photo contains a Pizza Party sticker.
+ * Uses perceptual hashing to compare against known sticker reference images.
+ * Also checks for dominant red color which all our stickers share.
+ */
+async function verifyStickerInPhoto(photoBuffer: Buffer): Promise<boolean> {
+  // Load reference sticker images
+  const publicDir = path.join(process.cwd(), 'public', 'images')
+  const referenceFiles = [
+    'pizza-party-qr.png',
+    'pizza_party_BW_qr.png',
+    'pizzaparty.com-qr.png',
+    'pizza_party_BW_vmfcoin_qr.png',
+  ]
+
+  const referenceHashes: string[] = []
+  for (const file of referenceFiles) {
+    const filePath = path.join(publicDir, file)
+    if (fs.existsSync(filePath)) {
+      const refBuffer = fs.readFileSync(filePath)
+      const hash = await getImageHash(refBuffer)
+      referenceHashes.push(hash)
+    }
+  }
+
+  // Try matching the full photo and various crops against reference stickers
+  const photoHash = await getImageHash(photoBuffer)
+
+  // Check full photo similarity
+  for (const refHash of referenceHashes) {
+    const sim = hashSimilarity(photoHash, refHash)
+    if (sim >= 0.65) return true
+  }
+
+  // Try center crops at various sizes (sticker is usually the main subject)
+  const metadata = await sharp(photoBuffer).metadata()
+  const w = metadata.width || 1000
+  const h = metadata.height || 1000
+
+  const crops = [
+    { pct: 0.5 }, // center 50%
+    { pct: 0.6 }, // center 60%
+    { pct: 0.7 }, // center 70%
+    { pct: 0.4 }, // center 40%
+  ]
+
+  for (const crop of crops) {
+    const cropW = Math.round(w * crop.pct)
+    const cropH = Math.round(h * crop.pct)
+    const left = Math.round((w - cropW) / 2)
+    const top = Math.round((h - cropH) / 2)
+
+    try {
+      const croppedBuffer = await sharp(photoBuffer)
+        .extract({ left, top, width: cropW, height: cropH })
+        .toBuffer()
+
+      const cropHash = await getImageHash(croppedBuffer)
+
+      for (const refHash of referenceHashes) {
+        const sim = hashSimilarity(cropHash, refHash)
+        if (sim >= 0.60) return true
+      }
+    } catch {
+      // skip invalid crop
+    }
+  }
+
+  // Try quadrants
+  const hw = Math.round(w / 2)
+  const hh = Math.round(h / 2)
+  const quadrants = [
+    { left: 0, top: 0 },
+    { left: Math.min(hw, w - 1), top: 0 },
+    { left: 0, top: Math.min(hh, h - 1) },
+    { left: Math.min(hw, w - 1), top: Math.min(hh, h - 1) },
+  ]
+
+  for (const q of quadrants) {
+    try {
+      const qw = Math.min(hw, w - q.left)
+      const qh = Math.min(hh, h - q.top)
+      if (qw <= 0 || qh <= 0) continue
+
+      const quadBuffer = await sharp(photoBuffer)
+        .extract({ left: q.left, top: q.top, width: qw, height: qh })
+        .toBuffer()
+
+      const quadHash = await getImageHash(quadBuffer)
+
+      for (const refHash of referenceHashes) {
+        const sim = hashSimilarity(quadHash, refHash)
+        if (sim >= 0.60) return true
+      }
+    } catch {
+      // skip invalid quadrant
+    }
+  }
+
+  // Fallback: check for dominant red color (all our stickers have red backgrounds)
+  // Sample a center region and check if red is dominant
+  try {
+    const centerW = Math.round(w * 0.5)
+    const centerH = Math.round(h * 0.5)
+    const centerLeft = Math.round((w - centerW) / 2)
+    const centerTop = Math.round((h - centerH) / 2)
+
+    const { data: colorData, info: colorInfo } = await sharp(photoBuffer)
+      .extract({ left: centerLeft, top: centerTop, width: centerW, height: centerH })
+      .resize(50, 50, { fit: 'fill' })
+      .raw()
+      .toBuffer({ resolveWithObject: true })
+
+    const channels = colorInfo.channels
+    let redPixels = 0
+    const totalPixels = 50 * 50
+
+    for (let i = 0; i < totalPixels; i++) {
+      const r = colorData[i * channels]
+      const g = colorData[i * channels + 1]
+      const b = colorData[i * channels + 2]
+      // Check if pixel is "red-ish" (high red, lower green and blue)
+      if (r > 150 && r > g * 1.5 && r > b * 1.5) {
+        redPixels++
+      }
+    }
+
+    const redRatio = redPixels / totalPixels
+    // If >25% of center pixels are red, likely contains a sticker
+    if (redRatio > 0.25) return true
+  } catch {
+    // color check failed
+  }
+
+  return false
+}
+
+/**
+ * Upload sticker photo to Pinata IPFS with sticker verification.
+ * Verifies the photo contains a Pizza Party sticker using perceptual hashing
+ * and color analysis — no QR code scanning needed.
  */
 export async function POST(request: NextRequest) {
   try {
@@ -173,20 +208,20 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Convert file to buffer for QR verification
+    // Convert to buffer for verification
     const arrayBuffer = await file.arrayBuffer()
     const buffer = Buffer.from(arrayBuffer)
 
-    // Step 1: Verify QR code server-side using ZXing
-    const qrResult = await verifyQRInImage(buffer)
-    if (!qrResult.valid) {
+    // Verify the photo contains a Pizza Party sticker
+    const isValidSticker = await verifyStickerInPhoto(buffer)
+    if (!isValidSticker) {
       return NextResponse.json(
-        { success: false, error: 'No valid Pizza Party QR sticker detected in this photo. Make sure the QR code is clearly visible.' },
+        { success: false, error: 'No Pizza Party sticker detected in this photo. Make sure the sticker is clearly visible!' },
         { status: 400 }
       )
     }
 
-    // Step 2: Upload to Pinata
+    // Upload to Pinata
     const PINATA_JWT = process.env.PINATA_JWT
     if (!PINATA_JWT) {
       console.error('[Sticker Upload] PINATA_JWT not configured')
@@ -227,7 +262,6 @@ export async function POST(request: NextRequest) {
       success: true,
       imageUrl,
       ipfsHash,
-      qrUrl: qrResult.url,
     })
   } catch (error) {
     console.error('[Sticker Upload] Error:', error)
