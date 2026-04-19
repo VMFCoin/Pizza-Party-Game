@@ -40,6 +40,30 @@ function getPizzaIcon() {
   return _pizzaIcon
 }
 
+// Fix partial tile loading — invalidate size when map becomes visible or on resize
+function InvalidateSizeFix({ visible }: { visible?: boolean }) {
+  const map = useMap()
+
+  useEffect(() => {
+    if (visible !== false) {
+      // Invalidate at multiple intervals to catch all rendering scenarios
+      map.invalidateSize()
+      const t1 = setTimeout(() => map.invalidateSize(), 100)
+      const t2 = setTimeout(() => map.invalidateSize(), 300)
+      const t3 = setTimeout(() => map.invalidateSize(), 600)
+      return () => { clearTimeout(t1); clearTimeout(t2); clearTimeout(t3) }
+    }
+  }, [map, visible])
+
+  useEffect(() => {
+    const handleResize = () => map.invalidateSize()
+    window.addEventListener('resize', handleResize)
+    return () => window.removeEventListener('resize', handleResize)
+  }, [map])
+
+  return null
+}
+
 // Component to handle map fly-to from external triggers
 function FlyToHandler({ target }: { target: { lat: number; lng: number } | null }) {
   const map = useMap()
@@ -68,9 +92,10 @@ function formatDate(dateStr: string) {
 interface StickerMapProps {
   finds: StickerFindData[]
   flyTarget: { lat: number; lng: number } | null
+  visible?: boolean
 }
 
-const StickerMap = forwardRef<StickerMapHandle, StickerMapProps>(({ finds, flyTarget }, ref) => {
+const StickerMap = forwardRef<StickerMapHandle, StickerMapProps>(({ finds, flyTarget, visible }, ref) => {
   const mapRef = useRef<L.Map | null>(null)
 
   useImperativeHandle(ref, () => ({
@@ -95,6 +120,7 @@ const StickerMap = forwardRef<StickerMapHandle, StickerMapProps>(({ finds, flyTa
           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
         />
+        <InvalidateSizeFix visible={visible} />
         <FlyToHandler target={flyTarget} />
 
         {finds.map((find) => (

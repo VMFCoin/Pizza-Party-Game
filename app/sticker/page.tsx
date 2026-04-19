@@ -217,6 +217,7 @@ export default function StickerPage() {
                     ref={mapRef}
                     finds={finds}
                     flyTarget={flyTarget}
+                    visible={activeTab === 'map'}
                   />
                   <div style={{ marginTop: '8px' }}>
                     <StickerGallery
