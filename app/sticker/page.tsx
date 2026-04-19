@@ -14,7 +14,6 @@ import StickerGallery from './components/StickerGallery'
 import StickerLeaderboard from './components/StickerLeaderboard'
 import StickerStats from './components/StickerStats'
 import StickerSearch from './components/StickerSearch'
-import { hasEarlyAccess } from '../lib/constants/earlyAccess'
 
 // React Leaflet must be loaded client-side only (requires window/DOM)
 const StickerMap = dynamic(() => import('./components/StickerMap'), { ssr: false })
@@ -40,24 +39,6 @@ export default function StickerPage() {
   const { address: walletAddress } = useAccount()
   const mapRef = useRef<StickerMapHandle>(null)
 
-  // Gate: only allow early access users
-  const [accessChecked, setAccessChecked] = useState(false)
-  const [hasAccess, setHasAccess] = useState(false)
-
-  useEffect(() => {
-    // Check after FID and wallet are loaded
-    const timer = setTimeout(() => {
-      setAccessChecked(true)
-      setHasAccess(hasEarlyAccess(userFid, walletAddress))
-    }, 2000) // Wait for SDK context to load
-    return () => clearTimeout(timer)
-  }, [userFid, walletAddress])
-
-  useEffect(() => {
-    if (accessChecked && !hasAccess) {
-      window.location.href = '/'
-    }
-  }, [accessChecked, hasAccess])
 
   // Fetch all sticker finds
   const fetchFinds = useCallback(async () => {

@@ -377,7 +377,6 @@ function GamePageContent({ onNavigateToWeekly, onNavigateToLeaderboard, onNaviga
           <div className="flex w-full gap-2">
             <Button
               onClick={() => window.location.href = '/sticker'}
-              disabled={!hasEarlyAccess(null, wallet?.address)}
               className="flex-1 !bg-red-600 hover:!bg-red-700 text-white py-3 px-2 rounded-xl border-4 border-red-900 shadow-lg transform hover:scale-105 transition-all touch-manipulation disabled:opacity-50 disabled:pointer-events-none"
               style={{ ...customFontStyle, letterSpacing: "1px", fontSize: isMobile ? 14 : 16, fontWeight: '900' }}
             >
