@@ -47,7 +47,7 @@ const EARLY_BOOST_BPS = 3000 // +30% early staker boost
 // Staking limits - MIN_STAKE is now dynamic ($1 worth of PIZZA)
 // Fallback used if contract call fails (10,000 PIZZA for 100B supply)
 const MIN_STAKE_FALLBACK = 10_000
-const _MAX_STAKE = 10_000_000_000 // 10B PIZZA maximum (10% of 100B supply) - enforced by contract
+const _MAX_STAKE = 20_000_000_000 // 20B PIZZA maximum (20% of 100B supply) - enforced by contract
 
 // Spin the Pie outcomes
 // multiplier: displayed to user (bonus multiplier)
@@ -1893,7 +1893,7 @@ export default function StakingPage({
                   </div>
                   <div className="flex items-start gap-2 text-xs text-green-800" style={{ fontFamily: 'var(--font-luckiest-guy)' }}>
                     <span className="flex-shrink-0">🍅</span>
-                    <span>Max stake: 10B PIZZA per wallet</span>
+                    <span>Max stake: 20B PIZZA per wallet</span>
                   </div>
                   <div className="flex items-start gap-2 text-xs text-green-800" style={{ fontFamily: 'var(--font-luckiest-guy)' }}>
                     <span className="flex-shrink-0">🍅</span>

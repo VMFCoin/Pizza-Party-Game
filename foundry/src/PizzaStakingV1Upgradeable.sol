@@ -94,7 +94,7 @@ contract PizzaStakingV1Upgradeable is
 
     /// @notice Maximum stake per wallet: 1,000,000 PIZZA (10% of 10M supply)
     /// @dev For 10M supply testing. Change to 1_000_000_000 for 10B supply.
-    uint256 public constant MAX_STAKE = 10_000_000_000 * 1e18;
+    uint256 public constant MAX_STAKE = 20_000_000_000 * 1e18;
 
     /// @notice Lock period duration: 7 days
     uint256 public constant LOCK_DURATION = 7 days;
