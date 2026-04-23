@@ -24,7 +24,6 @@ export function PizzaPartyResultPopup() {
 
   // Winner/loser state - now includes sponsor rewards
   const [winType, setWinType] = useState<'daily' | 'weekly' | 'both' | null>(null)
-  const [totalPizzaWon, setTotalPizzaWon] = useState(0) // Combined total of all winnings (PIZZA, used for share text)
   // USD amounts shown on the card use settlement-time USD snapshot, matching the leaderboard.
   const [personalUsd, setPersonalUsd] = useState(0) // Personal lottery winnings in USD (settlement-time)
   const [sponsorUsd, setSponsorUsd] = useState(0) // Sponsor rewards in USD (settlement-time)
@@ -148,7 +147,6 @@ export function PizzaPartyResultPopup() {
         let isDailyWinner = false
         let isWeeklyWinner = false
         let hasSponsorEarnings = false // Track if user earned from sponsoring winners
-        let combinedPayout = 0 // Total of all winnings in PIZZA (used for share text)
         let personalCents = 0 // Personal lottery winnings in USD cents (settlement-time)
         let sponsorCents = 0 // Sponsor rewards in USD cents (settlement-time)
         const sponsoredWinnerAddresses: string[] = [] // winners this user sponsored
@@ -322,13 +320,6 @@ export function PizzaPartyResultPopup() {
 
               if (userIsDailyWinner) {
                 isDailyWinner = true
-                const pot = gameData.potAmount as bigint
-                // Winners receive 80% of pot (after 10% stakers, 7% parlor, 3% charity deductions)
-                const playersPool = (pot * 8000n) / 10000n
-                const numberOfWinners = BigInt(winners.length || 1)
-                const winnerShare = playersPool / numberOfWinners
-
-                let userPayout = winnerShare
                 let userUsdCents = dailyUsdCentsPerWinner
 
                 // Check if user was sponsored (50/50 split means they get half)
@@ -340,14 +331,10 @@ export function PizzaPartyResultPopup() {
                 }) as `0x${string}`
 
                 if (userSponsor && userSponsor !== '0x0000000000000000000000000000000000000000') {
-                  // User was sponsored - they only get 50% of their share
-                  userPayout = userPayout / 2n
                   userUsdCents = Math.floor(userUsdCents / 2)
                 }
 
-                const dailyPayoutNumber = Number(userPayout) / 1e18
                 personalCents += userUsdCents
-                combinedPayout += dailyPayoutNumber
               }
 
               // Check if user sponsored any daily winners (they get 50% of those winnings)
@@ -360,14 +347,6 @@ export function PizzaPartyResultPopup() {
                 }) as `0x${string}`
 
                 if (winnerSponsor?.toLowerCase() === address.toLowerCase()) {
-                  // User sponsored this winner! They get 50% of winner's base share
-                  const pot = gameData.potAmount as bigint
-                  const playersPool = (pot * 8000n) / 10000n
-                  const numberOfWinners = BigInt(winners.length || 1)
-                  const winnerBaseShare = playersPool / numberOfWinners
-                  const sponsorReward = winnerBaseShare / 2n
-                  const sponsorRewardNumber = Number(sponsorReward) / 1e18
-                  combinedPayout += sponsorRewardNumber
                   sponsorCents += Math.floor(dailyUsdCentsPerWinner / 2)
                   sponsoredWinnerAddresses.push(winner)
                   hasSponsorEarnings = true
@@ -410,11 +389,6 @@ export function PizzaPartyResultPopup() {
 
             if (userIsWeeklyWinner) {
               isWeeklyWinner = true
-              const weeklyPot = weeklyGameData.potAmount as bigint
-              const numberOfWeeklyWinners = BigInt(weeklyWinners.length || 1)
-              const weeklyShare = weeklyPot / numberOfWeeklyWinners
-
-              let userWeeklyPayout = weeklyShare
               let userWeeklyCents = weeklyUsdCentsPerWinner
 
               // Check if user was sponsored for weekly (50/50 split means they get half)
@@ -426,14 +400,10 @@ export function PizzaPartyResultPopup() {
               }) as `0x${string}`
 
               if (userWeeklySponsor && userWeeklySponsor !== '0x0000000000000000000000000000000000000000') {
-                // User was sponsored - they only get 50% of their share
-                userWeeklyPayout = userWeeklyPayout / 2n
                 userWeeklyCents = Math.floor(userWeeklyCents / 2)
               }
 
-              const weeklyPayoutNumber = Number(userWeeklyPayout) / 1e18
               personalCents += userWeeklyCents
-              combinedPayout += weeklyPayoutNumber
             }
 
             // Check if user sponsored any weekly winners (they get 50% of those winnings)
@@ -446,13 +416,6 @@ export function PizzaPartyResultPopup() {
               }) as `0x${string}`
 
               if (winnerWeeklySponsor?.toLowerCase() === address.toLowerCase()) {
-                // User sponsored this weekly winner! They get 50% of winner's base share
-                const weeklyPot = weeklyGameData.potAmount as bigint
-                const numberOfWeeklyWinners = BigInt(weeklyWinners.length || 1)
-                const winnerBaseShare = weeklyPot / numberOfWeeklyWinners
-                const sponsorReward = winnerBaseShare / 2n
-                const sponsorRewardNumber = Number(sponsorReward) / 1e18
-                combinedPayout += sponsorRewardNumber
                 sponsorCents += Math.floor(weeklyUsdCentsPerWinner / 2)
                 sponsoredWinnerAddresses.push(winner)
                 hasSponsorEarnings = true
@@ -465,7 +428,6 @@ export function PizzaPartyResultPopup() {
         const hasUnseenResults = !hasSeenDailyResult || !hasSeenWeeklyResult
         // Show winner popup if user won personally OR earned from sponsoring winners
         if (hasUnseenResults && (isDailyWinner || isWeeklyWinner || hasSponsorEarnings)) {
-          setTotalPizzaWon(combinedPayout)
           setPersonalUsd(personalCents / 100)
           setSponsorUsd(sponsorCents / 100)
 
