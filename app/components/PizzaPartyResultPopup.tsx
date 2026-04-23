@@ -7,6 +7,7 @@ import { readContract } from '@wagmi/core'
 import { wagmiConfig as config } from './config/wagmiConfig'
 import { PIZZA_PARTY_ADDRESS, PIZZA_PARTY_ABI, PARLOR_MANAGER_ADDRESS, PARLOR_MANAGER_ABI } from '../lib/constants'
 import { useGamePageData } from '../lib/useGamePageData'
+import { fetchProfilesByAddresses } from '../lib/farcasterProfiles'
 import { sdk } from '@farcaster/miniapp-sdk'
 
 const SHARE_BASE_URL = 'https://farcaster.xyz/miniapps/wgY6OPqYoIkz/pizza-party'
@@ -23,10 +24,12 @@ export function PizzaPartyResultPopup() {
 
   // Winner/loser state - now includes sponsor rewards
   const [winType, setWinType] = useState<'daily' | 'weekly' | 'both' | null>(null)
-  const [totalPizzaWon, setTotalPizzaWon] = useState(0) // Combined total of all winnings
-  const [personalWinnings, setPersonalWinnings] = useState(0) // Personal lottery winnings
-  const [sponsorEarnings, setSponsorEarnings] = useState(0) // Earnings from sponsored winners
-  const [pizzaUsd, setPizzaUsd] = useState<number | null>(null) // null until fetched - prevents showing wrong price
+  const [totalPizzaWon, setTotalPizzaWon] = useState(0) // Combined total of all winnings (PIZZA, used for share text)
+  // USD amounts shown on the card use settlement-time USD snapshot, matching the leaderboard.
+  const [personalUsd, setPersonalUsd] = useState(0) // Personal lottery winnings in USD (settlement-time)
+  const [sponsorUsd, setSponsorUsd] = useState(0) // Sponsor rewards in USD (settlement-time)
+  const [sliceeNames, setSliceeNames] = useState<string[]>([]) // Farcaster handles of sponsored winners
+  const [pizzaUsd, setPizzaUsd] = useState<number | null>(null) // live price, used only for share text
 
   // Free slice state
   const [sponsorName, setSponsorName] = useState<string | null>(null)
@@ -145,9 +148,10 @@ export function PizzaPartyResultPopup() {
         let isDailyWinner = false
         let isWeeklyWinner = false
         let hasSponsorEarnings = false // Track if user earned from sponsoring winners
-        let combinedPayout = 0 // Total of all winnings (daily + weekly + sponsor rewards)
-        let personalPayout = 0 // Personal lottery winnings only
-        let sponsorPayout = 0 // Earnings from sponsored winners only
+        let combinedPayout = 0 // Total of all winnings in PIZZA (used for share text)
+        let personalCents = 0 // Personal lottery winnings in USD cents (settlement-time)
+        let sponsorCents = 0 // Sponsor rewards in USD cents (settlement-time)
+        const sponsoredWinnerAddresses: string[] = [] // winners this user sponsored
 
         // Get current game IDs
         const currentDailyGameId = await readContract(config, {
@@ -304,6 +308,14 @@ export function PizzaPartyResultPopup() {
                 args: [lastSettledDailyGameId],
               }) as `0x${string}`[]
 
+              // Settlement-time USD per winner (cents). Matches the leaderboard display.
+              const dailyUsdCentsPerWinner = Number(await readContract(config, {
+                address: PIZZA_PARTY_ADDRESS as `0x${string}`,
+                abi: PIZZA_PARTY_ABI,
+                functionName: 'getDailyGameUsdValue',
+                args: [lastSettledDailyGameId],
+              }) as bigint)
+
               const userIsDailyWinner = winners.some(
                 (winner) => winner.toLowerCase() === address.toLowerCase()
               )
@@ -317,6 +329,7 @@ export function PizzaPartyResultPopup() {
                 const winnerShare = playersPool / numberOfWinners
 
                 let userPayout = winnerShare
+                let userUsdCents = dailyUsdCentsPerWinner
 
                 // Check if user was sponsored (50/50 split means they get half)
                 const userSponsor = await readContract(config, {
@@ -329,14 +342,11 @@ export function PizzaPartyResultPopup() {
                 if (userSponsor && userSponsor !== '0x0000000000000000000000000000000000000000') {
                   // User was sponsored - they only get 50% of their share
                   userPayout = userPayout / 2n
+                  userUsdCents = Math.floor(userUsdCents / 2)
                 }
 
-                // Note: Contract sends remainder/dust to treasury, not to first winner
-                // So we don't add any bonus for being first in the winners array
-
-                const dailyPayout = userPayout
-                const dailyPayoutNumber = Number(dailyPayout) / 1e18
-                personalPayout += dailyPayoutNumber
+                const dailyPayoutNumber = Number(userPayout) / 1e18
+                personalCents += userUsdCents
                 combinedPayout += dailyPayoutNumber
               }
 
@@ -352,15 +362,15 @@ export function PizzaPartyResultPopup() {
                 if (winnerSponsor?.toLowerCase() === address.toLowerCase()) {
                   // User sponsored this winner! They get 50% of winner's base share
                   const pot = gameData.potAmount as bigint
-                  // Winners receive 80% of pot (after 10% stakers, 7% parlor, 3% charity deductions)
                   const playersPool = (pot * 8000n) / 10000n
                   const numberOfWinners = BigInt(winners.length || 1)
                   const winnerBaseShare = playersPool / numberOfWinners
                   const sponsorReward = winnerBaseShare / 2n
                   const sponsorRewardNumber = Number(sponsorReward) / 1e18
-                  sponsorPayout += sponsorRewardNumber
                   combinedPayout += sponsorRewardNumber
-                  hasSponsorEarnings = true // Track sponsor earnings separately from personal wins
+                  sponsorCents += Math.floor(dailyUsdCentsPerWinner / 2)
+                  sponsoredWinnerAddresses.push(winner)
+                  hasSponsorEarnings = true
                 }
               }
             }
@@ -387,6 +397,13 @@ export function PizzaPartyResultPopup() {
               args: [lastSettledWeeklyGameId],
             }) as `0x${string}`[]
 
+            const weeklyUsdCentsPerWinner = Number(await readContract(config, {
+              address: PIZZA_PARTY_ADDRESS as `0x${string}`,
+              abi: PIZZA_PARTY_ABI,
+              functionName: 'getWeeklyGameUsdValue',
+              args: [lastSettledWeeklyGameId],
+            }) as bigint)
+
             const userIsWeeklyWinner = weeklyWinners.some(
               (winner) => winner.toLowerCase() === address.toLowerCase()
             )
@@ -398,6 +415,7 @@ export function PizzaPartyResultPopup() {
               const weeklyShare = weeklyPot / numberOfWeeklyWinners
 
               let userWeeklyPayout = weeklyShare
+              let userWeeklyCents = weeklyUsdCentsPerWinner
 
               // Check if user was sponsored for weekly (50/50 split means they get half)
               const userWeeklySponsor = await readContract(config, {
@@ -410,10 +428,11 @@ export function PizzaPartyResultPopup() {
               if (userWeeklySponsor && userWeeklySponsor !== '0x0000000000000000000000000000000000000000') {
                 // User was sponsored - they only get 50% of their share
                 userWeeklyPayout = userWeeklyPayout / 2n
+                userWeeklyCents = Math.floor(userWeeklyCents / 2)
               }
 
               const weeklyPayoutNumber = Number(userWeeklyPayout) / 1e18
-              personalPayout += weeklyPayoutNumber
+              personalCents += userWeeklyCents
               combinedPayout += weeklyPayoutNumber
             }
 
@@ -433,8 +452,9 @@ export function PizzaPartyResultPopup() {
                 const winnerBaseShare = weeklyPot / numberOfWeeklyWinners
                 const sponsorReward = winnerBaseShare / 2n
                 const sponsorRewardNumber = Number(sponsorReward) / 1e18
-                sponsorPayout += sponsorRewardNumber
                 combinedPayout += sponsorRewardNumber
+                sponsorCents += Math.floor(weeklyUsdCentsPerWinner / 2)
+                sponsoredWinnerAddresses.push(winner)
                 hasSponsorEarnings = true
               }
             }
@@ -446,8 +466,25 @@ export function PizzaPartyResultPopup() {
         // Show winner popup if user won personally OR earned from sponsoring winners
         if (hasUnseenResults && (isDailyWinner || isWeeklyWinner || hasSponsorEarnings)) {
           setTotalPizzaWon(combinedPayout)
-          setPersonalWinnings(personalPayout)
-          setSponsorEarnings(sponsorPayout)
+          setPersonalUsd(personalCents / 100)
+          setSponsorUsd(sponsorCents / 100)
+
+          // Resolve Farcaster handles for sponsored winners so the popup can tell
+          // the user *which* slicee triggered the sponsor bonus.
+          if (sponsoredWinnerAddresses.length > 0) {
+            try {
+              const profiles = await fetchProfilesByAddresses(sponsoredWinnerAddresses)
+              const names = sponsoredWinnerAddresses.map((addr) => {
+                const p = profiles.get(addr.toLowerCase())
+                if (p?.username) return `@${p.username}`
+                return `${addr.slice(0, 6)}…${addr.slice(-4)}`
+              })
+              setSliceeNames(names)
+            } catch {
+              setSliceeNames(sponsoredWinnerAddresses.map((a) => `${a.slice(0, 6)}…${a.slice(-4)}`))
+            }
+          }
+
           if (isDailyWinner && isWeeklyWinner) {
             setWinType('both')
           } else if (isWeeklyWinner) {
@@ -511,7 +548,7 @@ export function PizzaPartyResultPopup() {
   }
 
   const handleShare = async () => {
-    const usdValue = (totalPizzaWon * (pizzaUsd ?? 0)).toFixed(2)
+    const usdValue = totalUsd.toFixed(2)
     const referralCode = referralInfo?.referralCode ?? ''
     const referralShareUrl = referralCode ? `${SHARE_BASE_URL}${referralCode}` : SHARE_BASE_URL
 
@@ -544,13 +581,11 @@ export function PizzaPartyResultPopup() {
     }
   }
 
-  // Don't show popup until we have the real price loaded (for winner/loser cards that show $ amounts)
-  // Free slice popup doesn't need price immediately, but winner/loser do
   if (!currentPopup) return null
-  if ((currentPopup === 'winner' || currentPopup === 'loser') && pizzaUsd === null) return null
 
   // Determine if this is purely sponsor earnings (no personal wins)
-  const isPureSponsorEarnings = sponsorEarnings > 0 && personalWinnings === 0
+  const isPureSponsorEarnings = sponsorUsd > 0 && personalUsd === 0
+  const totalUsd = personalUsd + sponsorUsd
 
   // Get the title based on win type and earnings source
   const getWinnerTitle = () => {
@@ -572,11 +607,22 @@ export function PizzaPartyResultPopup() {
     if (isPureSponsorEarnings) {
       return 'Sponsor Reward'
     }
-    if (sponsorEarnings > 0 && personalWinnings > 0) {
+    if (sponsorUsd > 0 && personalUsd > 0) {
       return 'Won + Sponsor Reward'
     }
     return 'Won Big? Share The Dough!'
   }
+
+  // Human-readable list of slicees whose win triggered the user's sponsor bonus.
+  // Users often assume the reward came from their most recent gifted slice — name
+  // them explicitly so there's no ambiguity about which slicee actually won.
+  const sliceeLabel = sliceeNames.length === 0
+    ? ''
+    : sliceeNames.length === 1
+      ? sliceeNames[0]
+      : sliceeNames.length === 2
+        ? `${sliceeNames[0]} & ${sliceeNames[1]}`
+        : `${sliceeNames.slice(0, -1).join(', ')} & ${sliceeNames[sliceeNames.length - 1]}`
 
   return (
     <div
@@ -647,15 +693,24 @@ export function PizzaPartyResultPopup() {
                     margin: '0',
                   }}
                 >
-                  ${(totalPizzaWon * (pizzaUsd ?? 0)).toFixed(2)} of $PIZZA
+                  ${totalUsd.toFixed(2)} of $PIZZA
                 </p>
                 {/* Show breakdown if user has both personal wins and sponsor earnings */}
-                {sponsorEarnings > 0 && personalWinnings > 0 && pizzaUsd && (
+                {sponsorUsd > 0 && personalUsd > 0 && (
                   <p
                     className="text-black"
                     style={{ fontSize: 'clamp(0.7rem, 2.2vw, 0.9rem)', lineHeight: '1.2', margin: '4px 0 0 0' }}
                   >
-                    (${(personalWinnings * pizzaUsd).toFixed(2)} won + ${(sponsorEarnings * pizzaUsd).toFixed(2)} sponsor)
+                    (${personalUsd.toFixed(2)} won + ${sponsorUsd.toFixed(2)} sponsor)
+                  </p>
+                )}
+                {/* Tell the user *which* slicee triggered the sponsor bonus */}
+                {sponsorUsd > 0 && sliceeLabel && (
+                  <p
+                    className="text-black"
+                    style={{ fontSize: 'clamp(0.65rem, 2vw, 0.85rem)', lineHeight: '1.2', margin: '2px 0 0 0' }}
+                  >
+                    Your slicee {sliceeLabel} won!
                   </p>
                 )}
               </div>
