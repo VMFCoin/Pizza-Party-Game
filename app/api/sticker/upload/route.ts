@@ -1,234 +1,189 @@
 import { NextRequest, NextResponse } from 'next/server'
 import sharp from 'sharp'
-import path from 'path'
-import fs from 'fs'
 
-/**
- * Generate a simple perceptual hash (average hash) for an image region.
- * Returns a 64-bit hash as a hex string.
- */
-async function getImageHash(buffer: Buffer): Promise<string> {
-  // Resize to 8x8, convert to grayscale
+export const maxDuration = 30
+
+const VALID_QR_URLS = [
+  'https://farcaster.xyz/miniapps/wgY6OPqYoIkz/pizza-party',
+  'https://pizza-party-game.vmfcoin.com',
+  'https://pizza-party-game.vmfcoin.com/',
+]
+
+async function patternDensity(buffer: Buffer): Promise<number> {
+  const SIZE = 150
   const { data } = await sharp(buffer)
-    .resize(8, 8, { fit: 'fill' })
+    .resize(SIZE, SIZE, { fit: 'cover' })
     .grayscale()
     .raw()
     .toBuffer({ resolveWithObject: true })
-
-  // Calculate average pixel value
   let sum = 0
-  for (let i = 0; i < 64; i++) sum += data[i]
-  const avg = sum / 64
-
-  // Generate hash: 1 if above average, 0 if below
-  let hash = ''
-  for (let i = 0; i < 64; i++) {
-    hash += data[i] >= avg ? '1' : '0'
-  }
-
-  return hash
-}
-
-/**
- * Compare two hashes — returns similarity as 0-1 (1 = identical)
- */
-function hashSimilarity(hash1: string, hash2: string): number {
-  let matches = 0
-  for (let i = 0; i < hash1.length; i++) {
-    if (hash1[i] === hash2[i]) matches++
-  }
-  return matches / hash1.length
-}
-
-/**
- * Check if the uploaded photo contains a Pizza Party sticker.
- * Uses perceptual hashing to compare against known sticker reference images.
- * Also checks for dominant red color which all our stickers share.
- */
-async function verifyStickerInPhoto(photoBuffer: Buffer): Promise<boolean> {
-  // Load reference sticker images
-  const publicDir = path.join(process.cwd(), 'public', 'images')
-  const referenceFiles = [
-    'pizza-party-qr.png',
-    'pizza_party_BW_qr.png',
-    'pizzaparty.com-qr.png',
-    'pizza_party_BW_vmfcoin_qr.png',
-  ]
-
-  const referenceHashes: string[] = []
-  for (const file of referenceFiles) {
-    const filePath = path.join(publicDir, file)
-    if (fs.existsSync(filePath)) {
-      const refBuffer = fs.readFileSync(filePath)
-      const hash = await getImageHash(refBuffer)
-      referenceHashes.push(hash)
+  for (let i = 0; i < SIZE * SIZE; i++) sum += data[i]
+  const mean = sum / (SIZE * SIZE)
+  let t = 0
+  for (let y = 0; y < SIZE; y++) {
+    let p = data[y * SIZE] >= mean ? 1 : 0
+    for (let x = 1; x < SIZE; x++) {
+      const c = data[y * SIZE + x] >= mean ? 1 : 0
+      if (c !== p) t++
+      p = c
     }
   }
-
-  // Try matching the full photo and various crops against reference stickers
-  const photoHash = await getImageHash(photoBuffer)
-
-  // Check full photo similarity
-  for (const refHash of referenceHashes) {
-    const sim = hashSimilarity(photoHash, refHash)
-    if (sim >= 0.65) return true
+  for (let x = 0; x < SIZE; x++) {
+    let p = data[x] >= mean ? 1 : 0
+    for (let y = 1; y < SIZE; y++) {
+      const c = data[y * SIZE + x] >= mean ? 1 : 0
+      if (c !== p) t++
+      p = c
+    }
   }
+  return t / (SIZE * SIZE * 2)
+}
 
-  // Try center crops at various sizes (sticker is usually the main subject)
-  const metadata = await sharp(photoBuffer).metadata()
-  const w = metadata.width || 1000
-  const h = metadata.height || 1000
+interface ColorSig {
+  red: number
+  redLoose: number
+  black: number
+  white: number
+}
 
-  const crops = [
-    { pct: 0.5 }, // center 50%
-    { pct: 0.6 }, // center 60%
-    { pct: 0.7 }, // center 70%
-    { pct: 0.4 }, // center 40%
-  ]
+async function colorSignature(buffer: Buffer): Promise<ColorSig> {
+  const SIZE = 80
+  const { data, info } = await sharp(buffer)
+    .resize(SIZE, SIZE, { fit: 'cover' })
+    .raw()
+    .toBuffer({ resolveWithObject: true })
+  const ch = info.channels
+  let red = 0, redLoose = 0, black = 0, white = 0
+  const total = SIZE * SIZE
+  for (let i = 0; i < total; i++) {
+    const r = data[i * ch]
+    const g = data[i * ch + 1]
+    const b = data[i * ch + 2]
+    if (r > 130 && r > g * 1.4 && r > b * 1.4) red++
+    if (r > 100 && r > g * 1.15 && r > b * 1.15) redLoose++
+    if (r < 70 && g < 70 && b < 70) black++
+    if (r > 200 && g > 200 && b > 200) white++
+  }
+  return { red: red / total, redLoose: redLoose / total, black: black / total, white: white / total }
+}
 
-  for (const crop of crops) {
-    const cropW = Math.round(w * crop.pct)
-    const cropH = Math.round(h * crop.pct)
-    const left = Math.round((w - cropW) / 2)
-    const top = Math.round((h - cropH) / 2)
+function strictMatch(d: number, c: ColorSig): { type: string; score: number } | null {
+  if (d < 0.07) return null
+  const isRed = c.red >= 0.15 && c.black >= 0.04
+  const isBw = c.black >= 0.15 && c.white >= 0.30 && c.red < 0.08
+  if (isRed) return { type: 'red', score: d * (c.red + c.black) }
+  if (isBw) return { type: 'bw', score: d * (c.black + c.white) }
+  return null
+}
 
-    try {
-      const croppedBuffer = await sharp(photoBuffer)
-        .extract({ left, top, width: cropW, height: cropH })
+function looseMatch(d: number, c: ColorSig): { type: string; score: number } | null {
+  if (d < 0.07) return null
+  const isRed = c.redLoose >= 0.10 && c.black >= 0.05
+  const isBw = c.black >= 0.20 && c.white >= 0.20 && c.red < 0.10
+  if (isRed) return { type: 'red-loose', score: d * (c.redLoose + c.black) }
+  if (isBw) return { type: 'bw-loose', score: d * (c.black + c.white) }
+  return null
+}
+
+async function verifyStickerInPhoto(buffer: Buffer): Promise<boolean> {
+  const meta = await sharp(buffer).metadata()
+  const inMax = Math.max(meta.width || 1000, meta.height || 1000)
+  const scaleDown = inMax > 1500 ? 1500 / inMax : 1
+  const small = scaleDown < 1
+    ? await sharp(buffer)
+        .resize(Math.round((meta.width || 1000) * scaleDown), Math.round((meta.height || 1000) * scaleDown))
         .toBuffer()
+    : buffer
 
-      const cropHash = await getImageHash(croppedBuffer)
+  const sMeta = await sharp(small).metadata()
+  const w = sMeta.width || 1000
+  const h = sMeta.height || 1000
+  const minDim = Math.min(w, h)
 
-      for (const refHash of referenceHashes) {
-        const sim = hashSimilarity(cropHash, refHash)
-        if (sim >= 0.60) return true
+  const scales = [0.10, 0.15, 0.20, 0.30, 0.50, 1.0]
+  const earlyExitScore = 0.05
+  let bestStrictScore = 0
+  let bestLooseScore = 0
+
+  for (const scale of scales) {
+    const cw = Math.round(minDim * scale)
+    const ch = cw
+    if (cw < 80) continue
+    if (cw > Math.min(w, h)) continue
+    const grid = scale <= 0.10 ? 7 : scale <= 0.20 ? 5 : scale <= 0.50 ? 3 : 1
+    for (let gx = 0; gx < grid; gx++) {
+      for (let gy = 0; gy < grid; gy++) {
+        const left = grid === 1 ? 0 : Math.max(0, Math.min(Math.round((w - cw) * gx / (grid - 1)), w - cw))
+        const top = grid === 1 ? 0 : Math.max(0, Math.min(Math.round((h - ch) * gy / (grid - 1)), h - ch))
+        try {
+          const crop = await sharp(small).extract({ left, top, width: cw, height: ch }).toBuffer()
+          const d = await patternDensity(crop)
+          if (d < 0.07) continue
+          const c = await colorSignature(crop)
+          const ms = strictMatch(d, c)
+          if (ms) {
+            if (ms.score > bestStrictScore) bestStrictScore = ms.score
+            if (ms.score >= earlyExitScore) return true
+          } else {
+            const ml = looseMatch(d, c)
+            if (ml && ml.score > bestLooseScore) bestLooseScore = ml.score
+          }
+        } catch {}
       }
-    } catch {
-      // skip invalid crop
     }
   }
 
-  // Try quadrants
-  const hw = Math.round(w / 2)
-  const hh = Math.round(h / 2)
-  const quadrants = [
-    { left: 0, top: 0 },
-    { left: Math.min(hw, w - 1), top: 0 },
-    { left: 0, top: Math.min(hh, h - 1) },
-    { left: Math.min(hw, w - 1), top: Math.min(hh, h - 1) },
-  ]
-
-  for (const q of quadrants) {
-    try {
-      const qw = Math.min(hw, w - q.left)
-      const qh = Math.min(hh, h - q.top)
-      if (qw <= 0 || qh <= 0) continue
-
-      const quadBuffer = await sharp(photoBuffer)
-        .extract({ left: q.left, top: q.top, width: qw, height: qh })
-        .toBuffer()
-
-      const quadHash = await getImageHash(quadBuffer)
-
-      for (const refHash of referenceHashes) {
-        const sim = hashSimilarity(quadHash, refHash)
-        if (sim >= 0.60) return true
-      }
-    } catch {
-      // skip invalid quadrant
-    }
-  }
-
-  // Fallback: check for dominant red color (all our stickers have red backgrounds)
-  // Sample a center region and check if red is dominant
-  try {
-    const centerW = Math.round(w * 0.5)
-    const centerH = Math.round(h * 0.5)
-    const centerLeft = Math.round((w - centerW) / 2)
-    const centerTop = Math.round((h - centerH) / 2)
-
-    const { data: colorData, info: colorInfo } = await sharp(photoBuffer)
-      .extract({ left: centerLeft, top: centerTop, width: centerW, height: centerH })
-      .resize(50, 50, { fit: 'fill' })
-      .raw()
-      .toBuffer({ resolveWithObject: true })
-
-    const channels = colorInfo.channels
-    let redPixels = 0
-    const totalPixels = 50 * 50
-
-    for (let i = 0; i < totalPixels; i++) {
-      const r = colorData[i * channels]
-      const g = colorData[i * channels + 1]
-      const b = colorData[i * channels + 2]
-      // Check if pixel is "red-ish" (high red, lower green and blue)
-      if (r > 150 && r > g * 1.5 && r > b * 1.5) {
-        redPixels++
-      }
-    }
-
-    const redRatio = redPixels / totalPixels
-    // If >25% of center pixels are red, likely contains a sticker
-    if (redRatio > 0.25) return true
-  } catch {
-    // color check failed
-  }
-
-  return false
+  return bestStrictScore > 0 || bestLooseScore > 0
 }
 
-/**
- * Upload sticker photo to Pinata IPFS with sticker verification.
- * Verifies the photo contains a Pizza Party sticker using perceptual hashing
- * and color analysis — no QR code scanning needed.
- */
+function isApprovedClientUrl(decoded: string | null | undefined): boolean {
+  if (!decoded) return false
+  return VALID_QR_URLS.some(url => decoded.includes(url) || url.includes(decoded))
+}
+
 export async function POST(request: NextRequest) {
   try {
     const formData = await request.formData()
     const file = formData.get('file') as File | null
+    const clientDecodedUrl = (formData.get('clientDecodedUrl') as string | null) || null
 
     if (!file) {
-      return NextResponse.json(
-        { success: false, error: 'No file provided' },
-        { status: 400 }
-      )
+      return NextResponse.json({ success: false, error: 'No file provided' }, { status: 400 })
     }
-
     if (!file.type.startsWith('image/')) {
-      return NextResponse.json(
-        { success: false, error: 'File must be an image' },
-        { status: 400 }
-      )
+      return NextResponse.json({ success: false, error: 'File must be an image' }, { status: 400 })
     }
-
     if (file.size > 10 * 1024 * 1024) {
-      return NextResponse.json(
-        { success: false, error: 'File too large (max 10MB)' },
-        { status: 400 }
-      )
+      return NextResponse.json({ success: false, error: 'File too large (max 10MB)' }, { status: 400 })
     }
 
-    // Convert to buffer for verification
     const arrayBuffer = await file.arrayBuffer()
     const buffer = Buffer.from(arrayBuffer)
 
-    // Verify the photo contains a Pizza Party sticker
-    const isValidSticker = await verifyStickerInPhoto(buffer)
-    if (!isValidSticker) {
+    // Layer 1: client-decoded QR URL (fastest, most reliable when available)
+    let verified = false
+    let verifyMethod: 'client-qr' | 'visual' = 'visual'
+    if (clientDecodedUrl && isApprovedClientUrl(clientDecodedUrl)) {
+      verified = true
+      verifyMethod = 'client-qr'
+    }
+
+    // Layer 2/3: server-side visual verification (strict + loose cascade)
+    if (!verified) {
+      verified = await verifyStickerInPhoto(buffer)
+    }
+
+    if (!verified) {
       return NextResponse.json(
-        { success: false, error: 'No Pizza Party sticker detected in this photo. Make sure the sticker is clearly visible!' },
+        { success: false, error: 'No Pizza Party QR sticker detected in this photo. Make sure the sticker is clearly visible!' },
         { status: 400 }
       )
     }
 
-    // Upload to Pinata
     const PINATA_JWT = process.env.PINATA_JWT
     if (!PINATA_JWT) {
       console.error('[Sticker Upload] PINATA_JWT not configured')
-      return NextResponse.json(
-        { success: false, error: 'Upload service not configured' },
-        { status: 500 }
-      )
+      return NextResponse.json({ success: false, error: 'Upload service not configured' }, { status: 500 })
     }
 
     const pinataForm = new FormData()
@@ -239,35 +194,23 @@ export async function POST(request: NextRequest) {
 
     const pinataRes = await fetch('https://api.pinata.cloud/pinning/pinFileToIPFS', {
       method: 'POST',
-      headers: {
-        Authorization: `Bearer ${PINATA_JWT}`,
-      },
+      headers: { Authorization: `Bearer ${PINATA_JWT}` },
       body: pinataForm,
     })
 
     if (!pinataRes.ok) {
       const errorText = await pinataRes.text()
       console.error('[Sticker Upload] Pinata error:', errorText)
-      return NextResponse.json(
-        { success: false, error: 'Failed to upload image' },
-        { status: 500 }
-      )
+      return NextResponse.json({ success: false, error: 'Failed to upload image' }, { status: 500 })
     }
 
     const pinataData = await pinataRes.json()
     const ipfsHash = pinataData.IpfsHash
     const imageUrl = `https://gateway.pinata.cloud/ipfs/${ipfsHash}`
 
-    return NextResponse.json({
-      success: true,
-      imageUrl,
-      ipfsHash,
-    })
+    return NextResponse.json({ success: true, imageUrl, ipfsHash, verifyMethod })
   } catch (error) {
     console.error('[Sticker Upload] Error:', error)
-    return NextResponse.json(
-      { success: false, error: 'Failed to process image' },
-      { status: 500 }
-    )
+    return NextResponse.json({ success: false, error: 'Failed to process image' }, { status: 500 })
   }
 }

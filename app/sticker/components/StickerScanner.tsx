@@ -104,9 +104,26 @@ export default function StickerScanner({ onComplete, walletAddress, userFid, use
       reader.onload = () => setCapturedImage(reader.result as string)
       reader.readAsDataURL(file)
 
-      // Step 1: Upload photo to Pinata
+      // Step 1: Try client-side QR decode first (fast path — uses native BarcodeDetector when available)
+      let clientDecodedUrl: string | null = null
+      try {
+        const BD = (typeof window !== 'undefined' ? (window as unknown as { BarcodeDetector?: new (opts?: { formats?: string[] }) => { detect: (img: ImageBitmap) => Promise<Array<{ rawValue: string }>> } }).BarcodeDetector : undefined)
+        if (BD) {
+          const detector = new BD({ formats: ['qr_code'] })
+          const bitmap = await createImageBitmap(file)
+          const codes = await detector.detect(bitmap)
+          for (const code of codes) {
+            if (code.rawValue) { clientDecodedUrl = code.rawValue; break }
+          }
+        }
+      } catch {
+        // Native detector failed or not supported — server will handle visual verification
+      }
+
+      // Step 2: Upload photo (server verifies via client URL OR visual check)
       const formData = new FormData()
       formData.append('file', file)
+      if (clientDecodedUrl) formData.append('clientDecodedUrl', clientDecodedUrl)
 
       const uploadRes = await fetch('/api/sticker/upload', {
         method: 'POST',
