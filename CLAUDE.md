@@ -1,5 +1,13 @@
 # Pizza Party Game — CLAUDE.md
 
+> **BEFORE YOU TOUCH ANY CONTRACT OR WRITE ANY CODE:**
+> - Read [`docs/SECURITY.md`](docs/SECURITY.md) — master security rulebook
+> - Read the relevant [`docs/contracts/<Name>.md`](docs/contracts/) for every contract you touch
+> - Every doc has a "Last verified on-chain" timestamp — re-verify if stale
+> - Every change to a contract MUST update its doc in the same commit
+
+**Docs index:** [`docs/README.md`](docs/README.md)
+
 ## CRITICAL RULES — NEVER VIOLATE
 
 1. **NEVER commit or expose private keys** — no .env contents, no wallet keys, no seed phrases. EVER.
@@ -269,11 +277,195 @@ Referral functions are disabled on-chain. Storage slots preserved. See Share & S
 - Weekly settle: `/api/cron/settle-weekly` at 20:03 UTC Mondays
 - Dumper monitor: `/api/cron/monitor-dumpers` every 4 hours
 
-### Staking — Spin the Pie
-- Separate from Share & Spin — this is the staking reward multiplier
-- Outcomes: Regular (73%, 1x), Loaded (20%, 1.1x), Hot (5%, 1.5x), Jackpot (2%, 3x + 10M PIZZA)
-- Uses `pizza_wheel.png` asset (different from Share & Spin wheel)
-- `recordSpin()` on staking contract, requires `tx.origin == msg.sender`
+### Staking — Current State (as of April 2026)
+
+**Proxy:** `0xCbAf5bACe5419710C3852653d3DdEB831d7415be`
+**Latest implementation:** `0xe26142D4f6c87FD7d3925A85F08028FFd339F1B1` (20B MAX_STAKE)
+
+**Core parameters:**
+- `MAX_STAKE = 20_000_000_000 * 1e18` (20B PIZZA per wallet — raised from 10B on Apr 2026)
+- `LOCKED_APY_BPS = 2500` (25% APY on locked positions, linear per-second accrual)
+- `LOCK_DURATION = 7 days`
+- `JACKPOT_FIXED_BONUS = 10_000_000 * 1e18` (10M PIZZA on Jackpot spin)
+- **Min stake: $1 worth of PIZZA per wallet** (dynamic via `pizzaPriceMicroUsd`). This is the **primary sybil defense across the entire system** — every wallet interacting with staking, spin, or tipping must first commit $1 in PIZZA. Any design that builds on staking inherits this protection. Do not propose sybil mitigations without first accounting for this.
+
+**Positions (per user, per lockType):**
+- `flexibleStakes[user]` — lockType 0, no lock, no APY, no +5% spin bonus, no early exit fee
+- `lockedStakes[user]` — lockType 1, 7-day lock, +5% spin bonus, 25% APY, 15% early exit fee
+- Both positions share a single `lastSpinGameId` and `committedSpinOutcome`
+
+**Reward funding split:**
+- `baseReward` (equal split of 1% daily pot across all stakers) → paid from **contract balance**
+- `extras` (spin multiplier bonus + tier bonus + lock bonus + early boost + APY + 10M jackpot bonus) → paid from **`stakingRewardsWallet` (`0x0b30b1D9327979D290b49BbfEF92f783fdE81c56`)** via `safeTransferFrom`
+- Equal-distribution model: `accRewardPerStaker` advanced by `notifyRewardAmount()` from PizzaPartyV2
+
+**Spin the Pie (staking wheel):**
+- Outcomes: Regular (73%, 1x), Loaded (20%, 1.1x), Hot (5%, 1.5x), Jackpot (2%, 3x + 10M PIZZA fixed bonus)
+- `SPIN_JACKPOT_MULTIPLIER_BPS = 30000` (verified on-chain) → 3x, NOT 4x. Earlier notes in this file claimed 4x — those were wrong.
+- Jackpot slice is locked for the rest of the day after anyone hits it (downgraded to HotOutTheOven)
+- **Flow:** `recordSpin()` commits outcome on-chain → frontend reads outcome from tx receipt → animation → `claimAfterSpin()` OR `restake(lockType)` applies the committed multiplier
+- `claimAfterSpin`, `restake`, and the planned `claimToTip` all use `_claimAllRewards(true)` / the committed outcome — same reward math, only the destination changes
+- `restake` pulls extras from `stakingRewardsWallet` into contract, then adds full `finalReward` to the target position
+- Has `tx.origin == msg.sender` EOA check on `recordSpin`
+
+**Leaderboard sync:**
+- Top stakers leaderboard is backed by Postgres `Staker` table
+- `/api/staking/update-staker` is called after stake / unstake / spin-claim (restake) from the frontend
+- `/api/staking/top-stakers` returns ALL stakers from DB (no `take:N` limit), sorted by `totalStaked` as BigInt
+
+**Recent fixes (April 2026):**
+- Storage layout corruption from inserting `committedSpinOutcome` in the middle — fixed by appending to end (Apr 2)
+- `claimAfterSpin` was passing `applySpin=false`, ignoring spin multiplier → fixed to `true` (Apr 7)
+- `restake` used `_calculateTotalPendingRewards` which assumes 1x, no jackpot → rewritten to use committed outcome (Apr 7)
+- Spin outcome read switched from contract state (`committedSpinOutcome`) back to tx receipt — RPC nodes served stale state, causing yesterday's Jackpot to "repeat" in UI
+- MAX_STAKE raised 10B → 20B (Apr 2026)
+
+---
+
+## Tipping Vault (PLANNED — NOT YET BUILT)
+
+### Purpose
+Add a third claim path for staking rewards so players can route emissions into a custodial "tip balance" and send PIZZA to other Farcaster users by replying to casts. Tipping is backed entirely by staking emissions — there is no direct deposit path and no free-value faucet.
+
+### Core principle
+Staking reward calculation and funding sources **do not change**. The tipping vault is a destination, not a new reward source. Reward math, spin outcome handling, and funding splits stay identical to `claimAfterSpin` / `restake`.
+
+### Three claim paths
+| Path | Function | Destination |
+|---|---|---|
+| WALLET | `claimAfterSpin()` (existing) | User's wallet |
+| STAKE | `restake(lockType)` (existing) | User's staking position |
+| TIP | `claimToTip()` (new) | User's balance inside TippingVault |
+
+### New contract: `PizzaTippingVaultUpgradeable`
+- UUPS upgradeable (same pattern as ShareAndSpin/Staking)
+- `Ownable2StepUpgradeable` (NOT regular Ownable — two-step owner transfer)
+- `PausableUpgradeable` (must have freeze switch after April 2026 lessons)
+- `ReentrancyGuardUpgradeable`
+- `SafeERC20` for all token movements
+- `_disableInitializers()` in constructor (prevents direct implementation init)
+- `uint256[50] __gap` at end of storage (reserved for future upgrades)
+
+### Storage layout (APPEND-ONLY per Rule 4)
+```
+Slot 0: pizzaToken (IERC20)
+Slot 1: stakingContract (address) — only caller allowed to credit()
+Slot 2: backendSigner (address) — only caller allowed to spendTip()
+Slot 3: tipBalance[address] (mapping)
+Slot 4: usedCastHashes[bytes32] (mapping) — replay protection
+Slot 5: dailyTipVolumeUsed[gameId][user] (nested mapping)
+Slot 6: dailyTipCountUsed[gameId][user] (nested mapping)
+Slot 7: maxTipPerCast (uint256)
+Slot 8: maxDailyTipVolume (uint256)
+Slot 9: maxDailyTipCount (uint256)
+Slot 10: minTipAmount (uint256) — anti-dust, anti-griefing
+... (future slots appended only)
+__gap[50]
+```
+
+### Contract functions
+
+**`credit(address user, uint256 amount)`** — only callable by staking contract
+- Increments `tipBalance[user] += amount`
+- Emits `Credited(user, amount)`
+- Tokens must be transferred in BEFORE this is called (staking pushes them)
+
+**`spendTip(address from, address to, uint256 amount, bytes32 castHash, uint256 gameId)`** — only callable by `backendSigner`
+- `whenNotPaused`, `nonReentrant`
+- Rejects if `usedCastHashes[castHash]` (replay protection)
+- Rejects if `amount < minTipAmount` or `amount > maxTipPerCast`
+- Rejects if daily caps exceeded (`dailyTipVolumeUsed` / `dailyTipCountUsed`)
+- Rejects if `tipBalance[from] < amount`
+- Decrements `tipBalance[from]`, marks cast hash used, increments daily counters
+- `safeTransfer(to, amount)` — moves PIZZA from vault balance to recipient wallet
+- Emits `Tipped(from, to, amount, castHash)`
+
+**`withdraw(uint256 amount)`** — user-signed, safety valve
+- User can pull their tip balance back to their own wallet anytime
+- `whenNotPaused`, `nonReentrant`
+- Decrements `tipBalance[msg.sender]`, `safeTransfer(msg.sender, amount)`
+- No backend signer required — this is the user's own money
+- Emits `Withdrawn(user, amount)`
+
+**`adminSetBackendSigner(address)`** — onlyOwner, for key rotation
+**`adminSetStakingContract(address)`** — onlyOwner, for contract upgrades
+**`adminSetLimits(...)`** — onlyOwner, for tuning caps over time
+**`pause() / unpause()`** — onlyOwner, emergency freeze
+**`forfeitTips(address user)`** — onlyOwner, returns banned user's balance to treasury
+
+### Staking contract changes
+Add ONE new storage slot at the end (per Rule 4): `address public tippingVault;`
+Add `adminSetTippingVault(address)` setter.
+Add `claimToTip()` function:
+- Same guards as `claimAfterSpin` (`nonReentrant`, `whenNotPaused`, `tokenSet`)
+- Same `_claimAllRewards(true)` reward calculation — uses committed spin outcome (including 10M Jackpot bonus)
+- Instead of transferring `finalReward` to user, transfers to vault address AND calls `tippingVault.credit(msg.sender, finalReward)` to update the ledger
+- Funding split unchanged: base from contract balance, extras from `stakingRewardsWallet`
+
+### Backend signer architecture
+- Reuse existing `BACKEND_SIGNER_PRIVATE_KEY` EOA (`0x528952ae107198011C2a1df8c05A82702D5778D6`) — already funded and proven
+- `adminSetBackendSigner()` allows rotation if key is compromised
+
+### API route: `POST /api/tip/execute`
+Flow when a cast matching the tip pattern is detected:
+1. Neynar webhook or polling picks up the cast
+2. API verifies via Neynar:
+   - Cast is a REPLY (not a root cast)
+   - Author FID → author wallet (must match `from`)
+   - Parent cast exists, parent author has a known wallet (the `to`)
+   - Cast age < 10 minutes
+   - Cast hash is not already in our DB
+   - Author is not on ban list
+   - Parsed amount regex passes strict format
+3. API rate limits per FID (DB-side)
+4. API calls `vault.spendTip(from, to, amount, castHash, currentGameId)` via backend signer
+5. API records the cast hash in Postgres for fast dedup before the on-chain check
+
+### Farcaster parse rules (strict)
+- Only process replies, never top-level casts
+- Regex must match the ENTIRE cast text (plus whitespace), not just contain a match
+- Accepted formats: `1000 🍕` or `1000 $PIZZA` (case-insensitive)
+- Reject if cast quotes/embeds another cast (avoid tipping via quoted content)
+- Reject if parent author's wallet can't be resolved
+- Reject self-tips (when `from == to`)
+
+### Security guarantees (post-April 2026)
+- **No free-value faucet** — all vault balances originate from staking rewards only
+- **Backend signer only** for `spendTip` (not "relayer" — matches our existing pattern)
+- **Cast hash dedup** prevents replay (same lesson as ShareAndSpin)
+- **Per-user daily caps** on volume and count prevent catastrophic loss if backend signer is compromised
+- **User-signed withdrawal** means tips can never be locked forever
+- **Pausable** gives us an emergency freeze without requiring an upgrade under pressure
+- **`Ownable2Step`** prevents instant takeover if owner key is compromised
+- **`_disableInitializers()`** in constructor closes the implementation-init footgun
+- **Storage gap** reserves slots for future state without breaking layout
+- **Ban list integration** — `forfeitTips(user)` returns banned wallet balances to treasury
+
+### Open decisions needed before writing contract
+1. **Self-tip:** block (default) or allow?
+2. **Minimum tip:** recommend 100 PIZZA (~$1 at current price) to prevent gas griefing
+3. **Daily caps:** starting values for `maxTipPerCast`, `maxDailyTipVolume`, `maxDailyTipCount`?
+4. **Inactive balance:** keep forever, or admin can sweep after N days?
+5. **Ban interaction:** auto-forfeit on ban or manual only?
+6. **Vault token custody:** does `stakingContract` push tokens to vault via `safeTransfer` before calling `credit`, or does vault `pull` via `safeTransferFrom`? Push-then-credit is simpler and less error-prone.
+
+### What is explicitly NOT in scope
+- Daily "reset logic" for tip balances — balances persist indefinitely until spent or withdrawn
+- Per-cast signature from the sender — the cast itself is the signal, API verifies it, no extra signing UX
+- Captcha — out of scope, not needed since all value is pre-earned staking rewards
+- Tipping from external wallets (deposits) — vault only accepts credits from the staking contract; users who want to tip must stake first
+
+### Deployment checklist (when ready)
+1. `forge inspect PizzaStakingV1Upgradeable storage-layout > before.json`
+2. Add `tippingVault` slot + `claimToTip()` to staking contract
+3. `forge inspect PizzaStakingV1Upgradeable storage-layout > after.json && diff before.json after.json` (only append, never reorder)
+4. Deploy `PizzaTippingVaultUpgradeable` proxy with owner, staking contract, backend signer, PIZZA token
+5. Call `stakingProxy.adminSetTippingVault(vaultProxy)`
+6. Verify contracts on Sourcify (Basescan verification is NOT mandatory — private for as long as possible)
+7. Wire frontend: add "TIP" button to claim modal, add withdraw UI
+8. Wire API: `/api/tip/execute` + Neynar webhook or poll
+9. Ban list integration — check before allowing `spendTip`
+10. Monitoring: add tip volume / count / velocity to dumper monitor
 
 ---
 
