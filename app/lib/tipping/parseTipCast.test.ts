@@ -41,6 +41,17 @@ const cases: Case[] = [
   // Edge cases
   { name: 'newlines around tip', input: 'gm\n1000 🍕\nthanks', expectMatch: true, expectedWhole: 1000n },
   { name: 'unicode noise', input: '🔥🔥 1000 🍕 🔥🔥', expectMatch: true, expectedWhole: 1000n },
+
+  // Thousand separators (humans naturally type these)
+  { name: '"1,000 🍕" comma', input: '1,000 🍕', expectMatch: true, expectedWhole: 1000n },
+  { name: '"1,234,567 🍕" multi-comma', input: '1,234,567 🍕', expectMatch: true, expectedWhole: 1234567n },
+  { name: '"173,096 $pizza" comma + $pizza', input: '173,096 $pizza', expectMatch: true, expectedWhole: 173096n },
+  { name: '"1_000 🍕" underscore', input: '1_000 🍕', expectMatch: true, expectedWhole: 1000n },
+  { name: '"100_000 $PIZZA" underscore + caps', input: '100_000 $PIZZA', expectMatch: true, expectedWhole: 100000n },
+  { name: 'sentence with comma amount', input: 'sending 173,096 🍕 to you', expectMatch: true, expectedWhole: 173096n },
+
+  // Garbage shouldn't crash but also shouldn't match
+  { name: '",500 🍕" leading comma', input: ',500 🍕', expectMatch: true, expectedWhole: 500n }, // regex anchors on \d
 ];
 
 function run() {

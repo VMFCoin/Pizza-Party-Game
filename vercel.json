@@ -25,8 +25,16 @@
       "schedule": "0 */4 * * *"
     },
     {
-      "path": "/api/cron/tip-poll",
-      "schedule": "*/2 * * * *"
+      "path": "/api/cron/tip-discover",
+      "schedule": "*/5 * * * *"
+    },
+    {
+      "path": "/api/cron/tip-worker",
+      "schedule": "* * * * *"
+    },
+    {
+      "path": "/api/cron/tip-reconcile",
+      "schedule": "*/5 * * * *"
     }
   ]
 }

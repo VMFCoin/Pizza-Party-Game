@@ -32,7 +32,10 @@
 //   "nothing here"     → no match
 //   "1000$🍕"          → no whitespace between number and emoji (we require \s*)
 
-const TIP_REGEX = /(\d+)\s*(🍕|\$pizza)/i;
+// Match digits with optional comma/underscore thousands separators followed by a tip marker.
+// Accepts: "1000 🍕", "1,000 🍕", "1_000 🍕", "173,096 $pizza", "1,234,567 $PIZZA".
+// Strips separators after match. Always whole numbers (no decimals).
+const TIP_REGEX = /(\d[\d,_]*)\s*(🍕|\$pizza)/i;
 
 export interface ParsedTip {
   /** The amount in whole PIZZA (NOT wei). The contract layer converts to wei. */
@@ -57,11 +60,14 @@ export function parseTipCast(text: string | null | undefined): ParsedTip | null 
   const match = TIP_REGEX.exec(text);
   if (!match) return null;
 
-  const amountStr = match[1];
+  const amountStrRaw = match[1];
   const markerRaw = match[2];
 
-  // Defensive: regex group should already be digits-only, but double-check
-  if (!/^\d+$/.test(amountStr)) return null;
+  // Strip thousand separators (commas, underscores) — regex permits them
+  const amountStr = amountStrRaw.replace(/[,_]/g, '');
+
+  // After stripping, must be pure digits and non-empty
+  if (!amountStr || !/^\d+$/.test(amountStr)) return null;
 
   let amountWhole: bigint;
   try {
