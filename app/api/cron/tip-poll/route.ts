@@ -26,7 +26,11 @@ import { parseTipCast } from '@/app/lib/tipping/parseTipCast';
 export const maxDuration = 60;
 
 const NEYNAR_API_KEY = process.env.NEYNAR_API_KEY || process.env.NEXT_PUBLIC_NEYNAR_API_KEY || '';
-const MAX_CAST_AGE_MS = 10 * 60 * 1000;
+// 24 hours — tipping is replay-protected on-chain via usedCastHashes
+// AND in DB via TipCast.castHash unique. Age limit is just to bound the
+// search window, not a security gate. (Share & Spin uses 10min because
+// that's a different anti-fraud signal.)
+const MAX_CAST_AGE_MS = 24 * 60 * 60 * 1000;
 
 // ============================================================
 // Neynar helpers (free-tier endpoints only)

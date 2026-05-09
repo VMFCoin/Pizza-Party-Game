@@ -238,7 +238,10 @@ export async function verifyTipCast(input: VerifyTipInput): Promise<TipVerificat
     return { ok: false, reason: 'AMOUNT_ABOVE_MAX', detail: `${parsed.amountWhole}` };
   }
 
-  // Gate 3: cast is < 10 minutes old
+  // Gate 3: cast is < 24 hours old. Replay protection is enforced on-chain
+  // via usedCastHashes and in DB via unique castHash. The age limit just
+  // bounds the search/processing window — a tip cast you posted 12 hours ago
+  // can still be processed when the cron picks it up.
   const castTimestampMs = Date.parse(cast.timestamp);
   if (Number.isNaN(castTimestampMs)) {
     return { ok: false, reason: 'CAST_TOO_OLD', detail: 'invalid timestamp' };
@@ -246,7 +249,7 @@ export async function verifyTipCast(input: VerifyTipInput): Promise<TipVerificat
   const castTimestamp = new Date(castTimestampMs);
   const ageMs = Date.now() - castTimestampMs;
   // Allow up to 60s of clock skew on the future side
-  if (ageMs > 10 * 60 * 1000 || ageMs < -60_000) {
+  if (ageMs > 24 * 60 * 60 * 1000 || ageMs < -60_000) {
     return { ok: false, reason: 'CAST_TOO_OLD', detail: `age=${ageMs}ms` };
   }
 
