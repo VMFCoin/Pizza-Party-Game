@@ -235,6 +235,30 @@ contract TippingVaultHandler is Test {
             sum += vault.tipBalance(actors[i]);
         }
     }
+
+    function sumLifetimeSent() external view returns (uint256 sum) {
+        for (uint256 i = 0; i < actors.length; i++) {
+            sum += vault.lifetimeTipsSent(actors[i]);
+        }
+    }
+
+    function sumLifetimeReceived() external view returns (uint256 sum) {
+        for (uint256 i = 0; i < actors.length; i++) {
+            sum += vault.lifetimeTipsReceived(actors[i]);
+        }
+    }
+
+    function sumLifetimeSentCount() external view returns (uint256 sum) {
+        for (uint256 i = 0; i < actors.length; i++) {
+            sum += vault.lifetimeTipsSentCount(actors[i]);
+        }
+    }
+
+    function sumLifetimeReceivedCount() external view returns (uint256 sum) {
+        for (uint256 i = 0; i < actors.length; i++) {
+            sum += vault.lifetimeTipsReceivedCount(actors[i]);
+        }
+    }
 }
 
 /**
@@ -336,6 +360,34 @@ contract PizzaTippingVaultInvariantTest is StdInvariant, Test {
         uint256 vaultBal = token.balanceOf(address(vault));
         uint256 ledger = handler.sumLedger();
         assertLe(vaultBal, ledger, "vault must not hold more tokens than the ledger tracks");
+    }
+
+    /// @notice Invariant 7: lifetime tips sent == lifetime tips received (globally)
+    /// @dev    Every PIZZA tipped from a sender must show up as received by a recipient.
+    function invariant_lifetimeSumsBalance() public view {
+        assertEq(
+            handler.sumLifetimeSent(),
+            handler.sumLifetimeReceived(),
+            "lifetime sent total must equal lifetime received total"
+        );
+    }
+
+    /// @notice Invariant 8: lifetime tips sent count == lifetime tips received count (globally)
+    function invariant_lifetimeCountsBalance() public view {
+        assertEq(
+            handler.sumLifetimeSentCount(),
+            handler.sumLifetimeReceivedCount(),
+            "lifetime sent count must equal lifetime received count"
+        );
+    }
+
+    /// @notice Invariant 9: lifetime sent equals total spent out (only spendTip increments lifetime)
+    function invariant_lifetimeMatchesSpentOut() public view {
+        assertEq(
+            handler.sumLifetimeSent(),
+            handler.totalSpentOut(),
+            "lifetime sent must equal total tips ever spent"
+        );
     }
 
     /// @notice Print stats at end of run for visibility

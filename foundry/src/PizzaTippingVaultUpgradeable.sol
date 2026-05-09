@@ -61,6 +61,16 @@ contract PizzaTippingVaultUpgradeable is
     uint256 public maxTipPerCast;
     uint256 public maxCreditPerTx;
 
+    // ====== LIFETIME TIP STATS (appended slots — APPEND ONLY) ======
+    /// @notice Total PIZZA this user has ever sent as tips (sender side)
+    mapping(address => uint256) public lifetimeTipsSent;
+    /// @notice Total PIZZA this user has ever received as tips (recipient side)
+    mapping(address => uint256) public lifetimeTipsReceived;
+    /// @notice Total count of tips this user has sent
+    mapping(address => uint256) public lifetimeTipsSentCount;
+    /// @notice Total count of tips this user has received
+    mapping(address => uint256) public lifetimeTipsReceivedCount;
+
     // ==================================================================================
     // EVENTS
     // ==================================================================================
@@ -196,6 +206,12 @@ contract PizzaTippingVaultUpgradeable is
         // Checks-Effects-Interactions
         usedCastHashes[castHash] = true;
         tipBalance[from] -= amount;
+
+        // Lifetime stats (append-only, never decremented)
+        lifetimeTipsSent[from] += amount;
+        lifetimeTipsReceived[to] += amount;
+        lifetimeTipsSentCount[from] += 1;
+        lifetimeTipsReceivedCount[to] += 1;
 
         IERC20(pizzaToken).safeTransfer(to, amount);
 

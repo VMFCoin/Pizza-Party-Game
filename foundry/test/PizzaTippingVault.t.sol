@@ -1062,4 +1062,158 @@ contract PizzaTippingVaultTest is Test {
         // bob's tip balance unchanged (he didn't claim to tip)
         assertEq(vault.tipBalance(bob), MIN_TIP);
     }
+
+    // ============================================================
+    // 25) LIFETIME TIP STATS (sender + recipient amounts and counts)
+    // ============================================================
+
+    function test_lifetime_initialZero() public view {
+        assertEq(vault.lifetimeTipsSent(alice), 0);
+        assertEq(vault.lifetimeTipsReceived(alice), 0);
+        assertEq(vault.lifetimeTipsSentCount(alice), 0);
+        assertEq(vault.lifetimeTipsReceivedCount(alice), 0);
+    }
+
+    function test_lifetime_singleTip_updatesBothSides() public {
+        _stakingCreditWithTransfer(alice, 5_000 * 1e18);
+        vm.prank(signer);
+        vault.spendTip(alice, bob, 1, MIN_TIP, keccak256("life1"));
+
+        assertEq(vault.lifetimeTipsSent(alice), MIN_TIP);
+        assertEq(vault.lifetimeTipsSentCount(alice), 1);
+        assertEq(vault.lifetimeTipsReceived(bob), MIN_TIP);
+        assertEq(vault.lifetimeTipsReceivedCount(bob), 1);
+
+        // Sender should not show "received", recipient should not show "sent"
+        assertEq(vault.lifetimeTipsReceived(alice), 0);
+        assertEq(vault.lifetimeTipsSent(bob), 0);
+    }
+
+    function test_lifetime_multipleTips_accumulate() public {
+        _stakingCreditWithTransfer(alice, 100_000 * 1e18);
+        for (uint256 i = 0; i < 5; i++) {
+            vm.prank(signer);
+            vault.spendTip(alice, bob, 1, MIN_TIP, keccak256(abi.encode("life", i)));
+        }
+        assertEq(vault.lifetimeTipsSent(alice), MIN_TIP * 5);
+        assertEq(vault.lifetimeTipsSentCount(alice), 5);
+        assertEq(vault.lifetimeTipsReceived(bob), MIN_TIP * 5);
+        assertEq(vault.lifetimeTipsReceivedCount(bob), 5);
+    }
+
+    function test_lifetime_invariant_globalSentEqualsReceived() public {
+        // alice tips bob, charlie tips alice → totals must balance globally
+        address charlie = makeAddr("charlieLife");
+        _stakingCreditWithTransfer(alice, 100_000 * 1e18);
+        _stakingCreditWithTransfer(charlie, 50_000 * 1e18);
+
+        vm.prank(signer);
+        vault.spendTip(alice, bob, 1, MIN_TIP, keccak256("g1"));
+        vm.prank(signer);
+        vault.spendTip(alice, bob, 1, 2_000 * 1e18, keccak256("g2"));
+        vm.prank(signer);
+        vault.spendTip(charlie, alice, 1, 3_000 * 1e18, keccak256("g3"));
+
+        uint256 totalSent =
+            vault.lifetimeTipsSent(alice) +
+            vault.lifetimeTipsSent(bob) +
+            vault.lifetimeTipsSent(charlie);
+        uint256 totalReceived =
+            vault.lifetimeTipsReceived(alice) +
+            vault.lifetimeTipsReceived(bob) +
+            vault.lifetimeTipsReceived(charlie);
+        assertEq(totalSent, totalReceived, "global sent must equal global received");
+
+        uint256 totalSentCount =
+            vault.lifetimeTipsSentCount(alice) +
+            vault.lifetimeTipsSentCount(bob) +
+            vault.lifetimeTipsSentCount(charlie);
+        uint256 totalReceivedCount =
+            vault.lifetimeTipsReceivedCount(alice) +
+            vault.lifetimeTipsReceivedCount(bob) +
+            vault.lifetimeTipsReceivedCount(charlie);
+        assertEq(totalSentCount, totalReceivedCount, "global sent count must equal received count");
+    }
+
+    function test_lifetime_unaffectedByForfeit() public {
+        _stakingCreditWithTransfer(alice, 5_000 * 1e18);
+        vm.prank(signer);
+        vault.spendTip(alice, bob, 1, MIN_TIP, keccak256("lf-fft"));
+
+        uint256 sentBefore = vault.lifetimeTipsSent(alice);
+        uint256 recvBefore = vault.lifetimeTipsReceived(bob);
+
+        // Forfeit alice's remaining tipBalance — must NOT affect lifetime stats
+        vm.prank(owner);
+        vault.forfeitTips(alice);
+
+        assertEq(vault.lifetimeTipsSent(alice), sentBefore);
+        assertEq(vault.lifetimeTipsReceived(bob), recvBefore);
+    }
+
+    function test_lifetime_unaffectedByWithdraw() public {
+        _stakingCreditWithTransfer(alice, 5_000 * 1e18);
+        vm.prank(signer);
+        vault.spendTip(alice, bob, 1, MIN_TIP, keccak256("lf-wd"));
+
+        uint256 sentBefore = vault.lifetimeTipsSent(alice);
+        uint256 aliceBalance = vault.tipBalance(alice);
+
+        // Alice withdraws her remaining tip balance — lifetimeTipsSent must not change
+        vm.prank(alice);
+        vault.withdraw(aliceBalance);
+
+        assertEq(vault.lifetimeTipsSent(alice), sentBefore);
+    }
+
+    function test_lifetime_revertedTip_doesNotIncrement() public {
+        _stakingCreditWithTransfer(alice, 5_000 * 1e18);
+
+        // Try a self-tip — must revert and NOT update stats
+        vm.prank(signer);
+        vm.expectRevert(PizzaTippingVaultUpgradeable.SelfTipNotAllowed.selector);
+        vault.spendTip(alice, alice, 1, MIN_TIP, keccak256("revert1"));
+
+        assertEq(vault.lifetimeTipsSent(alice), 0);
+        assertEq(vault.lifetimeTipsSentCount(alice), 0);
+    }
+
+    function test_lifetime_persistsAcrossUpgrade() public {
+        _stakingCreditWithTransfer(alice, 5_000 * 1e18);
+        vm.prank(signer);
+        vault.spendTip(alice, bob, 1, MIN_TIP, keccak256("lf-up"));
+
+        uint256 sentBefore = vault.lifetimeTipsSent(alice);
+        uint256 recvBefore = vault.lifetimeTipsReceived(bob);
+        uint256 sentCountBefore = vault.lifetimeTipsSentCount(alice);
+
+        // Deploy new impl and upgrade
+        PizzaTippingVaultUpgradeable newImpl = new PizzaTippingVaultUpgradeable();
+        vm.prank(owner);
+        vault.upgradeToAndCall(address(newImpl), "");
+
+        // All stats must survive the upgrade
+        assertEq(vault.lifetimeTipsSent(alice), sentBefore);
+        assertEq(vault.lifetimeTipsReceived(bob), recvBefore);
+        assertEq(vault.lifetimeTipsSentCount(alice), sentCountBefore);
+    }
+
+    function test_lifetime_fuzz_sumInvariant(uint256 tipA, uint256 tipB) public {
+        tipA = bound(tipA, MIN_TIP, MAX_TIP);
+        tipB = bound(tipB, MIN_TIP, MAX_TIP);
+
+        _stakingCreditWithTransfer(alice, tipA);
+        _stakingCreditWithTransfer(bob, tipB);
+
+        vm.prank(signer);
+        vault.spendTip(alice, bob, 1, tipA, keccak256("fz1"));
+        vm.prank(signer);
+        vault.spendTip(bob, alice, 1, tipB, keccak256("fz2"));
+
+        // Sum invariant
+        uint256 totalSent = vault.lifetimeTipsSent(alice) + vault.lifetimeTipsSent(bob);
+        uint256 totalReceived = vault.lifetimeTipsReceived(alice) + vault.lifetimeTipsReceived(bob);
+        assertEq(totalSent, totalReceived);
+        assertEq(totalSent, tipA + tipB);
+    }
 }
