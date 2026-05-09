@@ -79,19 +79,41 @@ export async function GET(
         maxTipPerCast: '10000000',
         maxCreditPerTx: '100000000',
       },
+      lifetime: {
+        sent: '0',
+        sentWhole: '0',
+        received: '0',
+        receivedWhole: '0',
+        sentCount: '0',
+        receivedCount: '0',
+      },
       vaultAddress: vault,
       vaultDeployed: false,
     });
   }
 
   try {
-    const [balance, paused, minTip, maxTip, maxCredit] = await publicClient.multicall({
+    const [
+      balance,
+      paused,
+      minTip,
+      maxTip,
+      maxCredit,
+      lifetimeSent,
+      lifetimeReceived,
+      lifetimeSentCount,
+      lifetimeReceivedCount,
+    ] = await publicClient.multicall({
       contracts: [
         { address: vault, abi: PIZZA_TIPPING_VAULT_ABI, functionName: 'tipBalance', args: [userAddr] },
         { address: vault, abi: PIZZA_TIPPING_VAULT_ABI, functionName: 'paused' },
         { address: vault, abi: PIZZA_TIPPING_VAULT_ABI, functionName: 'minTipAmount' },
         { address: vault, abi: PIZZA_TIPPING_VAULT_ABI, functionName: 'maxTipPerCast' },
         { address: vault, abi: PIZZA_TIPPING_VAULT_ABI, functionName: 'maxCreditPerTx' },
+        { address: vault, abi: PIZZA_TIPPING_VAULT_ABI, functionName: 'lifetimeTipsSent', args: [userAddr] },
+        { address: vault, abi: PIZZA_TIPPING_VAULT_ABI, functionName: 'lifetimeTipsReceived', args: [userAddr] },
+        { address: vault, abi: PIZZA_TIPPING_VAULT_ABI, functionName: 'lifetimeTipsSentCount', args: [userAddr] },
+        { address: vault, abi: PIZZA_TIPPING_VAULT_ABI, functionName: 'lifetimeTipsReceivedCount', args: [userAddr] },
       ],
       allowFailure: true,
     });
@@ -101,6 +123,10 @@ export async function GET(
     const minTipWei = minTip.status === 'success' ? (minTip.result as bigint) : 1_000n * 10n ** 18n;
     const maxTipWei = maxTip.status === 'success' ? (maxTip.result as bigint) : 10_000_000n * 10n ** 18n;
     const maxCreditWei = maxCredit.status === 'success' ? (maxCredit.result as bigint) : 100_000_000n * 10n ** 18n;
+    const lifetimeSentWei = lifetimeSent.status === 'success' ? (lifetimeSent.result as bigint) : 0n;
+    const lifetimeReceivedWei = lifetimeReceived.status === 'success' ? (lifetimeReceived.result as bigint) : 0n;
+    const lifetimeSentN = lifetimeSentCount.status === 'success' ? (lifetimeSentCount.result as bigint) : 0n;
+    const lifetimeReceivedN = lifetimeReceivedCount.status === 'success' ? (lifetimeReceivedCount.result as bigint) : 0n;
 
     return json({
       balance: balanceWei.toString(),
@@ -110,6 +136,14 @@ export async function GET(
         minTip: (minTipWei / 10n ** 18n).toString(),
         maxTipPerCast: (maxTipWei / 10n ** 18n).toString(),
         maxCreditPerTx: (maxCreditWei / 10n ** 18n).toString(),
+      },
+      lifetime: {
+        sent: lifetimeSentWei.toString(),
+        sentWhole: (lifetimeSentWei / 10n ** 18n).toString(),
+        received: lifetimeReceivedWei.toString(),
+        receivedWhole: (lifetimeReceivedWei / 10n ** 18n).toString(),
+        sentCount: lifetimeSentN.toString(),
+        receivedCount: lifetimeReceivedN.toString(),
       },
       vaultAddress: vault,
       vaultDeployed: true,

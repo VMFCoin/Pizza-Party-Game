@@ -25,6 +25,14 @@ interface TipBalanceResponse {
   balanceWhole: string    // PIZZA
   paused: boolean
   limits: { minTip: string; maxTipPerCast: string; maxCreditPerTx: string }
+  lifetime?: {
+    sent: string
+    sentWhole: string
+    received: string
+    receivedWhole: string
+    sentCount: string
+    receivedCount: string
+  }
   vaultAddress: string
   vaultDeployed: boolean
 }
@@ -150,6 +158,22 @@ export function TipBalancePanel({ userFid }: Props) {
         <p>Max per tip: {Number(data.limits.maxTipPerCast).toLocaleString()} PIZZA</p>
         <p>Cast: <code>1000 🍕</code> or <code>1000 $pizza</code> as a reply</p>
       </div>
+
+      {/* Lifetime stats — written-once accumulators on chain */}
+      {data.lifetime && (
+        <div className="bg-purple-200/60 rounded-lg p-2 mb-2 text-[10px] text-purple-900 space-y-0.5"
+             style={{ fontFamily: 'var(--font-luckiest-guy)' }}>
+          <p className="font-bold uppercase">Lifetime stats (on-chain)</p>
+          <div className="flex justify-between">
+            <span>Tips sent:</span>
+            <span>{Number(data.lifetime.sentWhole).toLocaleString()} PIZZA across {data.lifetime.sentCount} tip{data.lifetime.sentCount === '1' ? '' : 's'}</span>
+          </div>
+          <div className="flex justify-between">
+            <span>Tips received:</span>
+            <span>{Number(data.lifetime.receivedWhole).toLocaleString()} PIZZA across {data.lifetime.receivedCount} tip{data.lifetime.receivedCount === '1' ? '' : 's'}</span>
+          </div>
+        </div>
+      )}
 
       {balanceWhole > 0n && (
         <div className="flex gap-2">
