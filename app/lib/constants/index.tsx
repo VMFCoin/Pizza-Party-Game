@@ -20,6 +20,12 @@ export const SHARE_AND_SPIN_ADDRESS = "0xE45be9456E9da420f85CE69D5F0Ca96Ffe035b5
 // Pizza Chat Contract (UUPS proxy) - UPDATE after deploying
 export const PIZZA_CHAT_ADDRESS = "0x7e2E1b26a1172AF67f63Dd205028A806ce2fFBae"
 
+// Pizza Tipping Vault (UUPS proxy) - UPDATE after deploying
+// Placeholder address — until deploy, all calls to this address will revert.
+// FID-allowlisted users see the TIP button but it does nothing until set.
+export const PIZZA_TIPPING_VAULT_ADDRESS = (process.env.NEXT_PUBLIC_PIZZA_TIPPING_VAULT_ADDRESS ||
+  "0x0000000000000000000000000000000000000000") as `0x${string}`
+
 // ==============================
 // PIZZA Token ABI (ERC20 with EIP-2612 Permit)
 // ==============================
@@ -217,6 +223,9 @@ export const PIZZA_STAKING_ABI = [
   { type: 'function', name: 'unstake', stateMutability: 'nonpayable', inputs: [{ type: 'uint256', name: 'amount' }, { type: 'uint8', name: 'lockType' }], outputs: [] },
   { type: 'function', name: 'claim', stateMutability: 'nonpayable', inputs: [], outputs: [] },
   { type: 'function', name: 'claimAfterSpin', stateMutability: 'nonpayable', inputs: [], outputs: [] },
+  { type: 'function', name: 'claimToTip', stateMutability: 'nonpayable', inputs: [], outputs: [] },
+  { type: 'function', name: 'tippingVault', stateMutability: 'view', inputs: [], outputs: [{ type: 'address' }] },
+  { type: 'function', name: 'adminSetTippingVault', stateMutability: 'nonpayable', inputs: [{ type: 'address' }], outputs: [] },
   { type: 'function', name: 'claimFromPosition', stateMutability: 'nonpayable', inputs: [{ type: 'uint8', name: 'lockType' }], outputs: [] },
   { type: 'function', name: 'restake', stateMutability: 'nonpayable', inputs: [{ type: 'uint8', name: 'lockType' }], outputs: [] },
   { type: 'function', name: 'recordSpin', stateMutability: 'nonpayable', inputs: [], outputs: [] },
@@ -779,6 +788,91 @@ export const CONTRACT_REGISTRY = {
 } as const satisfies Record<string, ContractRegistryEntry>
 
 export type ContractRegistryKey = keyof typeof CONTRACT_REGISTRY
+
+// ==============================
+// Pizza Tipping Vault ABI (UUPS proxy)
+// ==============================
+export const PIZZA_TIPPING_VAULT_ABI = [
+  // Reads
+  { type: 'function', name: 'pizzaToken', stateMutability: 'view', inputs: [], outputs: [{ type: 'address' }] },
+  { type: 'function', name: 'stakingContract', stateMutability: 'view', inputs: [], outputs: [{ type: 'address' }] },
+  { type: 'function', name: 'backendSigner', stateMutability: 'view', inputs: [], outputs: [{ type: 'address' }] },
+  { type: 'function', name: 'treasury', stateMutability: 'view', inputs: [], outputs: [{ type: 'address' }] },
+  { type: 'function', name: 'tipBalance', stateMutability: 'view', inputs: [{ type: 'address' }], outputs: [{ type: 'uint256' }] },
+  { type: 'function', name: 'usedCastHashes', stateMutability: 'view', inputs: [{ type: 'bytes32' }], outputs: [{ type: 'bool' }] },
+  { type: 'function', name: 'minTipAmount', stateMutability: 'view', inputs: [], outputs: [{ type: 'uint256' }] },
+  { type: 'function', name: 'maxTipPerCast', stateMutability: 'view', inputs: [], outputs: [{ type: 'uint256' }] },
+  { type: 'function', name: 'maxCreditPerTx', stateMutability: 'view', inputs: [], outputs: [{ type: 'uint256' }] },
+  { type: 'function', name: 'owner', stateMutability: 'view', inputs: [], outputs: [{ type: 'address' }] },
+  { type: 'function', name: 'paused', stateMutability: 'view', inputs: [], outputs: [{ type: 'bool' }] },
+
+  // Writes (user-signed)
+  { type: 'function', name: 'withdraw', stateMutability: 'nonpayable', inputs: [{ type: 'uint256', name: 'amount' }], outputs: [] },
+
+  // Writes (backend-signer only)
+  {
+    type: 'function',
+    name: 'spendTip',
+    stateMutability: 'nonpayable',
+    inputs: [
+      { type: 'address', name: 'from' },
+      { type: 'address', name: 'to' },
+      { type: 'uint256', name: 'recipientFid' },
+      { type: 'uint256', name: 'amount' },
+      { type: 'bytes32', name: 'castHash' },
+    ],
+    outputs: [],
+  },
+
+  // Writes (staking-only)
+  { type: 'function', name: 'credit', stateMutability: 'nonpayable', inputs: [{ type: 'address', name: 'user' }, { type: 'uint256', name: 'amount' }], outputs: [] },
+
+  // Writes (admin)
+  { type: 'function', name: 'forfeitTips', stateMutability: 'nonpayable', inputs: [{ type: 'address', name: 'user' }], outputs: [] },
+  { type: 'function', name: 'setBackendSigner', stateMutability: 'nonpayable', inputs: [{ type: 'address' }], outputs: [] },
+  { type: 'function', name: 'setStakingContract', stateMutability: 'nonpayable', inputs: [{ type: 'address' }], outputs: [] },
+  { type: 'function', name: 'setTreasury', stateMutability: 'nonpayable', inputs: [{ type: 'address' }], outputs: [] },
+  { type: 'function', name: 'setLimits', stateMutability: 'nonpayable', inputs: [{ type: 'uint256' }, { type: 'uint256' }, { type: 'uint256' }], outputs: [] },
+  { type: 'function', name: 'pause', stateMutability: 'nonpayable', inputs: [], outputs: [] },
+  { type: 'function', name: 'unpause', stateMutability: 'nonpayable', inputs: [], outputs: [] },
+
+  // Events
+  {
+    type: 'event',
+    name: 'Credited',
+    inputs: [
+      { indexed: true, name: 'user', type: 'address' },
+      { indexed: false, name: 'amount', type: 'uint256' },
+    ],
+  },
+  {
+    type: 'event',
+    name: 'Tipped',
+    inputs: [
+      { indexed: true, name: 'from', type: 'address' },
+      { indexed: true, name: 'to', type: 'address' },
+      { indexed: false, name: 'amount', type: 'uint256' },
+      { indexed: false, name: 'recipientFid', type: 'uint256' },
+      { indexed: false, name: 'castHash', type: 'bytes32' },
+    ],
+  },
+  {
+    type: 'event',
+    name: 'Withdrawn',
+    inputs: [
+      { indexed: true, name: 'user', type: 'address' },
+      { indexed: false, name: 'amount', type: 'uint256' },
+    ],
+  },
+  {
+    type: 'event',
+    name: 'Forfeited',
+    inputs: [
+      { indexed: true, name: 'user', type: 'address' },
+      { indexed: false, name: 'amount', type: 'uint256' },
+    ],
+  },
+] as const satisfies Abi
 
 // ==============================
 // Game Constants (from contract)

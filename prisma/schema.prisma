@@ -111,6 +111,40 @@ model StickerFind {
   @@index([createdAt])
 }
 
+// Tipping vault: every Farcaster cast that triggered a tip (sent or attempted)
+// Used for fast pre-flight dedup before hitting on-chain `usedCastHashes`,
+// and as an audit trail for monitoring / forensics.
+model TipCast {
+  id                String   @id @default(cuid())
+  castHash          String   @unique // 0x... bytes32 — globally unique
+  // Sender (the tipper)
+  fromWallet        String
+  fromFid           Int
+  fromUsername      String?
+  // Recipient
+  toWallet          String
+  toFid             Int      // MUST be > 0 (contract enforces, API double-checks)
+  toUsername        String?
+  // Amount in wei (PIZZA, 18 decimals)
+  amount            String   // BigInt as string
+  // Status: pending | sent | failed | rejected
+  status            String   @default("pending")
+  errorReason       String?  // Why it failed/got rejected
+  txHash            String?  // On-chain tx hash if sent
+  // Cast metadata
+  castTimestamp     DateTime // When the cast was created on Farcaster
+  parentCastHash    String?  // The cast being replied to
+  // Timestamps
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@index([fromFid])
+  @@index([toFid])
+  @@index([fromWallet])
+  @@index([status])
+  @@index([createdAt])
+}
+
 // Indexed chat messages from PizzaChat contract events
 model ChatMessage {
   id              String   @id @default(cuid())

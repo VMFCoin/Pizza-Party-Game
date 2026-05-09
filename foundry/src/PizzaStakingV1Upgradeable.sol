@@ -64,6 +64,13 @@ interface IPizzaPartyV2 {
 }
 
 /**
+ * @notice Interface for PizzaTippingVault — credit() is push-then-credit
+ */
+interface ITippingVault {
+    function credit(address user, uint256 amount) external;
+}
+
+/**
  * @title PizzaStakingV1Upgradeable
  * @author Pizza Party Team
  * @notice Staking contract for $PIZZA token with tiered rewards and Spin the Pie mechanic
@@ -364,6 +371,14 @@ contract PizzaStakingV1Upgradeable is
     uint8 public goldChancePct;
 
     // ==================================================================================
+    // TIPPING VAULT INTEGRATION (appended — no storage slot shifts)
+    // ==================================================================================
+
+    /// @notice PizzaTippingVault proxy address. claimToTip() routes rewards into this vault.
+    /// @dev Set via adminSetTippingVault. If unset (address(0)), claimToTip reverts.
+    address public tippingVault;
+
+    // ==================================================================================
     // EVENTS
     // ==================================================================================
 
@@ -439,6 +454,17 @@ contract PizzaStakingV1Upgradeable is
     /// @notice Emitted when a FID-to-wallet mapping is removed
     event FidWalletRemoved(uint256 indexed fid, address indexed wallet);
 
+    /// @notice Emitted when the tipping vault address is set
+    event TippingVaultSet(address indexed vault);
+
+    /// @notice Emitted when rewards are claimed and credited to the tipping vault
+    event RewardsClaimedToTip(
+        address indexed user,
+        uint256 baseReward,
+        uint256 finalReward,
+        SpinOutcome outcome
+    );
+
     // ==================================================================================
     // ERRORS
     // ==================================================================================
@@ -457,6 +483,7 @@ contract PizzaStakingV1Upgradeable is
     error FidNotVerified();
     error WalletAlreadyRegistered();
     error FidAlreadyRegistered();
+    error TippingVaultNotSet();
 
     // ==================================================================================
     // MODIFIERS
@@ -820,6 +847,97 @@ contract PizzaStakingV1Upgradeable is
         }
     }
 
+    /**
+     * @notice Claim rewards and route them into the user's PizzaTippingVault balance
+     * @dev Same reward math as claimAfterSpin (uses committedSpinOutcome[user]).
+     *      Instead of transferring to user's wallet, transfers to vault and credits ledger.
+     *
+     * Flow:
+     * 1. Calculate base + spin + bonuses + APY (identical to _claimAllRewards true path)
+     * 2. Pull base from contract balance
+     * 3. Pull extras from stakingRewardsWallet via safeTransferFrom
+     * 4. safeTransfer total to tippingVault
+     * 5. Call tippingVault.credit(user, finalReward) to update ledger
+     */
+    function claimToTip() external nonReentrant whenNotPaused tokenSet {
+        if (tippingVault == address(0)) revert TippingVaultNotSet();
+
+        address user = msg.sender;
+
+        // Step 1: Get BASE reward (before any modifiers)
+        uint256 baseReward = _calculateBaseReward(user);
+
+        // Step 1.5: Calculate APY reward for locked position (separate from base)
+        uint256 apyReward = _calculateApyReward(user);
+
+        // If both are zero, nothing to claim
+        if (baseReward == 0 && apyReward == 0) return;
+
+        SpinOutcome outcome = SpinOutcome.RegularSlice;
+        uint256 spunReward = baseReward; // Default: 100% of base
+
+        // Step 2: SPIN THE PIE — apply committed outcome
+        if (baseReward > 0 && spinEnabled) {
+            uint256 currentGameId = _getCurrentGameId();
+            if (lastSpinGameId[user] != currentGameId) {
+                revert AlreadySpunToday();
+            }
+
+            outcome = committedSpinOutcome[user];
+            uint256 multiplierBPS = _getSpinMultiplier(outcome);
+            spunReward = (baseReward * multiplierBPS) / BPS_DENOMINATOR;
+
+            if (outcome == SpinOutcome.Jackpot) {
+                spunReward += JACKPOT_FIXED_BONUS;
+            }
+
+            // 2nd spin if Game 100 mode
+            if (spinCountToday[user] >= 2) {
+                SpinOutcome outcome2 = committedSpinOutcome2[user];
+                uint256 multiplier2 = _getSpinMultiplier(outcome2);
+                spunReward += (baseReward * multiplier2) / BPS_DENOMINATOR;
+                if (outcome2 == SpinOutcome.Jackpot) {
+                    spunReward += JACKPOT_FIXED_BONUS;
+                }
+            }
+        }
+
+        // Step 3: ADD BONUSES (tier + lock + early)
+        uint256 bonusAmount = baseReward > 0 ? _calculateBonusAmount(user, spunReward) : 0;
+
+        // Step 4: Final reward
+        uint256 finalReward = spunReward + bonusAmount + apyReward;
+
+        // Track lifetime claimed
+        lifetimeClaimed[user] += finalReward;
+
+        // Update reward debt for BOTH positions
+        _updateAllRewardDebts(user);
+
+        // Update APY claim timestamp for locked position
+        if (lockedStakes[user].stakedAmount > 0) {
+            lastApyClaimTimestamp[user] = block.timestamp;
+        }
+
+        // Funding split:
+        // - baseReward already in this contract (from PizzaPartyV2 notifyRewardAmount)
+        // - extras (spin bonus + tier/lock/early + APY) come from stakingRewardsWallet
+        uint256 extrasFromWallet = finalReward - baseReward;
+
+        // Pull extras into THIS contract first (so we can do one transfer to vault)
+        if (extrasFromWallet > 0 && stakingRewardsWallet != address(0)) {
+            IERC20(pizzaToken).safeTransferFrom(stakingRewardsWallet, address(this), extrasFromWallet);
+        }
+
+        // Push full reward to vault, then credit ledger (push-then-credit pattern)
+        if (finalReward > 0) {
+            IERC20(pizzaToken).safeTransfer(tippingVault, finalReward);
+            ITippingVault(tippingVault).credit(user, finalReward);
+        }
+
+        emit RewardsClaimedToTip(user, baseReward, finalReward, outcome);
+    }
+
     // ==================================================================================
     // EXTERNAL FUNCTIONS - INTEGRATION (Called by PizzaPartyV2Upgradeable)
     // ==================================================================================
@@ -1078,6 +1196,15 @@ contract PizzaStakingV1Upgradeable is
      */
     function adminSetParlorManager(address _parlorManager) external onlyOwner {
         parlorManager = _parlorManager;
+    }
+
+    /**
+     * @notice Set the PizzaTippingVault address. claimToTip() routes rewards to this vault.
+     * @param _vault The vault proxy address. Pass address(0) to disable claimToTip.
+     */
+    function adminSetTippingVault(address _vault) external onlyOwner {
+        tippingVault = _vault;
+        emit TippingVaultSet(_vault);
     }
 
     // ==================================================================================

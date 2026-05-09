@@ -52,6 +52,31 @@ async function getBalance(wallet: string): Promise<bigint> {
   return BigInt(json.result)
 }
 
+// Get the native ETH balance of a wallet (used for backend signer gas alerts)
+async function getEthBalance(wallet: string): Promise<bigint> {
+  const res = await fetch(RPC_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      jsonrpc: '2.0',
+      method: 'eth_getBalance',
+      params: [wallet, 'latest'],
+      id: 1,
+    }),
+  })
+  const json = await res.json()
+  if (!json.result) return 0n
+  return BigInt(json.result)
+}
+
+// Format wei → ETH string (e.g. "0.0012")
+function formatEth(wei: bigint): string {
+  const whole = Number(wei) / 1e18
+  if (whole >= 1) return whole.toFixed(3)
+  if (whole >= 0.001) return whole.toFixed(4)
+  return whole.toFixed(6)
+}
+
 function formatPizza(wei: bigint): string {
   const whole = wei / BigInt(1e18)
   if (whole >= 1_000_000n) return `${(Number(whole) / 1e6).toFixed(1)}M`
@@ -144,11 +169,49 @@ export async function GET(request: NextRequest) {
       }
     }
 
+    // ============================================================
+    // BACKEND SIGNER GAS BALANCE ALERTS
+    // ============================================================
+    // Threshold = 0.001 ETH (~$3). Below that, top up soon.
+    const GAS_LOW_THRESHOLD = 1_000_000_000_000_000n // 0.001 ETH in wei
+    const SIGNERS: Array<{ label: string; address: string | undefined }> = [
+      { label: 'ShareAndSpin/Parlor signer', address: '0x528952ae107198011C2a1df8c05A82702D5778D6' },
+      { label: 'Tipping signer', address: process.env.BACKEND_TIPPING_SIGNER_ADDRESS },
+    ]
+
+    const gasAlerts: string[] = []
+    const gasResults: Record<string, string> = {}
+
+    for (const s of SIGNERS) {
+      if (!s.address) continue
+      try {
+        const ethBal = await getEthBalance(s.address)
+        gasResults[s.label] = `${formatEth(ethBal)} ETH`
+        if (ethBal < GAS_LOW_THRESHOLD) {
+          gasAlerts.push(`${s.label} LOW GAS: ${formatEth(ethBal)} ETH (${s.address.slice(0, 10)}...)`)
+        }
+      } catch (e) {
+        console.error(`[monitor-dumpers] gas check failed for ${s.label}:`, e)
+      }
+    }
+
+    if (gasAlerts.length > 0 && ownerToken && ownerToken.enabled) {
+      await sendNotifications({
+        tokens: [{ token: ownerToken.token, url: ownerToken.url }],
+        title: 'Backend Signer Low Gas',
+        body: `${gasAlerts.join(' | ')}. Send ETH to top up.`,
+        targetUrl: 'https://pizzaparty.com',
+        notificationId: `signer-gas-low-${Date.now()}`,
+      })
+    }
+
     return NextResponse.json({
       status: 'ok',
       alerts,
       results,
       totalRemaining: totalFormatted,
+      gasResults,
+      gasAlerts,
     })
   } catch (error) {
     console.error('Monitor dumpers error:', error)

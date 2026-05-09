@@ -17,6 +17,8 @@ import {
   PIZZA_PARTY_ABI,
 } from '@/app/lib/constants'
 import { hasEarlyAccess } from '../lib/constants/earlyAccess'
+import { canTip } from '../lib/constants/tipAccess'
+import { TipBalancePanel } from './TipBalancePanel'
 
 interface StakingPageProps {
   onBack?: () => void
@@ -1328,6 +1330,9 @@ export default function StakingPage({
                       </div>
                     </div>
 
+                    {/* Tip Balance Panel — visible only to allowlisted FIDs */}
+                    <TipBalancePanel userFid={userFid} />
+
                     {/* Wallet Balance & Total Staked */}
                     <div className="text-xs bg-gray-50 rounded-lg px-2 py-1.5 border border-gray-200 space-y-1">
                       <div className="flex justify-between items-center">
@@ -2416,7 +2421,7 @@ export default function StakingPage({
                     </div>
                   </div>
 
-                  {/* Action Buttons - WALLET (claim to wallet) or STAKE (restake with selected lock type) */}
+                  {/* Action Buttons - WALLET (claim to wallet) or STAKE (restake) or TIP (route to vault) */}
                   <div className="flex gap-2">
                     <Button
                       onClick={() => {
@@ -2455,6 +2460,27 @@ export default function StakingPage({
                         <Loader2 className="animate-spin mx-auto" size={20} />
                       ) : (
                         'STAKE'
+                      )}
+                    </Button>
+                    <Button
+                      onClick={() => {
+                        // TIP: route rewards into the user's tipping vault balance.
+                        // FID-allowlist gated: non-allowlisted users see the button but click does nothing.
+                        if (!canTip(userFid)) return
+                        writeContract({
+                          address: PIZZA_STAKING_ADDRESS as `0x${string}`,
+                          abi: PIZZA_STAKING_ABI,
+                          functionName: 'claimToTip',
+                        })
+                      }}
+                      className="flex-1 !bg-purple-500 hover:!bg-purple-600 text-white font-bold py-3 rounded-xl border-2 border-purple-700"
+                      disabled={isWritePending || isConfirming || isBanned}
+                      style={{ fontFamily: 'var(--font-luckiest-guy)' }}
+                    >
+                      {isWritePending || isConfirming ? (
+                        <Loader2 className="animate-spin mx-auto" size={20} />
+                      ) : (
+                        'TIP'
                       )}
                     </Button>
                   </div>
@@ -2585,7 +2611,7 @@ export default function StakingPage({
                     </div>
                   </div>
 
-                  {/* Action Buttons - WALLET (claim to wallet) or STAKE (restake with selected lock type) */}
+                  {/* Action Buttons - WALLET (claim to wallet) or STAKE (restake) or TIP (route to vault) */}
                   <div className="flex gap-2">
                     <Button
                       onClick={() => {
@@ -2624,6 +2650,27 @@ export default function StakingPage({
                         <Loader2 className="animate-spin mx-auto" size={20} />
                       ) : (
                         'STAKE'
+                      )}
+                    </Button>
+                    <Button
+                      onClick={() => {
+                        // TIP: route rewards into the user's tipping vault balance.
+                        // FID-allowlist gated: non-allowlisted users see the button but click does nothing.
+                        if (!canTip(userFid)) return
+                        writeContract({
+                          address: PIZZA_STAKING_ADDRESS as `0x${string}`,
+                          abi: PIZZA_STAKING_ABI,
+                          functionName: 'claimToTip',
+                        })
+                      }}
+                      className="flex-1 !bg-purple-500 hover:!bg-purple-600 text-white font-bold py-3 rounded-xl border-2 border-purple-700"
+                      disabled={isWritePending || isConfirming || isBanned}
+                      style={{ fontFamily: 'var(--font-luckiest-guy)' }}
+                    >
+                      {isWritePending || isConfirming ? (
+                        <Loader2 className="animate-spin mx-auto" size={20} />
+                      ) : (
+                        'TIP'
                       )}
                     </Button>
                   </div>
