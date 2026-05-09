@@ -249,6 +249,15 @@ export async function POST(req: NextRequest) {
       account: walletClient.account,
     });
 
+    // Fetch nonce from PENDING (not latest) so back-to-back txs from the
+    // same signer don't collide on the same nonce. Default viem behavior
+    // uses latest, which causes nonce-race when multiple tips fire close
+    // together (e.g., the cron processing 2 casts in the same run).
+    const pendingNonce = await tippingPublicClient.getTransactionCount({
+      address: walletClient.account.address,
+      blockTag: 'pending',
+    });
+
     txHash = await walletClient.writeContract({
       address: vault,
       abi: PIZZA_TIPPING_VAULT_ABI,
@@ -261,6 +270,7 @@ export async function POST(req: NextRequest) {
         castHashBytes32,
       ],
       gas: 250_000n,
+      nonce: pendingNonce,
     });
   } catch (err) {
     const msg = err instanceof Error ? err.message : 'unknown';

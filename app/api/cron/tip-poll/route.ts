@@ -172,7 +172,11 @@ export async function GET(request: NextRequest) {
       const recipient = await fetchUserByFid(toFid);
       if (!recipient?.wallet) continue;
 
-      // Hand off to /api/tip/execute (which runs all 11 gates again)
+      // Hand off to /api/tip/execute (which runs all 11 gates again).
+      // After it returns, sleep briefly to let the tx propagate before the
+      // NEXT cast — this avoids same-nonce collisions when the cron processes
+      // multiple casts back-to-back. Belt-and-suspenders: /api/tip/execute
+      // also reads pending nonce explicitly.
       summary.executeAttempts++;
       try {
         const execRes = await fetch(executeUrl, {
@@ -199,6 +203,9 @@ export async function GET(request: NextRequest) {
         if (execJson?.ok) summary.executeOk++;
         else if (execJson?.reason) summary.executeRejected++;
         else summary.executeError++;
+        // Pause 3s before next cast — gives the just-broadcast tx time to
+        // be picked up by RPC's pending pool, so the next nonce read is correct.
+        await new Promise((r) => setTimeout(r, 3000));
       } catch (e) {
         summary.executeError++;
         summary.errors.push(`execute cast=${cast.hash.slice(0, 10)}: ${e instanceof Error ? e.message : 'unknown'}`);
