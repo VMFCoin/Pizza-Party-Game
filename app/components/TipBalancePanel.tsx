@@ -130,10 +130,6 @@ export function TipBalancePanel({ userFid }: Props) {
     })
   }
 
-  const handleWithdrawAll = () => {
-    setWithdrawAmount(balanceWhole.toString())
-  }
-
   return (
     <div className="bg-gradient-to-br from-purple-100 to-pink-100 border-4 border-purple-400 rounded-xl p-3 my-3 shadow-md">
       <div className="flex justify-between items-center mb-2">
@@ -176,27 +172,19 @@ export function TipBalancePanel({ userFid }: Props) {
       )}
 
       {balanceWhole > 0n && (
-        <div className="flex gap-2">
+        <div className="flex gap-2 items-center">
           <input
             type="text"
             inputMode="numeric"
             placeholder="Amount to withdraw"
             value={withdrawAmount}
             onChange={(e) => setWithdrawAmount(e.target.value.replace(/[^\d]/g, ''))}
-            className="flex-1 px-2 py-1 rounded border border-purple-300 text-sm"
+            className="flex-1 min-w-0 px-2 py-1 rounded border border-purple-300 text-sm"
             disabled={isPending || isConfirming}
           />
           <Button
-            onClick={handleWithdrawAll}
-            className="!bg-purple-300 hover:!bg-purple-400 text-purple-900 text-xs px-2"
-            disabled={isPending || isConfirming}
-            style={{ fontFamily: 'var(--font-luckiest-guy)' }}
-          >
-            MAX
-          </Button>
-          <Button
             onClick={handleWithdraw}
-            className="!bg-purple-600 hover:!bg-purple-700 text-white text-xs px-3"
+            className="flex-shrink-0 !bg-purple-600 hover:!bg-purple-700 text-white text-xs px-3"
             disabled={isPending || isConfirming || !withdrawAmount}
             style={{ fontFamily: 'var(--font-luckiest-guy)' }}
           >
@@ -208,7 +196,6 @@ export function TipBalancePanel({ userFid }: Props) {
           </Button>
         </div>
       )}
-
       {loading && balanceWhole > 0n && (
         <p className="text-purple-600 text-[10px] mt-1"
            style={{ fontFamily: 'var(--font-luckiest-guy)' }}>
