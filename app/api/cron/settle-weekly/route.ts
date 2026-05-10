@@ -235,14 +235,64 @@ export async function GET(request: NextRequest) {
       return NextResponse.json(result);
     }
 
-    // Get weekly game data, toppingUnitPizza value, treasury bonus, and PIZZA price
-    const [weeklyGame, toppingUnitPizzaRaw, treasuryBonusRaw, pizzaPrice] = await Promise.all([
+    // Get weekly game data and current PIZZA price.
+    // toppingUnitPizza and weeklyTreasuryBonus will be refreshed below before settlement.
+    const [weeklyGame, pizzaPrice] = await Promise.all([
       publicClient.readContract({
         address: CONTRACT_ADDRESS,
         abi: SETTLE_ABI,
         functionName: 'weeklyGames',
         args: [weeklyGameId],
       }),
+      getPizzaPrice(),
+    ]);
+
+    const totalClaimedToppings = weeklyGame[2];
+
+    // CRITICAL: Update toppingUnitPizza and weeklyTreasuryBonus to CURRENT price BEFORE settling.
+    // The contract pays out jackpot = totalClaimedToppings * toppingUnitPizza + weeklyTreasuryBonus
+    // in PIZZA tokens. If these values were set when PIZZA price was higher, the PIZZA paid out
+    // will be worth less USD than the displayed $20 + ($0.10 per topping).
+    // Refreshing both right before settlement ensures the full USD-equivalent jackpot is paid.
+    if (pizzaPrice > 0) {
+      const TARGET_USD = 20;
+      const TOPPING_USD = 0.10;
+      const bonusPizza = TARGET_USD / pizzaPrice;
+      const newBonusWei = BigInt(Math.floor(bonusPizza * 1e18));
+      const toppingPizza = TOPPING_USD / pizzaPrice;
+      const newToppingWei = BigInt(Math.floor(toppingPizza * 1e18));
+
+      console.log(`[Weekly Settle] Pre-settle refresh: toppingUnit=${toppingPizza.toFixed(2)} PIZZA ($0.10), treasuryBonus=${bonusPizza.toFixed(2)} PIZZA ($20) at $${pizzaPrice}`);
+
+      try {
+        const toppingHash = await walletClient.writeContract({
+          address: CONTRACT_ADDRESS,
+          abi: SETTLE_ABI,
+          functionName: 'setToppingUnitPizza',
+          args: [newToppingWei],
+          gas: 100_000n,
+        });
+        await publicClient.waitForTransactionReceipt({ hash: toppingHash });
+        console.log(`[Weekly Settle] Pre-settle toppingUnitPizza set: ${toppingHash}`);
+
+        const bonusHash = await walletClient.writeContract({
+          address: CONTRACT_ADDRESS,
+          abi: SETTLE_ABI,
+          functionName: 'setWeeklyTreasuryBonus',
+          args: [newBonusWei],
+          gas: 100_000n,
+        });
+        await publicClient.waitForTransactionReceipt({ hash: bonusHash });
+        console.log(`[Weekly Settle] Pre-settle treasuryBonus set: ${bonusHash}`);
+      } catch (preSetErr) {
+        console.error(`[Weekly Settle] CRITICAL: Pre-settle refresh failed:`, preSetErr);
+      }
+    } else {
+      console.error(`[Weekly Settle] CRITICAL: No price available, settling with stale on-chain values`);
+    }
+
+    // Re-read the (now refreshed) values for the USD snapshot calculation
+    const [toppingUnitPizzaFresh, treasuryBonusFresh] = await Promise.all([
       publicClient.readContract({
         address: CONTRACT_ADDRESS,
         abi: SETTLE_ABI,
@@ -253,12 +303,10 @@ export async function GET(request: NextRequest) {
         abi: SETTLE_ABI,
         functionName: 'weeklyTreasuryBonus',
       }),
-      getPizzaPrice(),
     ]);
 
-    const totalClaimedToppings = weeklyGame[2];
-    const toppingUnitPizza = parseFloat(formatUnits(toppingUnitPizzaRaw, 18));
-    const treasuryBonus = parseFloat(formatUnits(treasuryBonusRaw, 18));
+    const toppingUnitPizza = parseFloat(formatUnits(toppingUnitPizzaFresh, 18));
+    const treasuryBonus = parseFloat(formatUnits(treasuryBonusFresh, 18));
 
     // Weekly jackpot = totalClaimedToppings * toppingUnitPizza ($0.10 per topping) + treasuryBonus
     const jackpotPizza = Number(totalClaimedToppings) * toppingUnitPizza + treasuryBonus;
