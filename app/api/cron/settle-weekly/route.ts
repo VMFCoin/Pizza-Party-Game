@@ -254,15 +254,23 @@ export async function GET(request: NextRequest) {
     // in PIZZA tokens. If these values were set when PIZZA price was higher, the PIZZA paid out
     // will be worth less USD than the displayed $20 + ($0.10 per topping).
     // Refreshing both right before settlement ensures the full USD-equivalent jackpot is paid.
+    //
+    // IMPORTANT: After the setters succeed, do NOT re-read on-chain state — RPC nodes can
+    // return stale values immediately after a tx is mined, causing the USD snapshot to be
+    // computed from old values (this caused weekly 21 to settle at $0.21/winner instead of $3.58).
+    // Use the local variables we just set; they are authoritative.
+    let toppingUnitPizza = 0;
+    let treasuryBonus = 0;
+
     if (pizzaPrice > 0) {
       const TARGET_USD = 20;
       const TOPPING_USD = 0.10;
-      const bonusPizza = TARGET_USD / pizzaPrice;
-      const newBonusWei = BigInt(Math.floor(bonusPizza * 1e18));
-      const toppingPizza = TOPPING_USD / pizzaPrice;
-      const newToppingWei = BigInt(Math.floor(toppingPizza * 1e18));
+      toppingUnitPizza = TOPPING_USD / pizzaPrice;
+      treasuryBonus = TARGET_USD / pizzaPrice;
+      const newToppingWei = BigInt(Math.floor(toppingUnitPizza * 1e18));
+      const newBonusWei = BigInt(Math.floor(treasuryBonus * 1e18));
 
-      console.log(`[Weekly Settle] Pre-settle refresh: toppingUnit=${toppingPizza.toFixed(2)} PIZZA ($0.10), treasuryBonus=${bonusPizza.toFixed(2)} PIZZA ($20) at $${pizzaPrice}`);
+      console.log(`[Weekly Settle] Pre-settle refresh: toppingUnit=${toppingUnitPizza.toFixed(2)} PIZZA ($0.10), treasuryBonus=${treasuryBonus.toFixed(2)} PIZZA ($20) at $${pizzaPrice}`);
 
       try {
         const toppingHash = await walletClient.writeContract({
@@ -286,27 +294,39 @@ export async function GET(request: NextRequest) {
         console.log(`[Weekly Settle] Pre-settle treasuryBonus set: ${bonusHash}`);
       } catch (preSetErr) {
         console.error(`[Weekly Settle] CRITICAL: Pre-settle refresh failed:`, preSetErr);
+        // If setters fell back, read on-chain to get whatever values will actually be used
+        const [tppFallback, bonusFallback] = await Promise.all([
+          publicClient.readContract({
+            address: CONTRACT_ADDRESS,
+            abi: SETTLE_ABI,
+            functionName: 'toppingUnitPizza',
+          }),
+          publicClient.readContract({
+            address: CONTRACT_ADDRESS,
+            abi: SETTLE_ABI,
+            functionName: 'weeklyTreasuryBonus',
+          }),
+        ]);
+        toppingUnitPizza = parseFloat(formatUnits(tppFallback, 18));
+        treasuryBonus = parseFloat(formatUnits(bonusFallback, 18));
       }
     } else {
-      console.error(`[Weekly Settle] CRITICAL: No price available, settling with stale on-chain values`);
+      console.error(`[Weekly Settle] CRITICAL: No price available, reading existing on-chain values`);
+      const [tppFallback, bonusFallback] = await Promise.all([
+        publicClient.readContract({
+          address: CONTRACT_ADDRESS,
+          abi: SETTLE_ABI,
+          functionName: 'toppingUnitPizza',
+        }),
+        publicClient.readContract({
+          address: CONTRACT_ADDRESS,
+          abi: SETTLE_ABI,
+          functionName: 'weeklyTreasuryBonus',
+        }),
+      ]);
+      toppingUnitPizza = parseFloat(formatUnits(tppFallback, 18));
+      treasuryBonus = parseFloat(formatUnits(bonusFallback, 18));
     }
-
-    // Re-read the (now refreshed) values for the USD snapshot calculation
-    const [toppingUnitPizzaFresh, treasuryBonusFresh] = await Promise.all([
-      publicClient.readContract({
-        address: CONTRACT_ADDRESS,
-        abi: SETTLE_ABI,
-        functionName: 'toppingUnitPizza',
-      }),
-      publicClient.readContract({
-        address: CONTRACT_ADDRESS,
-        abi: SETTLE_ABI,
-        functionName: 'weeklyTreasuryBonus',
-      }),
-    ]);
-
-    const toppingUnitPizza = parseFloat(formatUnits(toppingUnitPizzaFresh, 18));
-    const treasuryBonus = parseFloat(formatUnits(treasuryBonusFresh, 18));
 
     // Weekly jackpot = totalClaimedToppings * toppingUnitPizza ($0.10 per topping) + treasuryBonus
     const jackpotPizza = Number(totalClaimedToppings) * toppingUnitPizza + treasuryBonus;
