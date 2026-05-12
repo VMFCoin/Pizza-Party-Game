@@ -68,6 +68,10 @@ contract ShareAndSpinUpgradeable is OwnableUpgradeable, UUPSUpgradeable, Reentra
     // Backend signer — dedicated EOA that calls reward functions on behalf of players
     address public backendSigner;
 
+    // Free slice expiration — daily gameId at which the slice was earned
+    // Valid for that game and the next game only (48 hr window)
+    mapping(address => uint256) public freeSliceGameId;
+
     // ============ Events ============
 
     event ShareRecorded(
@@ -227,6 +231,7 @@ contract ShareAndSpinUpgradeable is OwnableUpgradeable, UUPSUpgradeable, Reentra
 
         if (result == ShareSpinOutcome.FreeSlice || result == ShareSpinOutcome.Gold) {
             hasFreeSlice[player] = true;
+            freeSliceGameId[player] = currentGameId;
         }
 
         emit ShareSpinRecorded(player, currentGameId, weekId, outcome, castHashBytes32);
@@ -235,24 +240,30 @@ contract ShareAndSpinUpgradeable is OwnableUpgradeable, UUPSUpgradeable, Reentra
     function claimFreeSlice(address player, uint256 entryFee) external nonReentrant whenNotPaused {
         require(msg.sender == backendSigner, "unauthorized");
         require(hasFreeSlice[player], "no free slice");
+        _requireSliceNotExpired(player);
         _validateEntryFee(entryFee);
         hasFreeSlice[player] = false;
+        freeSliceGameId[player] = 0;
         pizzaParty.enterDailyFromShareAndSpin(player, entryFee);
     }
 
     function saveFreeSlice(address player) external nonReentrant whenNotPaused {
         require(msg.sender == backendSigner, "unauthorized");
         require(hasFreeSlice[player], "no free slice");
+        _requireSliceNotExpired(player);
         hasFreeSlice[player] = false;
         pendingFreeSlice[player] = true;
+        // freeSliceGameId stays set so pending slice inherits the same expiry
         emit FreeSliceSaved(player, block.timestamp);
     }
 
     function claimPendingSlice(address player, uint256 entryFee) external nonReentrant whenNotPaused {
         require(msg.sender == backendSigner, "unauthorized");
         require(pendingFreeSlice[player], "No pending slice");
+        _requireSliceNotExpired(player);
         _validateEntryFee(entryFee);
         pendingFreeSlice[player] = false;
+        freeSliceGameId[player] = 0;
         pizzaParty.enterDailyFromShareAndSpin(player, entryFee);
         emit PendingSliceClaimed(player, pizzaParty.dailyGameId(), entryFee);
     }
@@ -262,10 +273,20 @@ contract ShareAndSpinUpgradeable is OwnableUpgradeable, UUPSUpgradeable, Reentra
         require(recipient != address(0), "0");
         require(recipient != player, "self");
         require(hasFreeSlice[player], "no free slice");
+        _requireSliceNotExpired(player);
         _validateEntryFee(entryFee);
         hasFreeSlice[player] = false;
+        freeSliceGameId[player] = 0;
         pizzaParty.enterDailyFromShareAndSpin(recipient, entryFee);
         emit FreeSliceGifted(player, recipient, pizzaParty.dailyGameId(), entryFee);
+    }
+
+    // 48-hour window: slice valid for the gameId it was earned, plus the next game.
+    // Once dailyGameId advances 2 past the earned gameId, the slice is expired.
+    function _requireSliceNotExpired(address player) internal view {
+        uint256 earnedAt = freeSliceGameId[player];
+        require(earnedAt > 0, "no slice gameId");
+        require(pizzaParty.dailyGameId() <= earnedAt + 1, "slice expired");
     }
 
     function _validateEntryFee(uint256 entryFee) internal view {

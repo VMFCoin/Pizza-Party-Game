@@ -682,6 +682,7 @@ contract ShareAndSpinTest is Test {
         vm.prank(TREAS);
         pizza.approve(PP, type(uint256).max);
 
+        _grantFreeSlice(p1);
         uint256 potBefore = game.currentDailyPot();
 
         vm.prank(signer);
@@ -699,6 +700,7 @@ contract ShareAndSpinTest is Test {
         vm.prank(TREAS);
         pizza.approve(PP, type(uint256).max);
 
+        _grantFreeSlice(p1);
         vm.prank(signer);
         sns.claimFreeSlice(p1, entryFee);
 
@@ -711,6 +713,7 @@ contract ShareAndSpinTest is Test {
         vm.prank(TREAS);
         pizza.approve(PP, type(uint256).max);
 
+        _grantFreeSlice(p1);
         vm.prank(signer);
         sns.claimFreeSlice(p1, entryFee);
 
@@ -730,6 +733,7 @@ contract ShareAndSpinTest is Test {
         vm.prank(TREAS);
         pizza.approve(PP, type(uint256).max);
 
+        _grantFreeSlice(p1);
         uint256 treasBefore = pizza.balanceOf(TREAS);
 
         vm.prank(signer);
@@ -744,6 +748,7 @@ contract ShareAndSpinTest is Test {
     // ══════════════════════════════════════════════════════════
 
     function test_Save_SetsPending() public {
+        _grantFreeSlice(p1);
         vm.prank(signer);
         sns.saveFreeSlice(p1);
         assertTrue(sns.pendingFreeSlice(p1));
@@ -754,12 +759,15 @@ contract ShareAndSpinTest is Test {
     }
 
     function test_Save_MultipleCallsIdempotent() public {
+        _grantFreeSlice(p1);
         vm.prank(signer); sns.saveFreeSlice(p1);
+        _grantFreeSlice(p1);
         vm.prank(signer); sns.saveFreeSlice(p1);
         assertTrue(sns.pendingFreeSlice(p1));
     }
 
     function test_Save_IndependentPerPlayer() public {
+        _grantFreeSlice(p1);
         vm.prank(signer); sns.saveFreeSlice(p1);
         assertFalse(sns.pendingFreeSlice(p2));
         assertTrue(sns.pendingFreeSlice(p1));
@@ -978,5 +986,90 @@ contract ShareAndSpinTest is Test {
         _advanceDay();
         vm.prank(signer); sns.recordShare(p, REWARD);
         _advanceDay();
+    }
+
+    /// @dev Share + spin with different addresses until one gets a Free Slice,
+    ///      then give that free slice to the target player via direct storage write.
+    function _grantFreeSlice(address p) internal {
+        // hasFreeSlice (slot 11) = true
+        bytes32 slot11 = keccak256(abi.encode(p, uint256(11)));
+        vm.store(address(sns), slot11, bytes32(uint256(1)));
+        assertTrue(sns.hasFreeSlice(p), "hasFreeSlice should be true");
+
+        // freeSliceGameId (slot 14) = current game id (so expiry checks pass for current+next)
+        bytes32 slot14 = keccak256(abi.encode(p, uint256(14)));
+        uint256 currentId = game.dailyGameId();
+        vm.store(address(sns), slot14, bytes32(currentId));
+    }
+
+    // ══════════════════════════════════════════════════════════
+    // FREE SLICE EXPIRATION (48-hour window: current + next game)
+    // ══════════════════════════════════════════════════════════
+
+    function test_Expiry_ClaimWorksSameGame() public {
+        _grantFreeSlice(p1);
+        vm.prank(TREAS); pizza.approve(PP, type(uint256).max);
+        vm.prank(signer);
+        sns.claimFreeSlice(p1, 1_000_000 * 1e18);
+    }
+
+    function test_Expiry_ClaimWorksNextGame() public {
+        _grantFreeSlice(p1);
+        _advanceDay(); // gameId + 1
+        vm.prank(TREAS); pizza.approve(PP, type(uint256).max);
+        vm.prank(signer);
+        sns.claimFreeSlice(p1, 1_000_000 * 1e18);
+    }
+
+    function test_Expiry_ClaimRevertsAfterTwoGames() public {
+        _grantFreeSlice(p1);
+        _advanceDay(); _advanceDay(); // gameId + 2 = expired
+        vm.prank(TREAS); pizza.approve(PP, type(uint256).max);
+        vm.prank(signer);
+        vm.expectRevert(bytes("slice expired"));
+        sns.claimFreeSlice(p1, 1_000_000 * 1e18);
+    }
+
+    function test_Expiry_SaveRevertsAfterTwoGames() public {
+        _grantFreeSlice(p1);
+        _advanceDay(); _advanceDay();
+        vm.prank(signer);
+        vm.expectRevert(bytes("slice expired"));
+        sns.saveFreeSlice(p1);
+    }
+
+    function test_Expiry_ClaimPendingRevertsAfterTwoGames() public {
+        _grantFreeSlice(p1);
+        vm.prank(signer); sns.saveFreeSlice(p1);
+        _advanceDay(); _advanceDay();
+        vm.prank(TREAS); pizza.approve(PP, type(uint256).max);
+        vm.prank(signer);
+        vm.expectRevert(bytes("slice expired"));
+        sns.claimPendingSlice(p1, 1_000_000 * 1e18);
+    }
+
+    function test_Expiry_ClaimPendingWorksNextGame() public {
+        _grantFreeSlice(p1);
+        vm.prank(signer); sns.saveFreeSlice(p1);
+        _advanceDay(); // gameId + 1
+        vm.prank(TREAS); pizza.approve(PP, type(uint256).max);
+        vm.prank(signer);
+        sns.claimPendingSlice(p1, 1_000_000 * 1e18);
+    }
+
+    function test_Expiry_ClaimClearsExpiry() public {
+        _grantFreeSlice(p1);
+        vm.prank(TREAS); pizza.approve(PP, type(uint256).max);
+        vm.prank(signer);
+        sns.claimFreeSlice(p1, 1_000_000 * 1e18);
+        assertEq(sns.freeSliceGameId(p1), 0, "freeSliceGameId should be cleared after claim");
+    }
+
+    function test_Expiry_PendingSliceInheritsExpiry() public {
+        _grantFreeSlice(p1);
+        uint256 originalGameId = game.dailyGameId();
+        vm.prank(signer); sns.saveFreeSlice(p1);
+        // Saved slice should still have the original game id, not the new game id
+        assertEq(sns.freeSliceGameId(p1), originalGameId, "saved slice keeps original gameId");
     }
 }
