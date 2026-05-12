@@ -19,6 +19,22 @@ interface DexScreenerResponse {
   pairs: DexScreenerPair[] | null
 }
 
+// Pick the Base pair that best reflects live price discovery.
+// Highest 24h volume first — falls back to highest liquidity only when every
+// pair has zero volume. A high-TVL pool with no trading is a stale quote and
+// caused entry fees to settle at ~1/2.5x of the true price (see git log).
+function selectBestPair(pairs: DexScreenerPair[]): DexScreenerPair | undefined {
+  const basePairs = pairs.filter(p => p.chainId === 'base' && parseFloat(p.priceUsd) > 0)
+  if (basePairs.length === 0) return undefined
+
+  const withVolume = basePairs.filter(p => (p.volume?.h24 ?? 0) > 0)
+  if (withVolume.length > 0) {
+    return withVolume.sort((a, b) => (b.volume?.h24 ?? 0) - (a.volume?.h24 ?? 0))[0]
+  }
+
+  return basePairs.sort((a, b) => (b.liquidity?.usd ?? 0) - (a.liquidity?.usd ?? 0))[0]
+}
+
 export async function GET() {
   try {
     const response = await fetch(DEXSCREENER_API, {
@@ -35,11 +51,7 @@ export async function GET() {
 
     const data: DexScreenerResponse = await response.json()
 
-    // Find the Base chain pair with highest liquidity
-    const basePairs = data.pairs?.filter(p => p.chainId === 'base') || []
-    const bestPair = basePairs.sort((a, b) =>
-      (b.liquidity?.usd || 0) - (a.liquidity?.usd || 0)
-    )[0]
+    const bestPair = selectBestPair(data.pairs ?? [])
 
     if (!bestPair || !bestPair.priceUsd) {
       throw new Error('No PIZZA pairs found on Base')

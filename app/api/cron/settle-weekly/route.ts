@@ -89,7 +89,10 @@ const SETTLE_ABI = [
   },
 ] as const;
 
-// Fetch price from Dexscreener
+// Fetch price from Dexscreener.
+// Pick the Base pair with the most 24h volume — falls back to highest liquidity
+// only when every pair shows zero volume. A high-TVL pool with no trading is a
+// stale quote and was producing ~1/2.5x of the true price.
 async function fetchDexscreenerPrice(): Promise<number> {
   const response = await fetch(
     `https://api.dexscreener.com/latest/dex/tokens/${PIZZA_TOKEN_ADDRESS}`,
@@ -97,10 +100,28 @@ async function fetchDexscreenerPrice(): Promise<number> {
   );
   if (!response.ok) throw new Error(`Dexscreener returned ${response.status}`);
   const data = await response.json();
-  if (data.pairs && data.pairs.length > 0) {
-    const price = parseFloat(data.pairs[0].priceUsd);
-    if (price > 0) return price;
-  }
+  const pairs = Array.isArray(data?.pairs) ? data.pairs : [];
+  const basePairs = pairs.filter(
+    (p: { chainId?: string; priceUsd?: string }) =>
+      p.chainId === 'base' && parseFloat(p.priceUsd ?? '0') > 0
+  );
+  if (basePairs.length === 0) throw new Error('No valid price from Dexscreener');
+
+  const withVolume = basePairs.filter(
+    (p: { volume?: { h24?: number } }) => (p.volume?.h24 ?? 0) > 0
+  );
+  const ranked = (withVolume.length > 0 ? withVolume : basePairs).sort(
+    (
+      a: { volume?: { h24?: number }; liquidity?: { usd?: number } },
+      b: { volume?: { h24?: number }; liquidity?: { usd?: number } }
+    ) =>
+      withVolume.length > 0
+        ? (b.volume?.h24 ?? 0) - (a.volume?.h24 ?? 0)
+        : (b.liquidity?.usd ?? 0) - (a.liquidity?.usd ?? 0)
+  );
+
+  const price = parseFloat(ranked[0].priceUsd);
+  if (price > 0) return price;
   throw new Error('No valid price from Dexscreener');
 }
 
