@@ -990,8 +990,23 @@ export function useGamePageData() {
         console.error('Slice verification failed:', verifyErr)
       }
 
+      // Fetch live price right before claim so the treasury-paid entry uses the
+      // current market value, not a stale localStorage cache.
+      let pricePerDollarUsd = pizzaUsdPrice
+      try {
+        const priceRes = await fetch('/api/price', { cache: 'no-store' })
+        const priceData = await priceRes.json()
+        if (priceData?.success && typeof priceData.priceUsd === 'number' && priceData.priceUsd > 0) {
+          pricePerDollarUsd = priceData.priceUsd
+          setPizzaUsdPrice(pricePerDollarUsd)
+          localStorage.setItem('pizzaUsdPrice', pricePerDollarUsd.toString())
+        }
+      } catch (priceErr) {
+        console.warn('Live price fetch failed before slice claim, using cached:', priceErr)
+      }
+
       // Calculate $1 worth of PIZZA for the entry fee (treasury pays)
-      const pizzaPerDollar = 1 / pizzaUsdPrice
+      const pizzaPerDollar = 1 / pricePerDollarUsd
       const entryFeeAmount = BigInt(Math.floor(pizzaPerDollar * 1e18))
 
       console.log('Claiming free slice with entry fee:', (Number(entryFeeAmount) / 1e18).toFixed(4), 'PIZZA')
@@ -1043,17 +1058,41 @@ export function useGamePageData() {
       return
     }
 
+    // Fetch live PIZZA/USD price right now so the signed amount reflects current
+    // market price, not a stale localStorage cache. The memoized entryFeeWei may
+    // be based on an outdated reading from page load (was producing 3M-PIZZA
+    // approvals after the Dexscreener pool-selection bug was deployed).
+    let liveEntryFeeWei = entryFeeWei
+    try {
+      const priceRes = await fetch('/api/price', { cache: 'no-store' })
+      const priceData = await priceRes.json()
+      if (priceData?.success && typeof priceData.priceUsd === 'number' && priceData.priceUsd > 0) {
+        const livePrice = priceData.priceUsd
+        setPizzaUsdPrice(livePrice)
+        localStorage.setItem('pizzaUsdPrice', livePrice.toString())
+        const pizzaPerDollar = 1 / livePrice
+        const computed = BigInt(Math.floor(pizzaPerDollar * Number(WEI_PER_PIZZA)))
+        const minFee = GAME_CONSTANTS.MIN_ENTRY_FEE_WEI
+        const maxFee = GAME_CONSTANTS.MAX_ENTRY_FEE_WEI
+        liveEntryFeeWei = computed < minFee ? minFee : computed > maxFee ? maxFee : computed
+        console.log('✅ Live price fetched before signing:', `$${livePrice}`, 'entry =', (Number(liveEntryFeeWei) / 1e18).toFixed(2), 'PIZZA')
+      } else {
+        console.warn('Live price fetch returned invalid data, using cached entryFeeWei')
+      }
+    } catch (priceErr) {
+      console.warn('Live price fetch failed before signing, using cached entryFeeWei:', priceErr)
+    }
+
     // Pre-flight checks
     console.log('=== DAILY ENTRY TRANSACTION DEBUG ===')
     console.log('Wallet address:', wallet.address)
     console.log('PIZZA Balance (raw wei):', pizzaBalance.toString())
-    console.log('Entry Fee (raw wei):', entryFeeWei.toString())
-    console.log('Has Enough PIZZA:', hasEnoughPizza)
+    console.log('Entry Fee (raw wei):', liveEntryFeeWei.toString())
     console.log('Has Entered Today:', hasEnteredToday)
     console.log('=====================================')
 
-    if (!hasEnoughPizza) {
-      alert(`You need at least ${(Number(entryFeeWei) / 1e18).toFixed(2)} PIZZA to play. You have ${(Number(pizzaBalance) / 1e18).toFixed(2)} PIZZA.`)
+    if (pizzaBalance < liveEntryFeeWei) {
+      alert(`You need at least ${(Number(liveEntryFeeWei) / 1e18).toFixed(2)} PIZZA to play. You have ${(Number(pizzaBalance) / 1e18).toFixed(2)} PIZZA.`)
       return
     }
 
@@ -1122,16 +1161,16 @@ export function useGamePageData() {
       }) as bigint
 
       console.log('Current allowance:', currentAllowance.toString())
-      console.log('Required:', entryFeeWei.toString())
+      console.log('Required:', liveEntryFeeWei.toString())
 
       // Step 1: Approve if needed
-      if (currentAllowance < entryFeeWei) {
+      if (currentAllowance < liveEntryFeeWei) {
         console.log('=== STEP 1: APPROVE ===')
         await writeContract({
           address: PIZZA_TOKEN_ADDRESS as `0x${string}`,
           abi: PIZZA_TOKEN_ABI,
           functionName: 'approve',
-          args: [PIZZA_PARTY_ADDRESS as `0x${string}`, entryFeeWei],
+          args: [PIZZA_PARTY_ADDRESS as `0x${string}`, liveEntryFeeWei],
         })
         console.log('Approval transaction sent, waiting 3 seconds...')
         // Wait a bit for approval to confirm
@@ -1144,7 +1183,7 @@ export function useGamePageData() {
         address: PIZZA_PARTY_ADDRESS as `0x${string}`,
         abi: PIZZA_PARTY_ABI,
         functionName: 'enterDailyGame',
-        args: [entryFeeWei, ''],
+        args: [liveEntryFeeWei, ''],
       })
 
       return result
@@ -1168,7 +1207,7 @@ export function useGamePageData() {
       console.log('=== PERMIT SIGNING ===')
       console.log('Nonce:', nonce.toString())
       console.log('Deadline:', deadline.toString())
-      console.log('Amount:', entryFeeWei.toString())
+      console.log('Amount:', liveEntryFeeWei.toString())
 
       // 3. Sign EIP-712 typed data for permit (using wagmi hook for proper connector handling)
       let signature: string
@@ -1193,7 +1232,7 @@ export function useGamePageData() {
           message: {
             owner: wallet.address as `0x${string}`,
             spender: PIZZA_PARTY_ADDRESS as `0x${string}`,
-            value: entryFeeWei,
+            value: liveEntryFeeWei,
             nonce,
             deadline,
           },
@@ -1235,7 +1274,7 @@ export function useGamePageData() {
           address: PIZZA_PARTY_ADDRESS as `0x${string}`,
           abi: PIZZA_PARTY_ABI,
           functionName: 'enterDailyGameWithPermit',
-          args: [entryFeeWei, '', deadline, v, r, s],
+          args: [liveEntryFeeWei, '', deadline, v, r, s],
         })
         console.log('✅ Transaction sent successfully:', result)
       } catch (permitTxErr) {
