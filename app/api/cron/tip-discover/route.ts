@@ -18,7 +18,9 @@ import { parseTipCast } from '@/app/lib/tipping/parseTipCast';
 export const maxDuration = 60;
 
 const NEYNAR_API_KEY = process.env.NEYNAR_API_KEY || process.env.NEXT_PUBLIC_NEYNAR_API_KEY || '';
-const MAX_CAST_AGE_MS = 24 * 60 * 60 * 1000;
+// 30 days — replay protection is enforced on-chain (usedCastHashes mapping)
+// and in DB (unique castHash). Age limit just bounds the search window.
+const MAX_CAST_AGE_MS = 30 * 24 * 60 * 60 * 1000;
 const MIN_TIP_WEI = 1_000n * 10n ** 18n;
 const MAX_TIP_WEI = 10_000_000n * 10n ** 18n;
 

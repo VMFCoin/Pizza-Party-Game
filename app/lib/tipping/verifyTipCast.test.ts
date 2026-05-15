@@ -30,8 +30,8 @@ const NON_ALLOWLISTED_FID = 99999999;
 const RECIPIENT_FID = 5650;
 
 const NOW_ISO = () => new Date().toISOString();
-// 25 hours ago — past the 24h age limit
-const OLD_ISO = () => new Date(Date.now() - 25 * 60 * 60 * 1000).toISOString();
+// 31 days ago — past the 30d age limit
+const OLD_ISO = () => new Date(Date.now() - 31 * 24 * 60 * 60 * 1000).toISOString();
 // 5 minutes in the future — past the 60s clock skew tolerance
 const FUTURE_ISO = () => new Date(Date.now() + 5 * 60 * 1000).toISOString();
 

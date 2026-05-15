@@ -249,7 +249,8 @@ export async function verifyTipCast(input: VerifyTipInput): Promise<TipVerificat
   const castTimestamp = new Date(castTimestampMs);
   const ageMs = Date.now() - castTimestampMs;
   // Allow up to 60s of clock skew on the future side
-  if (ageMs > 24 * 60 * 60 * 1000 || ageMs < -60_000) {
+  // 30 days — replay protection on-chain + DB, age is just a sanity bound
+  if (ageMs > 30 * 24 * 60 * 60 * 1000 || ageMs < -60_000) {
     return { ok: false, reason: 'CAST_TOO_OLD', detail: `age=${ageMs}ms` };
   }
 
