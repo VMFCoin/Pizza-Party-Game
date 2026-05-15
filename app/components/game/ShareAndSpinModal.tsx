@@ -99,6 +99,7 @@ export default function ShareAndSpinModal({
 
   const [step, setStep]               = useState<Step>('compose')
   const [castHash, setCastHash]       = useState<string | null>(null)
+  const [shareSessionStartMs, setShareSessionStartMs] = useState<number>(0)
   const [verifyError, setVerifyError] = useState<string | null>(null)
   const [spinOutcome, setSpinOutcome] = useState<typeof SHARE_SPIN_OUTCOMES[number] | null>(null)
   const [rotation, setRotation]       = useState(0)
@@ -331,6 +332,8 @@ export default function ShareAndSpinModal({
 
   // ── Handlers ─────────────────────────────────────────────────
   const handleShare = useCallback(async () => {
+    // Record session start so the verify route can reject any cast posted earlier
+    setShareSessionStartMs(Date.now())
     try {
       const result = await sdk.actions.composeCast({
         text: SHARE_TEXT,
@@ -357,7 +360,12 @@ export default function ShareAndSpinModal({
       const res = await fetch('/api/share/verify-cast', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ castHash, playerAddress: address, playerFid: userFid }),
+        body: JSON.stringify({
+          castHash,
+          playerAddress: address,
+          playerFid: userFid,
+          shareSessionStartMs,
+        }),
       })
       const data = await res.json()
 
