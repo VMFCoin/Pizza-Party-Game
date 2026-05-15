@@ -22,10 +22,17 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import crypto from 'crypto';
+import { type Address, type Hex } from 'viem';
 import { prisma } from '@/app/lib/db';
 import { TIP_ALLOWLIST_FIDS, canTip } from '@/app/lib/constants/tipAccess';
 import { isFidBanned, isAddressBanned } from '@/app/lib/constants/banList';
 import { parseTipCast } from '@/app/lib/tipping/parseTipCast';
+import {
+  PIZZA_TIPPING_VAULT_ADDRESS,
+  PIZZA_TIPPING_VAULT_ABI,
+} from '@/app/lib/constants';
+import { senderHasMinStake } from '@/app/lib/tipping/verifyTipCast';
+import { getTippingWalletClient, tippingPublicClient } from '@/app/lib/tipping/tippingSigner';
 
 export const maxDuration = 30;
 
@@ -218,9 +225,10 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ ok: true, skipped: summary });
   }
 
-  // 4) Enqueue as pending. Idempotent: castHash is unique in DB.
+  // 4) Insert DB row in 'processing' state to claim this cast. Idempotent on castHash.
+  let rowId: string;
   try {
-    await prisma.tipCast.create({
+    const created = await prisma.tipCast.create({
       data: {
         castHash: padded,
         fromWallet: fromWallet.toLowerCase(),
@@ -230,24 +238,137 @@ export async function POST(req: NextRequest) {
         toFid,
         toUsername: recipient.username,
         amount: parsed.amountWei.toString(),
-        status: 'pending',
+        status: 'processing',
         castTimestamp: new Date(cast.timestamp),
         parentCastHash: cast.parent_hash ?? null,
       },
     });
+    rowId = created.id;
   } catch {
-    // Already exists — webhook may have fired twice, or polling cron beat us. Fine.
+    // Already exists — webhook may have fired twice. Reconciler/worker will handle if it's stuck.
     return NextResponse.json({ ok: true, enqueued: false, alreadyExists: true });
   }
 
-  return NextResponse.json({
-    ok: true,
-    enqueued: true,
-    castHash: padded,
-    fromFid,
-    toFid,
-    amount: parsed.amountWhole.toString(),
+  // 5) Execute on-chain INLINE. Webhook → tx in seconds, no cron wait.
+  // If anything fails here we leave the row state so the worker/reconciler can finish it.
+  if (
+    PIZZA_TIPPING_VAULT_ADDRESS === '0x0000000000000000000000000000000000000000' ||
+    !PIZZA_TIPPING_VAULT_ADDRESS
+  ) {
+    return NextResponse.json({ ok: true, enqueued: true, executed: false, reason: 'VAULT_NOT_DEPLOYED' });
+  }
+  const vault = PIZZA_TIPPING_VAULT_ADDRESS as Address;
+
+  // Re-verify sender still has min stake (defense in depth — state could change between webhook trigger and execute)
+  let hasStake = false;
+  try {
+    hasStake = await senderHasMinStake(fromWallet as Address);
+  } catch {}
+  if (!hasStake) {
+    await prisma.tipCast.update({
+      where: { id: rowId },
+      data: { status: 'failed', errorReason: 'sender no longer has min stake' },
+    });
+    return NextResponse.json({ ok: true, enqueued: true, executed: false, reason: 'SENDER_NOT_STAKED' });
+  }
+
+  // Verify sender has tip balance for this amount
+  let balance: bigint = 0n;
+  try {
+    balance = (await tippingPublicClient.readContract({
+      address: vault,
+      abi: PIZZA_TIPPING_VAULT_ABI,
+      functionName: 'tipBalance',
+      args: [fromWallet as Address],
+    })) as bigint;
+  } catch {}
+  if (balance < parsed.amountWei) {
+    await prisma.tipCast.update({
+      where: { id: rowId },
+      data: { status: 'failed', errorReason: 'insufficient tip balance' },
+    });
+    return NextResponse.json({ ok: true, enqueued: true, executed: false, reason: 'INSUFFICIENT_BALANCE' });
+  }
+
+  // Sign + broadcast spendTip. Fetch pending nonce explicitly to handle bursts.
+  let txHash: Hex;
+  try {
+    const { walletClient } = getTippingWalletClient();
+    const nonce = await tippingPublicClient.getTransactionCount({
+      address: walletClient.account.address,
+      blockTag: 'pending',
+    });
+    txHash = await walletClient.writeContract({
+      address: vault,
+      abi: PIZZA_TIPPING_VAULT_ABI,
+      functionName: 'spendTip',
+      args: [
+        fromWallet as Address,
+        recipient.wallet as Address,
+        BigInt(toFid),
+        parsed.amountWei,
+        padded,
+      ],
+      gas: 250_000n,
+      nonce,
+    });
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : 'unknown';
+    console.error('[tip/webhook] writeContract failed:', msg);
+    await prisma.tipCast.update({
+      where: { id: rowId },
+      data: { status: 'failed', errorReason: msg.slice(0, 500) },
+    });
+    return NextResponse.json({ ok: true, enqueued: true, executed: false, reason: 'CHAIN_ERROR', error: msg.slice(0, 200) });
+  }
+
+  // Save tx hash optimistically; reconciler/worker will verify if we crash here
+  await prisma.tipCast.update({
+    where: { id: rowId },
+    data: { txHash },
   });
+
+  // Wait for receipt (with a generous timeout but not so long the webhook 10s budget blows)
+  try {
+    const receipt = await tippingPublicClient.waitForTransactionReceipt({
+      hash: txHash,
+      timeout: 20_000,
+      confirmations: 1,
+    });
+    if (receipt.status === 'success') {
+      await prisma.tipCast.update({
+        where: { id: rowId },
+        data: { status: 'sent' },
+      });
+      return NextResponse.json({
+        ok: true,
+        executed: true,
+        txHash,
+        castHash: padded,
+        fromFid,
+        toFid,
+        amount: parsed.amountWhole.toString(),
+      });
+    } else {
+      await prisma.tipCast.update({
+        where: { id: rowId },
+        data: { status: 'failed', errorReason: 'tx reverted on chain' },
+      });
+      return NextResponse.json({ ok: true, executed: false, reason: 'TX_REVERTED', txHash });
+    }
+  } catch {
+    // Timed out waiting for receipt — leave as 'processing'.
+    // The reconciler cron will check this tx hash and either mark sent or reset to pending.
+    return NextResponse.json({
+      ok: true,
+      executed: 'pending_confirmation',
+      txHash,
+      castHash: padded,
+      fromFid,
+      toFid,
+      amount: parsed.amountWhole.toString(),
+    });
+  }
 }
 
 // Allow GET for health check
