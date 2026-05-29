@@ -94,87 +94,73 @@ export async function POST(req: NextRequest) {
     const contractAddress = SHARE_AND_SPIN_ADDRESS as `0x${string}`
     const player = playerAddress as `0x${string}`
 
-    let hash: Hex
+    // Build the call args for the requested action
+    let functionName: string
+    let args: readonly unknown[]
 
     switch (action) {
-      case 'recordShare': {
-        const reward = BigInt(body.claimedReward || '0')
-        hash = await walletClient.writeContract({
-          address: contractAddress,
-          abi: ABI,
-          functionName: 'recordShare',
-          args: [player, reward],
-          gas: 500_000n,
-        })
+      case 'recordShare':
+        functionName = 'recordShare'
+        args = [player, BigInt(body.claimedReward || '0')]
         break
-      }
-      case 'recordShareSpin': {
-        const castBytes = (body.castHashBytes32 || '0x' + '0'.repeat(64)) as Hex
-        hash = await walletClient.writeContract({
-          address: contractAddress,
-          abi: ABI,
-          functionName: 'recordShareSpin',
-          args: [player, castBytes],
-          gas: 500_000n,
-        })
+      case 'recordShareSpin':
+        functionName = 'recordShareSpin'
+        args = [player, (body.castHashBytes32 || '0x' + '0'.repeat(64)) as Hex]
         break
-      }
-      case 'claimFreeSlice': {
-        const fee = BigInt(body.entryFee || '0')
-        hash = await walletClient.writeContract({
-          address: contractAddress,
-          abi: ABI,
-          functionName: 'claimFreeSlice',
-          args: [player, fee],
-          gas: 500_000n,
-        })
+      case 'claimFreeSlice':
+        functionName = 'claimFreeSlice'
+        args = [player, BigInt(body.entryFee || '0')]
         break
-      }
-      case 'saveFreeSlice': {
-        hash = await walletClient.writeContract({
-          address: contractAddress,
-          abi: ABI,
-          functionName: 'saveFreeSlice',
-          args: [player],
-          gas: 500_000n,
-        })
+      case 'saveFreeSlice':
+        functionName = 'saveFreeSlice'
+        args = [player]
         break
-      }
-      case 'claimPendingSlice': {
-        const fee = BigInt(body.entryFee || '0')
-        hash = await walletClient.writeContract({
-          address: contractAddress,
-          abi: ABI,
-          functionName: 'claimPendingSlice',
-          args: [player, fee],
-          gas: 500_000n,
-        })
+      case 'claimPendingSlice':
+        functionName = 'claimPendingSlice'
+        args = [player, BigInt(body.entryFee || '0')]
         break
-      }
       case 'giftFreeSlice': {
-        const fee = BigInt(body.entryFee || '0')
         const recipient = body.recipient as `0x${string}`
         if (!recipient) {
           return NextResponse.json({ error: 'Missing recipient' }, { status: 400 })
         }
-        hash = await walletClient.writeContract({
-          address: contractAddress,
-          abi: ABI,
-          functionName: 'giftFreeSlice',
-          args: [player, recipient, fee],
-          gas: 500_000n,
-        })
+        functionName = 'giftFreeSlice'
+        args = [player, recipient, BigInt(body.entryFee || '0')]
         break
       }
       default:
         return NextResponse.json({ error: 'Unknown action' }, { status: 400 })
     }
 
+    // Simulate first — this surfaces the contract revert reason cleanly
+    // (e.g. "Share: already shared this game") BEFORE spending gas on a tx
+    // that would just fail on-chain.
+    try {
+      await publicClient.simulateContract({
+        address: contractAddress,
+        abi: ABI,
+        functionName: functionName as never,
+        args: args as never,
+        account,
+      })
+    } catch (simErr) {
+      const raw = simErr instanceof Error ? simErr.message : 'Simulation failed'
+      const reason = parseRevertReason(raw)
+      console.log('[share/execute] Simulation reverted:', { action, reason })
+      return NextResponse.json({ success: false, error: reason, action }, { status: 200 })
+    }
+
+    const hash = await walletClient.writeContract({
+      address: contractAddress,
+      abi: ABI,
+      functionName: functionName as never,
+      args: args as never,
+      gas: 500_000n,
+    })
+
     console.log('[share/execute] TX submitted:', hash)
 
-    // Wait for receipt
     const receipt = await publicClient.waitForTransactionReceipt({ hash, timeout: 15_000 })
-
     console.log('[share/execute] TX result:', { status: receipt.status, gasUsed: receipt.gasUsed.toString() })
 
     return NextResponse.json({
@@ -185,7 +171,27 @@ export async function POST(req: NextRequest) {
     })
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Unknown error'
-    console.error('[share/execute] FAILED:', { action: 'unknown', message, stack: error instanceof Error ? error.stack?.slice(0, 300) : '' })
-    return NextResponse.json({ error: message }, { status: 500 })
+    console.error('[share/execute] FAILED:', { message, stack: error instanceof Error ? error.stack?.slice(0, 300) : '' })
+    return NextResponse.json({ error: parseRevertReason(message) }, { status: 500 })
   }
+}
+
+// Map raw viem revert text to a clean, user-friendly reason.
+function parseRevertReason(raw: string): string {
+  // viem embeds the require string after "reverted with the following reason:"
+  const m = raw.match(/reason:\s*\n?\s*([^\n]+)/i)
+  const reason = (m?.[1] || raw).trim()
+
+  if (reason.includes('already shared this game')) return 'You already shared this game. Come back next game!'
+  if (reason.includes('weekly limit'))             return 'You hit the 3-shares-per-week limit. Resets Monday.'
+  if (reason.includes('reward too high'))          return 'Reward amount out of range. Try again shortly.'
+  if (reason.includes('reward not set'))           return 'Share rewards are being configured. Try again soon.'
+  if (reason.includes('no free slice'))            return 'No free slice available to claim.'
+  if (reason.includes('slice expired'))            return 'Your free slice expired (48 hr window).'
+  if (reason.includes('No pending slice'))         return 'No saved free slice to claim.'
+  if (reason.includes('fee too high'))             return 'Entry fee out of range. Try again shortly.'
+  if (reason.includes('Pausable') || reason.includes('paused')) return 'Share & Spin is temporarily paused.'
+  if (reason.includes('cast used'))                return 'This cast was already used. Share a new one.'
+  if (reason.includes('share first'))              return 'Please share again, then verify immediately.'
+  return 'Something went wrong. Please try again.'
 }
