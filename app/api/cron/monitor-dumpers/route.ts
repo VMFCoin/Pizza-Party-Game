@@ -52,6 +52,31 @@ async function getBalance(wallet: string): Promise<bigint> {
   return BigInt(json.result)
 }
 
+// allowance(address owner, address spender) selector
+const ALLOWANCE_SELECTOR = '0xdd62ed3e'
+
+// Read an ERC20 allowance (used for treasury -> ShareAndSpin reward funding alerts)
+async function getAllowance(owner: string, spender: string): Promise<bigint> {
+  const paddedOwner = owner.slice(2).toLowerCase().padStart(64, '0')
+  const paddedSpender = spender.slice(2).toLowerCase().padStart(64, '0')
+  const res = await fetch(RPC_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      jsonrpc: '2.0',
+      method: 'eth_call',
+      params: [
+        { to: PIZZA_TOKEN, data: `${ALLOWANCE_SELECTOR}${paddedOwner}${paddedSpender}` },
+        'latest',
+      ],
+      id: 1,
+    }),
+  })
+  const json = await res.json()
+  if (!json.result) return 0n
+  return BigInt(json.result)
+}
+
 // Get the native ETH balance of a wallet (used for backend signer gas alerts)
 async function getEthBalance(wallet: string): Promise<bigint> {
   const res = await fetch(RPC_URL, {
@@ -205,6 +230,35 @@ export async function GET(request: NextRequest) {
       })
     }
 
+    // ============================================================
+    // SHARE & SPIN TREASURY ALLOWANCE ALERT
+    // ============================================================
+    // Treasury approves ShareAndSpin (capped 10M PIZZA) to pull share rewards.
+    // When it depletes, recordShare reverts and Share & Spin breaks.
+    // Alert when allowance drops below 500K PIZZA so it can be topped up.
+    const TREASURY = '0xBfCA21E41D397C8B6beF0c348D394DA2c4826292'
+    const SHARE_AND_SPIN = '0xE45be9456E9da420f85CE69D5F0Ca96Ffe035b5C'
+    const ALLOWANCE_LOW_THRESHOLD = 500_000n // 500K PIZZA (whole tokens)
+    let shareAllowanceFormatted = 'n/a'
+
+    try {
+      const allowance = await getAllowance(TREASURY, SHARE_AND_SPIN)
+      const allowanceWhole = allowance / BigInt(1e18)
+      shareAllowanceFormatted = formatPizza(allowance)
+
+      if (allowanceWhole < ALLOWANCE_LOW_THRESHOLD && ownerToken && ownerToken.enabled) {
+        await sendNotifications({
+          tokens: [{ token: ownerToken.token, url: ownerToken.url }],
+          title: 'Share & Spin Funding Low',
+          body: `Treasury allowance for Share & Spin is down to ${shareAllowanceFormatted} PIZZA. Re-run ApproveTreasuryForShareAndSpin to top up to 10M.`,
+          targetUrl: 'https://pizzaparty.com',
+          notificationId: `share-allowance-low-${Date.now()}`,
+        })
+      }
+    } catch (e) {
+      console.error('[monitor-dumpers] allowance check failed:', e)
+    }
+
     return NextResponse.json({
       status: 'ok',
       alerts,
@@ -212,6 +266,7 @@ export async function GET(request: NextRequest) {
       totalRemaining: totalFormatted,
       gasResults,
       gasAlerts,
+      shareAllowance: shareAllowanceFormatted,
     })
   } catch (error) {
     console.error('Monitor dumpers error:', error)
