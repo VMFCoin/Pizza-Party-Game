@@ -167,11 +167,14 @@ contract ShareAndSpinUpgradeable is OwnableUpgradeable, UUPSUpgradeable, Reentra
         // Pay ~$0.01 PIZZA from treasury
         // Frontend calculates: claimedReward = floor(0.01 / pizzaUsdPrice * 1e18)
         // Oracle sets shareRewardAmount as backup/ceiling reference
-        // Validate: claimedReward must not exceed 2x the oracle-set amount
+        // Validate: claimedReward must not exceed 5x the oracle-set amount.
+        // 5x (not 2x) gives headroom for PIZZA price swings between oracle updates
+        // so a stale shareRewardAmount does not break the flow. Worst-case overpay
+        // is bounded at 5x ~$0.01 = ~$0.05, an acceptable blast radius.
         uint256 oracleAmount = shareRewardAmount;
         if (claimedReward > 0 && treasuryWallet != address(0)) {
             require(oracleAmount > 0, "Share: reward not set");
-            require(claimedReward <= oracleAmount * 2, "Share: reward too high");
+            require(claimedReward <= oracleAmount * 5, "Share: reward too high");
             pizzaToken.safeTransferFrom(treasuryWallet, player, claimedReward);
         }
 

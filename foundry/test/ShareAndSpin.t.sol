@@ -165,14 +165,14 @@ contract ShareAndSpinTest is Test {
     function test_Share_RevertsWhenClaimedTooHigh() public {
         vm.prank(signer);
         vm.expectRevert(bytes("Share: reward too high"));
-        sns.recordShare(p1, REWARD * 2 + 1);
+        sns.recordShare(p1, REWARD * 5 + 1);
     }
 
-    function test_Share_AllowsExactly2xOracle() public {
-        uint256 doubleReward = REWARD * 2;
+    function test_Share_AllowsExactly5xOracle() public {
+        uint256 fiveXReward = REWARD * 5;
         uint256 b = pizza.balanceOf(p1);
-        vm.prank(signer); sns.recordShare(p1, doubleReward);
-        assertEq(pizza.balanceOf(p1) - b, doubleReward, "2x oracle amount accepted");
+        vm.prank(signer); sns.recordShare(p1, fiveXReward);
+        assertEq(pizza.balanceOf(p1) - b, fiveXReward, "5x oracle amount accepted");
     }
 
     function test_Share_AllowsLessThanOracle() public {
