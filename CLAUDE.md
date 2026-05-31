@@ -61,7 +61,7 @@ PizzaPartyV2Upgradeable is at **~22,719 bytes** (limit: 24,576) after referral r
 | PizzaParty | `0xA1C31c3eF1448351da0b1D430148660982B6f3dD` | `0x1acd623D75f6a9DD3DcE7D6eEB9b16c80Ecb3135` |
 | Staking | `0xCbAf5bACe5419710C3852653d3DdEB831d7415be` | — |
 | ParlorManager | `0x7acfaa1dadd836404a8d90b49581758c4fdc889b` | — |
-| ShareAndSpin | `0xE45be9456E9da420f85CE69D5F0Ca96Ffe035b5C` | `0xf94D7f285Eb22085Dfbf10282093c73Bd550D6C7` |
+| ShareAndSpin | `0xE45be9456E9da420f85CE69D5F0Ca96Ffe035b5C` | `0xd873a3820D12a64442496E2F5A307f2ED94Be94B` |
 | PIZZA Token | `0xa821f2ee19F4f62e404C934D43eB6E5763fbdb07` | — |
 | Owner Wallet | `0xd9EF10D1dB272A5105557AAfc571e7BF66c95CEC` | — |
 | Treasury | `0xBfCA21E41D397C8B6beF0c348D394DA2c4826292` | — |
@@ -81,7 +81,7 @@ Players share a composeCast on Farcaster, verify via Neynar API, then earn rewar
 5. Backend signer calls `recordShare(player, claimedReward)` on ShareAndSpin contract
    - Pays ~$0.01 PIZZA from treasury via `safeTransferFrom`
    - Adds 1 topping to PizzaParty via `addToppingsFromShareAndSpin(player, 1)`
-   - Frontend passes `claimedReward`, contract validates `<= 2x shareRewardAmount`
+   - Frontend passes `claimedReward`, contract validates `<= 5x shareRewardAmount` (widened from 2x in May 2026 to tolerate price drift between manual oracle updates)
 6. Backend signer calls `recordShareSpin(player, castHashBytes32)` on ShareAndSpin contract
    - Wheel spin with 3 outcomes: Nothing (94%) / Free Slice (5%) / Gold (1%)
    - Outcome read from `ShareSpinRecorded` event in tx receipt (never contract state)
@@ -295,8 +295,9 @@ Referral functions are disabled on-chain. Storage slots preserved. See Share & S
 - Both positions share a single `lastSpinGameId` and `committedSpinOutcome`
 
 **Reward funding split:**
-- `baseReward` (equal split of 1% daily pot across all stakers) → paid from **contract balance**
-- `extras` (spin multiplier bonus + tier bonus + lock bonus + early boost + APY + 10M jackpot bonus) → paid from **`stakingRewardsWallet` (`0x0b30b1D9327979D290b49BbfEF92f783fdE81c56`)** via `safeTransferFrom`
+- `baseReward` (equal split of 1% daily pot across all stakers) → funded from **contract balance**
+- `extras` (spin multiplier bonus + tier bonus + lock bonus + early boost + APY + 10M jackpot bonus) → funded from **`stakingRewardsWallet` (`0x0b30b1D9327979D290b49BbfEF92f783fdE81c56`)** via `safeTransferFrom`
+- On every claim path (`claimAfterSpin`, `restake`, `claimToTip`, fallback `claim`), extras are pulled into the contract first, then the **full `finalReward` is sent as ONE `safeTransfer`** to the destination. This way wallets only show a single "Pizza Received" notification for the bonused total instead of splitting it into two events.
 - Equal-distribution model: `accRewardPerStaker` advanced by `notifyRewardAmount()` from PizzaPartyV2
 
 **Spin the Pie (staking wheel):**
@@ -319,6 +320,7 @@ Referral functions are disabled on-chain. Storage slots preserved. See Share & S
 - `restake` used `_calculateTotalPendingRewards` which assumes 1x, no jackpot → rewritten to use committed outcome (Apr 7)
 - Spin outcome read switched from contract state (`committedSpinOutcome`) back to tx receipt — RPC nodes served stale state, causing yesterday's Jackpot to "repeat" in UI
 - MAX_STAKE raised 10B → 20B (Apr 2026)
+- `_claimAllRewards` and `_claimRewardsForPosition` consolidated to single Transfer (May 2026) — was emitting two separate Transfer events (base from contract, extras from `stakingRewardsWallet`), confusing wallet UIs that only display one notification per tx. Now pulls extras into contract first, then sends one `safeTransfer` for `finalReward`. Players were getting full amount but wallets only showed the base.
 
 ---
 
