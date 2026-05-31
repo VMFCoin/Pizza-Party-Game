@@ -1330,7 +1330,7 @@ export default function StakingPage({
                       </div>
                     </div>
 
-                    {/* Tip Balance Panel — visible only to allowlisted FIDs */}
+                    {/* Tip Balance Panel — shows tip jar balance + withdraw to wallet */}
                     <TipBalancePanel userFid={userFid} />
 
                     {/* Wallet Balance & Total Staked */}
@@ -2465,7 +2465,7 @@ export default function StakingPage({
                     <Button
                       onClick={() => {
                         // TIP: route rewards into the user's tipping vault balance.
-                        // FID-allowlist gated: non-allowlisted users see the button but click does nothing.
+                        // Requires a valid Farcaster FID (needed for Farcaster reply→tip flow).
                         if (!canTip(userFid)) return
                         writeContract({
                           address: PIZZA_STAKING_ADDRESS as `0x${string}`,
@@ -2655,7 +2655,7 @@ export default function StakingPage({
                     <Button
                       onClick={() => {
                         // TIP: route rewards into the user's tipping vault balance.
-                        // FID-allowlist gated: non-allowlisted users see the button but click does nothing.
+                        // Requires a valid Farcaster FID (needed for Farcaster reply→tip flow).
                         if (!canTip(userFid)) return
                         writeContract({
                           address: PIZZA_STAKING_ADDRESS as `0x${string}`,

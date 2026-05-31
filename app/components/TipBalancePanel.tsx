@@ -82,7 +82,7 @@ export function TipBalancePanel({ userFid }: Props) {
     }
   }, [isSuccess, fetchBalance, reset])
 
-  // Hide entirely for non-allowlisted FIDs (private until public launch)
+  // Hide if no Farcaster identity (can't tip without one)
   if (!canTip(userFid)) return null
 
   // No wallet connected
@@ -100,13 +100,13 @@ export function TipBalancePanel({ userFid }: Props) {
     )
   }
 
-  // Vault not deployed yet — show a soft notice for testers
+  // Vault not deployed yet — show a soft notice
   if (!data.vaultDeployed) {
     return (
       <div className="bg-purple-50 border-2 border-purple-300 rounded-xl p-3 my-3">
         <p className="text-purple-700 text-xs"
            style={{ fontFamily: 'var(--font-luckiest-guy)' }}>
-          Tip Vault: not deployed yet (testers only)
+          Tip Vault: not deployed yet
         </p>
       </div>
     )
@@ -136,7 +136,7 @@ export function TipBalancePanel({ userFid }: Props) {
         <div>
           <p className="text-purple-800 text-xs uppercase"
              style={{ fontFamily: 'var(--font-luckiest-guy)' }}>
-            Tip Balance (Tester Mode)
+            Tip Balance
           </p>
           <p className="text-purple-900 font-bold text-2xl"
              style={{ fontFamily: 'var(--font-luckiest-guy)' }}>

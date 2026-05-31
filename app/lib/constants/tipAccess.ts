@@ -1,9 +1,12 @@
-// FID allowlist for the new Tipping Vault feature.
+// Tipping is PUBLIC. Anyone with a valid FID can tip.
 //
-// Public can SEE the [ TIP ] button but the click does nothing for non-allowlisted FIDs.
-// Allowlisted FIDs get the full flow: claim-to-tip, cast-to-tip, withdraw.
+// Players still must:
+//   - Be staked (≥ $1 PIZZA) — enforced upstream by the staking contract
+//   - Have a tip balance — funded by clicking the purple TIP button after a spin
+//   - Reply to a Farcaster cast with `1000 🍕` / `1000 $pizza` / `1,000 🍕` etc.
 //
-// Remove this gate (or set canTip to always true) when going public.
+// The list below is kept ONLY for legacy backend/webhook compatibility checks
+// and historic reference. It does NOT gate tipping anymore.
 export const TIP_ALLOWLIST_FIDS: number[] = [
   2182791,
   392134,
@@ -12,7 +15,12 @@ export const TIP_ALLOWLIST_FIDS: number[] = [
   1013491,
 ]
 
+/**
+ * Returns true if the FID is allowed to tip.
+ * After public launch, this returns true for any non-null FID.
+ */
 export function canTip(fid: number | null | undefined): boolean {
   if (fid == null) return false
-  return TIP_ALLOWLIST_FIDS.includes(fid)
+  if (fid <= 0) return false
+  return true
 }

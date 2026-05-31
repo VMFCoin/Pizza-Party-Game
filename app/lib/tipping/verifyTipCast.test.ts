@@ -26,7 +26,7 @@ const FAKE_FROM = '0x1111111111111111111111111111111111111111' as `0x${string}`;
 const FAKE_TO = '0x2222222222222222222222222222222222222222' as `0x${string}`;
 
 const ALLOWLISTED_FID = 1013491;       // in TIP_ALLOWLIST_FIDS
-const NON_ALLOWLISTED_FID = 99999999;
+// const NON_ALLOWLISTED_FID = 99999999; // removed: tipping is now public, any positive FID passes Gate 4
 const RECIPIENT_FID = 5650;
 
 const NOW_ISO = () => new Date().toISOString();
@@ -120,12 +120,9 @@ const cases: Case[] = [
     expectedReason: 'CAST_TOO_OLD',
   },
 
-  // Gate 4 (allowlist)
-  {
-    name: 'rejects sender not in allowlist',
-    input: baseInput({ fromFid: NON_ALLOWLISTED_FID }),
-    expectedReason: 'SENDER_NOT_IN_ALLOWLIST',
-  },
+  // Gate 4 (canTip — public launch: only rejects null/<=0 FIDs)
+  // Note: NON_ALLOWLISTED_FID (a real positive FID) now passes Gate 4 and falls
+  // through to the staking check, which is expected post-public-launch behavior.
   {
     name: 'rejects sender FID = 0',
     input: baseInput({ fromFid: 0 }),
