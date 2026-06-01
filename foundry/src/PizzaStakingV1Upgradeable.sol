@@ -686,7 +686,8 @@ contract PizzaStakingV1Upgradeable is
         if (!spinEnabled) revert Unauthorized();
 
         uint256 currentGameId = _getCurrentGameId();
-        uint8 effectiveMax = maxSpinsPerDay < 1 ? 1 : maxSpinsPerDay;
+        // Oven Operator tier (1) and above get 2 spins per day; everyone else gets 1
+        uint8 effectiveMax = getTier(msg.sender) >= Tier.OvenOperator ? 2 : 1;
 
         // Reset spin count if new game day
         if (lastSpinGameId[msg.sender] != currentGameId) {
@@ -701,19 +702,6 @@ contract PizzaStakingV1Upgradeable is
 
         // Determine spin outcome
         SpinOutcome outcome = _spin();
-
-        // Hidden gold check: 10% chance to force Jackpot during double-spin mode
-        // Only triggers once per game day, only when maxSpinsPerDay > 1
-        if (effectiveMax > 1 && game100GoldAwardedGameId != currentGameId && outcome != SpinOutcome.Jackpot) {
-            uint256 goldRoll = uint256(keccak256(abi.encodePacked(
-                block.timestamp, block.prevrandao, msg.sender, spinNonce, "gold"
-            ))) % 100;
-            if (goldChancePct > 0 && goldRoll < goldChancePct) {
-                outcome = SpinOutcome.Jackpot;
-                lastJackpotGameId = currentGameId; // counts as the day's jackpot
-                game100GoldAwardedGameId = currentGameId;
-            }
-        }
 
         // Store outcome in the right slot
         uint8 spinNum = spinCountToday[msg.sender];
@@ -1658,19 +1646,14 @@ contract PizzaStakingV1Upgradeable is
             lastApyClaimTimestamp[user] = block.timestamp;
         }
 
-        // Calculate what comes from where:
-        // - baseReward: from contract balance (1% daily pot transferred by PizzaPartyV2)
-        // - extras (spin bonus + tier/lock/early + APY): from stakingRewardsWallet
+        // Pull extras from stakingRewardsWallet into contract, then send the full
+        // finalReward as a SINGLE Transfer event so wallet UIs surface the bonused total.
         uint256 extrasFromWallet = finalReward - baseReward;
-
-        // Transfer base reward from contract balance (funded by daily pot)
-        if (baseReward > 0) {
-            IERC20(pizzaToken).safeTransfer(user, baseReward);
-        }
-
-        // Transfer extras from staking wallet (spin bonus + tier/lock/early bonuses + APY)
         if (extrasFromWallet > 0 && stakingRewardsWallet != address(0)) {
-            IERC20(pizzaToken).safeTransferFrom(stakingRewardsWallet, user, extrasFromWallet);
+            IERC20(pizzaToken).safeTransferFrom(stakingRewardsWallet, address(this), extrasFromWallet);
+        }
+        if (finalReward > 0) {
+            IERC20(pizzaToken).safeTransfer(user, finalReward);
         }
 
         emit RewardsClaimed(user, baseReward, finalReward, outcome);
@@ -1770,19 +1753,14 @@ contract PizzaStakingV1Upgradeable is
             lastApyClaimTimestamp[user] = block.timestamp;
         }
 
-        // Calculate what comes from where:
-        // - baseReward: from contract balance (1% daily pot transferred by PizzaPartyV2)
-        // - extras (spin bonus + tier/lock/early + APY): from stakingRewardsWallet
+        // Pull extras from stakingRewardsWallet into contract, then send the full
+        // finalReward as a SINGLE Transfer event so wallet UIs surface the bonused total.
         uint256 extrasFromWallet = finalReward - baseReward;
-
-        // Transfer base reward from contract balance (funded by daily pot)
-        if (baseReward > 0) {
-            IERC20(pizzaToken).safeTransfer(user, baseReward);
-        }
-
-        // Transfer extras from staking wallet (spin bonus + tier/lock/early bonuses + APY)
         if (extrasFromWallet > 0 && stakingRewardsWallet != address(0)) {
-            IERC20(pizzaToken).safeTransferFrom(stakingRewardsWallet, user, extrasFromWallet);
+            IERC20(pizzaToken).safeTransferFrom(stakingRewardsWallet, address(this), extrasFromWallet);
+        }
+        if (finalReward > 0) {
+            IERC20(pizzaToken).safeTransfer(user, finalReward);
         }
 
         emit RewardsClaimed(user, baseReward, finalReward, outcome);
@@ -1826,7 +1804,7 @@ contract PizzaStakingV1Upgradeable is
     function canSpinToday(address user) external view returns (bool) {
         if (!spinEnabled) return false;
         uint256 currentGameId = _getCurrentGameId();
-        uint8 effectiveMax = maxSpinsPerDay < 1 ? 1 : maxSpinsPerDay;
+        uint8 effectiveMax = getTier(user) >= Tier.OvenOperator ? 2 : 1;
 
         // New game day — can always spin
         if (lastSpinGameId[user] != currentGameId) return true;
@@ -1973,8 +1951,8 @@ contract PizzaStakingV1Upgradeable is
         if (baseReward == 0 && apyReward == 0) return 0;
 
         // For display: assume 100% spin (regular slice) per spin
-        // If double spin is active, show 2x base as the minimum expected
-        uint8 effectiveMax = maxSpinsPerDay < 1 ? 1 : maxSpinsPerDay;
+        // Oven Operator+ get 2 spins, so display 2x base for them
+        uint8 effectiveMax = getTier(user) >= Tier.OvenOperator ? 2 : 1;
         uint256 displayBase = baseReward * effectiveMax;
 
         uint256 bonusAmount = displayBase > 0 ? _calculateBonusAmount(user, displayBase) : 0;

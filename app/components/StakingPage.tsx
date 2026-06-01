@@ -215,6 +215,9 @@ export default function StakingPage({
     pfpUrl?: string
   }[]>([])
   const [topStakersLoading, setTopStakersLoading] = useState(false)
+  const [topStakersError, setTopStakersError] = useState<string | null>(null)
+  const [topStakersWarning, setTopStakersWarning] = useState<string | null>(null)
+  const [topStakersRefreshKey, setTopStakersRefreshKey] = useState(0)
 
   // Anti-sybil: Track if this FID already has a staking position
   const [stakingEligibility, setStakingEligibility] = useState<{
@@ -482,15 +485,10 @@ export default function StakingPage({
     return STAKING_TIERS[userPosition.tier] || STAKING_TIERS[0]
   }, [userPosition])
 
-  // Check if user can spin today (from contract)
-  // Read maxSpinsPerDay from contract (1 = normal, 2 = double spin mode)
-  const { data: maxSpinsPerDay } = useReadContract({
-    address: PIZZA_STAKING_ADDRESS as `0x${string}`,
-    abi: PIZZA_STAKING_ABI,
-    functionName: 'maxSpinsPerDay',
-  })
+  // Oven Operator (tier 1) and above get 2 spins per day; everyone else gets 1
+  const effectiveMaxSpins = currentTier.id >= 1 ? 2 : 1
 
-  // Read canSpinToday from contract (accounts for maxSpinsPerDay)
+  // Read canSpinToday from contract (authoritative — also tier-gated on-chain)
   const { data: canSpinTodayContract, refetch: refetchCanSpin } = useReadContract({
     address: PIZZA_STAKING_ADDRESS as `0x${string}`,
     abi: PIZZA_STAKING_ABI,
@@ -501,7 +499,6 @@ export default function StakingPage({
 
   const canSpinToday = useMemo(() => {
     if (!spinEnabled) return false
-    // If contract call available, use it (handles maxSpinsPerDay)
     if (canSpinTodayContract !== undefined) return canSpinTodayContract as boolean
     // Fallback: check lastSpinGameId
     if (!currentGameId || !lastSpinGameId) return true
@@ -732,6 +729,7 @@ export default function StakingPage({
           updateStakerWithRetry()
           // Clear cached top stakers so they reload with fresh data
           setTopStakers([])
+          setTopStakersRefreshKey((k) => k + 1)
         }
 
         // Show share modal AFTER refetch completes so UI shows updated data
@@ -802,21 +800,38 @@ export default function StakingPage({
     return () => window.removeEventListener('resize', handleResize)
   }, [])
 
-  // Fetch top stakers when dropdown is opened
+  // Fetch top stakers when dropdown is opened (once per open / refresh)
   useEffect(() => {
-    if (topStakersOpen && topStakers.length === 0 && !topStakersLoading) {
-      setTopStakersLoading(true)
-      fetch('/api/staking/top-stakers')
-        .then(res => res.json())
-        .then(data => {
-          if (data.topStakers) {
-            setTopStakers(data.topStakers)
-          }
-        })
-        .catch(err => console.error('Failed to fetch top stakers:', err))
-        .finally(() => setTopStakersLoading(false))
-    }
-  }, [topStakersOpen, topStakers.length, topStakersLoading])
+    if (!topStakersOpen) return
+
+    let cancelled = false
+    setTopStakersLoading(true)
+    setTopStakersError(null)
+    setTopStakersWarning(null)
+
+    fetch('/api/staking/top-stakers')
+      .then(async (res) => {
+        const data = await res.json()
+        if (!res.ok && !data.topStakers?.length) {
+          throw new Error(data.error || 'Failed to fetch top stakers')
+        }
+        if (!cancelled) {
+          setTopStakers(data.topStakers || [])
+          setTopStakersWarning(data.warning || null)
+        }
+      })
+      .catch((err) => {
+        if (!cancelled) {
+          setTopStakersError(err instanceof Error ? err.message : 'Failed to load top stakers')
+          setTopStakers([])
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setTopStakersLoading(false)
+      })
+
+    return () => { cancelled = true }
+  }, [topStakersOpen, topStakersRefreshKey])
 
   const handleBack = () => {
     if (onNavigateToHome) {
@@ -1084,9 +1099,8 @@ export default function StakingPage({
       // Heavy haptic feedback when spin completes
       triggerHaptic('heavy')
 
-      // Check if user can spin again (double spin mode)
-      const effectiveMax = Number(maxSpinsPerDay || 0) < 1 ? 1 : Number(maxSpinsPerDay || 0)
-      if (newSpinCount < effectiveMax) {
+      // Check if user can spin again (tier-gated double spin)
+      if (newSpinCount < effectiveMaxSpins) {
         setAwaitingSpin2(true)
       } else {
         setAwaitingSpin2(false)
@@ -1094,7 +1108,7 @@ export default function StakingPage({
       // Also refetch contract state
       refetchCanSpin()
     }, 3000)
-  }, [playTick, triggerHaptic, getSliceFromRotation, saveSpinResult, spinCount, maxSpinsPerDay, refetchCanSpin])
+  }, [playTick, triggerHaptic, getSliceFromRotation, saveSpinResult, spinCount, effectiveMaxSpins, refetchCanSpin])
 
   // After recordSpin tx confirms, read the outcome from the tx receipt and run animation
   // IMPORTANT: We read from the receipt (not contract state) because an RPC node may serve
@@ -1782,9 +1796,27 @@ export default function StakingPage({
               </Button>
               {topStakersOpen && (
                 <div className="bg-yellow-100 border-4 border-t-0 border-yellow-700 rounded-b-xl p-3 max-h-96 overflow-y-auto">
+                  {topStakersWarning && !topStakersLoading && (
+                    <p className="text-xs text-yellow-800 mb-2 text-center" style={{ fontFamily: 'var(--font-luckiest-guy)' }}>
+                      {topStakersWarning}
+                    </p>
+                  )}
                   {topStakersLoading ? (
                     <div className="text-center py-4">
                       <p className="text-yellow-700" style={{ fontFamily: 'var(--font-luckiest-guy)' }}>Loading...</p>
+                    </div>
+                  ) : topStakersError ? (
+                    <div className="text-center py-4">
+                      <p className="text-red-700 text-sm" style={{ fontFamily: 'var(--font-luckiest-guy)' }}>
+                        {topStakersError}
+                      </p>
+                      <button
+                        type="button"
+                        onClick={() => setTopStakersRefreshKey((k) => k + 1)}
+                        className="mt-2 text-xs underline text-yellow-800"
+                      >
+                        Retry
+                      </button>
                     </div>
                   ) : topStakers.length === 0 ? (
                     <div className="text-center py-4">
