@@ -497,6 +497,23 @@ export default function StakingPage({
     query: { enabled: !!address },
   })
 
+  // Read on-chain spin count for current day so we can restore awaitingSpin2 state
+  // after a reload (localStorage only remembers there was a spin, not how many)
+  const { data: spinCountTodayContract, refetch: refetchSpinCountToday } = useReadContract({
+    address: PIZZA_STAKING_ADDRESS as `0x${string}`,
+    abi: PIZZA_STAKING_ABI,
+    functionName: 'spinCountToday',
+    args: address ? [address] : undefined,
+    query: { enabled: !!address },
+  })
+
+  // On-chain spin count is only meaningful for the current game day
+  const onChainSpinCountToday = useMemo(() => {
+    if (spinCountTodayContract === undefined || !currentGameId || !lastSpinGameId) return 0
+    if (lastSpinGameId !== currentGameId) return 0
+    return Number(spinCountTodayContract)
+  }, [spinCountTodayContract, currentGameId, lastSpinGameId])
+
   const canSpinToday = useMemo(() => {
     if (!spinEnabled) return false
     if (canSpinTodayContract !== undefined) return canSpinTodayContract as boolean
@@ -544,6 +561,22 @@ export default function StakingPage({
       setSpinStorageChecked(true)
     }
   }, [spinStorageKey])
+
+  // Sync awaitingSpin2 / spinCount from on-chain state.
+  // Source of truth is spinCountToday: if user is tier-gated for 2 spins and has
+  // only completed 1, they're owed a second spin — even after a page reload,
+  // even if localStorage was cleared. Skip while the animation is mid-flight or
+  // after they've already claimed (claim drains the pending base, so spin 2
+  // would multiply zero — UI intentionally blocks that path).
+  useEffect(() => {
+    if (!spinStorageChecked || isSpinning || hasClaimedThisGame) return
+    if (onChainSpinCountToday === 1 && effectiveMaxSpins === 2 && canSpinToday) {
+      setSpinCount(1)
+      setAwaitingSpin2(true)
+    } else if (onChainSpinCountToday >= effectiveMaxSpins && effectiveMaxSpins > 0) {
+      setAwaitingSpin2(false)
+    }
+  }, [onChainSpinCountToday, effectiveMaxSpins, canSpinToday, spinStorageChecked, isSpinning, hasClaimedThisGame])
 
   // Save spin result to localStorage when spin completes
   const saveSpinResult = useCallback((outcome: typeof SPIN_OUTCOMES[0], rotation: number) => {
@@ -1107,8 +1140,9 @@ export default function StakingPage({
       }
       // Also refetch contract state
       refetchCanSpin()
+      refetchSpinCountToday()
     }, 3000)
-  }, [playTick, triggerHaptic, getSliceFromRotation, saveSpinResult, spinCount, effectiveMaxSpins, refetchCanSpin])
+  }, [playTick, triggerHaptic, getSliceFromRotation, saveSpinResult, spinCount, effectiveMaxSpins, refetchCanSpin, refetchSpinCountToday])
 
   // After recordSpin tx confirms, read the outcome from the tx receipt and run animation
   // IMPORTANT: We read from the receipt (not contract state) because an RPC node may serve
