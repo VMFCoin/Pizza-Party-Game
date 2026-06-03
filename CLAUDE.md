@@ -62,6 +62,7 @@ PizzaPartyV2Upgradeable is at **~22,719 bytes** (limit: 24,576) after referral r
 | Staking | `0xCbAf5bACe5419710C3852653d3DdEB831d7415be` | — |
 | ParlorManager | `0x7acfaa1dadd836404a8d90b49581758c4fdc889b` | — |
 | ShareAndSpin | `0xE45be9456E9da420f85CE69D5F0Ca96Ffe035b5C` | `0xd873a3820D12a64442496E2F5A307f2ED94Be94B` |
+| StickerRegistry | `0xba3e4db29efd1d6499B70fe672Fb08FC9B62FeDD` | `0x4FA51a50Ccc7D3b7050891621417bEA35f9E097b` |
 | PIZZA Token | `0xa821f2ee19F4f62e404C934D43eB6E5763fbdb07` | — |
 | Owner Wallet | `0xd9EF10D1dB272A5105557AAfc571e7BF66c95CEC` | — |
 | Treasury | `0xBfCA21E41D397C8B6beF0c348D394DA2c4826292` | — |
@@ -252,6 +253,64 @@ Not gonna lie… this game actually pays people to play 😳🔥
 [ ] Price oracle: add adminSetShareRewardAmount to bot
 [ ] Full public launch (remove FID gate)
 ```
+
+---
+
+## Sticker Registry (ACTIVE — fully on-chain)
+
+QR-code physical sticker hunt. Player snaps a photo, server verifies it contains a Pizza Party QR sticker, backend signer records the geotagged find on-chain. **No Postgres dependency** — finds, leaderboard, and map all read directly from the contract.
+
+### Contract
+- Proxy: `0xba3e4db29efd1d6499B70fe672Fb08FC9B62FeDD`
+- Implementation (May 31 2026 upgrade): `0x4FA51a50Ccc7D3b7050891621417bEA35f9E097b`
+- Owner: `0xd9EF10D1dB272A5105557AAfc571e7BF66c95CEC`
+- Backend signer: `0x528952ae107198011C2a1df8c05A82702D5778D6`
+
+### Storage Layout (append-only)
+| Slot | Variable |
+|---|---|
+| 0 | `finds[]` (StickerFindRecord) |
+| 1 | `finderFinds` (mapping) |
+| 2 | `totalFinds` |
+| 3 | `uniqueFinders` |
+| 4 | `hasFound` (mapping) |
+| 5 | `backendSigner` — **appended in May 31 upgrade, consumed first slot of former `__gap[43]`** |
+| 6+ | `__gap[42]` (reduced from 43) |
+
+### Backend-signer-gated functions
+| Function | Purpose |
+|---|---|
+| `recordFindFor(player, lat, lng, city)` | Record a verified sticker find (coords scaled ×1e6) |
+| `adminSetBackendSigner(addr)` | Owner-only: rotate the backend signer key |
+
+### Flow
+1. Player snaps photo on `/sticker` page (uses geolocation)
+2. `POST /api/sticker/record` — verifies photo (BarcodeDetector fast path, then server density+color check)
+3. Backend signer calls `recordFindFor` on the contract — player pays no gas
+4. Map/leaderboard read live from `getRecentFinds` and aggregate client-side
+
+### Files
+| File | Purpose |
+|---|---|
+| `foundry/src/StickerRegistryUpgradeable.sol` | Contract |
+| `foundry/script/UpgradeStickerRegistryBackendSigner.s.sol` | Upgrade script (broadcast May 31 2026) |
+| `app/lib/stickerOnChain.ts` | RPC reader + leaderboard aggregation |
+| `app/lib/stickerVerification.ts` | Server-side photo verification |
+| `app/api/sticker/record/route.ts` | Backend-signer write path |
+| `app/api/sticker/finds/route.ts` | On-chain reader |
+| `app/api/sticker/leaderboard/route.ts` | On-chain leaderboard |
+| `scripts/backfill-sticker-finds.ts` | One-time: replay legacy Neon rows on-chain |
+
+### Backfill (one-time)
+Old Neon `StickerFind` rows were not on-chain. To port them:
+```
+# Dry run first — prints how many rows would be backfilled
+npx tsx scripts/backfill-sticker-finds.ts
+
+# Commit
+BACKFILL_COMMIT=1 npx tsx scripts/backfill-sticker-finds.ts
+```
+Skips rows without a `finderAddress` (anonymous rows can't be attributed) and rows that already appear on-chain (same finder + coords + timestamp ±5 min).
 
 ---
 
@@ -540,6 +599,7 @@ Player clicks button → Vercel API verifies (FID, Neynar, rate limits) → Back
 | ShareAndSpin | `giftFreeSlice(player, recipient, entryFee)` | Gift free entry to friend |
 | ParlorManager | `claimSlice(player, entryFee)` | Claim parlor slice, treasury pays |
 | ParlorManager | `redeemSlice(player, sponsor, ...)` | Redeem signed slice voucher |
+| StickerRegistry | `recordFindFor(player, lat, lng, city)` | Record verified geotagged sticker find (no token value, just on-chain attribution) |
 
 ### Functions NOT Using Backend Signer (player signs directly)
 
