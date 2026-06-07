@@ -184,7 +184,6 @@ export default function StakingPage({
   const [spinCount, setSpinCount] = useState(0) // How many spins done this game (0, 1, or 2)
   const [hasSpunThisGame, setHasSpunThisGame] = useState(false) // Track if user has spun for current game (persisted)
   const [hasClaimedThisGame, setHasClaimedThisGame] = useState(false) // Track if user has claimed for current game
-  const [awaitingSpin2, setAwaitingSpin2] = useState(false) // After spin 1 in double-spin mode, waiting for user to spin again or claim
   const [spinStorageChecked, setSpinStorageChecked] = useState(false) // Track if we've checked localStorage for spin result
   const [showShareModal, setShowShareModal] = useState(false) // Show share cast modal after claim
   const [claimedAmount, setClaimedAmount] = useState<bigint>(0n) // Store claimed amount for share message
@@ -497,7 +496,7 @@ export default function StakingPage({
     query: { enabled: !!address },
   })
 
-  // Read on-chain spin count for current day so we can restore awaitingSpin2 state
+  // Read on-chain spin count for current day (authoritative for double-spin gating)
   // after a reload (localStorage only remembers there was a spin, not how many)
   const { data: spinCountTodayContract, refetch: refetchSpinCountToday } = useReadContract({
     address: PIZZA_STAKING_ADDRESS as `0x${string}`,
@@ -507,20 +506,53 @@ export default function StakingPage({
     query: { enabled: !!address },
   })
 
+  const isSameSpinGameDay = useMemo(() => {
+    if (currentGameId == null || lastSpinGameId == null) return false
+    return BigInt(lastSpinGameId) === BigInt(currentGameId)
+  }, [currentGameId, lastSpinGameId])
+
   // On-chain spin count is only meaningful for the current game day
   const onChainSpinCountToday = useMemo(() => {
-    if (spinCountTodayContract === undefined || !currentGameId || !lastSpinGameId) return 0
-    if (lastSpinGameId !== currentGameId) return 0
+    if (spinCountTodayContract === undefined || !isSameSpinGameDay) return 0
     return Number(spinCountTodayContract)
-  }, [spinCountTodayContract, currentGameId, lastSpinGameId])
+  }, [spinCountTodayContract, isSameSpinGameDay])
 
   const canSpinToday = useMemo(() => {
     if (!spinEnabled) return false
     if (canSpinTodayContract !== undefined) return canSpinTodayContract as boolean
-    // Fallback: check lastSpinGameId
-    if (!currentGameId || !lastSpinGameId) return true
-    return lastSpinGameId !== currentGameId
-  }, [spinEnabled, canSpinTodayContract, currentGameId, lastSpinGameId])
+    // Fallback while contract read is loading — never assume "already spun"
+    if (!currentGameId) return false
+    if (!isSameSpinGameDay) return true
+    return onChainSpinCountToday < effectiveMaxSpins
+  }, [spinEnabled, canSpinTodayContract, currentGameId, isSameSpinGameDay, onChainSpinCountToday, effectiveMaxSpins])
+
+  // Best-known spin count: max of on-chain and local animation state (covers RPC refetch lag).
+  const spinsCompletedToday = useMemo(
+    () => Math.max(onChainSpinCountToday, spinCount),
+    [onChainSpinCountToday, spinCount],
+  )
+
+  // Oven Operator+ with 1 spin done still owes a second spin today.
+  const awaitingSecondSpin = useMemo(() => {
+    if (!spinEnabled || effectiveMaxSpins < 2 || hasClaimedThisGame) return false
+    if (isSpinning || pendingRecordSpin || isRecordSpinPending || isRecordSpinConfirming) return false
+    return spinsCompletedToday === 1 && canSpinToday
+  }, [
+    spinEnabled,
+    effectiveMaxSpins,
+    hasClaimedThisGame,
+    isSpinning,
+    pendingRecordSpin,
+    isRecordSpinPending,
+    isRecordSpinConfirming,
+    spinsCompletedToday,
+    canSpinToday,
+  ])
+
+  const allSpinsDoneToday = useMemo(() => {
+    if (!hasSpunThisGame) return false
+    return spinsCompletedToday >= effectiveMaxSpins || !canSpinToday
+  }, [hasSpunThisGame, spinsCompletedToday, effectiveMaxSpins, canSpinToday])
 
   // localStorage key for persisting spin result
   const spinStorageKey = useMemo(() => {
@@ -539,19 +571,22 @@ export default function StakingPage({
       const stored = localStorage.getItem(spinStorageKey)
       if (stored) {
         const parsed = JSON.parse(stored)
-        // Find the matching outcome
-        const outcome = SPIN_OUTCOMES.find(o => o.name === parsed.outcomeName)
-        if (outcome) {
-          setSpinResult(outcome)
+        const spin1 = parsed.spin1 ?? (parsed.outcomeName ? { outcomeName: parsed.outcomeName, rotation: parsed.rotation } : null)
+        const spin2 = parsed.spin2 ?? null
+        const outcome1 = spin1 ? SPIN_OUTCOMES.find(o => o.name === spin1.outcomeName) : null
+        const outcome2 = spin2 ? SPIN_OUTCOMES.find(o => o.name === spin2.outcomeName) : null
+        if (outcome1) {
+          setSpinResult(outcome1)
+          setSpinResult2(outcome2 ?? null)
+          setSpinCount(parsed.spinCount ?? (outcome2 ? 2 : 1))
           setHasSpunThisGame(true)
-          setSpinRotation(parsed.rotation || 0)
+          setSpinRotation(spin1.rotation || 0)
         }
       } else {
         // No stored result for this game - reset state
         setSpinResult(null)
         setSpinResult2(null)
         setSpinCount(0)
-        setAwaitingSpin2(false)
         setHasSpunThisGame(false)
         setHasClaimedThisGame(false)
       }
@@ -562,30 +597,76 @@ export default function StakingPage({
     }
   }, [spinStorageKey])
 
-  // Sync awaitingSpin2 / spinCount from on-chain state.
-  // Source of truth is spinCountToday: if user is tier-gated for 2 spins and has
-  // only completed 1, they're owed a second spin — even after a page reload,
-  // even if localStorage was cleared. Skip while the animation is mid-flight or
-  // after they've already claimed (claim drains the pending base, so spin 2
-  // would multiply zero — UI intentionally blocks that path).
+  // Restore spin outcomes from on-chain when localStorage is missing but spins were recorded today
+  const { data: committedSpinOutcomeOnChain } = useReadContract({
+    address: PIZZA_STAKING_ADDRESS as `0x${string}`,
+    abi: PIZZA_STAKING_ABI,
+    functionName: 'committedSpinOutcome',
+    args: address ? [address] : undefined,
+    query: { enabled: !!address && isSameSpinGameDay && onChainSpinCountToday >= 1 },
+  })
+
+  const { data: committedSpinOutcome2OnChain } = useReadContract({
+    address: PIZZA_STAKING_ADDRESS as `0x${string}`,
+    abi: PIZZA_STAKING_ABI,
+    functionName: 'committedSpinOutcome2',
+    args: address ? [address] : undefined,
+    query: { enabled: !!address && isSameSpinGameDay && onChainSpinCountToday >= 2 },
+  })
+
   useEffect(() => {
     if (!spinStorageChecked || isSpinning || hasClaimedThisGame) return
-    if (onChainSpinCountToday === 1 && effectiveMaxSpins === 2 && canSpinToday) {
-      setSpinCount(1)
-      setAwaitingSpin2(true)
-    } else if (onChainSpinCountToday >= effectiveMaxSpins && effectiveMaxSpins > 0) {
-      setAwaitingSpin2(false)
-    }
-  }, [onChainSpinCountToday, effectiveMaxSpins, canSpinToday, spinStorageChecked, isSpinning, hasClaimedThisGame])
+    if (!isSameSpinGameDay || onChainSpinCountToday === 0) return
 
-  // Save spin result to localStorage when spin completes
-  const saveSpinResult = useCallback((outcome: typeof SPIN_OUTCOMES[0], rotation: number) => {
+    if (committedSpinOutcomeOnChain !== undefined && !spinResult) {
+      const outcome1 = SPIN_OUTCOMES[Number(committedSpinOutcomeOnChain)] ?? SPIN_OUTCOMES[0]
+      setSpinResult(outcome1)
+      setHasSpunThisGame(true)
+    }
+    if (committedSpinOutcome2OnChain !== undefined && onChainSpinCountToday >= 2) {
+      const outcome2 = SPIN_OUTCOMES[Number(committedSpinOutcome2OnChain)] ?? SPIN_OUTCOMES[0]
+      setSpinResult2(outcome2)
+    }
+    if (onChainSpinCountToday > 0) {
+      setSpinCount(onChainSpinCountToday)
+      setHasSpunThisGame(true)
+    }
+  }, [
+    spinStorageChecked,
+    isSpinning,
+    hasClaimedThisGame,
+    isSameSpinGameDay,
+    onChainSpinCountToday,
+    committedSpinOutcomeOnChain,
+    committedSpinOutcome2OnChain,
+    spinResult,
+  ])
+
+  // Save spin result(s) to localStorage when a spin completes
+  const saveSpinResult = useCallback((
+    spinNumber: number,
+    outcome: typeof SPIN_OUTCOMES[0],
+    rotation: number,
+  ) => {
     if (!spinStorageKey) return
     try {
+      let spin1: { outcomeName: string; rotation: number } | null = null
+      let spin2: { outcomeName: string; rotation: number } | null = null
+      if (spinNumber === 1) {
+        spin1 = { outcomeName: outcome.name, rotation }
+      } else {
+        const existing = localStorage.getItem(spinStorageKey)
+        if (existing) {
+          const parsed = JSON.parse(existing)
+          spin1 = parsed.spin1 ?? (parsed.outcomeName ? { outcomeName: parsed.outcomeName, rotation: parsed.rotation ?? 0 } : null)
+        }
+        spin2 = { outcomeName: outcome.name, rotation }
+      }
       localStorage.setItem(spinStorageKey, JSON.stringify({
-        outcomeName: outcome.name,
-        rotation,
-        timestamp: Date.now()
+        spin1,
+        spin2,
+        spinCount: spinNumber,
+        timestamp: Date.now(),
       }))
     } catch (e) {
       console.error('Failed to save spin result to localStorage:', e)
@@ -1015,15 +1096,13 @@ export default function StakingPage({
   // Step 1: Handle SPIN button click - record spin on-chain FIRST to prevent multi-device exploit
   const handleSpin = () => {
     if (isSpinning || pendingRecordSpin || isRecordSpinPending || isRecordSpinConfirming) return
-    // Block if already done all spins (hasSpunThisGame is true AND not awaiting spin 2)
-    if (hasSpunThisGame && !awaitingSpin2) return
+    if (!canSpinToday) return
 
     // Unlock audio on user gesture (required for mobile browsers)
     unlockAudio()
 
     // Call recordSpin() on contract - this prevents spinning on multiple devices
     setPendingRecordSpin(true)
-    setAwaitingSpin2(false)
     writeRecordSpin({
       address: PIZZA_STAKING_ADDRESS as `0x${string}`,
       abi: PIZZA_STAKING_ABI,
@@ -1034,9 +1113,9 @@ export default function StakingPage({
 
   // Step 2: Run spin animation AFTER recordSpin tx confirms
   // The outcome is determined ON-CHAIN and passed from the SpinRecorded event
-  const runSpinAnimation = useCallback((onChainOutcome: number) => {
+  const runSpinAnimation = useCallback((onChainOutcome: number, completedSpinNumber: number) => {
     // Only clear spinResult on first spin — preserve spin 1 result during spin 2
-    if (spinCount === 0) {
+    if (completedSpinNumber === 1) {
       setSpinResult(null)
     }
 
@@ -1117,10 +1196,9 @@ export default function StakingPage({
         animationFrameRef.current = null
       }
       setIsSpinning(false)
-      const newSpinCount = spinCount + 1
-      setSpinCount(newSpinCount)
+      setSpinCount(completedSpinNumber)
 
-      if (newSpinCount === 1) {
+      if (completedSpinNumber === 1) {
         setSpinResult(outcome)
       } else {
         setSpinResult2(outcome)
@@ -1128,28 +1206,23 @@ export default function StakingPage({
 
       setHasSpunThisGame(true)
       // Persist spin result so it survives app close/reopen
-      saveSpinResult(outcome, targetRotation)
+      saveSpinResult(completedSpinNumber, outcome, targetRotation)
       // Heavy haptic feedback when spin completes
       triggerHaptic('heavy')
 
-      // Check if user can spin again (tier-gated double spin)
-      if (newSpinCount < effectiveMaxSpins) {
-        setAwaitingSpin2(true)
-      } else {
-        setAwaitingSpin2(false)
-      }
-      // Also refetch contract state
+      // Also refetch contract state (awaitingSecondSpin is derived from these reads)
       refetchCanSpin()
       refetchSpinCountToday()
+      refetchLastSpinGameId()
     }, 3000)
-  }, [playTick, triggerHaptic, getSliceFromRotation, saveSpinResult, spinCount, effectiveMaxSpins, refetchCanSpin, refetchSpinCountToday])
+  }, [playTick, triggerHaptic, getSliceFromRotation, saveSpinResult, refetchCanSpin, refetchSpinCountToday, refetchLastSpinGameId])
 
   // After recordSpin tx confirms, read the outcome from the tx receipt and run animation
   // IMPORTANT: We read from the receipt (not contract state) because an RPC node may serve
   // stale state from a previous block, returning yesterday's outcome instead of today's.
   // The receipt is guaranteed to reflect the exact block the tx was mined in.
   useEffect(() => {
-    if (isRecordSpinConfirmed && pendingRecordSpin && publicClient && recordSpinHash) {
+    if (isRecordSpinConfirmed && pendingRecordSpin && publicClient && recordSpinHash && address) {
       const fetchOutcomeAndAnimate = async () => {
         setPendingRecordSpin(false)
 
@@ -1175,18 +1248,27 @@ export default function StakingPage({
             }
           }
 
+          // Read spinCountToday from the same block — authoritative spin number for this animation
+          const spinCountOnChain = await publicClient.readContract({
+            address: PIZZA_STAKING_ADDRESS as `0x${string}`,
+            abi: PIZZA_STAKING_ABI,
+            functionName: 'spinCountToday',
+            args: [address],
+            blockNumber: receipt.blockNumber,
+          })
+
           resetRecordSpin()
-          runSpinAnimation(onChainOutcome)
+          runSpinAnimation(onChainOutcome, Number(spinCountOnChain))
         } catch (error) {
           console.error('[Spin] Failed to get tx receipt:', error)
           resetRecordSpin()
-          runSpinAnimation(0)
+          runSpinAnimation(0, 1)
         }
       }
 
       fetchOutcomeAndAnimate()
     }
-  }, [isRecordSpinConfirmed, pendingRecordSpin, publicClient, recordSpinHash, resetRecordSpin, runSpinAnimation])
+  }, [isRecordSpinConfirmed, pendingRecordSpin, publicClient, recordSpinHash, address, resetRecordSpin, runSpinAnimation])
 
   // Handle share cast after successful claim
   const handleShareCast = useCallback(async () => {
@@ -1363,6 +1445,8 @@ export default function StakingPage({
                             <Loader2 className="animate-spin" size={14} />
                           ) : hasClaimedThisGame ? (
                             'CLAIMED ✓'
+                          ) : awaitingSecondSpin ? (
+                            'SPIN AGAIN'
                           ) : !canSpinToday ? (
                             'CLAIM'
                           ) : (
@@ -2262,11 +2346,11 @@ export default function StakingPage({
               </div>
 
               {/* Pre-spin: Show SPIN button (first spin OR second spin in double mode) */}
-              {((!hasSpunThisGame && !hasClaimedThisGame) || awaitingSpin2) && !isSpinning && spinEnabled && canSpinToday && (
+              {((!hasSpunThisGame && !hasClaimedThisGame) || awaitingSecondSpin) && !isSpinning && spinEnabled && canSpinToday && (
                 <Button
                   onClick={handleSpin}
                   disabled={pendingRecordSpin || isRecordSpinPending || isRecordSpinConfirming || isBanned}
-                  className={`w-full ${awaitingSpin2 ? '!bg-orange-500 hover:!bg-orange-600 border-orange-700 animate-pulse' : '!bg-yellow-500 hover:!bg-yellow-600 border-yellow-700'} text-white font-bold py-3 rounded-xl border-4 disabled:opacity-50`}
+                  className={`w-full ${awaitingSecondSpin ? '!bg-orange-500 hover:!bg-orange-600 border-orange-700 animate-pulse' : '!bg-yellow-500 hover:!bg-yellow-600 border-yellow-700'} text-white font-bold py-3 rounded-xl border-4 disabled:opacity-50`}
                   style={{ fontFamily: 'var(--font-luckiest-guy)', fontSize: 20 }}
                 >
                   {(pendingRecordSpin || isRecordSpinPending || isRecordSpinConfirming) ? (
@@ -2274,7 +2358,7 @@ export default function StakingPage({
                       <Loader2 className="animate-spin" size={20} />
                       {isRecordSpinConfirming ? 'CONFIRMING...' : 'RECORDING SPIN...'}
                     </span>
-                  ) : awaitingSpin2 ? (
+                  ) : awaitingSecondSpin ? (
                     '🍕 SPIN AGAIN! 🍕'
                   ) : (
                     'SPIN THE PIE!'
@@ -2283,7 +2367,7 @@ export default function StakingPage({
               )}
 
               {/* Spin 1 result shown while awaiting spin 2 */}
-              {awaitingSpin2 && spinResult && !isSpinning && (
+              {awaitingSecondSpin && spinResult && !isSpinning && (
                 <div className="bg-gray-800 rounded-xl p-2 text-center border-2 border-orange-500">
                   <p className="text-orange-400 text-xs" style={{ fontFamily: 'var(--font-luckiest-guy)' }}>Spin 1 Result:</p>
                   <p className="text-white text-sm font-bold" style={{ fontFamily: 'var(--font-luckiest-guy)' }}>
@@ -2302,8 +2386,8 @@ export default function StakingPage({
                 </div>
               )}
 
-              {/* Post-spin: Show result + lock selection + claim button */}
-              {hasSpunThisGame && !awaitingSpin2 && !isSpinning && spinResult && rewardBreakdown && (
+              {/* Post-spin: Show result + lock selection + claim button (only after all tier-gated spins are done) */}
+              {allSpinsDoneToday && !isSpinning && spinResult && rewardBreakdown && (
                 <div className="space-y-4 relative">
 
                   {/* JACKPOT CELEBRATION OVERLAY */}
