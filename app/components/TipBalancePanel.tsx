@@ -10,7 +10,7 @@
 //
 // Polls the API every 30 seconds. Refetches immediately after withdraw confirms.
 
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, useRef } from 'react'
 import { useAccount, useWriteContract, useWaitForTransactionReceipt } from 'wagmi'
 import { Loader2 } from 'lucide-react'
 import { Button } from './ui/button'
@@ -39,13 +39,25 @@ interface TipBalanceResponse {
 
 interface Props {
   userFid: number | null | undefined
+  /** Bump after claimToTip (or other external credits) to force an immediate refetch */
+  refreshKey?: number
+  /** Show credited amount instantly while RPC/API catches up */
+  optimisticCreditWei?: bigint | null
+  /** Called after a successful balance fetch (clears optimistic overlay in parent) */
+  onBalanceSynced?: () => void
 }
 
-export function TipBalancePanel({ userFid }: Props) {
+export function TipBalancePanel({
+  userFid,
+  refreshKey = 0,
+  optimisticCreditWei = null,
+  onBalanceSynced,
+}: Props) {
   const { address } = useAccount()
   const [data, setData] = useState<TipBalanceResponse | null>(null)
   const [loading, setLoading] = useState(false)
   const [withdrawAmount, setWithdrawAmount] = useState('')
+  const creditBaselineWeiRef = useRef<bigint | null>(null)
 
   const { writeContract, data: txHash, isPending, reset } = useWriteContract()
   const { isLoading: isConfirming, isSuccess } = useWaitForTransactionReceipt({ hash: txHash })
@@ -57,13 +69,33 @@ export function TipBalancePanel({ userFid }: Props) {
       const res = await fetch(`/api/tip/balance/${address}`)
       if (!res.ok) return
       const json = await res.json()
+      const newBalanceWei = BigInt(json.balance || '0')
       setData(json)
+      if (
+        optimisticCreditWei != null &&
+        creditBaselineWeiRef.current != null &&
+        newBalanceWei >= creditBaselineWeiRef.current + optimisticCreditWei
+      ) {
+        creditBaselineWeiRef.current = null
+        onBalanceSynced?.()
+      }
     } catch (err) {
       console.error('[TipBalancePanel] fetch failed:', err)
     } finally {
       setLoading(false)
     }
-  }, [address])
+  }, [address, onBalanceSynced, optimisticCreditWei])
+
+  // Snapshot on-chain balance when parent applies an optimistic credit overlay
+  useEffect(() => {
+    if (optimisticCreditWei == null) {
+      creditBaselineWeiRef.current = null
+      return
+    }
+    if (data?.balance != null) {
+      creditBaselineWeiRef.current = BigInt(data.balance)
+    }
+  }, [optimisticCreditWei, data?.balance])
 
   // Poll every 30s
   useEffect(() => {
@@ -72,6 +104,18 @@ export function TipBalancePanel({ userFid }: Props) {
     const id = setInterval(fetchBalance, 30_000)
     return () => clearInterval(id)
   }, [address, fetchBalance])
+
+  // Immediate refetch when parent credits tip balance (e.g. claimToTip)
+  useEffect(() => {
+    if (!address || refreshKey === 0) return
+    fetchBalance()
+    const retry2s = setTimeout(fetchBalance, 2000)
+    const retry5s = setTimeout(fetchBalance, 5000)
+    return () => {
+      clearTimeout(retry2s)
+      clearTimeout(retry5s)
+    }
+  }, [refreshKey, address, fetchBalance])
 
   // Refetch after a successful tx
   useEffect(() => {
@@ -112,7 +156,11 @@ export function TipBalancePanel({ userFid }: Props) {
     )
   }
 
-  const balanceWhole = BigInt(data.balanceWhole || '0')
+  const balanceWeiOnChain = BigInt(data.balance || '0')
+  const displayedWei = optimisticCreditWei != null
+    ? balanceWeiOnChain + optimisticCreditWei
+    : balanceWeiOnChain
+  const balanceWhole = displayedWei / (10n ** 18n)
 
   const handleWithdraw = () => {
     const amount = withdrawAmount.trim()

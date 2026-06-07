@@ -188,6 +188,9 @@ export default function StakingPage({
   const [showShareModal, setShowShareModal] = useState(false) // Show share cast modal after claim
   const [claimedAmount, setClaimedAmount] = useState<bigint>(0n) // Store claimed amount for share message
   const [justClaimed, setJustClaimed] = useState(false) // Show 0 rewards briefly after claiming
+  const [pendingTipClaim, setPendingTipClaim] = useState(false)
+  const [tipBalanceRefreshKey, setTipBalanceRefreshKey] = useState(0)
+  const [tipCreditOptimistic, setTipCreditOptimistic] = useState<bigint | null>(null)
 
   // UI state
   const [stakeAmount, setStakeAmount] = useState('')
@@ -426,9 +429,9 @@ export default function StakingPage({
 
   // === CONTRACT WRITES ===
 
-  const { writeContract, data: writeHash, isPending: isWritePending, reset: resetWrite } = useWriteContract()
+  const { writeContract, data: writeHash, isPending: isWritePending, isError: isWriteError, reset: resetWrite } = useWriteContract()
 
-  const { isLoading: isConfirming, isSuccess: isConfirmed } = useWaitForTransactionReceipt({
+  const { isLoading: isConfirming, isSuccess: isConfirmed, isError: isTxError } = useWaitForTransactionReceipt({
     hash: writeHash,
   })
 
@@ -865,6 +868,28 @@ export default function StakingPage({
     }
   }, [isConfirmed, pendingApproval, showConfirmModal, refetchBalance, refetchAllowance, refetchStakeInfo, refetchLifetimeClaimed, refetchApyReward, refetchLastSpinGameId, refetchCanSpin, resetWrite, rewardBreakdown])
 
+  // Reset pending tip claim if user rejects wallet or tx reverts
+  useEffect(() => {
+    if (pendingTipClaim && (isWriteError || isTxError)) {
+      setPendingTipClaim(false)
+      setTipCreditOptimistic(null)
+    }
+  }, [pendingTipClaim, isWriteError, isTxError])
+
+  // claimToTip — refresh tip balance panel immediately (don't wait for 30s poll)
+  useEffect(() => {
+    if (!isConfirmed || !pendingTipClaim) return
+    setPendingTipClaim(false)
+    if (rewardBreakdown?.totalReward) {
+      setTipCreditOptimistic(rewardBreakdown.totalReward)
+    }
+    setTipBalanceRefreshKey((k) => k + 1)
+    setJustClaimed(true)
+    setHasClaimedThisGame(true)
+    setTimeout(() => setJustClaimed(false), 5000)
+    void refetchStakeInfo()
+  }, [isConfirmed, pendingTipClaim, rewardBreakdown, refetchStakeInfo])
+
   // === HANDLERS ===
 
   // Check staking eligibility via API (anti-sybil: one FID = one wallet)
@@ -1076,6 +1101,16 @@ export default function StakingPage({
     }
     performStakeAfterApproval()
   }, [isConfirmed, allowance, stakeAmount, selectedLockType, showConfirmModal, address, pendingApproval, resetWrite, writeContract, refetchAllowance])
+
+  const handleClaimToTip = () => {
+    if (!canTip(userFid)) return
+    setPendingTipClaim(true)
+    writeContract({
+      address: PIZZA_STAKING_ADDRESS as `0x${string}`,
+      abi: PIZZA_STAKING_ABI,
+      functionName: 'claimToTip',
+    })
+  }
 
   // Handle unstake
   const handleUnstake = () => {
@@ -1463,7 +1498,12 @@ export default function StakingPage({
                     </div>
 
                     {/* Tip Balance Panel — shows tip jar balance + withdraw to wallet */}
-                    <TipBalancePanel userFid={userFid} />
+                    <TipBalancePanel
+                      userFid={userFid}
+                      refreshKey={tipBalanceRefreshKey}
+                      optimisticCreditWei={tipCreditOptimistic}
+                      onBalanceSynced={() => setTipCreditOptimistic(null)}
+                    />
 
                     {/* Wallet Balance & Total Staked */}
                     <div className="text-xs bg-gray-50 rounded-lg px-2 py-1.5 border border-gray-200 space-y-1">
@@ -2613,16 +2653,7 @@ export default function StakingPage({
                       )}
                     </Button>
                     <Button
-                      onClick={() => {
-                        // TIP: route rewards into the user's tipping vault balance.
-                        // Requires a valid Farcaster FID (needed for Farcaster reply→tip flow).
-                        if (!canTip(userFid)) return
-                        writeContract({
-                          address: PIZZA_STAKING_ADDRESS as `0x${string}`,
-                          abi: PIZZA_STAKING_ABI,
-                          functionName: 'claimToTip',
-                        })
-                      }}
+                      onClick={handleClaimToTip}
                       className="flex-1 !bg-purple-500 hover:!bg-purple-600 text-white font-bold py-3 rounded-xl border-2 border-purple-700"
                       disabled={isWritePending || isConfirming || isBanned}
                       style={{ fontFamily: 'var(--font-luckiest-guy)' }}
@@ -2803,16 +2834,7 @@ export default function StakingPage({
                       )}
                     </Button>
                     <Button
-                      onClick={() => {
-                        // TIP: route rewards into the user's tipping vault balance.
-                        // Requires a valid Farcaster FID (needed for Farcaster reply→tip flow).
-                        if (!canTip(userFid)) return
-                        writeContract({
-                          address: PIZZA_STAKING_ADDRESS as `0x${string}`,
-                          abi: PIZZA_STAKING_ABI,
-                          functionName: 'claimToTip',
-                        })
-                      }}
+                      onClick={handleClaimToTip}
                       className="flex-1 !bg-purple-500 hover:!bg-purple-600 text-white font-bold py-3 rounded-xl border-2 border-purple-700"
                       disabled={isWritePending || isConfirming || isBanned}
                       style={{ fontFamily: 'var(--font-luckiest-guy)' }}
