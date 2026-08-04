@@ -83,6 +83,7 @@ interface ShareAndSpinModalProps {
   pizzaUsdPrice?:   number
   wheelImageSrc?:   string
   hasEnteredToday?: boolean
+  weeklyPlays?:     number
 }
 
 export default function ShareAndSpinModal({
@@ -93,7 +94,10 @@ export default function ShareAndSpinModal({
   pizzaUsdPrice = 0.000001,
   wheelImageSrc = '/images/Share & Spin_Wheel.png',
   hasEnteredToday = false,
+  weeklyPlays = 0,
 }: ShareAndSpinModalProps) {
+  const weeklyLimitReached = weeklyPlays >= 7
+  const shouldSaveSlice = hasEnteredToday || weeklyLimitReached
   const { address }  = useAccount()
   const publicClient = usePublicClient()
 
@@ -375,6 +379,10 @@ export default function ShareAndSpinModal({
         return
       }
 
+      // Adopt the hash the backend resolved (the SDK often returns none), so
+      // recordShareSpin dedups on the real cast hash instead of a zero hash.
+      if (data.castHash) setCastHash(data.castHash)
+
       setStep('claiming_share')
       setSharePending(true)
       try {
@@ -427,10 +435,13 @@ export default function ShareAndSpinModal({
 
   // ── claimFreeSlice (backend-signed) ──────────────────────────
   const [claimSlicePending, setClaimSlicePending] = useState(false)
+  const [sliceError, setSliceError] = useState<string | null>(null)
 
   const handleClaimFreeSlice = useCallback(async () => {
     if (!pizzaUsdPrice || pizzaUsdPrice <= 0) return
+    if (shouldSaveSlice) return
     const entryFeeAmount = BigInt(Math.floor((1 / pizzaUsdPrice) * 1e18))
+    setSliceError(null)
     setStep('claiming_slice')
     setClaimSlicePending(true)
     try {
@@ -440,13 +451,16 @@ export default function ShareAndSpinModal({
     } catch (err) {
       console.error('[ShareAndSpin] claimFreeSlice error:', err)
       setClaimSlicePending(false)
+      setSliceError(err instanceof Error ? err.message : 'Could not claim free slice. Try saving it instead.')
+      setStep('spin_result')
     }
-  }, [pizzaUsdPrice, executeBackend])
+  }, [pizzaUsdPrice, executeBackend, shouldSaveSlice])
 
   // ── Save free slice (backend-signed) ──────────────────────
   const [savePending, setSavePending] = useState(false)
 
   const handleSaveSlice = useCallback(async () => {
+    setSliceError(null)
     setStep('saving')
     setSavePending(true)
     try {
@@ -456,6 +470,8 @@ export default function ShareAndSpinModal({
     } catch (err) {
       console.error('[ShareAndSpin] saveFreeSlice error:', err)
       setSavePending(false)
+      setSliceError(err instanceof Error ? err.message : 'Could not save free slice. Try again.')
+      setStep('spin_result')
     }
   }, [executeBackend])
 
@@ -682,12 +698,16 @@ export default function ShareAndSpinModal({
                       <div className="bg-orange-500 border-4 border-orange-300 rounded-xl p-4 text-center">
                         <p className="text-white text-3xl font-bold" style={NEON}>FREE SLICE!</p>
                         <p className="text-orange-100 text-sm mt-1">
-                          {hasEnteredToday ? 'You already entered today!' : 'Free entry into today\u2019s daily game!'}
+                          {weeklyLimitReached
+                            ? 'You played all 7 days this week!'
+                            : hasEnteredToday
+                              ? 'You already entered today!'
+                              : 'Free entry into today\u2019s daily game!'}
                         </p>
                         <p className="text-orange-200 text-xs mt-1">$1.00 of $PIZZA added to the jackpot from treasury</p>
                       </div>
 
-                      {!hasEnteredToday ? (
+                      {!shouldSaveSlice ? (
                         <Button
                           onClick={handleClaimFreeSlice}
                           disabled={claimSlicePending || false || isBanned}
@@ -707,8 +727,11 @@ export default function ShareAndSpinModal({
                         >
                           {(savePending || false)
                             ? <Loader2 className="animate-spin mx-auto" size={20} />
-                            : 'SAVE FOR TOMORROW'}
+                            : weeklyLimitReached ? 'SAVE FOR NEXT WEEK' : 'SAVE FOR TOMORROW'}
                         </Button>
+                      )}
+                      {sliceError && (
+                        <p className="text-red-400 text-xs text-center">{sliceError}</p>
                       )}
                     </>
                   )}
@@ -746,7 +769,7 @@ export default function ShareAndSpinModal({
                           <p className="text-yellow-200/70 text-xs mt-1">Your win is permanently recorded on Base.</p>
                         </div>
                       </div>
-                      {!hasEnteredToday ? (
+                      {!shouldSaveSlice ? (
                         <Button
                           onClick={handleClaimFreeSlice}
                           disabled={claimSlicePending || false || isBanned}
@@ -760,7 +783,9 @@ export default function ShareAndSpinModal({
                       ) : (
                         <>
                           <p className="text-yellow-300 text-sm text-center" style={F}>
-                            You already entered today! Save it for tomorrow.
+                            {weeklyLimitReached
+                              ? 'You played all 7 days this week! Save it for next week.'
+                              : 'You already entered today! Save it for tomorrow.'}
                           </p>
                           <Button
                             onClick={handleSaveSlice}
@@ -770,7 +795,7 @@ export default function ShareAndSpinModal({
                           >
                             {(savePending || false)
                               ? <Loader2 className="animate-spin mx-auto" size={20} />
-                              : 'SAVE FOR TOMORROW'}
+                              : weeklyLimitReached ? 'SAVE FOR NEXT WEEK' : 'SAVE FOR TOMORROW'}
                           </Button>
                         </>
                       )}
