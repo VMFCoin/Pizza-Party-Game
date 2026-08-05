@@ -78,6 +78,88 @@ export const BANNED_USERS: BannedUser[] = [
     ],
     reason: 'EIP-7702 LP bot network — pulled 4.5B PIZZA from LP, drip-selling ~200M/day across 10 wallets',
   },
+  {
+    fid: 874750,
+    addresses: [
+      '0xa54a814eb611b1e09e2248ea959005fda9312d56', // Farcaster custody
+      '0x62ac8eaa935740fa9f82d38f61a0b49f1e78c93f', // Connected wallet
+      '0xe6de6fb0b6fb38216638308052a177e9307f4c20', // Connected wallet
+    ],
+    reason: 'Multi-wallet abuse',
+  },
+  {
+    fid: 3325017,
+    addresses: [
+      '0x05ab88c2397d658943d2c1f6cac0d8d8003fd6be', // Farcaster custody
+      '0x3629d7285c8710db52cd963afca3ecf61668edda', // Connected wallet
+    ],
+    reason: 'Multi-wallet abuse',
+  },
+  {
+    fid: 567663,
+    addresses: [
+      '0xc64febe2cf5ca079f664175b9886cfdf4c5a0a94', // Farcaster custody + connected wallet
+      '0x8170df68335754f066874b42adeec4a8adf5b902', // Connected wallet
+    ],
+    reason: 'Multi-wallet abuse',
+  },
+  {
+    fid: 3343601,
+    addresses: [
+      '0x2109f381ecc7dd1cc7d24acf2afccbfe332d0312', // Farcaster custody
+      '0xf99a2712f8eb04943e8ecdc61989d8ca151bbac9', // Connected wallet
+    ],
+    reason: 'Multi-wallet abuse',
+  },
+  {
+    fid: 3325274,
+    addresses: [
+      '0x2ae38fc01778d3e54a06e2aba31c7de93ff0bd67', // Farcaster custody
+      '0xcf7f6aff63fb53f41cdb4a0eddd712e6a436efe0', // Connected wallet
+    ],
+    reason: 'Multi-wallet abuse',
+  },
+  {
+    fid: 1126014,
+    addresses: [
+      '0xe4ae7804e5f7645588c4d21078ced3a562f56f68', // Farcaster custody
+      '0xaeb8ea9b8caf9604ac18e20bfb1d64d9d7a84ae4', // Connected wallet
+    ],
+    reason: 'Multi-wallet abuse',
+  },
+  {
+    fid: 304312,
+    addresses: [
+      '0xd2e0a7f23ac1005324610aae6a947bd64912d52a', // Farcaster custody + connected wallet
+      '0x0490eea99c023cccbf80ce56a460320ece4ec5e4', // Connected wallet
+      '0x2476c5d3816874db9daa1a10eeb908edc667f2f1', // Primary Farcaster Wallet
+    ],
+    reason: 'Multi-wallet abuse',
+  },
+  {
+    fid: 1126002,
+    addresses: [
+      '0xfcfab6650eaf6ac1e3b68839af824dbe182e60b8', // Farcaster custody
+      '0x3f9bb9cd1bf2976881b2f372a215a3aed9c3f115', // Connected wallet
+    ],
+    reason: 'Multi-wallet abuse',
+  },
+  {
+    fid: 1173963,
+    addresses: [
+      '0x5834709ccf7d56cf085ba3007db1c05e9a2642eb', // Farcaster custody
+      '0xb4d956a499c3f3f7f2c81f4fbd276db12880751a', // Connected wallet
+      '0x8d938bff8917d2b2b91e46300d58da8838048b8b', // Primary Farcaster Wallet
+    ],
+    reason: 'Multi-wallet abuse',
+  },
+  {
+    fid: 23970,
+    addresses: [
+      '0x7d1e1053667cc4a2db346b228d9934c55c9c3801', // Farcaster custody
+    ],
+    reason: 'Multi-wallet abuse',
+  },
 ]
 
 // Pre-built sets for O(1) lookup
