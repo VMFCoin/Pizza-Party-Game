@@ -160,6 +160,39 @@ export const BANNED_USERS: BannedUser[] = [
     ],
     reason: 'Multi-wallet abuse',
   },
+  {
+    fid: 590067,
+    addresses: [
+      '0x1ff1d2176e80402561b765f01cca6e355b44ff25', // Farcaster custody + connected wallet
+      '0x6f4972879131b548e1b85f8822f542ea0a388162', // Connected wallet
+    ],
+    reason: 'Multi-wallet abuse',
+  },
+  {
+    fid: 514163,
+    addresses: [
+      '0xdb0589e19604c65a412aad13ded78982043e4461', // Farcaster custody + connected wallet
+      '0x76dac8de8e025881c6f085c4fa706cd14cb85a4c', // Connected wallet
+    ],
+    reason: 'Multi-wallet abuse',
+  },
+  {
+    fid: 846950,
+    addresses: [
+      '0x7378a5bd62cd58977bddc19a26c1b2d2d230ed1f', // Farcaster custody
+      '0x222cae8f417bdae16ab082e49a27976f4c90ccbf', // Connected wallet
+      '0x6f7dd733f933a3baa9dde5529f9d87f148570ad1', // Connected wallet
+    ],
+    reason: 'Multi-wallet abuse',
+  },
+  {
+    fid: 568212,
+    addresses: [
+      '0x0fd8171fe7a9e65e05d0dc25a5495766e551216e', // Farcaster custody + connected wallet
+      '0xfccbd7c5a695a63c9fd77fc51204b80da41110ec', // Connected wallet
+    ],
+    reason: 'Multi-wallet abuse',
+  },
 ]
 
 // Pre-built sets for O(1) lookup
