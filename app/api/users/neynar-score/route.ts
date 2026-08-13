@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import {
   MIN_NEYNAR_USER_SCORE,
   NEYNAR_SCORE_BLOCKED_MESSAGE,
+  isNeynarScoreAllowlisted,
   meetsMinNeynarScore,
   requireNeynarScore,
 } from '@/app/lib/neynarScore'
@@ -30,6 +31,7 @@ export async function GET(req: NextRequest) {
     }
 
     const check = await requireNeynarScore(fid)
+    const allowlisted = isNeynarScoreAllowlisted(fid)
 
     return NextResponse.json({
       allowed: check.ok,
@@ -38,6 +40,7 @@ export async function GET(req: NextRequest) {
       reason: check.ok ? null : check.reason,
       message: check.ok ? null : (check.reason || NEYNAR_SCORE_BLOCKED_MESSAGE),
       meetsMin: meetsMinNeynarScore(check.score),
+      allowlisted,
     })
   } catch (err) {
     console.error('[api/users/neynar-score] error:', err)

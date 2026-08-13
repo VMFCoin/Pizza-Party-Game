@@ -14,9 +14,21 @@ export const MIN_NEYNAR_USER_SCORE = 0.22
 export const NEYNAR_SCORE_BLOCKED_MESSAGE =
   'Your Neynar score is too low to play Pizza Party. You need a score of 0.22 (22) or higher. Keep casting quality content on Farcaster to raise your score.'
 
+/**
+ * Manual allowlist — these FIDs bypass the Neynar score gate (full play access).
+ * Add FID only; wallet notes are for ops reference.
+ */
+export const NEYNAR_SCORE_ALLOWLIST_FIDS = new Set<number>([
+  3123703, // custody 0x9a5b145ad59e5d5c2798f1dc92ba56d04e5fc25e · connected 0x32710c1BFDAcA19dDb723F64989672Bd78690e5C
+])
+
 export type NeynarScoreCheck =
   | { ok: true; score: number }
   | { ok: false; score: number | null; reason: string }
+
+export function isNeynarScoreAllowlisted(fid: number | null | undefined): boolean {
+  return typeof fid === 'number' && Number.isFinite(fid) && NEYNAR_SCORE_ALLOWLIST_FIDS.has(Math.floor(fid))
+}
 
 function getNeynarApiKey(): string | undefined {
   return process.env.NEYNAR_API_KEY || process.env.NEXT_PUBLIC_NEYNAR_API_KEY
@@ -73,6 +85,7 @@ export async function fetchNeynarUserScoreByFid(fid: number): Promise<number | n
 
 /**
  * Server-side gate. Fail closed: missing FID, missing score, or API failure → blocked.
+ * Allowlisted FIDs always pass (even below min score / if score fetch fails).
  */
 export async function requireNeynarScore(fid: number | null | undefined): Promise<NeynarScoreCheck> {
   if (!fid || !Number.isFinite(fid) || fid <= 0) {
@@ -81,6 +94,11 @@ export async function requireNeynarScore(fid: number | null | undefined): Promis
       score: null,
       reason: 'Farcaster account required. Open Pizza Party from a Farcaster client to play.',
     }
+  }
+
+  if (isNeynarScoreAllowlisted(fid)) {
+    const score = await fetchNeynarUserScoreByFid(fid).catch(() => null)
+    return { ok: true, score: score ?? MIN_NEYNAR_USER_SCORE }
   }
 
   const score = await fetchNeynarUserScoreByFid(fid)
