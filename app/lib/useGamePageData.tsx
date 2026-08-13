@@ -5,6 +5,7 @@ import { toZonedTime, fromZonedTime } from 'date-fns-tz'
 import { readContract, watchBlockNumber, getPublicClient } from '@wagmi/core'
 import { useAccount, useChainId, useWriteContract, useSignTypedData } from 'wagmi'
 import { useAppKit } from '@reown/appkit/react'
+import { sdk } from '@farcaster/miniapp-sdk'
 import {
   GAME_CONSTANTS,
   PIZZA_PARTY_ADDRESS,
@@ -897,7 +898,7 @@ export function useGamePageData() {
   // ================= Write Functions =================
   // No separate approval needed - we use EIP-2612 permit for single-tx entry!
 
-  const handleClaimToppings = useCallback(async (): Promise<boolean> => {
+  const handleClaimToppings = useCallback(async (playerFid?: number | null): Promise<boolean> => {
     if (networkId !== BASE_CHAIN_ID) {
       alert(`Please switch to Base network (Chain ID: ${BASE_CHAIN_ID})`)
       return false
@@ -906,6 +907,38 @@ export function useGamePageData() {
       alert('Please connect your wallet first')
       return false
     }
+
+    // Neynar score gate — block bot / low-quality accounts from weekly entry
+    try {
+      let fid = playerFid
+      if (!fid || !Number.isFinite(fid) || fid <= 0) {
+        try {
+          const context = await sdk.context
+          fid = context?.user?.fid ?? null
+        } catch {
+          fid = null
+        }
+      }
+      if (!fid) {
+        alert('Farcaster account required. Open Pizza Party from a Farcaster client to claim toppings.')
+        return false
+      }
+      const scoreRes = await fetch(`/api/users/neynar-score?fid=${Math.floor(fid)}`, { cache: 'no-store' })
+      const scoreData = await scoreRes.json().catch(() => null)
+      if (!scoreData?.allowed) {
+        alert(
+          (typeof scoreData?.reason === 'string' && scoreData.reason) ||
+            (typeof scoreData?.message === 'string' && scoreData.message) ||
+            'Your Neynar score is too low to claim toppings. You need 0.22 (22) or higher.'
+        )
+        return false
+      }
+    } catch (scoreErr) {
+      console.error('Neynar score check failed before claim toppings:', scoreErr)
+      alert('Could not verify your Neynar score. Please try again in a moment.')
+      return false
+    }
+
     try {
       await writeContract({
         address: PIZZA_PARTY_ADDRESS as `0x${string}`,
@@ -1043,7 +1076,7 @@ export function useGamePageData() {
     }
   }, [networkId, wallet.isAuthenticated, wallet.address, hasPendingSlice, _pendingSliceSponsor, hasEnteredToday, pizzaUsdPrice, daily.dailyGameId, writeContract, fetchPlayerInfo, refreshDaily, fetchWeekly, fetchPizzaBalance, fetchPlayerLifetimeStats])
 
-  const handleEnterGame = useCallback(async (_referralCode?: string) => {
+  const handleEnterGame = useCallback(async (_referralCode?: string, playerFid?: number | null) => {
     console.log('=== ENTER GAME WITH PERMIT CLICKED ===')
 
     if (networkId !== BASE_CHAIN_ID) {
@@ -1055,6 +1088,37 @@ export function useGamePageData() {
     if (!wallet.isAuthenticated || !wallet.address) {
       console.error('Wallet not authenticated')
       alert('Please connect your wallet first')
+      return
+    }
+
+    // Neynar score gate — block bot / low-quality accounts from daily entry
+    try {
+      let fid = playerFid
+      if (!fid || !Number.isFinite(fid) || fid <= 0) {
+        try {
+          const context = await sdk.context
+          fid = context?.user?.fid ?? null
+        } catch {
+          fid = null
+        }
+      }
+      if (!fid) {
+        alert('Farcaster account required. Open Pizza Party from a Farcaster client to play.')
+        return
+      }
+      const scoreRes = await fetch(`/api/users/neynar-score?fid=${Math.floor(fid)}`, { cache: 'no-store' })
+      const scoreData = await scoreRes.json().catch(() => null)
+      if (!scoreData?.allowed) {
+        alert(
+          (typeof scoreData?.reason === 'string' && scoreData.reason) ||
+            (typeof scoreData?.message === 'string' && scoreData.message) ||
+            'Your Neynar score is too low to play. You need 0.22 (22) or higher.'
+        )
+        return
+      }
+    } catch (scoreErr) {
+      console.error('Neynar score check failed before enter game:', scoreErr)
+      alert('Could not verify your Neynar score. Please try again in a moment.')
       return
     }
 

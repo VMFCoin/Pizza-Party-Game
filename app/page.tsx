@@ -17,6 +17,7 @@ import Link from "next/link";
 import { useAccount } from 'wagmi';
 import { isUserBanned } from './lib/constants/banList';
 import { hasEarlyAccess } from './lib/constants/earlyAccess';
+import { useNeynarScoreGate } from './lib/useNeynarScoreGate';
 
 import { PizzaPartyResultPopup } from "./components/PizzaPartyResultPopup";
 
@@ -35,8 +36,10 @@ export default function HomePage() {
   const [isMobile, setIsMobile] = useState(false);
   const [currentView, setCurrentView] = useState<ViewType>('home');
   const [userFid, setUserFid] = useState<number | null>(null);
+  const [fidContextReady, setFidContextReady] = useState(false);
   const { address: walletAddress } = useAccount();
   const isBanned = isUserBanned(userFid, walletAddress);
+  const neynarScore = useNeynarScoreGate(userFid, { ready: fidContextReady });
 
   const updateViewParam = React.useCallback((view: ViewType) => {
     const params = new URLSearchParams(searchParams?.toString() || '')
@@ -89,6 +92,8 @@ export default function HomePage() {
         }
       } catch (error) {
         console.error('Error getting user FID:', error);
+      } finally {
+        setFidContextReady(true);
       }
     };
     getUserFid();
@@ -130,7 +135,17 @@ export default function HomePage() {
             </Button>
 
             <Card className="border-4 border-red-800 rounded-3xl shadow-2xl p-0 !px-0 !py-0 !bg-transparent">
-              <GamePage onNavigateToWeekly={handleNavigateToWeekly} onNavigateToLeaderboard={handleNavigateToLeaderboard} onNavigateToParlor={handleNavigateToParlor} onNavigateToStaking={handleNavigateToStaking} isBanned={isBanned} userFid={userFid} />
+              <GamePage
+                onNavigateToWeekly={handleNavigateToWeekly}
+                onNavigateToLeaderboard={handleNavigateToLeaderboard}
+                onNavigateToParlor={handleNavigateToParlor}
+                onNavigateToStaking={handleNavigateToStaking}
+                isBanned={isBanned}
+                userFid={userFid}
+                neynarScoreAllowed={neynarScore.allowed}
+                neynarScoreLoading={neynarScore.loading}
+                neynarScoreReason={neynarScore.reason}
+              />
             </Card>
           </div>
         </div>
@@ -149,6 +164,10 @@ export default function HomePage() {
           onNavigateToParlor={handleNavigateToParlor}
           onNavigateToStaking={handleNavigateToStaking}
           isBanned={isBanned}
+          userFid={userFid}
+          neynarScoreAllowed={neynarScore.allowed}
+          neynarScoreLoading={neynarScore.loading}
+          neynarScoreReason={neynarScore.reason}
         />
       </>
     );

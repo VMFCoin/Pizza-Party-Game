@@ -23,6 +23,10 @@ interface WeeklyJackpotPageProps {
   onNavigateToParlor?: () => void
   onNavigateToStaking?: () => void
   isBanned?: boolean
+  userFid?: number | null
+  neynarScoreAllowed?: boolean
+  neynarScoreLoading?: boolean
+  neynarScoreReason?: string | null
 }
 
 const customFontStyle = {
@@ -113,6 +117,10 @@ export default function WeeklyJackpotPage({
   onNavigateToParlor,
   onNavigateToStaking,
   isBanned,
+  userFid,
+  neynarScoreAllowed = false,
+  neynarScoreLoading = true,
+  neynarScoreReason,
 }: WeeklyJackpotPageProps) {
   const {
     wallet,
@@ -122,6 +130,7 @@ export default function WeeklyJackpotPage({
     handleClaimToppings,
     isEntryInProgress,
   } = useGamePageData()
+  const isNeynarBlocked = !neynarScoreLoading && !neynarScoreAllowed
   const [isMobile, setIsMobile] = useState(false)
   const [showToppingBreakdown, setShowToppingBreakdown] = useState(false)
   const [showShareAfterClaim, setShowShareAfterClaim] = useState(false)
@@ -215,11 +224,21 @@ export default function WeeklyJackpotPage({
   const jackpotUsdValue = 20 + (weekly.estimatedToppings * 0.10)
   const jackpotDisplay = jackpotUsdValue.toFixed(2)
   const claimButtonDisabled =
-    !wallet?.isAuthenticated || !claimWindowOpen || hasClaimed || claimableNumber <= 0 || isEntryInProgress
+    !wallet?.isAuthenticated ||
+    !claimWindowOpen ||
+    hasClaimed ||
+    claimableNumber <= 0 ||
+    isEntryInProgress ||
+    neynarScoreLoading ||
+    isNeynarBlocked
 
-  const claimButtonLabel = wallet?.isAuthenticated
-    ? `🍕 Claim ${claimableNumber} Toppings 🍕`
-    : 'Connect wallet to claim'
+  const claimButtonLabel = neynarScoreLoading
+    ? 'Checking account…'
+    : isNeynarBlocked
+      ? '🔒 Neynar score too low'
+      : wallet?.isAuthenticated
+        ? `🍕 Claim ${claimableNumber} Toppings 🍕`
+        : 'Connect wallet to claim'
 
   // Calculate topping breakdown
   const dailyPlays = Number(playerWeekly?.dailyPlays ?? 0n)
@@ -229,6 +248,10 @@ export default function WeeklyJackpotPage({
   const totalToppingsBeforeClaim = dailyPlayToppings + shareToppings + holdingsToppings + tierBonus
 
   const handleOpenToppingBreakdown = () => {
+    if (isNeynarBlocked) {
+      alert(neynarScoreReason || 'Your Neynar score is too low to play. You need 0.22 (22) or higher.')
+      return
+    }
     if (!claimButtonDisabled) {
       setShowToppingBreakdown(true)
     }
@@ -237,7 +260,7 @@ export default function WeeklyJackpotPage({
   const handleClaimFromModal = async () => {
     const count = totalToppingsBeforeClaim
     setShowToppingBreakdown(false)
-    const success = await handleClaimToppings()
+    const success = await handleClaimToppings(userFid)
     if (success) {
       setClaimedToppingCount(count)
       setShowShareAfterClaim(true)
@@ -361,6 +384,11 @@ export default function WeeklyJackpotPage({
           >
             {claimWindowOpen ? claimButtonLabel : 'CLAIM WINDOW CLOSED'}
           </Button>
+          {isNeynarBlocked && (
+            <p className="text-center text-[11px] text-red-800 leading-snug -mt-1" style={{ fontFamily: 'var(--font-luckiest-guy)' }}>
+              Need a Neynar score of 0.22 (22) or higher to claim toppings.
+            </p>
+          )}
 
           <Button
             className="w-full !bg-green-600 hover:!bg-green-700 text-white font-bold py-2.5 rounded-xl border-4 border-green-800 disabled:opacity-50 disabled:pointer-events-none"

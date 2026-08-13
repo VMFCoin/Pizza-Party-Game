@@ -182,12 +182,17 @@ export default function ShareAndSpinModal({
     const res = await fetch('/api/share/execute', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action, playerAddress: address, ...params }),
+      body: JSON.stringify({
+        action,
+        playerAddress: address,
+        playerFid: userFid,
+        ...params,
+      }),
     })
     const data = await res.json()
     if (!res.ok || !data.success) throw new Error(data.error || 'Transaction failed')
     return data.txHash as `0x${string}`
-  }, [address])
+  }, [address, userFid])
 
   // After share confirmed, auto-trigger spin
   useEffect(() => {

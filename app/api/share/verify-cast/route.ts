@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { requireNeynarScore } from '@/app/lib/neynarScore'
 
 const NEYNAR_API_KEY = process.env.NEYNAR_API_KEY!
 const REQUIRED_EMBED = 'farcaster.xyz/miniapps/wgY6OPqYoIkz/pizza-party'
@@ -91,6 +92,16 @@ export async function POST(req: NextRequest) {
       return NextResponse.json(
         { blocked: true, reason: 'Missing required fields. Make sure you posted before verifying.' },
         { status: 400 }
+      )
+    }
+
+    // Neynar score gate — block bots before cast verification / reward path
+    const scoreCheck = await requireNeynarScore(playerFid)
+    if (!scoreCheck.ok) {
+      console.log('[share/verify-cast] Blocked by Neynar score:', { playerFid, score: scoreCheck.score })
+      return NextResponse.json(
+        { blocked: true, reason: scoreCheck.reason, code: 'NEYNAR_SCORE_TOO_LOW', score: scoreCheck.score },
+        { status: 403 }
       )
     }
 

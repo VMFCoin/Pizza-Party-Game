@@ -20,17 +20,32 @@ interface GamePageProps {
   onNavigateToStaking?: () => void
   isBanned?: boolean
   userFid?: number | null
+  /** Neynar score gate — required for enter / Share & Spin */
+  neynarScoreAllowed?: boolean
+  neynarScoreLoading?: boolean
+  neynarScoreReason?: string | null
 }
 
-export default function GamePage({ onNavigateToWeekly, onNavigateToLeaderboard, onNavigateToParlor, onNavigateToStaking, isBanned, userFid }: GamePageProps) {
+export default function GamePage({ onNavigateToWeekly, onNavigateToLeaderboard, onNavigateToParlor, onNavigateToStaking, isBanned, userFid, neynarScoreAllowed, neynarScoreLoading, neynarScoreReason }: GamePageProps) {
   return (
     <Suspense fallback={<div>Loading...</div>}>
-      <GamePageContent onNavigateToWeekly={onNavigateToWeekly} onNavigateToLeaderboard={onNavigateToLeaderboard} onNavigateToParlor={onNavigateToParlor} onNavigateToStaking={onNavigateToStaking} isBanned={isBanned} userFid={userFid} />
+      <GamePageContent
+        onNavigateToWeekly={onNavigateToWeekly}
+        onNavigateToLeaderboard={onNavigateToLeaderboard}
+        onNavigateToParlor={onNavigateToParlor}
+        onNavigateToStaking={onNavigateToStaking}
+        isBanned={isBanned}
+        userFid={userFid}
+        neynarScoreAllowed={neynarScoreAllowed}
+        neynarScoreLoading={neynarScoreLoading}
+        neynarScoreReason={neynarScoreReason}
+      />
     </Suspense>
   )
 }
 
-function GamePageContent({ onNavigateToWeekly, onNavigateToLeaderboard, onNavigateToParlor, onNavigateToStaking, isBanned, userFid }: GamePageProps) {
+function GamePageContent({ onNavigateToWeekly, onNavigateToLeaderboard, onNavigateToParlor, onNavigateToStaking, isBanned, userFid, neynarScoreAllowed = false, neynarScoreLoading = true, neynarScoreReason }: GamePageProps) {
+  const isNeynarBlocked = !neynarScoreLoading && !neynarScoreAllowed
   const [isMobile, setIsMobile] = useState(false)
   const [isFarcasterMiniApp, setIsFarcasterMiniApp] = useState(false)
   const [isBaseInApp, setIsBaseInApp] = useState(false)
@@ -78,6 +93,7 @@ function GamePageContent({ onNavigateToWeekly, onNavigateToLeaderboard, onNaviga
     pizzaUsd,
     daily,
     playerInfo,
+    playerWeekly,
     pacificCountdown,
     openWalletModal,
     handleEnterGame,
@@ -102,6 +118,18 @@ function GamePageContent({ onNavigateToWeekly, onNavigateToLeaderboard, onNaviga
   const buttonConfig = useMemo(() => {
     if (isBanned) {
       return { text: '🚫 ACCOUNT RESTRICTED', onClick: () => {}, disabled: true }
+    }
+    if (neynarScoreLoading) {
+      return { text: 'CHECKING ACCOUNT…', onClick: () => {}, disabled: true }
+    }
+    if (isNeynarBlocked) {
+      return {
+        text: '🔒 NEYNAR SCORE TOO LOW',
+        onClick: () => {
+          alert(neynarScoreReason || 'Your Neynar score is too low to play. You need 0.22 (22) or higher.')
+        },
+        disabled: false,
+      }
     }
     if (!wallet?.isAuthenticated) {
       return { text: '🍕 CONNECT WALLET 🍕', onClick: openWalletModal, disabled: false }
@@ -132,11 +160,11 @@ function GamePageContent({ onNavigateToWeekly, onNavigateToLeaderboard, onNaviga
       text: '🍕 ENTER GAME 🍕',
       onClick: () => {
         // If first entry, show referral input modal
-        handleEnterGame('')
+        handleEnterGame('', userFid)
       },
       disabled: isEntryInProgress
     }
-  }, [isBanned, wallet, hasEnteredToday, hasEnoughPizza, openWalletModal, handleEnterGame, isEntryInProgress, hasPendingSlice, pendingSliceSponsorName, handleClaimFreeSlice, isClaimingSlice])
+  }, [isBanned, neynarScoreLoading, isNeynarBlocked, neynarScoreReason, wallet, hasEnteredToday, hasEnoughPizza, openWalletModal, handleEnterGame, isEntryInProgress, hasPendingSlice, pendingSliceSponsorName, handleClaimFreeSlice, isClaimingSlice, userFid])
 
   const { hours, minutes, seconds } = pacificCountdown
 
@@ -300,13 +328,24 @@ function GamePageContent({ onNavigateToWeekly, onNavigateToLeaderboard, onNaviga
               $0.01 PIZZA + 1 topping + spin for free Pizza
             </p>
             <Button
-              onClick={() => setShowShareAndSpin(true)}
-              disabled={isBanned || !userFid}
+              onClick={() => {
+                if (isNeynarBlocked) {
+                  alert(neynarScoreReason || 'Your Neynar score is too low to play. You need 0.22 (22) or higher.')
+                  return
+                }
+                setShowShareAndSpin(true)
+              }}
+              disabled={isBanned || !userFid || neynarScoreLoading || isNeynarBlocked}
               className="mt-2 w-full !bg-red-500 hover:!bg-red-600 text-white font-bold py-2 rounded-xl border-2 border-red-700 disabled:opacity-50"
               style={customFontStyle}
             >
-              SHARE & SPIN
+              {neynarScoreLoading ? 'CHECKING…' : isNeynarBlocked ? '🔒 SCORE TOO LOW' : 'SHARE & SPIN'}
             </Button>
+            {isNeynarBlocked && (
+              <p className="mt-2 text-[11px] text-red-800 leading-snug" style={{ fontFamily: 'var(--font-luckiest-guy)' }}>
+                Need a Neynar score of 0.22 (22) or higher to enter, share & spin, or claim toppings.
+              </p>
+            )}
           </div>
 
           {/* Weekly Jackpot Button */}
@@ -462,6 +501,7 @@ function GamePageContent({ onNavigateToWeekly, onNavigateToLeaderboard, onNaviga
           onGoToDaily={() => setShowShareAndSpin(false)}
           isBanned={isBanned}
           hasEnteredToday={hasEnteredToday}
+          weeklyPlays={Number(playerWeekly?.dailyPlays ?? 0)}
         />
       )}
     </main>

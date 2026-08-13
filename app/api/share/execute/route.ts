@@ -3,6 +3,7 @@ import { createPublicClient, createWalletClient, http, fallback, Hex } from 'vie
 import { base } from 'viem/chains'
 import { privateKeyToAccount } from 'viem/accounts'
 import { SHARE_AND_SPIN_ADDRESS } from '@/app/lib/constants'
+import { requireNeynarScore } from '@/app/lib/neynarScore'
 
 export const maxDuration = 30
 
@@ -64,18 +65,29 @@ export async function POST(req: NextRequest) {
     const body = await req.json() as {
       action: ShareAction
       playerAddress: string
+      playerFid?: number
       claimedReward?: string
       castHashBytes32?: string
       entryFee?: string
       recipient?: string
     }
 
-    const { action, playerAddress } = body
+    const { action, playerAddress, playerFid } = body
 
-    console.log('[share/execute] Request:', { action, playerAddress, claimedReward: body.claimedReward, castHash: body.castHashBytes32?.slice(0, 20) })
+    console.log('[share/execute] Request:', { action, playerAddress, playerFid, claimedReward: body.claimedReward, castHash: body.castHashBytes32?.slice(0, 20) })
 
     if (!action || !playerAddress) {
       return NextResponse.json({ error: 'Missing action or playerAddress' }, { status: 400 })
+    }
+
+    // Neynar score gate — fail closed for all Share & Spin backend-signed actions
+    const scoreCheck = await requireNeynarScore(playerFid)
+    if (!scoreCheck.ok) {
+      console.log('[share/execute] Blocked by Neynar score:', { playerFid, score: scoreCheck.score, reason: scoreCheck.reason })
+      return NextResponse.json(
+        { success: false, error: scoreCheck.reason, code: 'NEYNAR_SCORE_TOO_LOW', score: scoreCheck.score },
+        { status: 403 }
+      )
     }
 
     const privateKey = process.env.BACKEND_SIGNER_PRIVATE_KEY
@@ -193,5 +205,6 @@ function parseRevertReason(raw: string): string {
   if (reason.includes('Pausable') || reason.includes('paused')) return 'Share & Spin is temporarily paused.'
   if (reason.includes('cast used'))                return 'This cast was already used. Share a new one.'
   if (reason.includes('share first'))              return 'Please share again, then verify immediately.'
+  if (reason === '7')                              return 'You played all 7 days this week. Save your free slice for next week!'
   return 'Something went wrong. Please try again.'
 }
