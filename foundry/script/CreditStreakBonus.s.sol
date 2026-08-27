@@ -53,7 +53,7 @@ contract CreditStreakBonus is Script {
         p[1] = 0x598986FaC0D3ff7EaC3D55fFAB5e67c2a27C2765;
 
         console.log("Before:");
-        (uint256 before,,,,, ) = PizzaPartyV2Upgradeable(PROXY).getPlayerWeeklyInfo(p[0]);
+        (uint256 before,,,,,, ) = PizzaPartyV2Upgradeable(PROXY).getPlayerWeeklyInfo(p[0]);
         console.log("  toppingsEarned:", before);
 
         vm.startBroadcast(pk);
@@ -67,7 +67,7 @@ contract CreditStreakBonus is Script {
         vm.stopBroadcast();
 
         console.log("After:");
-        (uint256 after_,,,,, ) = PizzaPartyV2Upgradeable(PROXY).getPlayerWeeklyInfo(p[0]);
+        (uint256 after_,,,,,, ) = PizzaPartyV2Upgradeable(PROXY).getPlayerWeeklyInfo(p[0]);
         console.log("  toppingsEarned:", after_);
     }
 }

@@ -112,7 +112,7 @@ contract ShareAndSpinTest is Test {
 
     function test_Share_AddsToppingToPizzaParty() public {
         vm.prank(signer); sns.recordShare(p1, REWARD);
-        (uint256 toppings,,,,, ) = game.getPlayerWeeklyInfo(p1);
+        (uint256 toppings,,,,,, ) = game.getPlayerWeeklyInfo(p1);
         assertEq(toppings, 1, "1 topping added to PizzaParty");
     }
 
@@ -248,7 +248,7 @@ contract ShareAndSpinTest is Test {
 
     function test_Weekly_3Shares_3Toppings() public {
         _share3(p1);
-        (uint256 toppings,,,,, ) = game.getPlayerWeeklyInfo(p1);
+        (uint256 toppings,,,,,, ) = game.getPlayerWeeklyInfo(p1);
         assertEq(toppings, 3);
     }
 
@@ -377,14 +377,38 @@ contract ShareAndSpinTest is Test {
     }
 
     // ══════════════════════════════════════════════════════════
-    // 8. GOLD — ONCE PER WEEK
+    // 8. GOLD — ONCE PER 100-GAME WINDOW
     // ══════════════════════════════════════════════════════════
 
-    function test_Gold_MaxOncePerWeek() public {
-        uint256 weekId = game.weeklyGameId();
+    function _setGameId(uint256 gameId) internal {
+        currentMockGameId = gameId;
+        vm.store(PP, bytes32(uint256(6)), bytes32(gameId));
+    }
+
+    function _configureGoldWindow(uint256 anchor, uint256 windowGames) internal {
+        vm.prank(OWNER);
+        sns.adminSetShareSpinGoldWindow(windowGames);
+        vm.prank(OWNER);
+        sns.adminSetShareSpinGoldAnchor(anchor);
+        vm.prank(OWNER);
+        sns.adminSetShareSpinGoldWeight(1);
+    }
+
+    function _expectedWindowId(uint256 gameId, uint256 anchor, uint256 windowSize) internal pure returns (uint256) {
+        uint256 elapsed = gameId > anchor ? gameId - anchor : 0;
+        return (elapsed / windowSize) + 1;
+    }
+
+    function test_Gold_MaxOncePerWindow() public {
+        uint256 anchor = 200;
+        uint256 windowGames = 100;
+        _setGameId(anchor + 50);
+        _configureGoldWindow(anchor, windowGames);
+
+        uint256 windowId = _expectedWindowId(currentMockGameId, anchor, windowGames);
         uint256 goldCount;
 
-        for (uint i; i < 30; i++) {
+        for (uint i; i < 300; i++) {
             address p = makeAddr(string(abi.encodePacked("g", i)));
             vm.prank(signer); sns.recordShare(p, REWARD);
             vm.warp(block.timestamp + 1);
@@ -392,18 +416,22 @@ contract ShareAndSpinTest is Test {
             if (o == 2) goldCount++;
         }
 
-        assertTrue(goldCount <= 1, "Gold must not hit more than once per week");
+        assertTrue(goldCount <= 1, "Gold must not hit more than once per window");
         if (goldCount == 1) {
-            assertEq(sns.shareSpinGoldAwardedWeekId(), weekId);
+            assertEq(sns.shareSpinGoldAwardedWeekId(), windowId);
             console.log("Gold hit once (expected)");
         } else {
-            console.log("Gold did not hit in 30 spins (valid at 1% odds)");
+            console.log("Gold did not hit in 300 spins (valid at 0.1% odds)");
         }
     }
 
-    function test_Gold_AfterHit_CannotHitAgainSameWeek() public {
+    function test_Gold_AfterHit_CannotHitAgainSameWindow() public {
+        uint256 anchor = 300;
+        _setGameId(anchor + 10);
+        _configureGoldWindow(anchor, 100);
+
         bool goldHit;
-        for (uint i; i < 150; i++) {
+        for (uint i; i < 500; i++) {
             address p = makeAddr(string(abi.encodePacked("gh", i)));
             vm.prank(signer); sns.recordShare(p, REWARD);
             vm.warp(block.timestamp + 1);
@@ -413,19 +441,83 @@ contract ShareAndSpinTest is Test {
                     goldHit = true;
                     console.log("First gold at spin", i);
                 } else {
-                    revert("Gold hit twice in same week - INVARIANT VIOLATED");
+                    revert("Gold hit twice in same window - INVARIANT VIOLATED");
                 }
             }
         }
-        if (!goldHit) console.log("Gold did not hit in 150 spins (valid ~22% chance at 1%)");
+        if (!goldHit) console.log("Gold did not hit in 500 spins (valid at 0.1% odds)");
+    }
+
+    function test_Gold_ResetsAfterNextWindow() public {
+        uint256 anchor = 400;
+        uint256 windowGames = 100;
+        _setGameId(anchor + 25);
+        _configureGoldWindow(anchor, windowGames);
+
+        bool goldHit;
+        for (uint i; i < 500; i++) {
+            address p = makeAddr(string(abi.encodePacked("gr", i)));
+            vm.prank(signer); sns.recordShare(p, REWARD);
+            vm.warp(block.timestamp + 1);
+            vm.prank(signer); uint8 o = sns.recordShareSpin(p, bytes32(uint256(i)));
+            if (o == 2) goldHit = true;
+        }
+
+        _setGameId(anchor + windowGames);
+        uint256 newWindowId = _expectedWindowId(currentMockGameId, anchor, windowGames);
+        assertTrue(newWindowId > sns.shareSpinGoldAwardedWeekId() || !goldHit);
+
+        bool secondWindowGold;
+        for (uint j; j < 500; j++) {
+            address p = makeAddr(string(abi.encodePacked("gr2", j)));
+            vm.prank(signer); sns.recordShare(p, REWARD);
+            vm.warp(block.timestamp + 1);
+            vm.prank(signer); uint8 o = sns.recordShareSpin(p, bytes32(uint256(j + 1000)));
+            if (o == 2) {
+                assertFalse(secondWindowGold, "Gold hit twice across windows in one pass");
+                secondWindowGold = true;
+                assertEq(sns.shareSpinGoldAwardedWeekId(), newWindowId);
+            }
+        }
+    }
+
+    function test_Gold_AnchorReset_MakesCurrentWindowEligible() public {
+        uint256 anchor = 500;
+        _setGameId(anchor);
+        _configureGoldWindow(anchor, 100);
+
+        // Simulate prior award in current window
+        vm.prank(OWNER);
+        sns.adminSetShareSpinGoldAnchor(anchor - 1);
+        vm.prank(signer);
+        sns.recordShare(p1, REWARD);
+        vm.prank(signer);
+        uint8 first = sns.recordShareSpin(p1, bytes32(uint256(1)));
+
+        vm.prank(OWNER);
+        sns.adminSetShareSpinGoldAnchor(anchor);
+
+        assertEq(sns.shareSpinGoldAwardedWeekId(), 0, "anchor reset clears awarded marker");
+
+        vm.prank(signer);
+        sns.recordShare(p2, REWARD);
+        vm.prank(signer);
+        uint8 second = sns.recordShareSpin(p2, bytes32(uint256(2)));
+
+        if (first == 2) {
+            assertTrue(second == 1 || second == 2, "post-reset spin should not be blocked by stale marker");
+        }
     }
 
     function test_Gold_DowngradesToFreeSlice_WhenAlreadyAwarded() public {
-        // Force gold by spinning many times, then verify second gold becomes FreeSlice
-        uint256 weekId = game.weeklyGameId();
+        uint256 anchor = 600;
+        _setGameId(anchor + 5);
+        _configureGoldWindow(anchor, 100);
+
+        uint256 windowId = _expectedWindowId(currentMockGameId, anchor, 100);
         bool firstGoldFound;
 
-        for (uint i; i < 200; i++) {
+        for (uint i; i < 400; i++) {
             address p = makeAddr(string(abi.encodePacked("gd", i)));
             vm.prank(signer); sns.recordShare(p, REWARD);
             vm.warp(block.timestamp + 1);
@@ -433,10 +525,8 @@ contract ShareAndSpinTest is Test {
 
             if (o == 2 && !firstGoldFound) {
                 firstGoldFound = true;
-                assertEq(sns.shareSpinGoldAwardedWeekId(), weekId);
+                assertEq(sns.shareSpinGoldAwardedWeekId(), windowId);
             }
-            // After gold awarded, any 990-999 roll should become FreeSlice (1)
-            // We can't control random, but the invariant check above covers this
         }
     }
 
@@ -446,21 +536,22 @@ contract ShareAndSpinTest is Test {
 
     function test_Probability_RangesSum1000() public pure {
         uint256 nothingRange   = 940;  // 0-939
-        uint256 freeSliceRange =  50;  // 940-989
-        uint256 goldRange      =  10;  // 990-999
+        uint256 freeSliceRange =  59;  // 940-998 when default gold weight = 1
+        uint256 goldRange      =   1;  // 999
         assertEq(nothingRange + freeSliceRange + goldRange, 1000);
     }
 
     function test_Probability_ConstantsCorrect() public view {
         assertEq(sns.SHARE_SPIN_NOTHING_MAX(), 939);
-        assertEq(sns.SHARE_SPIN_FREESLICE_MAX(), 989);
+        assertEq(sns.SHARE_SPIN_DEFAULT_GOLD_WEIGHT(), 1);
+        assertEq(sns.SHARE_SPIN_DEFAULT_GOLD_WINDOW(), 100);
         assertEq(sns.SHARE_SPIN_WEIGHT_TOTAL(), 1000);
     }
 
     function test_Probability_BoundaryValues() public pure {
         assertEq(uint256(939 - 0 + 1), uint256(940));     // Nothing range
-        assertEq(uint256(989 - 940 + 1), uint256(50));    // FreeSlice range
-        assertEq(uint256(999 - 990 + 1), uint256(10));    // Gold range
+        assertEq(uint256(998 - 940 + 1), uint256(59));    // FreeSlice range at weight=1
+        assertEq(uint256(999 - 999 + 1), uint256(1));     // Gold range at weight=1
     }
 
     function test_Probability_Distribution_50Spins() public {
@@ -704,7 +795,7 @@ contract ShareAndSpinTest is Test {
         vm.prank(signer);
         sns.claimFreeSlice(p1, entryFee);
 
-        (uint256 toppings,,,,, ) = game.getPlayerWeeklyInfo(p1);
+        (uint256 toppings,,,,,, ) = game.getPlayerWeeklyInfo(p1);
         assertTrue(toppings >= 1, "Player earned topping from entry");
     }
 

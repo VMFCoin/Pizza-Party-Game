@@ -2,7 +2,7 @@
 
 Daily lottery + weekly jackpot + toppings accrual. The core game contract.
 
-**Last verified on-chain: April 23, 2026**
+**Last verified on-chain: August 27, 2026**
 
 ## As Deployed (exact current state)
 
@@ -17,15 +17,15 @@ Daily lottery + weekly jackpot + toppings accrual. The core game contract.
 | | Address |
 |---|---|
 | Proxy | `0xA1C31c3eF1448351da0b1D430148660982B6f3dD` |
-| Current implementation | `0xe1aa82fe48730c6926af1030b718a06143db7bf0` |
+| Current implementation | `0xB3bd0e87A8c4Dcb066BE24F3305ea5485c007E86` |
 | Owner | `0xd9EF10D1dB272A5105557AAfc571e7BF66c95CEC` |
 
 ## On-Chain State (verified live)
 
 | Variable | Value |
 |---|---|
-| `dailyGameId` | 130 |
-| `weeklyGameId` | 19 |
+| `dailyGameId` | 255 |
+| `weeklyGameId` | 37 |
 | `noonPacificUtcHour` | 19 (PDT — set to 20 for PST in November) |
 | `treasuryWallet` | `0xBfCA21E41D397C8B6beF0c348D394DA2c4826292` |
 | `ownerFeeRecipient` | `0x7Acfaa1DaDd836404a8d90b49581758c4FDC889b` (parlor manager, for owner fee distribution) |
@@ -81,6 +81,7 @@ See source `foundry/src/PizzaPartyV2Upgradeable.sol` for exact order. High-level
 - `weeklyTreasuryBonus`
 - `stakingContract`, `stakingFeeBPS`, `parlorFeeBPS`
 - `shareAndSpinContract` (slot appended April 2026 for bridge)
+- `hasPaidWeeklyEntry[weekId][player]` — true after player pays entry fee themselves (not free slice / Share & Spin)
 
 ## Critical Functions
 
@@ -99,7 +100,7 @@ See source `foundry/src/PizzaPartyV2Upgradeable.sol` for exact order. High-level
 
 | Function | Caller | Purpose |
 |---|---|---|
-| `claimToppings()` | Player | Claim accumulated toppings as PIZZA |
+| `claimToppings()` | Player | Claim accumulated toppings for weekly jackpot (**requires `hasPaidWeeklyEntry` this week**) |
 | `settleWeeklyGame()` | Public fallback | Picks 10 weighted winners at Monday noon PT |
 | `settleWeeklyGameWithUsd(usdCents)` | **`onlyOwner`** | Settles + snapshots USD |
 
@@ -148,6 +149,7 @@ See source `foundry/src/PizzaPartyV2Upgradeable.sol` for exact order. High-level
 - **Referral system disabled (April 2026):** function bodies emptied, storage preserved per append-only rule. Replaced by Share & Spin.
 - **`settleDailyGameWithUsd` and `settleWeeklyGameWithUsd` gated to `onlyOwner` (April 2026):** previously callable publicly with external params, tightened after exploit audit.
 - **`shareAndSpinContract` slot appended (April 2026):** bridge for Share & Spin integration.
+- **`hasPaidWeeklyEntry` appended (August 2026):** closes loophole where Share & Spin / free-slice players could claim weekly toppings without paying $1/week. Only `enterDailyGame` / `enterDailyGameWithPermit` with `amount > 0` sets the flag.
 - **Contract size:** ~22,719 bytes (limit 24,576). Every new state variable costs bytes.
 
 ## Files

@@ -59,10 +59,11 @@ interface PlayerWeeklyInfo {
   referralsUsed: bigint
   hasClaimed: boolean
   projectedHoldingsBonus: bigint
+  hasPaidEntry: boolean
 }
 
 type PlayerWeeklyResponse =
-  | readonly [bigint, bigint, bigint, bigint, boolean, bigint]
+  | readonly [bigint, bigint, bigint, bigint, boolean, bigint, boolean]
   | {
       toppingsEarned: bigint
       toppingsClaimed: bigint
@@ -70,11 +71,12 @@ type PlayerWeeklyResponse =
       referralsUsed: bigint
       hasClaimed: boolean
       projectedHoldingsBonus: bigint
+      hasPaidEntry: boolean
     }
 
 const isWeeklyTuple = (
   data: PlayerWeeklyResponse,
-): data is readonly [bigint, bigint, bigint, bigint, boolean, bigint] =>
+): data is readonly [bigint, bigint, bigint, bigint, boolean, bigint, boolean] =>
   Array.isArray(data)
 
 type WeeklyGameResponse =
@@ -172,6 +174,7 @@ const normalizeWeeklyInfo = (data: PlayerWeeklyResponse): PlayerWeeklyInfo => {
       referralsUsed: data[3],
       hasClaimed: data[4],
       projectedHoldingsBonus: data[5],
+      hasPaidEntry: data[6],
     }
   }
   return {
@@ -181,6 +184,7 @@ const normalizeWeeklyInfo = (data: PlayerWeeklyResponse): PlayerWeeklyInfo => {
     referralsUsed: data.referralsUsed,
     hasClaimed: data.hasClaimed,
     projectedHoldingsBonus: data.projectedHoldingsBonus,
+    hasPaidEntry: data.hasPaidEntry,
   }
 }
 
@@ -908,6 +912,11 @@ export function useGamePageData() {
       return false
     }
 
+    if (playerWeekly && !playerWeekly.hasPaidEntry) {
+      alert('You need at least one paid daily entry ($1 of PIZZA) this week before you can claim toppings for the weekly jackpot. Share & Spin and free slices do not count.')
+      return false
+    }
+
     // Neynar score gate — block bot / low-quality accounts from weekly entry
     try {
       let fid = playerFid
@@ -956,7 +965,7 @@ export function useGamePageData() {
       alert(`Failed to claim toppings: ${message}`)
       return false
     }
-  }, [networkId, wallet.isAuthenticated, writeContract, fetchPlayerInfo, fetchWeekly])
+  }, [networkId, wallet.isAuthenticated, playerWeekly, writeContract, fetchPlayerInfo, fetchWeekly])
 
   // ================= Claim Free Slice =================
   const handleClaimFreeSlice = useCallback(async () => {

@@ -143,6 +143,9 @@ contract PizzaPartyV2Upgradeable is OwnableUpgradeable, UUPSUpgradeable, Reentra
 
     address public shareAndSpinContract;
 
+    /// @notice True after player pays entry fee themselves this week (not free slice / Share & Spin)
+    mapping(uint256 => mapping(address => bool)) public hasPaidWeeklyEntry;
+
     // ============ Events ============
 
     event DailyGameStarted(uint256 indexed gameId, uint256 startTime, uint256 endTime);
@@ -397,6 +400,7 @@ contract PizzaPartyV2Upgradeable is OwnableUpgradeable, UUPSUpgradeable, Reentra
         if (amount > 0) {
             pizzaToken.safeTransferFrom(player, address(this), amount);
             currentDailyPot += amount;
+            hasPaidWeeklyEntry[weeklyGameId][player] = true;
         }
 
         // Track first player for bonus
@@ -600,6 +604,7 @@ contract PizzaPartyV2Upgradeable is OwnableUpgradeable, UUPSUpgradeable, Reentra
         require(block.timestamp < week.claimWindowEnd, "cls");
         require(!player.hasClaimed, "clm");
         require(player.toppingsEarned > 0, "0top");
+        require(hasPaidWeeklyEntry[weekId][msg.sender], "!paid");
 
         // Add holdings bonus (snapshot at claim time)
         uint256 holdingsBonus = _calculateHoldingsBonus(msg.sender);
@@ -960,7 +965,8 @@ contract PizzaPartyV2Upgradeable is OwnableUpgradeable, UUPSUpgradeable, Reentra
         uint256 dailyPlays,
         uint256 referralsUsed,
         bool hasClaimed,
-        uint256 projectedHoldingsBonus
+        uint256 projectedHoldingsBonus,
+        bool hasPaidEntry
     ) {
         PlayerWeekly storage p = weeklyPlayers[weeklyGameId][player];
         uint256 bonus = holdingsUnitPizza > 0 ? _calculateHoldingsBonus(player) : 0;
@@ -971,7 +977,8 @@ contract PizzaPartyV2Upgradeable is OwnableUpgradeable, UUPSUpgradeable, Reentra
             p.dailyPlays,
             p.referralsUsed,
             p.hasClaimed,
-            bonus
+            bonus,
+            hasPaidWeeklyEntry[weeklyGameId][player]
         );
     }
 

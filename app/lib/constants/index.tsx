@@ -387,7 +387,8 @@ export const PIZZA_PARTY_ABI = [
         { type: 'uint256', name: 'dailyPlays' },
         { type: 'uint256', name: 'referralsUsed' },
         { type: 'bool', name: 'hasClaimed' },
-        { type: 'uint256', name: 'projectedHoldingsBonus' }
+        { type: 'uint256', name: 'projectedHoldingsBonus' },
+        { type: 'bool', name: 'hasPaidEntry' }
       ]
     }]
   },

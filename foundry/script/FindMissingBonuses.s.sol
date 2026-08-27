@@ -22,7 +22,7 @@ contract FindMissingBonuses is Script {
         
         for (uint i = 0; i < 2; i++) {
             address player = playersToCheck[i];
-            (uint256 earned, uint256 claimed, uint256 plays,,, ) = pizza.getPlayerWeeklyInfo(player);
+            (uint256 earned, uint256 claimed, uint256 plays,,,, ) = pizza.getPlayerWeeklyInfo(player);
             
             console.log("Player:", player);
             console.log("  dailyPlays:", plays);

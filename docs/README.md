@@ -10,7 +10,7 @@
 
 | Contract | Spec | Proxy | Current Implementation |
 |---|---|---|---|
-| PizzaPartyV2 | [contracts/PizzaPartyV2Upgradeable.md](./contracts/PizzaPartyV2Upgradeable.md) | `0xA1C31c3eF1448351da0b1D430148660982B6f3dD` | `0xe1aa82fe48730c6926af1030b718a06143db7bf0` |
+| PizzaPartyV2 | [contracts/PizzaPartyV2Upgradeable.md](./contracts/PizzaPartyV2Upgradeable.md) | `0xA1C31c3eF1448351da0b1D430148660982B6f3dD` | `0xB3bd0e87A8c4Dcb066BE24F3305ea5485c007E86` |
 | PizzaStakingV1 | [contracts/PizzaStakingV1Upgradeable.md](./contracts/PizzaStakingV1Upgradeable.md) | `0xCbAf5bACe5419710C3852653d3DdEB831d7415be` | `0xe26142D4f6c87FD7d3925A85F08028FFd339F1B1` |
 | PizzaParlorManager | [contracts/PizzaParlorManagerUpgradeable.md](./contracts/PizzaParlorManagerUpgradeable.md) | `0x7acfaa1dadd836404a8d90b49581758c4fdc889b` | `0x204268a7252c616300326f6126c729421c4cefbf` |
 | ShareAndSpin | [contracts/ShareAndSpinUpgradeable.md](./contracts/ShareAndSpinUpgradeable.md) | `0xE45be9456E9da420f85CE69D5F0Ca96Ffe035b5C` | `0x0cd17b5adc63d013ef1b2b1f4e72219636c91e95` |

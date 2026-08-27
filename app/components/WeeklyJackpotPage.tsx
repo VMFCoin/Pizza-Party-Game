@@ -58,6 +58,7 @@ const TERMS = {
     'Weekly Jackpot is a group collective game',
     'Weekly jackpot starts at $20; claimed toppings add to the jackpot (1\u00A0topping\u00A0=\u00A0$0.10\u00A0of\u00A0PIZZA)',
     'Claim toppings Sunday 12pm–Monday 12pm PST to enter',
+    'One paid daily entry ($1 of PIZZA) per week is required to claim toppings',
     '10 winners selected Monday 12pm PST with odds weighted by toppings claimed',
     'Unclaimed toppings expire weekly—claim or lose them',
   ],
@@ -223,11 +224,13 @@ export default function WeeklyJackpotPage({
   // Treasury bonus is always $20. Each topping is always $0.10.
   const jackpotUsdValue = 20 + (weekly.estimatedToppings * 0.10)
   const jackpotDisplay = jackpotUsdValue.toFixed(2)
+  const hasPaidEntry = playerWeekly?.hasPaidEntry ?? false
   const claimButtonDisabled =
     !wallet?.isAuthenticated ||
     !claimWindowOpen ||
     hasClaimed ||
     claimableNumber <= 0 ||
+    !hasPaidEntry ||
     isEntryInProgress ||
     neynarScoreLoading ||
     isNeynarBlocked
@@ -236,9 +239,11 @@ export default function WeeklyJackpotPage({
     ? 'Checking account…'
     : isNeynarBlocked
       ? '🔒 Neynar score too low'
-      : wallet?.isAuthenticated
-        ? `🍕 Claim ${claimableNumber} Toppings 🍕`
-        : 'Connect wallet to claim'
+      : wallet?.isAuthenticated && !hasPaidEntry && claimableNumber > 0
+        ? 'Play once ($1) to claim toppings'
+        : wallet?.isAuthenticated
+          ? `🍕 Claim ${claimableNumber} Toppings 🍕`
+          : 'Connect wallet to claim'
 
   // Calculate topping breakdown
   const dailyPlays = Number(playerWeekly?.dailyPlays ?? 0n)
@@ -250,6 +255,10 @@ export default function WeeklyJackpotPage({
   const handleOpenToppingBreakdown = () => {
     if (isNeynarBlocked) {
       alert(neynarScoreReason || 'Your Neynar score is too low to play. You need 0.22 (22) or higher.')
+      return
+    }
+    if (!hasPaidEntry && claimableNumber > 0) {
+      alert('You need at least one paid daily entry ($1 of PIZZA) this week before you can claim toppings. Share & Spin and free slices do not count.')
       return
     }
     if (!claimButtonDisabled) {

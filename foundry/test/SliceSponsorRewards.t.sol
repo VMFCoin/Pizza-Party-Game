@@ -475,10 +475,20 @@ contract SliceSponsorRewardsTest is Test {
 
         console.log("\n--- Claiming Toppings ---");
 
+        // Paid entry required to claim weekly toppings — enter Sunday daily game before claim
+        for (uint256 i = 0; i < 7; i++) {
+            address slicedPlayer = slicedPlayers[i];
+            pizzaToken.mint(slicedPlayer, ENTRY_FEE);
+            vm.startPrank(slicedPlayer);
+            pizzaToken.approve(address(pizzaParty), ENTRY_FEE);
+            pizzaParty.enterDailyGame(ENTRY_FEE, "");
+            vm.stopPrank();
+        }
+
         // All 7 sliced players claim their toppings (1 each)
         for (uint256 i = 0; i < 7; i++) {
             address player = slicedPlayers[i];
-            (uint256 toppings,,,,,) = pizzaParty.getPlayerWeeklyInfo(player);
+            (uint256 toppings,,,,,,) = pizzaParty.getPlayerWeeklyInfo(player);
             console.log("Sliced Player %s toppings: %s", i, toppings);
             assertTrue(toppings > 0, "Sliced player should have toppings");
             vm.prank(player);
@@ -491,7 +501,7 @@ contract SliceSponsorRewardsTest is Test {
         uint256 regularClaimers = 0;
         for (uint256 i = 0; i < 7 && regularClaimers < 3; i++) {
             address player = regularPlayers[i];
-            (uint256 toppings,,,,,) = pizzaParty.getPlayerWeeklyInfo(player);
+            (uint256 toppings,,,,,,) = pizzaParty.getPlayerWeeklyInfo(player);
             console.log("Regular Player %s toppings: %s", i, toppings);
             if (toppings > 0) {
                 vm.prank(player);
